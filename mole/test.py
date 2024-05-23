@@ -3,23 +3,22 @@ from typing      import List
 from .common.log import Logger
 
 
-class Source:
-    """
-    """
-    pass
+# class Source:
+#     """
+#     """
+#     pass
 
 
-class Sink:
+class Symbol:
     """
     """
 
     def __init__(self, bv: BinaryView, symbol_names: List[str]) -> None:
         self._bv = bv
         self._symbol_names = symbol_names
-        self._mlil_insts = self._get_mlil_insts()
         return
     
-    def _get_mlil_insts(self) -> List[MediumLevelILInstruction]:
+    def get_mlil_insts(self) -> List[MediumLevelILInstruction]:
         """
         Get MLIL instructions of all symbols' code references.
         """
@@ -30,11 +29,29 @@ class Sink:
                     inst = code_ref.function.get_low_level_il_at(code_ref.address).medium_level_il
                     if inst is None: continue
                     mlil_insts.append(inst)
-                    Logger.debug("Sink", f"0x{inst.address:x} ({symbol.name:s})")
+                    Logger.debug("Symbol", f"0x{inst.address:x} ({symbol.name:s})")
         return mlil_insts
 
 
-class ReverseTracker:
+class LibcMemcpy:
     """
     """
-    pass
+
+    def __init__(self, bv: BinaryView) -> None:
+        self._bv = bv
+        return
+    
+    def find_controllable_param_size(self) -> None:
+        sinks = Symbol(self._bv, ["memcpy", "__builtin_memcpy"]).get_mlil_insts()
+        # TODO: Filter out sinks with dataflow analysis
+        return
+    
+    def find_all(self) -> None:
+        self.find_controllable_param_size()
+        return
+
+
+# class ReverseTracker:
+#     """
+#     """
+#     pass
