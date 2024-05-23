@@ -1,1 +1,1 @@
-connect_vscode_debugger(port=12345)
+connect_vscode_debugger(port=5678)
