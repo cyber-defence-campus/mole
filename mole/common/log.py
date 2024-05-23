@@ -8,27 +8,30 @@ class Logger:
 
     tag = "Plugin.Mole"
 
-    def _tag_msg(msg: str, tag: str = None) -> str:
+    def _tag_msg(tag: str = None, msg: str = None) -> str:
+        m = ""
         if tag:
-            msg = f"[{tag:s}] {msg:s}"
-        return msg
+            m = f"[{tag:s}]"
+        if msg:
+            m = f"{m:s} {msg:s}"
+        return m.strip()
     
     @staticmethod
-    def debug(msg: str, tag: str = None) -> None:
-        log_debug(Logger._tag_msg(msg, tag), Logger.tag)
+    def debug(tag: str = None, msg: str = None) -> None:
+        log_debug(Logger._tag_msg(tag, msg), Logger.tag)
         return
     
     @staticmethod
-    def info(msg: str, tag: str = None) -> None:
-        log_info(Logger._tag_msg(msg, tag), Logger.tag)
+    def info(tag: str = None, msg: str = None) -> None:
+        log_info(Logger._tag_msg(tag, msg), Logger.tag)
         return
     
     @staticmethod
-    def warn(msg: str, tag: str = None) -> None:
-        log_warn(Logger._tag_msg(msg, tag), Logger.tag)
+    def warn(tag: str = None, msg: str = None) -> None:
+        log_warn(Logger._tag_msg(tag, msg), Logger.tag)
         return
     
     @staticmethod
-    def error(msg: str, tag: str = None) -> None:
-        log_error(Logger._tag_msg(msg, tag), Logger.tag)
+    def error(tag: str = None, msg: str = None) -> None:
+        log_error(Logger._tag_msg(tag, msg), Logger.tag)
         return

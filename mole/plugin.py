@@ -1,5 +1,6 @@
 from binaryninja import BinaryView, Function, PluginCommand
 from .common.log import Logger
+from .test       import Sink
 
 
 class Plugin:
@@ -21,12 +22,13 @@ class Plugin:
 	
 	@staticmethod
 	def analyze_binary(bv: BinaryView) -> None:
-		Logger.debug("Start", "Analyze.Binary")
-		Logger.debug("Finished", "Analyze.Binary")
+		Logger.info("Analyze.Binary", "Start")
+		sink = Sink(bv, ["memcpy", "__builtin_memcpy"])
+		Logger.info("Analyze.Binary", "Finished")
 		return
 
 	@staticmethod
 	def analyze_function(bv: BinaryView, fun: Function) -> None:
-		Logger.debug("Start", "Analyze.Function")
-		Logger.debug("Finished", "Analyze.Function")
+		Logger.info("Analyze.Function", "Start")
+		Logger.info("Analyze.Function", "Finished")
 		return
