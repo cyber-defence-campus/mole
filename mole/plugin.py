@@ -14,21 +14,19 @@ class Plugin:
 			"Mole\\Analyze Binary",
 			"Search the entire binary for potential vulnerabilities",
 			Plugin.analyze_binary)
-		PluginCommand.register_for_function(
-			"Mole\\Analyze Function",
-			"Search the current function for potential vulnerabilities",
-			Plugin.analyze_function)
+		# PluginCommand.register_for_function(
+		# 	"Mole\\Analyze Function",
+		# 	"Search the current function for potential vulnerabilities",
+		# 	Plugin.analyze_function)
 		return
 	
 	@staticmethod
 	def analyze_binary(bv: BinaryView) -> None:
-		Logger.info("Analyze.Binary", "Start")
 		LibcMemcpy(bv).find_all()
-		Logger.info("Analyze.Binary", "Finished")
 		return
 
-	@staticmethod
-	def analyze_function(bv: BinaryView, fun: Function) -> None:
-		Logger.info("Analyze.Function", "Start")
-		Logger.info("Analyze.Function", "Finished")
-		return
+	# @staticmethod
+	# def analyze_function(bv: BinaryView, fun: Function) -> None:
+	# 	Logger.info("Analyze.Function", "Start")
+	# 	Logger.info("Analyze.Function", "Finished")
+	# 	return
