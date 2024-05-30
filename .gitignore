@@ -7,7 +7,7 @@ build/
 .gradle
 
 # Environments
-venvs/
+venv/
 
 # Visual Studio Code
 .vscode
