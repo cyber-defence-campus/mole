@@ -1,12 +1,16 @@
-from binaryninja import (BinaryView, Endianness, MediumLevelILAdd, MediumLevelILConst,
-                         MediumLevelILInstruction, MediumLevelILLoadSsa, MediumLevelILLsl,
-                         MediumLevelILLsr, MediumLevelILOperation, MediumLevelILSetVarSsa,
-                         MediumLevelILSub, MediumLevelILVarAliased, MediumLevelILVarPhi,
-                         MediumLevelILVarSsa, RegisterValueType, SSAVariable)
-from functools   import reduce
-from typing      import List, Optional
-from z3          import Array, Concat, LShR, Or, Solver, BitVec, BitVecRef, BitVecSort
-from .common.log import Logger
+from binaryninja        import (BinaryView, Endianness, MediumLevelILAdd, MediumLevelILCallSsa,
+                                MediumLevelILCmpSge, MediumLevelILCmpUgt, MediumLevelILConst,
+                                MediumLevelILFunction, MediumLevelILGoto, MediumLevelILIf,
+                                MediumLevelILInstruction, MediumLevelILLoadSsa, MediumLevelILLsl,
+                                MediumLevelILLsr, MediumLevelILOperation, MediumLevelILSetVarSsa,
+                                MediumLevelILSub, MediumLevelILVarAliased, MediumLevelILVarPhi,
+                                MediumLevelILVarSsa, RegisterValueType, SSAVariable)
+from binaryninja.types import BoolType, IntegerType, PointerType
+from functools         import reduce
+from typing            import List, Optional
+from z3                import (Array, BitVec, BitVecRef, BitVecSort, Bool, BoolRef, Concat, ExprRef,
+                               If, LShR, Or, Solver, UGT)
+from .common.log       import Logger
 
 
 # class ByteSwapSource:
@@ -33,24 +37,36 @@ class MediumLevelILInstructionVisitor:
         self._tag = tag
         return
     
-    def _visit_var_ssa_definition(self, var: SSAVariable, expr: MediumLevelILInstruction) -> BitVecRef:
+    def _create_z3_variable(self, var: SSAVariable) -> ExprRef:
         """
-        Visit the expression defining a variable.
+        Create a Z3 variable for `var`.
+        """
+        name = f"{var.name:s}#{var.version:d}"
+        if name not in self._vars:
+            if isinstance(var.type, BoolType):
+                self._vars[name] = Bool(name)
+            else:
+                if not (isinstance(var.type, IntegerType) or isinstance(var.type, PointerType)):
+                    Logger.warn(self._tag, f"Variable type `{str(var.type):s}` not implemented")
+                size = var.type.width
+                self._vars[name] = BitVec(name, size*8)
+        return self._vars[name]
+    
+    def _visit_var_ssa_definition(self, var: SSAVariable, fun: MediumLevelILFunction) -> ExprRef:
+        """
+        Visit the expression defining variable `var` in function `fun`.
         """
         # Get variable definnition
-        var_def = expr.function.get_ssa_var_definition(var)
+        var_def = fun.get_ssa_var_definition(var)
         # Return new Z3 bit-vector if variable is undefined
         if var_def is None:
-            name = expr.src.name
-            vers = expr.src.version
-            size = expr.size
-            return BitVec(f"{name:s}#{vers:d}", size*8)
+            return self._create_z3_variable(var)
         # Visit variable definition
         return self._visit(var_def)
 
     def _visit(self, instr: MediumLevelILInstruction) -> Optional[MediumLevelILInstruction]:
         """
-        Call dedicated visit function based on operation name.
+        Call dedicated visit function based on operation name of instruction `instr`.
         """
         o_name = instr.operation.name.lower()
         f_name = f"_visit_{o_name:s}"
@@ -62,17 +78,21 @@ class MediumLevelILInstructionVisitor:
 
 class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
     """
+    TODO: What are the correct typing return values for the _visit methods?
     """
 
     def __init__(self, bv: BinaryView, expr: MediumLevelILVarSsa, tag: str = "Modeler") -> None:
         super().__init__(bv, tag)
         self._expr = expr
+        self._visited_exprs = {}
         self._memory = Array("memory", BitVecSort(self._bv.address_size*8), BitVecSort(8))
+        self._vars = {}
+        self._constraints = []
         self._solver = Solver()
+        self._branches = set()
         # self._defined_vars = {}
         # self._visited_vars = set()
-        self._visited_exprs = {}
-        self._to_visit_exprs = set([expr])
+        # self._to_visit_exprs = set([expr])
         # self._visit_ssa_var_definition(expr.src, expr)
         return
     
@@ -141,51 +161,111 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
         # Visit child expressions
-        lft_bv = self._visit(expr.left)
-        rht_bv = self._visit(expr.right)
-        add_bv = lft_bv + rht_bv
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        add = lft + rgt
         # Mark expression as visited
-        self._visited_exprs[expr] = add_bv
-        return add_bv
+        self._visited_exprs[expr] = add
+        return add
+    
+    def _visit_mlil_call_ssa(self, expr: MediumLevelILCallSsa) -> BitVecRef:
+        # Log SSA expression
+        Logger.debug(self._tag, f"0x{expr.instr.address:x} {str(expr):s} (MLIL_CALL_SSA)")
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        # TODO:
+        if len(expr.output) != 1:
+            Logger.warn(self._tag, f"More/less than 1 outputs not implemented")
+        out = self._create_z3_variable(expr.output[0])
+        # Mark expression as visited
+        self._visited_exprs[expr] = out
+        return out
+
+    def _visit_mlil_cmp_sge(self, expr: MediumLevelILCmpSge) -> BoolRef:
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        # Visit child expressions
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        sge = lft >= rgt
+        # Mark expression as visited
+        self._visited_exprs[expr] = sge
+        return sge
+
+    def _visit_mlil_cmp_ugt(self, expr: MediumLevelILCmpUgt) -> BoolRef:
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        # Visit child expressions
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        ugt = UGT(lft, rgt)
+        # Mark expression as visited
+        self._visited_exprs[expr] = ugt
+        return ugt
     
     def _visit_mlil_const(self, expr: MediumLevelILConst) -> int:
         return expr.constant
+
+    def _visit_mlil_goto(self, expr: MediumLevelILGoto) -> BitVecRef:
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        dest = self._visit(expr.function[expr.dest])
+        # Mark expression as visited
+        self._visited_exprs[expr] = dest
+        return dest
+
+    def _visit_mlil_if(self, expr: MediumLevelILIf) -> BoolRef:
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        # Visit condition and if/then expressions
+        con = self._visit(expr.condition)
+        # ifb = self._visit(expr.function[expr.operands[1]])
+        # elb = self._visit(expr.function[expr.operands[2]])
+        # ite = If(con, ifb, elb)
+        # Mark expression as visited
+        self._visited_exprs[expr] = con 
+        return con
     
     def _visit_mlil_load_ssa(self, expr: MediumLevelILLoadSsa) -> BitVecRef:
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
         # Visit memory address
-        mem_addr_bv = self._visit(expr.src)
+        mem_addr = self._visit(expr.src)
         # Get memory value
-        mem_val_bv = self._get_memory_value(mem_addr_bv)
+        mem_val = self._get_memory_value(mem_addr)
         # Mark expression as visited
-        self._visited_exprs[expr] = mem_val_bv
-        return mem_val_bv
+        self._visited_exprs[expr] = mem_val
+        return mem_val
     
     def _visit_mlil_lsl(self, expr: MediumLevelILLsl) -> BitVecRef:
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
         # Visit child expressions
-        lft_bv = self._visit(expr.left)
-        rht_bv = self._visit(expr.right)
-        lsl_bv = lft_bv << rht_bv
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        lsl = lft << rgt
         # Mark expression as visited
-        self._visited_exprs[expr] = lsl_bv
-        return lsl_bv
+        self._visited_exprs[expr] = lsl
+        return lsl
     
     def _visit_mlil_lsr(self, expr: MediumLevelILLsr) -> BitVecRef:
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
         # Visit child expressions
-        lft_bv = self._visit(expr.left)
-        rht_bv = self._visit(expr.right)
-        lsr_bv = LShR(lft_bv, rht_bv)
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        lsr = LShR(lft, rgt)
         # Mark expression as visited
-        self._visited_exprs[expr] = lsr_bv
-        return lsr_bv
+        self._visited_exprs[expr] = lsr
+        return lsr
     
     # def _create_bitvec(self, ssa_var: SSAVariable, size: int) -> BitVecRef:
     #     name = f"{ssa_var.name:s}#{ssa_var.version:d}"
@@ -227,64 +307,64 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
     #     # Constrain model
     #     return bv_src
 
-    def _visit_mlil_set_var_ssa(self, expr: MediumLevelILSetVarSsa) -> BitVecRef:
+    def _visit_mlil_set_var_ssa(self, expr: MediumLevelILSetVarSsa) -> ExprRef:
         # Log SSA expression
         Logger.debug(self._tag, f"0x{expr.instr.address:x} {str(expr):s} (MLIL_SET_VAR_SSA)")
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
         # New Z3 bit-vector for the `dest` variable
-        dest_name = expr.dest.name
-        dest_vers = expr.dest.version
-        dest_size = expr.size
-        dest_bv = BitVec(f"{dest_name:s}#{dest_vers:d}", dest_size*8)
+        dest = self._create_z3_variable(expr.dest)
         # Mark expression as visited
-        self._visited_exprs[expr] = dest_bv
+        self._visited_exprs[expr] = dest
         # Visit `src` variable
-        src_bv = self._visit(expr.src)
+        src = self._visit(expr.src)
+        # TODO: Branch dependencies
+        for instr_index, branch in expr.branch_dependence.items():
+            con = self._visit(expr.function[instr_index])
         # Constrain the model
-        if src_bv is not None:
-            self._solver.add(dest_bv == src_bv)
-        return dest_bv
+        if src is not None:
+            self._solver.add(dest == src)
+        return dest
     
     def _visit_mlil_sub(self, expr: MediumLevelILSub) -> BitVecRef:
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
         # Visit child expressions
-        lft_bv = self._visit(expr.left)
-        rht_bv = self._visit(expr.right)
-        sub_bv = lft_bv - rht_bv
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        sub = lft - rgt
         # Mark expression as visited
-        self._visited_exprs[expr] = sub_bv
-        return sub_bv
-    
-    # def visit_MLIL_ADD(self, expr):
-    #     left = self.visit(expr.left)
-    #     right = self.visit(expr.right)
-
-    #     if None not in (left, right):
-    #         return left + right
+        self._visited_exprs[expr] = sub
+        return sub
     
     def _visit_mlil_var_aliased(self, expr: MediumLevelILVarAliased) -> BitVecRef:
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
         # Visit variable
-        var_bv = self._visit_mlil_var_ssa(expr)
+        var = self._visit_mlil_var_ssa(expr)
         # Mark expression as visited
-        self._visited_exprs[expr] = var_bv
-        return var_bv
+        self._visited_exprs[expr] = var
+        return var
 
-    def _visit_mlil_var_ssa(self, expr: MediumLevelILVarSsa) -> BitVecRef:
+    def _visit_mlil_var_ssa(self, expr: MediumLevelILVarSsa) -> ExprRef:
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
+        # # TODO: Branch dependencies
+        # for instr_index, branch in expr.branch_dependence.items():
+        #     Logger.warn(self._tag, f"0x{expr.instr.address:x} {str(expr):s} (MLIL_VAR_SSA {instr_index:d} {str(branch):s})")
+        # # TODO:
+        # if expr.possible_values.type != RegisterValueType.UndeterminedValue:
+        #     for range in expr.possible_values.ranges:
+        #         Logger.warn(self._tag, f"0x{expr.instr.address:x} {str(expr):s} [0x{range.start:x}, 0x{range.step:x}, 0x{range.end:x}] (MLIL_VAR_SSA)")
         # Visit variable definition
-        src_bv = self._visit_var_ssa_definition(expr.src, expr)
+        src = self._visit_var_ssa_definition(expr.src, expr.function)
         # Mark expression as visited
-        self._visited_exprs[expr] = src_bv
-        return src_bv
+        self._visited_exprs[expr] = src
+        return src
 
     # def _visit_mlil_set_var_ssa(self, set_var_ssa: MediumLevelILSetVarSsa) -> Optional[BitVecRef]:
     #     Logger.debug(self._tag, f"0x{set_var_ssa.instr.address:x} {str(set_var_ssa):s} (MLIL_SET_VAR_SSA)")
@@ -348,33 +428,30 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         
     #     return
 
-    def _visit_mlil_var_phi(self, expr: MediumLevelILVarPhi) -> BitVecRef:
+    def _visit_mlil_var_phi(self, expr: MediumLevelILVarPhi) -> ExprRef:
         # Log SSA expression
-        Logger.debug(self._tag, f"0x{expr.instr.address:x} {str(expr):s} (MLIL_SET_VAR_PHI)")
+        Logger.debug(self._tag, f"0x{expr.instr.address:x} {str(expr):s} (MLIL_VAR_PHI)")
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
         # New Z3 bit-vector for the `dest` variable
-        dest_name = expr.dest.name
-        dest_vers = expr.dest.version
-        dest_size = expr.dest.var.type.width
-        dest_bv = BitVec(f"{dest_name:s}#{dest_vers:d}", dest_size*8)
+        dest = self._create_z3_variable(expr.dest)
         # Mark expression as visited
-        self._visited_exprs[expr] = dest_bv
+        self._visited_exprs[expr] = dest
         # Visit `src` variables
-        src_bvs = []
+        srcs = []
         for var in expr.src:
             # Visit variable definition
-            src_bv = self._visit_var_ssa_definition(var, expr)
-            if src_bv is not None:
-                src_bvs.append(src_bv)
+            src = self._visit_var_ssa_definition(var, expr.function)
+            if src is not None:
+                srcs.append(src)
         # Constrain the model
-        if src_bvs:
+        if srcs:
             self._solver.add(reduce(
                 lambda i, j: Or(i, j),
-                [dest_bv == src_bv for src_bv in src_bvs]
+                [dest == src_bv for src_bv in srcs]
             ))
-        return dest_bv
+        return dest
 
     # def _visit_mlil_add(self, expr: MediumLevelILAdd) -> Optional[BitVecRef]:
     #     Logger.debug(self._tag, f"0x{expr.instr.address:x} {str(expr):s} (MLIL_ADD)")
@@ -387,10 +464,15 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
     def model(self) -> None:
         """
         """
-        while self._to_visit_exprs:
-            expr = self._to_visit_exprs.pop()
-            if expr is not None:
-                self._visit(expr)
+        # while self._to_visit_exprs:
+        #     expr = self._to_visit_exprs.pop()
+        #     if expr is not None:
+        #         self._visit(expr)
+        model_bv = self._visit(self._expr)
+
+        # # TODO: Branch dependencies
+        # for instr_index, branch in self._expr.branch_dependence.items():
+        #     Logger.warn(self._tag, f"{instr_index:d} {str(branch):s}")
         return
 
 
@@ -407,13 +489,13 @@ class SymbolSink:
         """
         Get MLIL instructions of all symbols' code references.
         """
-        mlil_insts = [] 
+        mlil_insts = []
         for symbol_name in self._symbol_names:
             for symbol in self._bv.symbols.get(symbol_name, []):
                 for code_ref in self._bv.get_code_refs(symbol.address):
-                    inst = code_ref.function.get_low_level_il_at(code_ref.address).medium_level_il
-                    if inst is None: continue
-                    mlil_insts.append(inst)
+                    mlil_inst = code_ref.function.get_low_level_il_at(code_ref.address).medium_level_il
+                    if mlil_inst is None: continue
+                    mlil_insts.append(mlil_inst)
         return mlil_insts
 
 
@@ -421,44 +503,49 @@ class LibcMemcpy:
     """
     """
 
-    def __init__(self, bv: BinaryView) -> None:
+    def __init__(self, bv: BinaryView, tag: str = "Libc.Memcpy") -> None:
         self._bv = bv
+        self._tag = tag
+        self.synopsis = "void* memcpy(void* to, const void* from, size_t size)"
         return
     
     def find_controllable_param_size(self) -> None:
         """
+        Find `memcpy` calls with a controllable `size` parameter.
         """
-        Logger.info("LibcMemcpy", f"Start finding calls with controllable `size` parameter...")
+        Logger.info(self._tag, f"Start finding calls with controllable `size` parameter...")
         sinks = SymbolSink(self._bv, ["memcpy", "__builtin_memcpy"]).get_mlil_insts()
         for sink in sinks:
             # Skip invalid `memcpy` calls
             mlil_call_ssa = sink.ssa_form
             if mlil_call_ssa is None:
-                Logger.warn("LibcMemcpy", f"0x{sink.address:x} (Ignore - no SSA form)")
+                Logger.warn(self._tag, f"0x{sink.address:x} (Ignore - no SSA form)")
                 continue
             if mlil_call_ssa.operation != MediumLevelILOperation.MLIL_CALL_SSA:
-                Logger.warn("LibcMemcpy", f"0x{sink.address:x} (Ignore - not a call instruction)")
+                Logger.warn(self._tag, f"0x{sink.address:x} (Ignore - not a call instruction)")
                 continue
             if len(mlil_call_ssa.params) != 3:
-                Logger.warn("LibcMemcpy", f"0x{sink.address:x} (Ignore - invalid number of parameters)")
+                Logger.warn(self._tag, f"0x{sink.address:x} (Ignore - invalid number of parameters)")
                 continue
             # Ignore `memcpy` calls with a constant `size` parameter
             size_param = mlil_call_ssa.params[2]
             if size_param.operation != MediumLevelILOperation.MLIL_VAR_SSA:
-                Logger.debug("LibcMemcpy", f"0x{sink.address:x} (Ignore - `size` parameter is constant)")
+                Logger.debug(self._tag, f"0x{sink.address:x} (Ignore - `size` parameter is constant)")
                 continue
             # Ignore `memcpy` calls where the `size` parameter can be determined with dataflow
             # analysis
             possible_sizes = size_param.possible_values
             if possible_sizes.type != RegisterValueType.UndeterminedValue:
-                Logger.debug("LibcMemcpy", f"0x{sink.address:x} (Ignore - `size` parameter determined with dataflow analysis)")
+                Logger.debug(self._tag, f"0x{sink.address:x} (Ignore - `size` parameter determined with dataflow analysis)")
                 continue
             # TODO:
-            Logger.info("LibcMemcpy", f"0x{sink.address:x} (Interesting call)")
-            if sink.address in [0xa9c0, 0xaa60, 0xae0c]:
-                continue
-            MediumLevelILVarSsaModeler(self._bv, size_param).model()
-        Logger.info("LibcMemcpy", f"... stop finding calls with controllable `size` parameter.")
+            Logger.info(self._tag, f"0x{sink.address:x} (Interesting call)")
+            # if sink.address in [0xa9c0, 0xaa60, 0xae0c]:
+            #     continue
+            model = MediumLevelILVarSsaModeler(self._bv, size_param, self._tag)
+            model.model()
+            # break
+        Logger.info(self._tag, f"... stop finding calls with controllable `size` parameter.")
         return
     
     def find_all(self) -> None:
