@@ -1,16 +1,20 @@
-from binaryninja        import (BinaryView, Endianness, MediumLevelILAdd, MediumLevelILCallSsa,
-                                MediumLevelILCmpSge, MediumLevelILCmpUgt, MediumLevelILConst,
-                                MediumLevelILFunction, MediumLevelILGoto, MediumLevelILIf,
-                                MediumLevelILInstruction, MediumLevelILLoadSsa, MediumLevelILLsl,
-                                MediumLevelILLsr, MediumLevelILOperation, MediumLevelILSetVarSsa,
-                                MediumLevelILSub, MediumLevelILVarAliased, MediumLevelILVarPhi,
-                                MediumLevelILVarSsa, RegisterValueType, SSAVariable)
-from binaryninja.types import BoolType, IntegerType, PointerType
-from functools         import reduce
-from typing            import List, Optional
-from z3                import (Array, BitVec, BitVecRef, BitVecSort, Bool, BoolRef, Concat, ExprRef,
-                               If, LShR, Or, Solver, UGT)
-from .common.log       import Logger
+from binaryninja         import (BinaryView, Endianness, MediumLevelILAdd, MediumLevelILAddressOf,
+                                 MediumLevelILCallSsa, MediumLevelILCmpE, MediumLevelILCmpNe,
+                                 MediumLevelILCmpSge, MediumLevelILCmpSlt, MediumLevelILCmpUge,
+                                 MediumLevelILCmpUgt, MediumLevelILCmpUle, MediumLevelILConst,
+                                 MediumLevelILFunction, MediumLevelILGoto, MediumLevelILIf,
+                                 MediumLevelILInstruction, MediumLevelILLoadSsa, MediumLevelILLsl,
+                                 MediumLevelILLsr, MediumLevelILOperation, MediumLevelILSetVarSsa,
+                                 MediumLevelILSub, MediumLevelILVarAliased, MediumLevelILVarPhi,
+                                 MediumLevelILVarSsa, RegisterValueType, SSAVariable)
+from binaryninja.enums  import ILBranchDependence
+from binaryninja.types  import BoolType, IntegerType, PointerType
+from functools          import reduce
+from typing             import Dict, List, Optional, Set, Tuple
+from z3                 import (Array, BitVec, BitVecRef, BitVecSort, Bool, BoolRef, Concat,
+                                ExprRef, LShR, Or, Solver, UGE, UGT, ULE)
+from .common.log        import Logger
+from .model.back_slicer import MediumLevelILVarSsaVisitor
 
 
 # class ByteSwapSource:
@@ -76,6 +80,8 @@ class MediumLevelILInstructionVisitor:
         return None
 
 
+
+
 class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
     """
     TODO: What are the correct typing return values for the _visit methods?
@@ -84,10 +90,12 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
     def __init__(self, bv: BinaryView, expr: MediumLevelILVarSsa, tag: str = "Modeler") -> None:
         super().__init__(bv, tag)
         self._expr = expr
+        self._func = expr.function
         self._visited_exprs = {}
         self._memory = Array("memory", BitVecSort(self._bv.address_size*8), BitVecSort(8))
         self._vars = {}
-        self._constraints = []
+        self._constraints = {}
+        self._branch_constraints = {}
         self._solver = Solver()
         self._branches = set()
         # self._defined_vars = {}
@@ -168,6 +176,20 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         self._visited_exprs[expr] = add
         return add
     
+    # def _visit_mlil_address_of(self, expr: MediumLevelILAddressOf) -> None:
+    #     # Expression visited before
+    #     if expr in self._visited_exprs:
+    #         return self._visited_exprs[expr]
+    #     # TODO: How to implement?
+    #     # for function in self._bv.functions:
+    #     #     mlil = function.medium_level_il
+    #     #     for ssa_var in mlil.ssa_vars:
+    #     #         if ssa_var.var.name == expr.src.name:
+    #     #             pass
+    #     # Mark expression as visited
+    #     self._visited_exprs[expr] = None
+    #     return None
+
     def _visit_mlil_call_ssa(self, expr: MediumLevelILCallSsa) -> BitVecRef:
         # Log SSA expression
         Logger.debug(self._tag, f"0x{expr.instr.address:x} {str(expr):s} (MLIL_CALL_SSA)")
@@ -182,6 +204,30 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         self._visited_exprs[expr] = out
         return out
 
+    def _visit_mlil_cmp_e(self, expr: MediumLevelILCmpE) -> BoolRef:
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        # Visit child expressions
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        e   = lft == rgt
+        # Mark expression as visited
+        self._visited_exprs[expr] = e
+        return e
+
+    def _visit_mlil_cmp_ne(self, expr: MediumLevelILCmpNe) -> BoolRef:
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        # Visit child expressions
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        ne  = lft != rgt
+        # Mark expression as visited
+        self._visited_exprs[expr] = ne
+        return ne
+
     def _visit_mlil_cmp_sge(self, expr: MediumLevelILCmpSge) -> BoolRef:
         # Expression visited before
         if expr in self._visited_exprs:
@@ -193,6 +239,30 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         # Mark expression as visited
         self._visited_exprs[expr] = sge
         return sge
+    
+    def _visit_mlil_cmp_slt(self, expr: MediumLevelILCmpSlt) -> BoolRef:
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        # Visit child expressions
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        slt = lft < rgt
+        # Mark expression as visited
+        self._visited_exprs[expr] = slt
+        return slt
+
+    def _visit_mlil_cmp_uge(self, expr: MediumLevelILCmpUge) -> BoolRef:
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        # Visit child expressions
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        uge = UGE(lft, rgt)
+        # Mark expression as visited
+        self._visited_exprs[expr] = uge
+        return uge
 
     def _visit_mlil_cmp_ugt(self, expr: MediumLevelILCmpUgt) -> BoolRef:
         # Expression visited before
@@ -206,6 +276,18 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         self._visited_exprs[expr] = ugt
         return ugt
     
+    def _visit_mlil_cmp_ule(self, expr: MediumLevelILCmpUle) -> BoolRef:
+        # Expression visited before
+        if expr in self._visited_exprs:
+            return self._visited_exprs[expr]
+        # Visit child expressions
+        lft = self._visit(expr.left)
+        rgt = self._visit(expr.right)
+        ule = ULE(lft, rgt)
+        # Mark expression as visited
+        self._visited_exprs[expr] = ule
+        return ule
+
     def _visit_mlil_const(self, expr: MediumLevelILConst) -> int:
         return expr.constant
 
@@ -213,7 +295,7 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
-        dest = self._visit(expr.function[expr.dest])
+        dest = self._visit(self._func[expr.dest])
         # Mark expression as visited
         self._visited_exprs[expr] = dest
         return dest
@@ -224,8 +306,8 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
             return self._visited_exprs[expr]
         # Visit condition and if/then expressions
         con = self._visit(expr.condition)
-        # ifb = self._visit(expr.function[expr.operands[1]])
-        # elb = self._visit(expr.function[expr.operands[2]])
+        # ifb = self._visit(self._func[expr.operands[1]])
+        # elb = self._visit(self._func[expr.operands[2]])
         # ite = If(con, ifb, elb)
         # Mark expression as visited
         self._visited_exprs[expr] = con 
@@ -283,7 +365,7 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
 
 
     #     if var not in self._visited_vars:
-    #         var_def = expr.function.get_ssa_var_definition(var)
+    #         var_def = self._func.get_ssa_var_definition(var)
     #         if var_def is not None:
     #             self._to_visit_exprs.add(var_def)
     #     return
@@ -319,12 +401,27 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         self._visited_exprs[expr] = dest
         # Visit `src` variable
         src = self._visit(expr.src)
-        # TODO: Branch dependencies
-        for instr_index, branch in expr.branch_dependence.items():
-            con = self._visit(expr.function[instr_index])
         # Constrain the model
         if src is not None:
             self._solver.add(dest == src)
+        # # # # TODO: Branch dependencies
+        # # for instr_index, branch in expr.branch_dependence.items():
+        # #     Logger.warn(self._tag, f"Branch dependence: {instr_index:d} {str(branch):s}")
+        # branch_conditions = set()
+        # for instr_index, branch in expr.branch_dependence.items():
+        #     con = self._visit(self._func[instr_index])
+        #     if con is None:
+        #         continue
+        #     if branch.value == ILBranchDependence.TrueBranchDependent:
+        #         self._solver.add(con == True)
+        #         # branch_conditions.add(con == True)
+        #     elif branch.value == ILBranchDependence.FalseBranchDependent:
+        #         self._solver.add(con == False)
+        #         # branch_conditions.add(con == False)
+        #     # self._branches.add(branch)
+        #     # con = self._visit(self._func[instr_index])
+        #     # if con is not None:
+        #     #     branch_conditions.add(con)
         return dest
     
     def _visit_mlil_sub(self, expr: MediumLevelILSub) -> BitVecRef:
@@ -348,20 +445,31 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         # Mark expression as visited
         self._visited_exprs[expr] = var
         return var
+    
+    # def _new_visit_mlil_var_ssa(self, expr: MediumLevelILVarSsa) -> Tuple[ExprRef, Dict[None]]:
+    #     # Expression visited before
+    #     if expr.instr_index in self._visited_exprs:
+    #         return self._visited_exprs[expr.instr_index]
+    #     # Visit variable definition
+    #     src, bco = self._visit_var_ssa_definition(expr.src, self._func)
+    #     # Branch dependency
+    #     for instr_index, branch in expr.branch_dependence.items():
+    #         cond, _ = self._visit(self._func[instr_index])
+    #         if cond is None: continue
+    #         if branch.value == ILBranchDependence.TrueBranchDependent:
+    #             bco[instr_index] = cond == True
+    #         elif branch.value == ILBranchDependence.FalseBranchDependent:
+    #             bco[instr_index] = cond == False
+    #     # Mark expression as visited
+    #     self._visited_exprs[expr.instr_index] = (src, bco)
+    #     return (src, bco)
 
     def _visit_mlil_var_ssa(self, expr: MediumLevelILVarSsa) -> ExprRef:
         # Expression visited before
         if expr in self._visited_exprs:
             return self._visited_exprs[expr]
-        # # TODO: Branch dependencies
-        # for instr_index, branch in expr.branch_dependence.items():
-        #     Logger.warn(self._tag, f"0x{expr.instr.address:x} {str(expr):s} (MLIL_VAR_SSA {instr_index:d} {str(branch):s})")
-        # # TODO:
-        # if expr.possible_values.type != RegisterValueType.UndeterminedValue:
-        #     for range in expr.possible_values.ranges:
-        #         Logger.warn(self._tag, f"0x{expr.instr.address:x} {str(expr):s} [0x{range.start:x}, 0x{range.step:x}, 0x{range.end:x}] (MLIL_VAR_SSA)")
         # Visit variable definition
-        src = self._visit_var_ssa_definition(expr.src, expr.function)
+        src = self._visit_var_ssa_definition(expr.src, self._func)
         # Mark expression as visited
         self._visited_exprs[expr] = src
         return src
@@ -442,7 +550,7 @@ class MediumLevelILVarSsaModeler(MediumLevelILInstructionVisitor):
         srcs = []
         for var in expr.src:
             # Visit variable definition
-            src = self._visit_var_ssa_definition(var, expr.function)
+            src = self._visit_var_ssa_definition(var, self._func)
             if src is not None:
                 srcs.append(src)
         # Constrain the model
@@ -509,6 +617,10 @@ class LibcMemcpy:
         self.synopsis = "void* memcpy(void* to, const void* from, size_t size)"
         return
     
+    def find_branch_constraints(self, instr: MediumLevelILInstruction) -> Set[None]:
+        branch_constraints = set()
+        return branch_constraints
+    
     def find_controllable_param_size(self) -> None:
         """
         Find `memcpy` calls with a controllable `size` parameter.
@@ -540,11 +652,15 @@ class LibcMemcpy:
                 continue
             # TODO:
             Logger.info(self._tag, f"0x{sink.address:x} (Interesting call)")
-            # if sink.address in [0xa9c0, 0xaa60, 0xae0c]:
-            #     continue
-            model = MediumLevelILVarSsaModeler(self._bv, size_param, self._tag)
-            model.model()
-            # break
+            # # if sink.address in [0xa9c0, 0xaa60, 0xae0c]:
+            # #     continue
+            # model = MediumLevelILVarSsaModeler(self._bv, size_param, self._tag)
+            # model.model()
+            # model._solver.check()
+            bdv = MediumLevelILVarSsaVisitor(self._bv, size_param, self._tag)
+            bdv.model()
+            break
+
         Logger.info(self._tag, f"... stop finding calls with controllable `size` parameter.")
         return
     
