@@ -15,26 +15,68 @@ class NewMediumLevelILInstructionVisitor:
         self._bv = bv
         self._tag = tag
         self._bn_exprs = {}
+        self._bn_brn_exprs = {}
         self._z3_solver = z3.Solver()
         return
     
-    def _visit(self, bn_expr: bn.MediumLevelILInstruction) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    # def _visit(self, bn_expr: bn.MediumLevelILInstruction) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Call dedicated visit function based on operation name of expression `expr`.
+    #     """
+    #     # Expression visited before
+    #     if bn_expr in self._bn_exprs:
+    #         return self._bn_exprs[bn_expr]
+    #     # Call dedicated visit function
+    #     o_name = bn_expr.operation.name.lower()
+    #     f_name = f"_visit_{o_name:s}"
+    #     if hasattr(self, f_name):
+    #         self._bn_exprs[bn_expr] = getattr(self, f_name)(bn_expr)
+    #         return self._bn_exprs[bn_expr]
+    #     # Warn on missing visit function
+    #     Logger.warn(self._tag, f"Visit function for operation `{o_name:s}` not implemented")
+    #     return (None, None)
+    
+    def _visit(
+            self,
+            bn_expr: bn.MediumLevelILInstruction
+        ) -> Optional[z3.ExprRef]:
         """
-        Call dedicated visit function based on operation name of expression `expr`.
+        Call dedicated visit function based on the operation name of expression `bn_expr`.
         """
         # Expression visited before
         if bn_expr in self._bn_exprs:
             return self._bn_exprs[bn_expr]
-        # Call dedicated visit function
+        # Call dedicated visit functions
         o_name = bn_expr.operation.name.lower()
         f_name = f"_visit_{o_name:s}"
         if hasattr(self, f_name):
             self._bn_exprs[bn_expr] = getattr(self, f_name)(bn_expr)
             return self._bn_exprs[bn_expr]
         # Warn on missing visit function
-        Logger.warn(self._tag, f"Visit function for operation `{o_name:s}` not implemented")
-        return (None, None)
+        Logger.warn(self._tag, f"Visit function `{f_name:s}` not implemented")
+        return None
+    
+    def _visit_brn(
+            self,
+            bn_expr: bn.MediumLevelILInstruction
+        ) -> Optional[z3.BoolRef]:
+        """
+        Call dedicated branch dependence visit function based on the operation name of expression
+        `bn_expr`.
+        """
+        # Expression visited before
+        if bn_expr in self._bn_brn_exprs:
+            return self._bn_brn_exprs[bn_expr]
+        # Call dedicated visit functions
+        o_name = bn_expr.operation.name.lower()
+        f_name = f"_visit_brn_{o_name:s}"
+        if hasattr(self, f_name):
+            self._bn_brn_exprs[bn_expr] = getattr(self, f_name)(bn_expr)
+            return self._bn_brn_exprs[bn_expr]
+        # Warn on missing visit function
+        Logger.warn(self._tag, f"Visit function `{f_name:s}` not implemented")
+        return None
 
 
 class MediumLevelILVarSsaVisitor(NewMediumLevelILInstructionVisitor):
@@ -49,27 +91,13 @@ class MediumLevelILVarSsaVisitor(NewMediumLevelILInstructionVisitor):
         self._z3_exprs = {}
         return
     
-    # def _and(self, z3_cnsts: List[Optional[z3.BoolRef]]) \
-    #     -> Optional[z3.BoolRef]:
-    #     """
-    #     Create the conjunction of all constraints in list `z3_cnsts`.
-    #     """
-    #     z3_c = None
-    #     for z3_cnst in z3_cnsts:
-    #         if z3_cnst is None:
-    #             continue
-    #         if z3_c is None:
-    #             z3_c = z3_cnst
-    #             continue
-    #         z3_c = z3.And(z3_c, z3_cnst)
-    #     return z3_c
-    
-    def _reduce(self,
-                operation: Callable[[z3.BoolRef, z3.BoolRef], z3.BoolRef],
-                operands: List[Optional[z3.BoolRef]]) \
-                    -> Optional[z3.BoolRef]:
+    def _reduce(
+            self,
+            operation: Callable[[z3.BoolRef, z3.BoolRef], z3.BoolRef],
+            operands: List[Optional[z3.BoolRef]]
+        ) -> Optional[z3.BoolRef]:
         """
-        Reduce all `operands` with operation `operation`. An `operand` may be `None`.
+        Reduce all `operands` with `operation`. An `operand` may be `None`.
         """
         result = None
         for operand in operands:
@@ -81,10 +109,12 @@ class MediumLevelILVarSsaVisitor(NewMediumLevelILInstructionVisitor):
             result = operation(result, operand)
         return result
     
-    def _create_z3_expression(self, bn_var: bn.SSAVariable) \
-        -> Optional[z3.ExprRef]:
+    def _create_z3_expression(
+            self,
+            bn_var: bn.SSAVariable
+        ) -> Optional[z3.ExprRef]:
         """
-        Create a Z3 expression for the variable `var`.
+        Create a Z3 expression for the variable `bn_var`.
         """
         name = f"{bn_var.name:s}#{bn_var.version:d}"
         if name not in self._z3_exprs:
@@ -98,50 +128,124 @@ class MediumLevelILVarSsaVisitor(NewMediumLevelILInstructionVisitor):
                 self._z3_exprs[name] = None
         return self._z3_exprs[name]
     
-    def _get_branch_constraints(self, bn_expr: bn.MediumLevelILInstruction) \
-        -> Optional[z3.BoolRef]:
+    # def _get_branch_constraints(
+    #         self,
+    #         bn_expr: bn.MediumLevelILInstruction
+    #     ) -> Optional[z3.BoolRef]:
+    #     """
+    #     Get all branch dependencies of expression `bn_expr`.
+    #     """
+    #     # Collect branch dependencies
+    #     z3_brn_cnst = []
+    #     for instr_index, branch in bn_expr.branch_dependence.items():
+    #         bn_expr = self._bn_func[instr_index]
+    #         z3_expr, z3_expr_brn = self._visit(bn_expr)
+    #         if z3_expr is None: continue
+    #         if branch.value == bn.ILBranchDependence.TrueBranchDependent:
+    #             z3_brn_cnst.append(self._reduce(z3.And, [z3_expr == True, z3_expr_brn]))
+    #         elif branch.value == bn.ILBranchDependence.FalseBranchDependent:
+    #             z3_brn_cnst.append(self._reduce(z3.And, [z3_expr == False, z3_expr_brn]))
+    #         elif z3_expr_brn is not None:
+    #             z3_brn_cnst.append(z3_expr_brn)
+    #     # No branch dependencies
+    #     if not z3_brn_cnst: return None
+    #     # And-reduce branch dependencies
+    #     return reduce(
+    #         lambda i, j: z3.And(i, j),
+    #         z3_brn_cnst
+    #     )
+
+    def _get_branch_constraints(
+            self,
+            bn_expr: bn.MediumLevelILInstruction
+        ) -> Optional[z3.BoolRef]:
         """
-        Get all branch constraints of expression `bn_expr`.
+        Get all branch dependencies of expression `bn_expr`.
         """
         # Collect branch dependencies
-        z3_brn_cnst = []
+        z3_brn_deps = []
         for instr_index, branch in bn_expr.branch_dependence.items():
             bn_expr = self._bn_func[instr_index]
-            z3_expr, z3_expr_brn = self._visit(bn_expr)
+            z3_expr = self._visit(bn_expr)
+            z3_expr_brn = self._visit_brn(bn_expr)
             if z3_expr is None: continue
             if branch.value == bn.ILBranchDependence.TrueBranchDependent:
-                z3_brn_cnst.append(self._reduce(z3.And, [z3_expr == True, z3_expr_brn]))
+                z3_brn_deps.append(self._reduce(z3.And, [z3_expr == True, z3_expr_brn]))
             elif branch.value == bn.ILBranchDependence.FalseBranchDependent:
-                z3_brn_cnst.append(self._reduce(z3.And, [z3_expr == False, z3_expr_brn]))
+                z3_brn_deps.append(self._reduce(z3.And, [z3_expr == False, z3_expr_brn]))
             elif z3_expr_brn is not None:
-                z3_brn_cnst.append(z3_expr_brn)
+                z3_brn_deps.append(z3_expr_brn)
         # No branch dependencies
-        if not z3_brn_cnst: return None
+        if not z3_brn_deps: return None
         # And-reduce branch dependencies
-        return reduce(
-            lambda i, j: z3.And(i, j),
-            z3_brn_cnst
-        )
+        return self._reduce(z3.And, z3_brn_deps)
     
-    def _visit_var_ssa_definition(self, bn_var: bn.SSAVariable, bn_fun: bn.MediumLevelILFunction) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    # def _visit_var_ssa_definition(self, bn_var: bn.SSAVariable, bn_fun: bn.MediumLevelILFunction) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit the expression defining the variable `bn_var` (backward slice).
+    #     """
+    #     bn_def_expr = bn_fun.get_ssa_var_definition(bn_var)
+    #     if bn_def_expr is None:
+    #         return (self._create_z3_expression(bn_var), None)
+    #     return self._visit(bn_def_expr)
+    
+    def _visit_var_ssa_definition(
+            self,
+            bn_var: bn.SSAVariable,
+            bn_fun: bn.MediumLevelILFunction
+        ) -> Optional[z3.ExprRef]:
         """
         Visit the expression defining the variable `bn_var` (backward slice).
         """
-        bn_def_expr = bn_fun.get_ssa_var_definition(bn_var)
-        if bn_def_expr is None:
-            return (self._create_z3_expression(bn_var), None)
-        return self._visit(bn_def_expr)
+        bn_var_def = bn_fun.get_ssa_var_definition(bn_var)
+        if bn_var_def is None:
+            return self._create_z3_expression(bn_var)
+        return self._visit(bn_var_def)
     
-    def _visit_mlil_call_ssa(self, bn_expr: bn.MediumLevelILCallSsa) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    def _visit_brn_var_ssa_definition(
+            self,
+            bn_var: bn.SSAVariable,
+            bn_fun: bn.MediumLevelILFunction
+        ) -> Optional[z3.BoolRef]:
         """
-        Visit expressions of type `MediumLevelILCallSsa`.
+        Visit the branch dependencies of the expression defining the variable `bn_var` (backward
+        slice).
         """
-        # Log assigning expression (SSA)
+        bn_var_def = bn_fun.get_ssa_var_definition(bn_var)
+        if bn_var_def is None:
+            return None
+        return self._visit_brn(bn_var_def)
+    
+    # def _visit_mlil_call_ssa(self, bn_expr: bn.MediumLevelILCallSsa) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit expressions of type `MediumLevelILCallSsa`.
+    #     """
+    #     # Log assigning expression (SSA)
+    #     Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_CALL_SSA)")
+    #     # Current expression's constraints
+    #     if len(bn_expr.output) == 0:
+    #         z3_dest = None
+    #     elif len(bn_expr.output) == 1:
+    #         z3_dest = self._create_z3_expression(bn_expr.output[0])
+    #     else:
+    #         # TODO: Support more than 1 output
+    #         z3_dest = None
+    #         Logger.warn(self._tag, f"0x{bn_expr.instr.address:x} More than 1 output not supported (MLIL_CALL_SSA)")
+    #     z3_cal_brn = self._get_branch_constraints(bn_expr)
+    #     return (z3_dest, z3_cal_brn)
+
+    def _visit_mlil_call_ssa(
+            self,
+            bn_expr: bn.MediumLevelILCallSsa
+        ) -> Optional[z3.ExprRef]:
+        """
+        Visit `MediumLevelILCallSsa` expression `bn_expr`.
+        """
         Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_CALL_SSA)")
-        # Current expression's constraints
-        if len(bn_expr.output) == 0:
+        # New Z3 expression for the desination
+        if len(bn_expr.output) <= 0:
             z3_dest = None
         elif len(bn_expr.output) == 1:
             z3_dest = self._create_z3_expression(bn_expr.output[0])
@@ -149,168 +253,415 @@ class MediumLevelILVarSsaVisitor(NewMediumLevelILInstructionVisitor):
             # TODO: Support more than 1 output
             z3_dest = None
             Logger.warn(self._tag, f"0x{bn_expr.instr.address:x} More than 1 output not supported (MLIL_CALL_SSA)")
-        z3_cal_brn = self._get_branch_constraints(bn_expr)
-        return (z3_dest, z3_cal_brn)
+        return z3_dest
     
-    def _visit_mlil_cmp_sge(self, bn_expr: bn.MediumLevelILCmpSge) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    def _visit_brn_mlil_call_ssa(
+            self,
+            bn_expr: bn.MediumLevelILCallSsa
+        ) -> Optional[z3.BoolRef]:
         """
-        Visit expressions of type `MediumLevelILCmpSge`.
+        Visit branch dependencies of `MediumLevelILCallSsa` expression `bn_expr`.
         """
-        # Visit child expressions
-        z3_lft, z3_lft_brn = self._visit(bn_expr.left)
-        z3_rgt, z3_rgt_brn = self._visit(bn_expr.right)
-        # Current expression's constraints
-        # TODO: Check for None in other functions also
-        if z3_lft is not None and z3_rgt is not None:
-            z3_sge = z3_lft >= z3_rgt
-        else:
+        # Branch dependencies of the current expression
+        z3_crr = self._get_branch_constraints(bn_expr)
+        return z3_crr
+    
+    # def _visit_mlil_cmp_sge(self, bn_expr: bn.MediumLevelILCmpSge) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit expressions of type `MediumLevelILCmpSge`.
+    #     """
+    #     # Visit child expressions
+    #     z3_lft, z3_lft_brn = self._visit(bn_expr.left)
+    #     z3_rgt, z3_rgt_brn = self._visit(bn_expr.right)
+    #     # Current expression's constraints
+    #     # TODO: Check for None in other functions also
+    #     if z3_lft is not None and z3_rgt is not None:
+    #         z3_sge = z3_lft >= z3_rgt
+    #     else:
+    #         z3_sge = None
+    #     z3_sge_brn = self._reduce(
+    #         z3.And, [
+    #             self._get_branch_constraints(bn_expr),
+    #             z3_lft_brn,
+    #             z3_rgt_brn
+    #         ])
+    #     return (z3_sge, z3_sge_brn)
+
+    def _visit_mlil_cmp_sge(
+            self,
+            bn_expr: bn.MediumLevelILCmpSge
+        ) -> Optional[z3.ExprRef]:
+        """
+        Visit `MediumLevelILCmpSge` expression `bn_expr`.
+        """
+        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_CMP_SGE)")
+        # Visit the expression's child expressions
+        z3_lft = self._visit(bn_expr.left)
+        z3_rgt = self._visit(bn_expr.right)
+        if z3_lft is None or z3_rgt is None:
             z3_sge = None
-        z3_sge_brn = self._reduce(
-            z3.And, [
-                self._get_branch_constraints(bn_expr),
-                z3_lft_brn,
-                z3_rgt_brn
-            ])
-        return (z3_sge, z3_sge_brn)
-    
-    def _visit_mlil_cmp_ugt(self, bn_expr: bn.MediumLevelILCmpUgt) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
-        """
-        Visit expressions of type `MediumLevelILCmpUgt`.
-        """
-        # Visit child expressions
-        z3_lft, z3_lft_brn = self._visit(bn_expr.left)
-        z3_rgt, z3_rgt_brn = self._visit(bn_expr.right)
-        # Current expression's constraints
-        if z3_lft is not None and z3_rgt is not None:
-            z3_ugt = z3.UGT(z3_lft, z3_rgt)
         else:
+            z3_sge = z3_lft >= z3_rgt
+        return z3_sge
+    
+    def _visit_brn_mlil_cmp_sge(
+            self,
+            bn_expr: bn.MediumLevelILCmpSge
+        ) -> Optional[z3.BoolRef]:
+        """
+        Visit branch dependencies of `MediumLevelILCmpSge` expression `bn_expr`.
+        """
+        # Branch dependencies of the current expression
+        z3_crr = self._get_branch_constraints(bn_expr)
+        # Branch dependencies of the child expressions
+        z3_lft = self._visit_brn(bn_expr.left)
+        z3_rgt = self._visit_brn(bn_expr.right)
+        return self._reduce(z3.And, [z3_crr, z3_lft, z3_rgt])
+    
+    # def _visit_mlil_cmp_ugt(self, bn_expr: bn.MediumLevelILCmpUgt) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit expressions of type `MediumLevelILCmpUgt`.
+    #     """
+    #     # Visit child expressions
+    #     z3_lft, z3_lft_brn = self._visit(bn_expr.left)
+    #     z3_rgt, z3_rgt_brn = self._visit(bn_expr.right)
+    #     # Current expression's constraints
+    #     if z3_lft is not None and z3_rgt is not None:
+    #         z3_ugt = z3.UGT(z3_lft, z3_rgt)
+    #     else:
+    #         z3_ugt = None
+    #     z3_ugt_brn = self._reduce(
+    #         z3.And, [
+    #             self._get_branch_constraints(bn_expr),
+    #             z3_lft_brn,
+    #             z3_rgt_brn
+    #         ])
+    #     return (z3_ugt, z3_ugt_brn)
+
+    def _visit_mlil_cmp_ugt(
+            self,
+            bn_expr: bn.MediumLevelILCmpUgt
+        ) -> Optional[z3.ExprRef]:
+        """
+        Visit `MediumLevelILCmpUgt` expression `bn_expr`.
+        """
+        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_CMP_UGT)")
+        # Visit the expression's child expressions
+        z3_lft = self._visit(bn_expr.left)
+        z3_rgt = self._visit(bn_expr.right)
+        if z3_lft is None or z3_rgt is None:
             z3_ugt = None
-        z3_ugt_brn = self._reduce(
-            z3.And, [
-                self._get_branch_constraints(bn_expr),
-                z3_lft_brn,
-                z3_rgt_brn
-            ])
-        return (z3_ugt, z3_ugt_brn)
-    
-    def _visit_mlil_cmp_ule(self, bn_expr: bn.MediumLevelILCmpUle) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
-        """
-        Visit expressions of type `MediumLevelILCmpUle`.
-        """
-        # Visit child expressions
-        z3_lft, z3_lft_brn = self._visit(bn_expr.left)
-        z3_rgt, z3_rgt_brn = self._visit(bn_expr.right)
-        # Current expression's constraints
-        if z3_lft is not None and z3_rgt is not None:
-            z3_ule = z3.ULE(z3_lft, z3_rgt)
         else:
+            z3_ugt = z3.UGT(z3_lft, z3_rgt)
+        return z3_ugt
+    
+    def _visit_brn_mlil_cmp_ugt(
+            self,
+            bn_expr: bn.MediumLevelILCmpUgt
+        ) -> Optional[z3.BoolRef]:
+        """
+        Visit branch dependencies of `MediumLevelILCmpUgt` expression `bn_expr`.
+        """
+        # Branch dependencies of the current expression
+        z3_crr = self._get_branch_constraints(bn_expr)
+        # Branch dependencies of the child expressions
+        z3_lft = self._visit_brn(bn_expr.left)
+        z3_rgt = self._visit_brn(bn_expr.right)
+        return self._reduce(z3.And, [z3_crr, z3_lft, z3_rgt])
+    
+    # def _visit_mlil_cmp_ule(self, bn_expr: bn.MediumLevelILCmpUle) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit expressions of type `MediumLevelILCmpUle`.
+    #     """
+    #     # Visit child expressions
+    #     z3_lft, z3_lft_brn = self._visit(bn_expr.left)
+    #     z3_rgt, z3_rgt_brn = self._visit(bn_expr.right)
+    #     # Current expression's constraints
+    #     if z3_lft is not None and z3_rgt is not None:
+    #         z3_ule = z3.ULE(z3_lft, z3_rgt)
+    #     else:
+    #         z3_ule = None
+    #     z3_ule_brn = self._reduce(
+    #         z3.And, [
+    #             self._get_branch_constraints(bn_expr),
+    #             z3_lft_brn,
+    #             z3_rgt_brn
+    #         ])
+    #     return (z3_ule, z3_ule_brn)
+
+    def _visit_mlil_cmp_ule(
+            self,
+            bn_expr: bn.MediumLevelILCmpUle
+        ) -> Optional[z3.ExprRef]:
+        """
+        Visit `MediumLevelILCmpUle` expression `bn_expr`.
+        """
+        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_CMP_ULE)")
+        # Visit the expression's child expressions
+        z3_lft = self._visit(bn_expr.left)
+        z3_rgt = self._visit(bn_expr.right)
+        if z3_lft is None or z3_rgt is None:
             z3_ule = None
-        z3_ule_brn = self._reduce(
-            z3.And, [
-                self._get_branch_constraints(bn_expr),
-                z3_lft_brn,
-                z3_rgt_brn
-            ])
-        return (z3_ule, z3_ule_brn)
+        else:
+            z3_ule = z3.ULE(z3_lft, z3_rgt)
+        return z3_ule
     
-    def _visit_mlil_const(self, bn_expr: bn.MediumLevelILConst) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    def _visit_brn_mlil_cmp_ule(
+            self,
+            bn_expr: bn.MediumLevelILCmpUle
+        ) -> Optional[z3.BoolRef]:
         """
-        Visit expressions of type `MediumLevelILConst`.
+        Visit branch dependencies of `MediumLevelILCmpUle` expression `bn_expr`.
         """
-        # Current expression's constraints
-        z3_cst = bn_expr.constant
-        z3_cst_brn = self._get_branch_constraints(bn_expr)
-        return (z3_cst, z3_cst_brn)
+        # Branch dependencies of the current expression
+        z3_crr = self._get_branch_constraints(bn_expr)
+        # Branch dependencies of the child expressions
+        z3_lft = self._visit_brn(bn_expr.left)
+        z3_rgt = self._visit_brn(bn_expr.right)
+        return self._reduce(z3.And, [z3_crr, z3_lft, z3_rgt])
     
-    def _visit_mlil_if(self, bn_expr: bn.MediumLevelILIf) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    # def _visit_mlil_const(self, bn_expr: bn.MediumLevelILConst) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit expressions of type `MediumLevelILConst`.
+    #     """
+    #     # Current expression's constraints
+    #     z3_cst = bn_expr.constant
+    #     z3_cst_brn = self._get_branch_constraints(bn_expr)
+    #     return (z3_cst, z3_cst_brn)
+
+    def _visit_mlil_const(
+            self,
+            bn_expr: bn.MediumLevelILConst
+        ) -> Optional[z3.ExprRef]:
         """
-        Visit expressions of type `MediumLevelILIf`.
+        Visit `MediumLevelILConst` expression `bn_expr`.
         """
-        # Visit condition expression
-        z3_con, z3_con_brn = self._visit(bn_expr.condition)
-        # Current expression's constraints
-        z3_ite = z3_con
-        z3_ite_brn = self._reduce(
-            z3.And, [
-                self._get_branch_constraints(bn_expr),
-                z3_con_brn
-            ])
-        return (z3_ite, z3_ite_brn)
+        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} {str(bn_expr.branch_dependence):s} (MLIL_CONST)")
+        return bn_expr.constant
     
-    def _visit_mlil_var_phi(self, bn_expr: bn.MediumLevelILVarPhi) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    def _visit_brn_mlil_const(
+            self,
+            bn_expr: bn.MediumLevelILConst
+        ) -> Optional[z3.BoolRef]:
         """
-        Visit expressions of type `MediumLevelILVarPhi`.
+        Visit branch dependencies of `MediumLevelILConst` expression `bn_expr`.
         """
-        # Log assigning expression (SSA)
-        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_VAR_PHI)")
+        z3_crr = self._get_branch_constraints(bn_expr)
+        return z3_crr
+    
+    # def _visit_mlil_if(self, bn_expr: bn.MediumLevelILIf) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit expressions of type `MediumLevelILIf`.
+    #     """
+    #     # Visit condition expression
+    #     z3_con, z3_con_brn = self._visit(bn_expr.condition)
+    #     # Current expression's constraints
+    #     z3_ite = z3_con
+    #     z3_ite_brn = self._reduce(
+    #         z3.And, [
+    #             self._get_branch_constraints(bn_expr),
+    #             z3_con_brn
+    #         ])
+    #     return (z3_ite, z3_ite_brn)
+
+    def _visit_mlil_if(
+            self,
+            bn_expr: bn.MediumLevelILIf
+        ) -> Optional[z3.ExprRef]:
+        """
+        Visit `MediumLevelILIf` expression `bn_expr`.
+        """
+        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} {str(bn_expr.branch_dependence):s} (MLIL_IF)")
+        # Visit the expression's `condition` expression
+        z3_con = self._visit(bn_expr.condition)
+        return z3_con
+    
+    def _visit_brn_mlil_if(
+            self,
+            bn_expr: bn.MediumLevelILIf
+        ) -> Optional[z3.BoolRef]:
+        """
+        Visit branch dependencies of `MediumLevelILIf` expression `bn_expr`.
+        """
+        # Branch dependencies of the current expression
+        z3_crr = self._get_branch_constraints(bn_expr)
+        # Branch dependencies of the expression's `condition` expression
+        z3_con = self._visit_brn(bn_expr.condition)
+        return self._reduce(z3.And, [z3_crr, z3_con])
+    
+    # def _visit_mlil_var_phi(self, bn_expr: bn.MediumLevelILVarPhi) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit expressions of type `MediumLevelILVarPhi`.
+    #     """
+    #     # Log assigning expression (SSA)
+    #     Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_VAR_PHI)")
+    #     # New Z3 expression for the desination
+    #     z3_dest = self._create_z3_expression(bn_expr.dest)
+    #     # Current expressions's branch constraints
+    #     z3_crr_brn = self._get_branch_constraints(bn_expr)
+    #     # Visit src variables
+    #     z3_srcs = []
+    #     for var in bn_expr.src:
+    #         # Visit the expression defining the src variable (backward slice)
+    #         z3_def, z3_def_brn = self._visit_var_ssa_definition(var, self._bn_func)
+    #         z3_srcs.append((z3_def, z3_def_brn))
+    #     # Add constraint to the solver
+    #     z3_phi = None
+    #     z3_phi_brn = None
+    #     for z3_src, z3_src_brn in z3_srcs:
+    #         # TODO: Probably the bug is here!
+    #         z3_phi = self._reduce(z3.Or, [z3_phi, self._reduce(z3.And, [z3_dest == z3_src, z3_src_brn])])
+    #         z3_phi_brn = self._reduce(z3.Or, [z3_phi_brn, self._reduce(z3.And, [z3_crr_brn, z3_src_brn])])
+    #     self._z3_solver.add(z3.simplify(z3_phi))
+    #     Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(z3_phi):s} (CONSTRAINT)")
+    #     return (z3_dest, z3_phi_brn)
+
+    def _visit_mlil_var_phi(
+            self,
+            bn_expr: bn.MediumLevelILVarPhi
+        ) -> Optional[z3.ExprRef]:
+        """
+        Visit `MediumLevelILVarPhi` expression `bn_expr`.
+        """
+        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} {str(bn_expr.branch_dependence):s} (MLIL_VAR_PHI)")
         # New Z3 expression for the desination
         z3_dest = self._create_z3_expression(bn_expr.dest)
-        # Current expressions's branch constraints
-        z3_crr_brn = self._get_branch_constraints(bn_expr)
-        # Visit src variables
+        # Visit the expression's `src` variables
         z3_srcs = []
         for var in bn_expr.src:
-            # Visit the expression defining the src variable (backward slice)
-            z3_def, z3_def_brn = self._visit_var_ssa_definition(var, self._bn_func)
-            z3_srcs.append((z3_def, z3_def_brn))
-        # Add constraint to the solver
-        z3_phi = None
-        z3_phi_brn = None
-        for z3_src, z3_src_brn in z3_srcs:
-            # TODO: Probably the bug is here!
-            z3_phi = self._reduce(z3.Or, [z3_phi, self._reduce(z3.And, [z3_dest == z3_src, z3_src_brn])])
-            z3_phi_brn = self._reduce(z3.Or, [z3_phi_brn, self._reduce(z3.And, [z3_crr_brn, z3_src_brn])])
-        self._z3_solver.add(z3.simplify(z3_phi))
-        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(z3_phi):s} (CONSTRAINT)")
-        return (z3_dest, z3_phi_brn)
+            z3_src = self._visit_var_ssa_definition(var, self._bn_func)
+            z3_brn = self._visit_brn_var_ssa_definition(var, self._bn_func)
+            if z3_dest is None or z3_src is None: continue
+            z3_cst = self._reduce(z3.And, [z3_dest == z3_src, z3_brn])
+            z3_srcs.append(z3_cst)
+        # Constrain the model
+        if z3_srcs:
+            self._z3_solver.add(z3.simplify(self._reduce(z3.Or, z3_srcs)))
+        # Return Z3 expression
+        return z3_dest
+    
+    def _visit_brn_mlil_var_phi(
+            self,
+            bn_expr: bn.MediumLevelILVarPhi
+        ) -> Optional[z3.BoolRef]:
+        """
+        Visit branch dependencies of `MediumLevelILVarPhi` expression `bn_expr`.
+        """
+        # Branch dependencies of the current expression
+        z3_crr = self._get_branch_constraints(bn_expr)
+        # Branch dependencies of the expression's `src` variables
+        z3_srcs = []
+        for var in bn_expr.src:
+            z3_src = self._visit_brn_var_ssa_definition(var, self._bn_func)
+            z3_srcs.append(self._reduce(z3.And, [z3_crr, z3_src]))
+        if not z3_srcs: return None
+        return self._reduce(z3.Or, z3_srcs)
 
-    def _visit_mlil_set_var_ssa(self, bn_expr: bn.MediumLevelILSetVar) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    # def _visit_mlil_set_var_ssa(self, bn_expr: bn.MediumLevelILSetVar) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit expressions of type `MediumLevelILSetVar`.
+    #     """
+    #     # Log assigning expression (SSA)
+    #     Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_SET_VAR_SSA)")
+    #     # New Z3 expression for the desination
+    #     z3_dest = self._create_z3_expression(bn_expr.dest)
+    #     # Visit src expression
+    #     z3_src, z3_src_brn = self._visit(bn_expr.src)
+    #     # Get current expression's branch constraints
+    #     z3_set_brn = self._reduce(
+    #         z3.And, [
+    #             self._get_branch_constraints(bn_expr),
+    #             z3_src_brn
+    #         ])
+    #     # Add constraint to the solver
+    #     if z3_dest is not None and z3_src is not None:
+    #         constraint = z3_dest == z3_src
+    #         if z3_set_brn is not None:
+    #             constraint = z3.And(constraint, z3_set_brn)
+    #         # TODO: Add `z3.simplify(constraint)` here or somewhere else.
+    #         self._z3_solver.add(z3.simplify(constraint))
+    #         Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(constraint):s} (CONSTRAINT)")
+    #     return (z3_dest, z3_set_brn)
+
+    def _visit_mlil_set_var_ssa(
+            self,
+            bn_expr: bn.MediumLevelILSetVar
+        ) -> Optional[z3.ExprRef]:
         """
-        Visit expressions of type `MediumLevelILSetVar`.
+        Visit `MediumLevelILSetVar` expression `bn_expr`.
         """
-        # Log assigning expression (SSA)
-        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_SET_VAR_SSA)")
+        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} {str(bn_expr.branch_dependence):s} (MLIL_SET_VAR_SSA)")
         # New Z3 expression for the desination
         z3_dest = self._create_z3_expression(bn_expr.dest)
-        # Visit src expression
-        z3_src, z3_src_brn = self._visit(bn_expr.src)
-        # Get current expression's branch constraints
-        z3_set_brn = self._reduce(
-            z3.And, [
-                self._get_branch_constraints(bn_expr),
-                z3_src_brn
-            ])
-        # Add constraint to the solver
+        # Visit the expression's `src` expression
+        z3_src = self._visit(bn_expr.src)
+        # Constrain the model
         if z3_dest is not None and z3_src is not None:
-            constraint = z3_dest == z3_src
-            if z3_set_brn is not None:
-                constraint = z3.And(constraint, z3_set_brn)
-            # TODO: Add `z3.simplify(constraint)` here or somewhere else.
-            self._z3_solver.add(z3.simplify(constraint))
-            Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(constraint):s} (CONSTRAINT)")
-        return (z3_dest, z3_set_brn)
+            z3_brn = self._visit_brn(bn_expr)
+            z3_cst = self._reduce(z3.And, [z3_dest == z3_src, z3_brn])
+            self._z3_solver.add(z3.simplify(z3_cst))
+        # Return Z3 expression
+        return z3_dest
     
-    def _visit_mlil_var_ssa(self, bn_expr: bn.MediumLevelILVarSsa) \
-        -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    def _visit_brn_mlil_set_var_ssa(
+            self,
+            bn_expr: bn.MediumLevelILSetVar
+        ) -> Optional[z3.BoolRef]:
         """
-        Visit expressions of type `MediumLevelILVarSsa`.
+        Visit branch dependencies of `MediumLevelILSetVar` expression `bn_expr`.
         """
-        # Visit the expression defining the src variable (backward slice)
-        z3_def, z3_def_brn = self._visit_var_ssa_definition(bn_expr.src, self._bn_func)
-        # Get current expression's branch constraints
-        z3_var_brn = self._reduce(
-            z3.And, [
-                self._get_branch_constraints(bn_expr),
-                z3_def_brn
-            ])
-        return (z3_def, z3_var_brn)
+        # Branch dependencies of the current expression
+        z3_crr = self._get_branch_constraints(bn_expr)
+        # Branch dependencies of the src expression
+        z3_src = self._visit_brn(bn_expr.src)
+        return self._reduce(z3.And, [z3_crr, z3_src])
+    
+    # def _visit_mlil_var_ssa(self, bn_expr: bn.MediumLevelILVarSsa) \
+    #     -> Tuple[Optional[z3.ExprRef], Optional[z3.BoolRef]]:
+    #     """
+    #     Visit expressions of type `MediumLevelILVarSsa`.
+    #     """
+    #     # Visit the expression defining the src variable (backward slice)
+    #     z3_def, z3_def_brn = self._visit_var_ssa_definition(bn_expr.src, self._bn_func)
+    #     # Get current expression's branch constraints
+    #     z3_var_brn = self._reduce(
+    #         z3.And, [
+    #             self._get_branch_constraints(bn_expr),
+    #             z3_def_brn
+    #         ])
+    #     return (z3_def, z3_var_brn)
+    
+    def _visit_mlil_var_ssa(
+            self,
+            bn_expr: bn.MediumLevelILVarSsa
+        ) -> Optional[z3.ExprRef]:
+        """
+        Visit `MediumLevelILVarSsa` expression `bn_expr`.
+        """
+        Logger.debug(self._tag, f"0x{bn_expr.instr.address:x} {str(bn_expr):s} (MLIL_VAR_SSA)")
+        # Expression defining the `src` variable (backward slice)
+        z3_def = self._visit_var_ssa_definition(bn_expr.src, self._bn_func)
+        return z3_def
+    
+    def _visit_brn_mlil_var_ssa(
+            self,
+            bn_expr: bn.MediumLevelILVarSsa
+        ) -> Optional[z3.BoolRef]:
+        """
+        Visit branch dependencies of `MediumLevelILVarSsa` expression `bn_expr`.
+        """
+        # Branch dependencies of the current expression
+        z3_crr = self._get_branch_constraints(bn_expr)
+        # Branch dependencies of the expression defining the src variable (backward slice)
+        z3_def = self._visit_brn_var_ssa_definition(bn_expr.src, self._bn_func)
+        return self._reduce(z3.And, [z3_crr, z3_def])
     
     def model(self) -> None:
         """
@@ -320,6 +671,11 @@ class MediumLevelILVarSsaVisitor(NewMediumLevelILInstructionVisitor):
             2. _visit_brn_mlil_...
         """
         z3_expr = self._visit(self._bn_expr)
+        z3_n = self._z3_exprs["r2#3"]
+        self._z3_solver.add(z3_n < 0)
+        self._z3_solver.check()
+        self._z3_solver.model()
+        # z3_expr_brn = self._visit_brn(self._bn_expr)
         # for assertion in self._z3_solver.assertions():
         #     print(assertion.sexpr())
         return
