@@ -1,13 +1,17 @@
-import binaryninja as bn
-from .test import LibcMemcpy
+import binaryninja   as bn
+from  .analysis.libc import LibcMemcpy
 
 
 class Plugin:
 	"""
-	Class to register the plugin with Binary Ninja.
+	This class registers the plugin with Binary Ninja.
 	"""
+
 	@staticmethod
-	def register() -> None:
+	def register(
+		) -> None:
+		"""
+		"""
 		bn.PluginCommand.register(
 			"Mole\\Analyze Binary",
 			"Search the entire binary for potential vulnerabilities",
@@ -15,13 +19,20 @@ class Plugin:
 		return
 	
 	@staticmethod
-	def analyze_binary(bv: bn.BinaryView) -> None:
-		LibcMemcpy(bv).find_all()
+	def analyze_binary(
+		bv: bn.BinaryView
+		) -> None:
+		"""
+		"""
+		LibcMemcpy(bv, ["getenv", "__builtin_getenv"]).analyze_all()
 		return
 	
 
-def main() -> None:
-	# TODO: Process a binary in headless mode
+def main(
+	) -> None:
+	"""
+	TODO: Process a binary in headless mode
+	"""
 	return
 
 

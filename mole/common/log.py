@@ -1,4 +1,4 @@
-from binaryninja  import log_debug, log_info, log_warn, log_error
+from binaryninja  import log_alert, log_debug, log_info, log_warn, log_error
 
 
 class Logger:
@@ -24,6 +24,11 @@ class Logger:
     @staticmethod
     def info(tag: str = None, msg: str = None) -> None:
         log_info(Logger._tag_msg(tag, msg), Logger.tag)
+        return
+    
+    @staticmethod
+    def alert(tag: str = None, msg: str = None) -> None:
+        log_alert(Logger._tag_msg(tag, msg), Logger.tag)
         return
     
     @staticmethod
