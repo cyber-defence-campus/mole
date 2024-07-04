@@ -66,6 +66,7 @@ class MediumLevelILBackwardSlicer:
             return self._sliced_insts[inst]
         # Slice instruction
         self._sliced_insts[inst] = set()
+        # TODO: Support all instructions
         match inst:
             case (bn.MediumLevelILConst() |
                   bn.MediumLevelILConstPtr() |
@@ -90,7 +91,22 @@ class MediumLevelILBackwardSlicer:
                 vars.add(inst.dest)
                 for var in inst.src:
                     vars.update(self._slice_ssa_var_definition(var, inst.function))
-            case (bn.MediumLevelILCallSsa()):
+            case (bn.MediumLevelILCallSsa(dest=dest_inst) |
+                  bn.MediumLevelILTailcallSsa(dest=dest_inst)):
+                match dest_inst:
+                    case bn.MediumLevelILConstPtr(constant=func_addr):
+                        func_symb = self._bv.get_symbol_at(func_addr)
+                        # Backward slice into functions defined within the binary itself
+                        if func_symb.type == bn.SymbolType.FunctionSymbol:
+                            func = self._bv.get_function_at(func_addr)
+                            if func is not None:
+                                for inst in func.mlil.ssa_form.instructions:
+                                    # TODO: Support all return instructions
+                                    match inst:
+                                        # Backward slice starting from possible return instructions
+                                        case (bn.MediumLevelILTailcallSsa()):
+                                            vars.update(self._slice_backwards(inst))
+                vars.update(self._slice_backwards(inst.dest))
                 for out in inst.output:
                     vars.add(out)
                 for par in inst.params:
