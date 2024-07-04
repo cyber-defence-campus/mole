@@ -3,8 +3,8 @@
 #include <string.h>
 
 int main(int argc, char *argv[]) {
-    char src[] = "01-memcpy";
     char dest[16];
+    char src[] = "01-memcpy";
 
     char* env_size = getenv("MEMCPY_SIZE");
     if(env_size == NULL) {

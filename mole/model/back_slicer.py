@@ -158,6 +158,18 @@ class MediumLevelILVarSsaSlicer(MediumLevelILInstructionVisitor):
         Logger.debug(self.tag, self.get_instr_info(bn_expr) + " (MLIL_CONST)")
         return set()
     
+    def visit_mlil_const_data(
+            self,
+            bn_expr: bn.MediumLevelILConstData,
+            bn_func: bn.MediumLevelILFunction
+        ) -> Set[bn.SSAVariable]:
+        """
+        This method visits the `MediumLevelILConstData` expression `bn_expr`, belonging to function
+        `bn_func`.
+        """
+        Logger.debug(self.tag, self.get_instr_info(bn_expr) + " (MLIL_CONST_DATA)")
+        return set()
+    
     def visit_mlil_const_ptr(
             self,
             bn_expr: bn.MediumLevelILConstPtr,
@@ -284,7 +296,7 @@ class MediumLevelILVarSsaSlicer(MediumLevelILInstructionVisitor):
     
     def slice_backwards(
             self,
-            bn_expr: bn.MediumLevelILVarSsa
+            bn_expr: bn.MediumLevelILInstruction
         ) -> Set[bn.SSAVariable]:
         """
         This method slices backwards, starting from expression `bn_expr`. It returns a set of

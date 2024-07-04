@@ -1,8 +1,9 @@
 import binaryninja         as bn
-from   typing              import List
+from   typing              import List, Optional
 from   ..common.log        import Logger
 from   ..model.back_slicer import MediumLevelILVarSsaSlicer
 from   ..model.helper      import SymbolHelper
+from   ..model.slice       import MediumLevelILBackwardSlicer
 
 
 class LibcMemcpy:
@@ -26,38 +27,97 @@ class LibcMemcpy:
         self.sinks = SymbolHelper.get_code_refs(bv, ["memcpy", "__builtin_memcpy"])
         return
     
+    def analyze_param_dest(
+            self
+        ) -> None:
+        """
+        This method analyzes the `memcpy` parameter `dest`.
+        """
+        for snk_name, snk_insts in self.sinks.items():
+            Logger.info(self.tag, f"Start analyzing '{snk_name:s}' parameter 'dest'...")
+            for snk_inst in snk_insts:
+                # Skip invalid `memcpy` calls
+                if snk_inst.operation != bn.MediumLevelILOperation.MLIL_CALL_SSA:
+                    Logger.warn(self.tag, f"0x{snk_inst.address:x} (Ignore - not a call instruction)")
+                    continue
+                if len(snk_inst.params) != 3:
+                    Logger.warn(self.tag, f"0x{snk_inst.address:x} (Ignore - invalid number of parameters)")
+                    continue
+                # Backward slice the `dest` parameter
+                dest_param = snk_inst.params[0]
+                slicer = MediumLevelILBackwardSlicer(self.bv, self.tag)
+                slicer.slice_backwards(dest_param)
+                # Check whether the slice contains any source
+                for src_name, src_insts in self.sources.items():
+                    for src_inst in src_insts:
+                        if slicer.includes(src_inst):
+                            Logger.info(self.tag, f"0x{src_inst.address:x} {src_name} --> 0x{snk_inst.address:x} {snk_name}")
+            Logger.info(self.tag, f"... stop analyzing '{snk_name:s}' parameter 'dest'.")
+        return
+    
+    def analyze_param_src(
+            self
+        ) -> None:
+        """
+        This method analyzes the `memcpy` parameter `src`.
+        """
+        for snk_name, snk_insts in self.sinks.items():
+            Logger.info(self.tag, f"Start analyzing '{snk_name:s}' parameter 'src'...")
+            for snk_inst in snk_insts:
+                # Skip invalid `memcpy` calls
+                if snk_inst.operation != bn.MediumLevelILOperation.MLIL_CALL_SSA:
+                    Logger.warn(self.tag, f"0x{snk_inst.address:x} (Ignore - not a call instruction)")
+                    continue
+                if len(snk_inst.params) != 3:
+                    Logger.warn(self.tag, f"0x{snk_inst.address:x} (Ignore - invalid number of parameters)")
+                    continue
+                # Backward slice the `src` parameter
+                src_param = snk_inst.params[1]
+                slicer = MediumLevelILBackwardSlicer(self.bv, self.tag)
+                slicer.slice_backwards(src_param)
+                # Check whether the slice contains any source
+                for src_name, src_insts in self.sources.items():
+                    for src_inst in src_insts:
+                        if slicer.includes(src_inst):
+                            Logger.info(self.tag, f"0x{src_inst.address:x} {src_name} --> 0x{snk_inst.address:x} {snk_name}")
+            Logger.info(self.tag, f"... stop analyzing '{snk_name:s}' parameter 'src'.")
+        return
+    
     def analyze_param_n(
             self
         ) -> None:
         """
         This method analyzes `memcpy` parameter `n`.
         """
-        for symbol_name, sink_exprs in self.sinks.items():
-            Logger.info(self.tag, f"Start analyzing '{symbol_name:s}' parameter 'n'...")
-            for sink_expr in sink_exprs:
+        for snk_name, snk_insts in self.sinks.items():
+            Logger.info(self.tag, f"Start analyzing '{snk_name:s}' parameter 'n'...")
+            for snk_inst in snk_insts:
                 # Skip invalid `memcpy` calls
-                if sink_expr.operation != bn.MediumLevelILOperation.MLIL_CALL_SSA:
-                    Logger.warn(self.tag, f"0x{sink_expr.address:x} (Ignore - not a call instruction)")
+                if snk_inst.operation != bn.MediumLevelILOperation.MLIL_CALL_SSA:
+                    Logger.warn(self.tag, f"0x{snk_inst.address:x} (Ignore - not a call instruction)")
                     continue
-                if len(sink_expr.params) != 3:
-                    Logger.warn(self.tag, f"0x{sink_expr.address:x} (Ignore - invalid number of parameters)")
+                if len(snk_inst.params) != 3:
+                    Logger.warn(self.tag, f"0x{snk_inst.address:x} (Ignore - invalid number of parameters)")
                     continue
                 # Ignore `memcpy` calls with a constant `n` parameter
-                n_param = sink_expr.params[2]
+                n_param = snk_inst.params[2]
                 if n_param.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                    Logger.debug(self.tag, f"0x{sink_expr.address:x} (Ignore - `n` parameter is constant)")
+                    Logger.debug(self.tag, f"0x{snk_inst.address:x} (Ignore - `n` parameter is constant)")
                     continue
                 # Ignore `memcpy` calls where the `n` parameter can be determined with dataflow analysis
                 possible_sizes = n_param.possible_values
                 if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                    Logger.debug(self.tag, f"0x{sink_expr.address:x} (Ignore - `n` parameter determined with dataflow analysis)")
+                    Logger.debug(self.tag, f"0x{snk_inst.address:x} (Ignore - `n` parameter determined with dataflow analysis)")
                     continue
-                # TODO: Try hitting given sources by static backward slicing
-                Logger.info(self.tag, f"0x{sink_expr.address:x} Sink '{symbol_name:s}' (SLICE START)")
-                slicer = MediumLevelILVarSsaSlicer(self.bv, self.sources, self.tag)
-                vars = slicer.slice_backwards(n_param)
-                Logger.info(self.tag, f"0x{sink_expr.address:x} Sink '{symbol_name:s}' (SLICE STOP)")
-            Logger.info(self.tag, f"... stop analyzing '{symbol_name:s}' parameter 'n'.")
+                # Backward slice the `n` parameter
+                slicer = MediumLevelILBackwardSlicer(self.bv, self.tag)
+                slicer.slice_backwards(n_param)
+                # Check whether the slice contains any source
+                for src_name, src_insts in self.sources.items():
+                    for src_inst in src_insts:
+                        if slicer.includes(src_inst):
+                            Logger.info(self.tag, f"0x{src_inst.address:x} {src_name} --> 0x{snk_inst.address:x} {snk_name}")
+            Logger.info(self.tag, f"... stop analyzing '{snk_name:s}' parameter 'n'.")
         return
     
     def analyze_all(
@@ -66,5 +126,7 @@ class LibcMemcpy:
         """
         This method runs all implemented `memcpy` analyses at once.
         """
+        self.analyze_param_dest()
+        self.analyze_param_src()
         self.analyze_param_n()
         return
