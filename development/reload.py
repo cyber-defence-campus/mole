@@ -7,7 +7,7 @@ def reload(module: types.ModuleType) -> None:
     """
     Recursively reload modules.
     """
-    if module.__name__ in ("binaryninja", "z3"):
+    if module.__name__ in ("binaryninja"):
         return
     for attribute_name in dir(module):
         attribute = getattr(module, attribute_name)

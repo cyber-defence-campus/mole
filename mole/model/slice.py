@@ -1,6 +1,7 @@
-import binaryninja  as bn
-from   typing       import List, Set
-from   ..common.log import Logger
+import binaryninja     as bn
+from   typing          import List, Set
+from   ..common.helper import InstructionHelper
+from   ..common.log    import Logger
 
 
 class MediumLevelILBackwardSlicer:
@@ -17,15 +18,6 @@ class MediumLevelILBackwardSlicer:
         self._tag = tag
         self._sliced_insts = {}
         return
-    
-    def _get_inst_info(
-            self,
-            inst: bn.MediumLevelILInstruction    
-        ) -> str:
-        """
-        This method returns a string with information about the instruction `inst`.
-        """
-        return f"0x{inst.instr.address:x} {str(inst):s} ({inst.__class__.__name__:s})"
     
     def _slice_ssa_var_definition(
             self,
@@ -67,7 +59,7 @@ class MediumLevelILBackwardSlicer:
         - Review `MediumLevelILVarAliased`
         """
         vars = set()
-        info = self._get_inst_info(inst)
+        info = InstructionHelper.get_inst_info(inst)
         Logger.debug(self._tag, f"{info:s}")
         # Instruction sliced before
         if inst in self._sliced_insts:

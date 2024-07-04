@@ -31,3 +31,18 @@ class SymbolHelper:
                     mlil_ssa_instrs.add(mlil_ssa_instr)
                     mlil_ssa_code_refs[symbol_name] = mlil_ssa_instrs
         return mlil_ssa_code_refs
+
+
+class InstructionHelper:
+    """
+    This class provides helper functions with respect to instructions.
+    """
+
+    @staticmethod
+    def get_inst_info(
+            inst: bn.MediumLevelILInstruction    
+        ) -> str:
+        """
+        This method returns a string with information about the instruction `inst`.
+        """
+        return f"0x{inst.instr.address:x} {str(inst):s} ({inst.__class__.__name__:s})"
