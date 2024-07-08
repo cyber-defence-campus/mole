@@ -12,10 +12,12 @@ class MediumLevelILBackwardSlicer:
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "BackSlicer"
+            tag: str = "BackSlicer",
+            log: Logger = Logger(),
         ) -> None:
         self._bv = bv
         self._tag = tag
+        self._log = log
         self._sliced_insts = {}
         return
     
@@ -60,7 +62,7 @@ class MediumLevelILBackwardSlicer:
         """
         vars = set()
         info = InstructionHelper.get_inst_info(inst)
-        Logger.debug(self._tag, f"{info:s}")
+        self._log.debug(self._tag, f"{info:s}")
         # Instruction sliced before
         if inst in self._sliced_insts:
             return self._sliced_insts[inst]
@@ -116,7 +118,7 @@ class MediumLevelILBackwardSlicer:
                 for par in inst.params:
                     vars.update(self._slice_backwards(par))
             case _:
-                Logger.warn(self._tag, f"{info:s}: Missing handler")
+                self._log.warn(self._tag, f"{info:s}: Missing handler")
         self._sliced_insts[inst] = vars
         return vars
     

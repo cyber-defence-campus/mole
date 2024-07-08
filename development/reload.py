@@ -1,20 +1,14 @@
 import importlib
 import mole
+import sys
 import types
 
-
 def reload(module: types.ModuleType) -> None:
-    """
-    Recursively reload modules.
-    """
-    if module.__name__ in ("binaryninja"):
-        return
-    for attribute_name in dir(module):
-        attribute = getattr(module, attribute_name)
-        if type(attribute) is types.ModuleType:
-            reload(attribute)
     importlib.reload(module)
+    modules = sys.modules.copy()
+    for module_name in modules:
+        if module_name.startswith(module.__name__ + '.'):
+            importlib.reload(modules[module_name])
     return
-
 
 reload(mole)

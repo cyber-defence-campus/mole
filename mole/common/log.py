@@ -1,42 +1,157 @@
-from binaryninja  import log_alert, log_debug, log_info, log_warn, log_error
+import sys
+from   binaryninja  import log_alert, log_debug, log_info, log_warn, log_error
+from   datetime     import datetime
+from   termcolor    import colored
+from   typing       import List
 
 
 class Logger:
     """
-    Class to print messages to Binary Ninja's log.
+    This class prints messages to the console or Binary Ninja's log.
     """
 
-    tag = "Plugin.Mole"
+    def __init__(
+            self,
+            level: str = "info",
+        ) -> None:
+        self._set_level(level)
+        return
+    
+    def _set_level(
+            self,
+            level: str
+        ) -> None:
+        """
+        This method sets the log level to `level`.
+        """
+        level = level.lower()
+        if level == 'debug':
+            self._level = 0
+        elif level == 'info':
+            self._level = 1
+        elif level == 'warning':
+            self._level = 2
+        elif level == 'error':
+            self._level = 3
+        else:
+            self._level = 4
 
-    def _tag_msg(tag: str = None, msg: str = None) -> str:
+    def _tag_msg(
+            self,
+            tag: str = None,
+            msg: str = None,
+        ) -> str:
+        """
+        This method concatenates tag `tag` to the given message `msg`.
+        """
         m = ""
         if tag:
             m = f"[{tag:s}]"
         if msg:
             m = f"{m:s} {msg:s}"
         return m.strip()
-    
-    @staticmethod
-    def debug(tag: str = None, msg: str = None) -> None:
-        log_debug(Logger._tag_msg(tag, msg), Logger.tag)
+
+    def _print(
+            self,
+            tag: str,
+            msg: str,
+            color: str,
+            on_color: str = None,
+            print_raw: bool = False,
+            attrs: List[str] = [],
+            file = sys.stdout
+        ) -> None:
+        """
+        This method prints the message `msg` to the console.
+        """
+        if not print_raw:
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            head = f"[{now:s}] [{tag:s}] "
+        else:
+            head = ""
+        print(colored(f"{head:s}{msg:s}", color=color, on_color=on_color, attrs=attrs), file=file)
         return
     
-    @staticmethod
-    def info(tag: str = None, msg: str = None) -> None:
-        log_info(Logger._tag_msg(tag, msg), Logger.tag)
+    def debug(
+            self,
+            tag: str = None,
+            msg: str = None,
+            color: str = "magenta",
+            on_color: str = None,
+            print_raw: bool = False,
+            attrs: List[str] = []
+        ) -> None:
+        """
+        This method prints the message `msg` for log level 'debug'.
+        """
+        text = self._tag_msg(tag, msg)
+        log_debug(text, "Plugin.Mole")
+        if self._level <= 0:
+            self._print(
+                "DEBG", text,
+                color=color, on_color=on_color, print_raw=print_raw,
+                attrs=attrs, file=sys.stdout)
         return
     
-    @staticmethod
-    def alert(tag: str = None, msg: str = None) -> None:
-        log_alert(Logger._tag_msg(tag, msg), Logger.tag)
+    def info(
+            self,
+            tag: str = None,
+            msg: str = None,
+            color: str = "blue",
+            on_color: str = None,
+            print_raw: bool = False,
+            attrs: List[str] = []
+        ) -> None:
+        """
+        This method prints the message `msg` for log level 'info'.
+        """
+        text = self._tag_msg(tag, msg)
+        log_info(text, "Plugin.Mole")
+        if self._level <= 1:
+            self._print(
+                "INFO", text,
+                color=color, on_color=on_color, print_raw=print_raw,
+                attrs=attrs, file=sys.stdout)
         return
     
-    @staticmethod
-    def warn(tag: str = None, msg: str = None) -> None:
-        log_warn(Logger._tag_msg(tag, msg), Logger.tag)
+    def warn(
+            self,
+            tag: str = None,
+            msg: str = None,
+            color: str = "yellow",
+            on_color: str = None,
+            print_raw: bool = False,
+            attrs: List[str] = []
+        ) -> None:
+        """
+        This method prints the message `msg` for log level 'warn'.
+        """
+        text = self._tag_msg(tag, msg)
+        log_warn(text, "Plugin.Mole")
+        if self._level <= 2:
+            self._print(
+                "WARN", text,
+                color=color, on_color=on_color, print_raw=print_raw,
+                attrs=attrs, file=sys.stderr)
         return
     
-    @staticmethod
-    def error(tag: str = None, msg: str = None) -> None:
-        log_error(Logger._tag_msg(tag, msg), Logger.tag)
+    def error(
+            self,
+            tag: str = None,
+            msg: str = None,
+            color: str = "red",
+            on_color: str = None,
+            print_raw: bool = False,
+            attrs: List[str] = []
+        ) -> None:
+        """
+        This method prints the message `msg` for log level 'error'.
+        """
+        text = self._tag_msg(tag, msg)
+        log_error(text, "Plugin.Mole")
+        if self._level <= 3:
+            self._print(
+                "ERRO", text,
+                color=color, on_color=on_color, print_raw=print_raw,
+                attrs=attrs, file=sys.stderr)
         return

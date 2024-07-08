@@ -1,5 +1,10 @@
-import binaryninja   as bn
-from  .analysis.libc import LibcMemcpy
+import argparse
+import binaryninja    as bn
+from   .analysis.libc import LibcMemcpy
+from   .common.log    import Logger
+
+
+log = Logger("debug")
 
 
 class Plugin:
@@ -24,15 +29,38 @@ class Plugin:
 		) -> None:
 		"""
 		"""
-		LibcMemcpy(bv, ["getenv", "__builtin_getenv"]).analyze_all()
+		LibcMemcpy(bv, ["getenv", "__builtin_getenv"], log=log).analyze_all()
 		return
 	
 
 def main(
 	) -> None:
 	"""
-	TODO: Process a binary in headless mode
+	This method processes a give binary in headless mode.
 	"""
+	# Parse arguments
+	description = """
+	TODO: Provide a description
+	"""
+	parser = argparse.ArgumentParser(
+		description=description,
+		formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser.add_argument(
+		"file",
+		help="file to analyze")
+	parser.add_argument(
+		"--log_level",
+		choices=["error", "warning", "info", "debug"], default="info",
+		help="log level")
+	args = parser.parse_args()
+	# Create logger
+	global log
+	log = Logger(args.log_level)
+	# Analyze binary
+	bv = bn.load(args.file)
+	bv.update_analysis_and_wait()
+	Plugin.analyze_binary(bv)
+	bv.file.close()
 	return
 
 
