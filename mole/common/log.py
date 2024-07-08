@@ -13,8 +13,10 @@ class Logger:
     def __init__(
             self,
             level: str = "info",
+            runs_headless: bool = False
         ) -> None:
         self._set_level(level)
+        self._runs_headless = runs_headless
         return
     
     def _set_level(
@@ -85,12 +87,14 @@ class Logger:
         This method prints the message `msg` for log level 'debug'.
         """
         text = self._tag_msg(tag, msg)
-        log_debug(text, "Plugin.Mole")
-        if self._level <= 0:
-            self._print(
-                "DEBG", text,
-                color=color, on_color=on_color, print_raw=print_raw,
-                attrs=attrs, file=sys.stdout)
+        if self._runs_headless:
+            if self._level <= 0:
+                self._print(
+                    "DEBG", text,
+                    color=color, on_color=on_color, print_raw=print_raw,
+                    attrs=attrs, file=sys.stdout)
+        else:
+            log_debug(text, "Plugin.Mole")
         return
     
     def info(
@@ -106,12 +110,14 @@ class Logger:
         This method prints the message `msg` for log level 'info'.
         """
         text = self._tag_msg(tag, msg)
-        log_info(text, "Plugin.Mole")
-        if self._level <= 1:
-            self._print(
-                "INFO", text,
-                color=color, on_color=on_color, print_raw=print_raw,
-                attrs=attrs, file=sys.stdout)
+        if self._runs_headless:
+            if self._level <= 1:
+                self._print(
+                    "INFO", text,
+                    color=color, on_color=on_color, print_raw=print_raw,
+                    attrs=attrs, file=sys.stdout)
+        else:
+            log_info(text, "Plugin.Mole")
         return
     
     def warn(
@@ -127,12 +133,14 @@ class Logger:
         This method prints the message `msg` for log level 'warn'.
         """
         text = self._tag_msg(tag, msg)
-        log_warn(text, "Plugin.Mole")
-        if self._level <= 2:
-            self._print(
-                "WARN", text,
-                color=color, on_color=on_color, print_raw=print_raw,
-                attrs=attrs, file=sys.stderr)
+        if self._runs_headless:
+            if self._level <= 2:
+                self._print(
+                    "WARN", text,
+                    color=color, on_color=on_color, print_raw=print_raw,
+                    attrs=attrs, file=sys.stderr)
+        else:
+            log_warn(text, "Plugin.Mole")
         return
     
     def error(
@@ -148,10 +156,12 @@ class Logger:
         This method prints the message `msg` for log level 'error'.
         """
         text = self._tag_msg(tag, msg)
-        log_error(text, "Plugin.Mole")
-        if self._level <= 3:
-            self._print(
-                "ERRO", text,
-                color=color, on_color=on_color, print_raw=print_raw,
-                attrs=attrs, file=sys.stderr)
+        if self._runs_headless:        
+            if self._level <= 3:
+                self._print(
+                    "ERRO", text,
+                    color=color, on_color=on_color, print_raw=print_raw,
+                    attrs=attrs, file=sys.stderr)
+        else:
+            log_error(text, "Plugin.Mole")
         return

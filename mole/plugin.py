@@ -55,7 +55,7 @@ def main(
 	args = parser.parse_args()
 	# Create logger
 	global log
-	log = Logger(args.log_level)
+	log = Logger(args.log_level, runs_headless=True)
 	# Analyze binary
 	bv = bn.load(args.file)
 	bv.update_analysis_and_wait()
