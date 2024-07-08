@@ -84,6 +84,9 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILLsr()):
                 vars.update(self._slice_backwards(inst.left))
                 vars.update(self._slice_backwards(inst.right))
+            case (bn.MediumLevelILRet()):
+                for ret in inst.src:
+                    vars.update(self._slice_backwards(ret))
             case (bn.MediumLevelILSetVarSsa()):
                 vars.add(inst.dest)
                 vars.update(self._slice_backwards(inst.src))
@@ -100,12 +103,13 @@ class MediumLevelILBackwardSlicer:
                         if func_symb.type == bn.SymbolType.FunctionSymbol:
                             func = self._bv.get_function_at(func_addr)
                             if func is not None:
-                                for inst in func.mlil.ssa_form.instructions:
+                                for c_inst in func.mlil.ssa_form.instructions:
                                     # TODO: Support all return instructions
-                                    match inst:
+                                    match c_inst:
                                         # Backward slice starting from possible return instructions
-                                        case (bn.MediumLevelILTailcallSsa()):
-                                            vars.update(self._slice_backwards(inst))
+                                        case (bn.MediumLevelILRet() |
+                                              bn.MediumLevelILTailcallSsa()):
+                                            vars.update(self._slice_backwards(c_inst))
                 vars.update(self._slice_backwards(inst.dest))
                 for out in inst.output:
                     vars.add(out)
