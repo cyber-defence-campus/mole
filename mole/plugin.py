@@ -1,6 +1,6 @@
 import argparse
 import binaryninja    as bn
-from   .analysis.libc import LibcMemcpy
+from   .analysis      import libc
 from   .common.log    import Logger
 
 
@@ -29,7 +29,31 @@ class Plugin:
 		) -> None:
 		"""
 		"""
-		LibcMemcpy(bv, ["getenv", "__builtin_getenv"], log=log).analyze_all()
+		src_sym_names = [
+			# Environment
+			"getenv", "__builtin_getenv",		# Read environment variable
+			# Streams, Files and Directories
+			"getchar", "__builtin_getchar"		# Read character from standard input stream
+			"getc", "__builtin_getc",			# Read character from given sream
+			"fgetc", "__builtin_fgetc",			# Read character from given stream
+			"gets", "__builtin_gets",			# Read string from standard input stream
+			"fgets", "__builtin_fgets",			# Read string from given stream
+			"scanf", "__builtin_scanf",			# Read input from standard input stream
+			"fscanf", "__builtin_fscanf",		# Read input from given stream
+			"vscanf", "__builtin_vscanf",		# Read input from standard input stream
+			"vfscanf", "__builtin_vfscanf",		# Read input from given stream
+			"fopen", "__builtin_fopen",			# Open file
+			"fdopen", "__builtin_fdopen",		# Open file
+			"freopen", "__builtin_freopen",		# Open file
+			"opendir", "__builtin_opendir",		# Open directory
+			"fdopendir", "__builtin_fdopendir",	# Open directory
+			# Network
+			"recv", "__builtin_recv",			# Receive message from socket
+			"recvfrom", "__builtin_recvfrom",	# Receive message from socket
+			"recvmsg", "__builtin_recvmsg",		# Receive message from socket
+		]
+		libc.memcpy(bv, log=log, src_sym_names=src_sym_names).analyze_all()
+		libc.sscanf(bv, log=log, src_sym_names=src_sym_names).analyze_all()
 		return
 	
 
