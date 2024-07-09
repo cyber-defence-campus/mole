@@ -44,7 +44,7 @@ class Logger:
             msg: str = None,
         ) -> str:
         """
-        This method concatenates tag `tag` to the given message `msg`.
+        This method concatenates tag `tag` to the message `msg`.
         """
         m = ""
         if tag:
@@ -84,7 +84,7 @@ class Logger:
             attrs: List[str] = []
         ) -> None:
         """
-        This method prints the message `msg` for log level 'debug'.
+        This method prints a tagged message of log level debug to the console or Binary Ninja's log.
         """
         text = self._tag_msg(tag, msg)
         if self._runs_headless:
@@ -107,7 +107,7 @@ class Logger:
             attrs: List[str] = []
         ) -> None:
         """
-        This method prints the message `msg` for log level 'info'.
+        This method prints a tagged message of log level info to the console or Binary Ninja's log.
         """
         text = self._tag_msg(tag, msg)
         if self._runs_headless:
@@ -130,7 +130,7 @@ class Logger:
             attrs: List[str] = []
         ) -> None:
         """
-        This method prints the message `msg` for log level 'warn'.
+        This method prints a tagged message of log level warn to the console or Binary Ninja's log.
         """
         text = self._tag_msg(tag, msg)
         if self._runs_headless:
@@ -153,7 +153,7 @@ class Logger:
             attrs: List[str] = []
         ) -> None:
         """
-        This method prints the message `msg` for log level 'error'.
+        This method prints a tagged message of log level error to the console or Binary Ninja's log.
         """
         text = self._tag_msg(tag, msg)
         if self._runs_headless:        
