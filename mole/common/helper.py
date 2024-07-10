@@ -1,11 +1,28 @@
 import binaryninja  as bn
-from   typing       import Dict, List, Set
+from   typing       import Dict, List, Optional, Set
 
 
 class SymbolHelper:
     """
     This class provides helper functions with respect to symbols.
     """
+    
+    @staticmethod
+    def get_symbol_by_section(
+            bv: bn.BinaryView,
+            symbol_name: str,
+            section_name: str = ".plt"
+        ) -> Optional[bn.CoreSymbol]:
+        """
+        This method returns the symbol with name `symbol_name` belonging to section `section_name`.
+        """
+        section = bv.get_section_by_name(section_name)
+        if section is None:
+            return None
+        for symbol in bv.symbols.get(symbol_name, []):
+            if section.start <= symbol.address < section.end:
+                return symbol
+        return None
 
     @staticmethod
     def get_code_refs(
