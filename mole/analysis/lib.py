@@ -16,66 +16,19 @@ class function:
             bv: bn.BinaryView,
             tag: str = "libc.function",
             log: Logger = Logger(),
-            synopsis: str = "",
             par_cnt: Callable[[int], bool] = lambda x: x >= 0,
             par_dataflow: Callable[[int], bool] = lambda x: False,
-            src_sym_names: List[str] = []
+            src_sym_names: List[str] = [],
+            snk_sym_names: List[str] = []
         ) -> None:
         self._bv = bv
         self._tag = tag
         self._log = log
-        self._synopsis = synopsis
         self._par_cnt = par_cnt
         self._par_dataflow = par_dataflow
-        self._src_sym_names = src_sym_names
-        self._init_sources_sinks()
+        self._sources = SymbolHelper.get_code_refs(self._bv, src_sym_names)
+        self._sinks = SymbolHelper.get_code_refs(self._bv, snk_sym_names)
         return
-    
-    def _init_sources_sinks(
-            self,
-        ) -> None:
-        """
-        This method performs additional initializations with respect to sources and sinks.
-        """
-        # Parse function synopsis
-        parsed_synopsis = re.fullmatch(r"([^\s\*]+[\s\*]+)([^\(\s]+)(.+)", self._synopsis)
-        if parsed_synopsis is None:
-            self._log.error(self._tag, f"Function synopsis '{self._synopsis}' cannot be parsed")
-            return
-        func_ret, func_name, func_args = parsed_synopsis.groups()
-        # Initialize sources/sinks code references
-        self._snk_sym_names = [func_name, f"__builtin_{func_name:s}"]
-        self._sinks = SymbolHelper.get_code_refs(self._bv, self._snk_sym_names)
-        self._sources = SymbolHelper.get_code_refs(self._bv, self._src_sym_names)
-        # Define function types
-        plt_type, _ = self._bv.parse_type_string(f"{func_ret:s}{func_name:s}{func_args:s}")
-        got_type, _ = self._bv.parse_type_string(f"{func_ret:s}(*{func_name}){func_args:s}")
-        syn_type, _ = self._bv.parse_type_string(f"{func_ret:s}__builtin_{func_name:s}{func_args:s}")
-        # Overwrite types of sinks
-        for snk_sym_name in self._snk_sym_names:
-            # Section .plt
-            plt_sym = SymbolHelper.get_symbol_by_section(self._bv, snk_sym_name, ".plt")
-            if plt_sym is not None:
-                self._bv.define_user_data_var(plt_sym.address, plt_type)
-                plt_func = self._bv.get_function_at(plt_sym.address)
-                if plt_func is not None:
-                    plt_func.set_user_type(plt_type)
-            # Section .got
-            got_sym = SymbolHelper.get_symbol_by_section(self._bv, snk_sym_name, ".got")
-            if got_sym is not None:
-                self._bv.define_user_data_var(got_sym.address, got_type)
-                got_func = self._bv.get_function_at(got_sym.address)
-                if got_func is not None:
-                    got_func.set_user_type(got_type)
-            # Section .synthetic_builtins
-            syn_sym = SymbolHelper.get_symbol_by_section(self._bv, snk_sym_name, ".synthetic_builtins")
-            if syn_sym is not None:
-                self._bv.define_user_data_var(syn_sym.address, syn_type)
-                syn_func = self._bv.get_function_at(syn_sym.address)
-                if syn_func is not None:
-                    syn_func.set_user_type(syn_type)
-        self._bv.update_analysis_and_wait()
-        return None
         
     def analyze_params(
             self
@@ -122,10 +75,6 @@ class function:
                                 self._log.info(
                                     self._tag,
                                     f"Interesting path: {t_src:s} --> {t_snk:s}!"
-                                )
-                                self._log.info(
-                                    self._tag,
-                                    f"Sink: {self._synopsis}"
                                 )
         return
     

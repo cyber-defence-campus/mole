@@ -18,10 +18,10 @@ class memcpy(function):
         ) -> None:
         super().__init__(
             bv, tag, log,
-            synopsis = "void* memcpy(void* dest, const void* src, size_t n)",
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: x==2,
-            src_sym_names = src_sym_names
+            src_sym_names = src_sym_names,
+            snk_sym_names = ["memcpy", "__builtin_memcpy"]
         )
         return
     
@@ -40,9 +40,9 @@ class sscanf(function):
         ) -> None:
         super().__init__(
             bv, tag, log,
-            synopsis = "int sscanf(const char* str, const char* format, ...)",
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
-            src_sym_names = src_sym_names
+            src_sym_names = src_sym_names,
+            snk_sym_names = ["sscanf", "__builtin_sscanf"]
         )
         return
