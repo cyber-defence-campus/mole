@@ -72,9 +72,13 @@ class MediumLevelILBackwardSlicer:
         match inst:
             case (bn.MediumLevelILConst() |
                   bn.MediumLevelILConstPtr() |
-                  bn.MediumLevelILConstData() |
-                  bn.MediumLevelILAddressOf()):
+                  bn.MediumLevelILConstData()):
                 pass
+            case (bn.MediumLevelILAddressOf()):
+                # Backward slice at all possible variable definitions
+                for ssa_var in inst.function.ssa_vars:
+                    if ssa_var.var == inst.src:
+                        vars.update(self._slice_ssa_var_definition(ssa_var, inst.function))
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased()):
                 vars.update(self._slice_ssa_var_definition(inst.src, inst.function))
@@ -83,13 +87,15 @@ class MediumLevelILBackwardSlicer:
             case (bn.MediumLevelILAdd() |
                   bn.MediumLevelILSub() |
                   bn.MediumLevelILLsl() |
-                  bn.MediumLevelILLsr()):
+                  bn.MediumLevelILLsr() |
+                  bn.MediumLevelILXor()):
                 vars.update(self._slice_backwards(inst.left))
                 vars.update(self._slice_backwards(inst.right))
             case (bn.MediumLevelILRet()):
                 for ret in inst.src:
                     vars.update(self._slice_backwards(ret))
-            case (bn.MediumLevelILSetVarSsa()):
+            case (bn.MediumLevelILSetVarSsa() |
+                  bn.MediumLevelILSetVarAliased()):
                 vars.add(inst.dest)
                 vars.update(self._slice_backwards(inst.src))
             case (bn.MediumLevelILVarPhi()):

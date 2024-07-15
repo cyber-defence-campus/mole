@@ -1,48 +1,79 @@
-import binaryninja  as bn
-from   typing       import List
-from   .lib         import function
-from   ..common.log import Logger
+import binaryninja     as bn
+from   .lib            import snk_func, src_func
+from   ..common.log    import Logger
 
 
-class memcpy(function):
+class fgets(src_func):
     """
-    This class implements analysis testcases for `libc` function `memcpy`.
+    This class implements a source for `libc` function `fgets`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.memcpy",
-            log: Logger = Logger(),
-            src_sym_names: List[str] = []
+            log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, tag, log,
+            bv, "libc.fgets", log, ["fgets", "__builtin_fgets"],
             par_cnt = lambda x: x == 3,
-            par_dataflow = lambda x: x==2,
-            src_sym_names = src_sym_names,
-            snk_sym_names = ["memcpy", "__builtin_memcpy"]
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x == 0
         )
         return
     
 
-class sscanf(function):
+class getenv(src_func):
     """
-    This class implements analysis testcases for `libc` function `sscanf`.
+    This class implements a source for `libc` function `getenv`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.sscanf",
-            log: Logger = Logger(),
-            src_sym_names: List[str] = []
+            log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, tag, log,
+            bv, "libc.getenv", log, ["getenv", "__builtin_getenv"],
+            par_cnt = lambda x: x == 1,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True
+        )
+        return
+
+
+class memcpy(snk_func):
+    """
+    This class implements a sink for `libc` function `memcpy`.
+    """
+
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            bv, "libc.memcpy", log, ["memcpy", "__builtin_memcpy"],
+            par_cnt = lambda x: x == 3,
+            par_dataflow = lambda x: x == 2,
+            par_slice = lambda x: True
+        )
+        return
+
+
+class sscanf(snk_func):
+    """
+    This class implements a sink for `libc` function `sscanf`.
+    """
+
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            bv, "libc.sscanf", log, ["sscanf", "__builtin_sscanf"],
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
-            src_sym_names = src_sym_names,
-            snk_sym_names = ["sscanf", "__builtin_sscanf"]
+            par_slice = lambda x: True
         )
         return
