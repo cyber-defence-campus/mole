@@ -1,7 +1,8 @@
 # mole
 Binary Ninja Plugin for Vulnerability Discovery
 ## Installation
-In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your _Binary Ninja_'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respetively.
+In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your _Binary Ninja_'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respectively.
+
 Clone the _Mole_ plugin to your _Binary Ninja_'s user folder:
 ```shell
 cd $BINJA_USR/plugins/
