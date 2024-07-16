@@ -43,10 +43,13 @@ class MediumLevelILBackwardSlicer:
             if parm_var != ssa_var.var:
                 continue
             for code_ref in self._bv.get_code_refs(func_addr):
-                r_addr = code_ref.address
-                r_func = code_ref.function
-                r_call = r_func.get_low_level_il_at(r_addr).mlil.ssa_form
-                r_parm = r_call.params[parm_num]
+                try:
+                    r_addr = code_ref.address
+                    r_func = code_ref.function
+                    r_call = r_func.get_low_level_il_at(r_addr).mlil.ssa_form
+                    r_parm = r_call.params[parm_num]
+                except:
+                    continue
                 vars.update(self._slice_backwards(r_parm))
         return vars
 
