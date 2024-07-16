@@ -1,5 +1,6 @@
 import argparse
 import binaryninja    as bn
+from   typing         import List, Tuple
 from   .analysis      import libc
 from   .common.log    import Logger
 
@@ -26,9 +27,13 @@ class Plugin:
     @staticmethod
     def analyze_binary(
         bv: bn.BinaryView
-        ) -> None:
+        ) -> List[Tuple[
+                str, bn.MediumLevelILInstruction,
+                str, bn.MediumLevelILInstruction, int, bn.SSAVariable
+            ]]:
         """
         """
+        paths = []
         # src_sym_names = [
         #     # Environment
         #     "getenv", "__builtin_getenv",        # Read environment variable
@@ -55,17 +60,18 @@ class Plugin:
         # libc.memcpy(bv, log=log, src_sym_names=src_sym_names).analyze_all()
         # libc.sscanf(bv, log=log, src_sym_names=src_sym_names).analyze_all()
 
+        # Source functions
         sources = [
             # Environment
-            libc.getenv(bv, log),               # Read environment variable
+            libc.getenv(bv=bv, log=log),        # Read environment variable
             # Streams, Files and Directories
-            libc.fgets(bv, log),                # Read string from given stream
+            libc.fgets(bv=bv, log=log),         # Read string from given stream
             # Network
         ]
-        
-        libc.sscanf(bv, log).find(sources)
-        libc.memcpy(bv, log).find(sources)
-        return
+        # Sink functions
+        paths.extend(libc.sscanf(bv=bv, log=log).find(sources))
+        paths.extend(libc.memcpy(bv=bv, log=log).find(sources))
+        return paths
     
 
 def main(

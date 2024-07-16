@@ -1,5 +1,5 @@
 import binaryninja     as bn
-from   typing          import Callable, List
+from   typing          import Callable, List, Tuple
 from   ..common.helper import SymbolHelper
 from   ..common.log    import Logger
 from   ..model.slice   import MediumLevelILBackwardSlicer
@@ -107,10 +107,15 @@ class snk_func(func):
     def find(
             self,
             sources: List[src_func] = []
-        ) -> None:
+        ) -> List[Tuple[
+                str, bn.MediumLevelILInstruction,
+                str, bn.MediumLevelILInstruction, int, bn.SSAVariable
+            ]]:
         """
-        This medthod tries to find `sources` using static backward slicing.
+        This method tries to find paths, starting from the current sink and ending in one of the
+        given `sources`, using static backward slicing.
         """
+        paths = []
         code_refs = SymbolHelper.get_code_refs(self._bv, self._sym_names)
         for snk_name, snk_insts in code_refs.items():
             for snk_inst in snk_insts:
@@ -155,4 +160,5 @@ class snk_func(func):
                                             self._tag,
                                             f"Interesting path: {t_src:s} --> {t_snk:s}!"
                                         )
-        return
+                                        paths.append((src_name, src_inst, snk_name, snk_inst, parm_num, parm_var))
+        return paths
