@@ -61,7 +61,8 @@ class memcpy(snk_func):
         super().__init__(
             bv, tag, log, sym_names,
             par_cnt = lambda x: x == 3,
-            par_dataflow = lambda x: x == 2,
+            # par_dataflow = lambda x: x == 2,
+            par_dataflow = lambda x: False,
             par_slice = lambda x: True
         )
         return

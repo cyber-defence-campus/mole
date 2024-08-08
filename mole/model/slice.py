@@ -85,7 +85,8 @@ class MediumLevelILBackwardSlicer:
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased()):
                 vars.update(self._slice_ssa_var_definition(inst.src, inst.function))
-            case (bn.MediumLevelILLoadSsa()):
+            case (bn.MediumLevelILSx() |
+                  bn.MediumLevelILLoadSsa()):
                 vars.update(self._slice_backwards(inst.src))
             case (bn.MediumLevelILAdd() |
                   bn.MediumLevelILSub() |

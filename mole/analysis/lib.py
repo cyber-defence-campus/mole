@@ -50,14 +50,14 @@ class src_func(func):
                     inst.operation != bn.MediumLevelILOperation.MLIL_TAILCALL_SSA):
                     self._log.warn(self._tag, f"0x{inst.address:x} Ignore call '0x{inst.address:x} {symbol_name:s}' due to invalid call instruction")
                     continue
-                # Ignore calls with an invalid number of parameters
-                if not par_cnt(len(inst.params)):
-                    self._log.warn(self._tag, f"0x{inst.address:x} Ignore call '0x{inst.address:x} {symbol_name:s}' due to invalid number of arguments")
-                    continue
                 # Add call to target instructions
                 s = self._target_insts.get(symbol_name, set())
                 s.add(inst)
                 self._target_insts[symbol_name] = s
+                # Ignore calls with an invalid number of parameters
+                if not par_cnt(len(inst.params)):
+                    self._log.warn(self._tag, f"0x{inst.address:x} Ignore arguments of call '0x{inst.address:x} {symbol_name:s}' due to an unexpected amount")
+                    continue
                 # Analyze parameters
                 for parm_num, parm_var in enumerate(inst.params):
                     self._log.debug(self._tag, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
