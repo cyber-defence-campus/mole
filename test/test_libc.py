@@ -159,3 +159,28 @@ class TestFromGetenvToSscanf(unittest.TestCase):
         # Close test binary
         bv.file.close()
         return
+    
+
+class TestFromGetsToGets(unittest.TestCase):
+    """
+    This class implements unit tests for `libc` functions `gets` (source) and `gets` (sink).
+    """
+
+    def test_gets_01(self) -> None:
+        # Load and analyze test binary with Binary Ninja
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-01"))
+        bv.update_analysis_and_wait()
+        # Analyze test binary with plugin
+        paths = Plugin.analyze_binary(bv)
+        # Assert results
+        self.assertTrue(len(paths) > 0, "path(s) identified")
+        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
+            self.assertEqual(src_name, "gets", "source has symbol 'gets'")
+            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
+            self.assertEqual(snk_name, "gets", "sink has symbol 'gets'")
+            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            self.assertEqual(par_num, 0, "arg1")
+            self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
+        # Close test binary
+        bv.file.close()
+        return

@@ -59,9 +59,6 @@ class MediumLevelILBackwardSlicer:
         ) -> Set[bn.SSAVariable]:
         """
         This method backward slices instruction `inst` based on its type.
-
-        TODO:
-        - Review `MediumLevelILVarAliased`
         """
         vars = set()
         info = InstructionHelper.get_inst_info(inst)

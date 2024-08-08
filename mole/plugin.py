@@ -66,11 +66,13 @@ class Plugin:
             libc.getenv(bv=bv, log=log),        # Read environment variable
             # Streams, Files and Directories
             libc.fgets(bv=bv, log=log),         # Read string from given stream
+            libc.gets(bv=bv, log=log),          # Read string from standard input stream
             # Network
         ]
         # Sink functions
-        paths.extend(libc.sscanf(bv=bv, log=log).find(sources))
+        paths.extend(libc.gets(bv=bv, log=log).find(sources))
         paths.extend(libc.memcpy(bv=bv, log=log).find(sources))
+        paths.extend(libc.sscanf(bv=bv, log=log).find(sources))
         return paths
     
 

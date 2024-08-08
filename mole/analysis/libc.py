@@ -1,7 +1,7 @@
-import binaryninja     as bn
-from   typing          import List
-from   .lib            import snk_func, src_func
-from   ..common.log    import Logger
+import binaryninja   as bn
+from   typing        import List
+from   .lib          import src_func, snk_func
+from   ..common.log  import Logger
 
 
 class fgets(src_func):
@@ -38,6 +38,35 @@ class getenv(src_func):
             sym_names: List[str] = ["getenv", "__builtin_getenv"]
         ) -> None:
         super().__init__(
+            bv, tag, log, sym_names,
+            par_cnt = lambda x: x == 1,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True
+        )
+        return
+    
+
+class gets(src_func, snk_func):
+    """
+    This class implements a source and sink for `libc` function `gets`.
+    """
+
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            tag: str = "libc.gets",
+            log: Logger = Logger(),
+            sym_names: List[str] = ["gets", "__builtin_gets"]
+        ) -> None:
+        src_func.__init__(
+            self,
+            bv, tag, log, sym_names,
+            par_cnt = lambda x: x == 1,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True
+        )
+        snk_func.__init__(
+            self,
             bv, tag, log, sym_names,
             par_cnt = lambda x: x == 1,
             par_dataflow = lambda x: False,
