@@ -14,17 +14,20 @@ class MediumLevelILBackwardSlicer:
             bv: bn.BinaryView,
             tag: str = "BackSlicer",
             log: Logger = Logger(),
+            max_recursion: int = 10
         ) -> None:
         self._bv = bv
         self._tag = tag
         self._log = log
+        self._max_recursion = max_recursion
         self._sliced_insts = {}
         return
     
     def _slice_ssa_var_definition(
             self,
             ssa_var: bn.SSAVariable,
-            func: bn.MediumLevelILFunction
+            func: bn.MediumLevelILFunction,
+            func_depth: int = 0
         ) -> Set[bn.SSAVariable]:
         """
         This method determines the instruction defining variable `ssa_var` within the function
@@ -35,7 +38,7 @@ class MediumLevelILBackwardSlicer:
         # SSAVariable defined within the function
         inst = func.get_ssa_var_definition(ssa_var)
         if inst is not None:
-            return self._slice_backwards(inst)
+            return self._slice_backwards(inst, func_depth)
         # SSAVariable defined in another function
         vars = set()
         func_addr = func.llil[0].address
@@ -50,12 +53,13 @@ class MediumLevelILBackwardSlicer:
                     r_parm = r_call.params[parm_num]
                 except:
                     continue
-                vars.update(self._slice_backwards(r_parm))
+                vars.update(self._slice_backwards(r_parm, func_depth))
         return vars
 
     def _slice_backwards(
             self,
-            inst: bn.MediumLevelILInstruction
+            inst: bn.MediumLevelILInstruction,
+            func_depth: int = 0
         ) -> Set[bn.SSAVariable]:
         """
         This method backward slices instruction `inst` based on its type.
@@ -68,62 +72,73 @@ class MediumLevelILBackwardSlicer:
             return self._sliced_insts[inst]
         # Slice instruction
         self._sliced_insts[inst] = set()
+        # # TODO: Maximum recursion depth reached
+        # if depth >= 256:
+        #     self._log.warn(self._tag, f"{info:s}: Maximum recursion depth reached")
+        #     return vars
         # TODO: Support all instructions
         match inst:
             case (bn.MediumLevelILConst() |
                   bn.MediumLevelILConstPtr() |
-                  bn.MediumLevelILConstData()):
+                  bn.MediumLevelILConstData() |
+                  bn.MediumLevelILImport()):
                 pass
             case (bn.MediumLevelILAddressOf()):
                 # Backward slice at all possible variable definitions
                 for ssa_var in inst.function.ssa_vars:
                     if ssa_var.var == inst.src:
-                        vars.update(self._slice_ssa_var_definition(ssa_var, inst.function))
+                        vars.update(self._slice_ssa_var_definition(ssa_var, inst.function, func_depth))
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased()):
-                vars.update(self._slice_ssa_var_definition(inst.src, inst.function))
+                vars.update(self._slice_ssa_var_definition(inst.src, inst.function, func_depth))
             case (bn.MediumLevelILSx() |
                   bn.MediumLevelILLoadSsa()):
-                vars.update(self._slice_backwards(inst.src))
+                vars.update(self._slice_backwards(inst.src, func_depth))
             case (bn.MediumLevelILAdd() |
                   bn.MediumLevelILSub() |
                   bn.MediumLevelILLsl() |
                   bn.MediumLevelILLsr() |
                   bn.MediumLevelILXor()):
-                vars.update(self._slice_backwards(inst.left))
-                vars.update(self._slice_backwards(inst.right))
+                vars.update(self._slice_backwards(inst.left, func_depth))
+                vars.update(self._slice_backwards(inst.right, func_depth))
             case (bn.MediumLevelILRet()):
                 for ret in inst.src:
-                    vars.update(self._slice_backwards(ret))
+                    vars.update(self._slice_backwards(ret, func_depth))
             case (bn.MediumLevelILSetVarSsa() |
                   bn.MediumLevelILSetVarAliased()):
                 vars.add(inst.dest)
-                vars.update(self._slice_backwards(inst.src))
+                vars.update(self._slice_backwards(inst.src, func_depth))
             case (bn.MediumLevelILVarPhi()):
                 vars.add(inst.dest)
                 for var in inst.src:
-                    vars.update(self._slice_ssa_var_definition(var, inst.function))
+                    vars.update(self._slice_ssa_var_definition(var, inst.function, func_depth))
             case (bn.MediumLevelILCallSsa(dest=dest_inst) |
                   bn.MediumLevelILTailcallSsa(dest=dest_inst)):
                 match dest_inst:
                     case bn.MediumLevelILConstPtr(constant=func_addr):
-                        func_symb = self._bv.get_symbol_at(func_addr)
-                        # Backward slice into functions defined within the binary itself
-                        if func_symb.type == bn.SymbolType.FunctionSymbol:
-                            func = self._bv.get_function_at(func_addr)
+                        # TODO: Backward slice into functions defined within the binary
+                        func = self._bv.get_function_at(func_addr)
+                        if func is not None:
+                            try:
+                                func = func.mlil.ssa_form
+                            except bn.ILException:
+                                func = None
                             if func is not None:
-                                for c_inst in func.mlil.ssa_form.instructions:
+                                for c_inst in func.instructions:
                                     # TODO: Support all return instructions
                                     match c_inst:
                                         # Backward slice starting from possible return instructions
                                         case (bn.MediumLevelILRet() |
-                                              bn.MediumLevelILTailcallSsa()):
-                                            vars.update(self._slice_backwards(c_inst))
-                vars.update(self._slice_backwards(inst.dest))
+                                            bn.MediumLevelILTailcallSsa()):
+                                            if func_depth < self._max_recursion:
+                                                vars.update(self._slice_backwards(c_inst, func_depth+1))
+                                            else:
+                                                self._log.warn(self._tag, f"{info:s}: Maxium recursion depth reached")
+                vars.update(self._slice_backwards(inst.dest, func_depth))
                 for out in inst.output:
                     vars.add(out)
                 for par in inst.params:
-                    vars.update(self._slice_backwards(par))
+                    vars.update(self._slice_backwards(par, func_depth))
             case _:
                 self._log.warn(self._tag, f"{info:s}: Missing handler")
         self._sliced_insts[inst] = vars

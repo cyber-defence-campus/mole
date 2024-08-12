@@ -13,6 +13,8 @@ class Plugin:
     This class registers the plugin with Binary Ninja.
     """
 
+    max_recursion = 10
+
     @staticmethod
     def register(
         ) -> None:
@@ -70,16 +72,16 @@ class Plugin:
             # Network
         ]
         # Sink functions
-        paths.extend(libc.gets(bv=bv, log=log).find(sources))
-        paths.extend(libc.memcpy(bv=bv, log=log).find(sources))
-        paths.extend(libc.sscanf(bv=bv, log=log).find(sources))
+        paths.extend(libc.gets(bv=bv, log=log).find(sources, Plugin.max_recursion))
+        paths.extend(libc.memcpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
+        paths.extend(libc.sscanf(bv=bv, log=log).find(sources, Plugin.max_recursion))
         return paths
     
 
 def main(
     ) -> None:
     """
-    This method processes a give binary in headless mode.
+    This method processes a given binary in headless mode.
     """
     # Parse arguments
     description = """
@@ -95,7 +97,13 @@ def main(
         "--log_level",
         choices=["error", "warning", "info", "debug"], default="info",
         help="log level")
+    parser.add_argument(
+        "--max_recursion",
+        type=int, default=Plugin.max_recursion,
+        help="Backward slicing visits called functions up to the given recursion depth"
+    )
     args = parser.parse_args()
+    Plugin.max_recursion = args.max_recursion
     # Create logger
     global log
     log = Logger(args.log_level, runs_headless=True)

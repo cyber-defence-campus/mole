@@ -51,9 +51,9 @@ class src_func(func):
                     self._log.warn(self._tag, f"0x{inst.address:x} Ignore call '0x{inst.address:x} {symbol_name:s}' due to invalid call instruction")
                     continue
                 # Add call to target instructions
-                s = self._target_insts.get(symbol_name, set())
+                s = self._target_insts.get((inst.address, symbol_name), set())
                 s.add(inst)
-                self._target_insts[symbol_name] = s
+                self._target_insts[(inst.address, symbol_name)] = s
                 # Ignore calls with an invalid number of parameters
                 if not par_cnt(len(inst.params)):
                     self._log.warn(self._tag, f"0x{inst.address:x} Ignore arguments of call '0x{inst.address:x} {symbol_name:s}' due to an unexpected amount")
@@ -77,9 +77,9 @@ class src_func(func):
                         slicer = MediumLevelILBackwardSlicer(self._bv, self._tag, self._log)
                         slicer.slice_backwards(parm_var)
                         # Add sliced instructions to target instructions
-                        s = self._target_insts.get(symbol_name, set())
+                        s = self._target_insts.get((inst.address, symbol_name), set())
                         s.update(slicer._sliced_insts)
-                        self._target_insts[symbol_name] = s
+                        self._target_insts[(inst.address, symbol_name)] = s
         return
 
 
@@ -106,7 +106,8 @@ class snk_func(func):
     
     def find(
             self,
-            sources: List[src_func] = []
+            sources: List[src_func] = [],
+            max_recursion = 10
         ) -> List[Tuple[
                 str, bn.MediumLevelILInstruction,
                 str, bn.MediumLevelILInstruction, int, bn.SSAVariable
@@ -145,20 +146,22 @@ class snk_func(func):
                             continue
                     # Backward slice the parameter
                     if self._par_slice(parm_num):
-                        slicer = MediumLevelILBackwardSlicer(self._bv, self._tag, self._log)
-                        slicer.slice_backwards(parm_var)
+                        slicer = MediumLevelILBackwardSlicer(self._bv, self._tag, self._log, max_recursion)
+                        try:
+                            slicer.slice_backwards(parm_var)
+                        except Exception as e:
+                            self._log.error(self._tag, f"Exception: {str(e):s}")
                         # Check whether the slice contains any source
                         for source in sources:
-                            for src_name, src_insts in source._target_insts.items():
+                            for (sym_addr, sym_name), src_insts in source._target_insts.items():
                                 for src_inst in src_insts:
                                     if slicer.includes(src_inst):
-                                        t_src = f"0x{src_inst.address:x} {src_name}"
-                                        t_src = f"{t_src:s}()"
+                                        t_src = f"0x{sym_addr:x} {sym_name:s}()"
                                         t_snk = f"0x{snk_inst.address:x} {snk_name}"
                                         t_snk = f"{t_snk:s}(arg#{parm_num+1:d}:{str(parm_var):s})"
                                         self._log.info(
                                             self._tag,
                                             f"Interesting path: {t_src:s} --> {t_snk:s}!"
                                         )
-                                        paths.append((src_name, src_inst, snk_name, snk_inst, parm_num, parm_var))
+                                        paths.append((sym_name, src_inst, snk_name, snk_inst, parm_num, parm_var))
         return paths
