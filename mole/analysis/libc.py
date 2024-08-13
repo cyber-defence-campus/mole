@@ -107,11 +107,61 @@ class strcpy(snk_func):
             bv: bn.BinaryView,
             tag: str = "libc.strcpy",
             log: Logger = Logger(),
-            sym_names: List[str] = ["strcpy", "__builtin_strcpy"]
+            sym_names: List[str] = ["strcpy", "__builtin_strcpy", "stpcpy", "__builtin_stpcpy"]
         ) -> None:
         super().__init__(
             bv, tag, log, sym_names,
             par_cnt = lambda x: x == 2,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True
+        )
+        return
+    
+class strcat(strcpy):
+    """
+    This class implements a sink for `libc` function `strcat`.
+    """
+
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            tag: str = "libc.strcat",
+            log: Logger = Logger(),
+            sym_names: List[str] = ["strcat", "__builtin_strcat"]
+        ) -> None:
+        super().__init__(bv, tag, log, sym_names)
+        return
+    
+class wcscpy(strcpy):
+    """
+    This class implements a sink for `libc` function `wcscpy`.
+    """
+
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            tag: str = "libc.wcscpy",
+            log: Logger = Logger(),
+            sym_names: List[str] = ["wcscpy", "__builtin_wcscpy"]
+        ) -> None:
+        super().__init__(bv, tag, log, sym_names)
+        return
+    
+class strncpy(snk_func):
+    """
+    This class implements a sink for `libc` function `strncpy`.
+    """
+
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            tag: str = "libc.strncpy",
+            log: Logger = Logger(),
+            sym_names: List[str] = ["strncpy", "__builtin_strncpy"]
+        ) -> None:
+        super().__init__(
+            bv, tag, log, sym_names,
+            par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
         )
