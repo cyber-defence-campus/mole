@@ -1,7 +1,7 @@
 import argparse
 import binaryninja    as bn
 from   typing         import List, Tuple
-from   .analysis      import libc
+from   .analysis      import libc, libgio_2_0
 from   .common.log    import Logger
 
 
@@ -65,11 +65,12 @@ class Plugin:
         # Source functions
         sources = [
             # Environment
-            libc.getenv(bv=bv, log=log),        # Read environment variable
+            libc.getenv(bv=bv, log=log),                # Read environment variable
             # Streams, Files and Directories
-            libc.fgets(bv=bv, log=log),         # Read string from given stream
-            libc.gets(bv=bv, log=log),          # Read string from standard input stream
+            libc.fgets(bv=bv, log=log),                 # Read string from given stream
+            libc.gets(bv=bv, log=log),                  # Read string from standard input stream
             # Network
+            libgio_2_0.g_socket_receive(bv=bv, log=log) # Read bytes from socket
         ]
         # Sink functions
         paths.extend(libc.gets(bv=bv, log=log).find(sources, Plugin.max_recursion))

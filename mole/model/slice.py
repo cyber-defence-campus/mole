@@ -72,10 +72,6 @@ class MediumLevelILBackwardSlicer:
             return self._sliced_insts[inst]
         # Slice instruction
         self._sliced_insts[inst] = set()
-        # # TODO: Maximum recursion depth reached
-        # if depth >= 256:
-        #     self._log.warn(self._tag, f"{info:s}: Maximum recursion depth reached")
-        #     return vars
         # TODO: Support all instructions
         match inst:
             case (bn.MediumLevelILConst() |
