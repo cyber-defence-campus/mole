@@ -21,7 +21,9 @@ class TestMemcpy(unittest.TestCase):
             self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
             self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
             self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            self.assertTrue((
+                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
             self.assertEqual(par_num, 2, "arg3")
             self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
         # Close test binary
@@ -40,7 +42,9 @@ class TestMemcpy(unittest.TestCase):
             self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
             self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
             self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            self.assertTrue((
+                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
             self.assertTrue(par_num in [1, 2], "arg2 or arg3")
             self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
         # Close test binary
@@ -59,7 +63,9 @@ class TestMemcpy(unittest.TestCase):
             self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
             self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
             self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            self.assertTrue((
+                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
             self.assertEqual(par_num, 0, "arg1")
             self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
         # Close test binary
@@ -78,7 +84,9 @@ class TestMemcpy(unittest.TestCase):
             self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
             self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
             self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            self.assertTrue((
+                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
             self.assertEqual(par_num, 2, "arg3")
             self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
         # Close test binary
@@ -97,7 +105,9 @@ class TestMemcpy(unittest.TestCase):
             self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
             self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
             self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            self.assertTrue((
+                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
             self.assertTrue(par_num in [1, 2], "arg2 or arg3")
             self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
         # Close test binary
@@ -128,7 +138,9 @@ class TestMemcpy(unittest.TestCase):
             self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
             self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
             self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            self.assertTrue((
+                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
             self.assertTrue(par_num in [1, 2], "arg2 or arg3")
             self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
         # Close test binary
@@ -153,7 +165,9 @@ class TestSscanf(unittest.TestCase):
             self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
             self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
             self.assertEqual(snk_name, "sscanf", "sink has symbol 'sscanf'")
-            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            self.assertTrue((
+                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
             self.assertEqual(par_num, 0, "arg1")
             self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
         # Close test binary
@@ -178,7 +192,9 @@ class TestGets(unittest.TestCase):
             self.assertEqual(src_name, "gets", "source has symbol 'gets'")
             self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
             self.assertEqual(snk_name, "gets", "sink has symbol 'gets'")
-            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            self.assertTrue((
+                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
             self.assertEqual(par_num, 0, "arg1")
             self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
         # Close test binary

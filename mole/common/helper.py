@@ -38,14 +38,16 @@ class SymbolHelper:
         for symbol_name in symbol_names:
             for symbol in bv.symbols.get(symbol_name, []):
                 for code_ref in bv.get_code_refs(symbol.address):
-                    try:
-                        llil_instr = code_ref.function.get_low_level_il_at(code_ref.address)
-                        mlil_instr = llil_instr.mlil.ssa_form
-                        mlil_instrs = mlil_ssa_code_refs.get(symbol_name, set())
-                        mlil_instrs.add(mlil_instr)
-                        mlil_ssa_code_refs[symbol_name] = mlil_instrs
-                    except:
-                        continue
+                    if code_ref.function is None: continue
+                    llil_instrs = code_ref.function.get_llils_at(code_ref.address)
+                    mlil_instrs = mlil_ssa_code_refs.get(symbol_name, set())
+                    for llil_instr in llil_instrs:
+                        try:
+                            mlil_instr = llil_instr.mlil.ssa_form
+                            mlil_instrs.add(mlil_instr)
+                        except:
+                            continue
+                    mlil_ssa_code_refs[symbol_name] = mlil_instrs
         return mlil_ssa_code_refs
 
 

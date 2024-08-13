@@ -45,15 +45,15 @@ class src_func(func):
         for symbol_name, insts in code_refs.items():
             for inst in insts:
                 self._log.info(self._tag, f"Analyze source function '0x{inst.address:x} {symbol_name:s}'")
-                # Ignore invalid calls
-                if (inst.operation != bn.MediumLevelILOperation.MLIL_CALL_SSA and
-                    inst.operation != bn.MediumLevelILOperation.MLIL_TAILCALL_SSA):
-                    self._log.warn(self._tag, f"0x{inst.address:x} Ignore call '0x{inst.address:x} {symbol_name:s}' due to invalid call instruction")
-                    continue
-                # Add call to target instructions
-                s = self._target_insts.get((inst.address, symbol_name), set())
-                s.add(inst)
-                self._target_insts[(inst.address, symbol_name)] = s
+                # Ignore everything but call instructions
+                match inst:
+                    case (bn.MediumLevelILCallSsa() |
+                          bn.MediumLevelILTailcallSsa()):
+                        s = self._target_insts.get((inst.address, symbol_name), set())
+                        s.add(inst)
+                        self._target_insts[(inst.address, symbol_name)] = s
+                    case _:
+                        continue
                 # Ignore calls with an invalid number of parameters
                 if not par_cnt(len(inst.params)):
                     self._log.warn(self._tag, f"0x{inst.address:x} Ignore arguments of call '0x{inst.address:x} {symbol_name:s}' due to an unexpected amount")
@@ -121,11 +121,13 @@ class snk_func(func):
         for snk_name, snk_insts in code_refs.items():
             for snk_inst in snk_insts:
                 self._log.info(self._tag, f"Analyze sink function '0x{snk_inst.address:x} {snk_name:s}'")
-                # Ignore invalid calls
-                if (snk_inst.operation != bn.MediumLevelILOperation.MLIL_CALL_SSA and
-                    snk_inst.operation != bn.MediumLevelILOperation.MLIL_TAILCALL_SSA):
-                    self._log.warn(self._tag, f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid call instruction")
-                    continue
+                # Ignore everything but call instructions
+                match snk_inst:
+                    case (bn.MediumLevelILCallSsa() |
+                          bn.MediumLevelILTailcallSsa()):
+                        pass
+                    case _:
+                        continue
                 # Ignore calls with an invalid number of parameters
                 if not self._par_cnt(len(snk_inst.params)):
                     self._log.warn(self._tag, f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments")
