@@ -97,6 +97,27 @@ class memcpy(snk_func):
         return
 
 
+class strcpy(snk_func):
+    """
+    This class implements a sink for `libc` function `strcpy`.
+    """
+
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            tag: str = "libc.strcpy",
+            log: Logger = Logger(),
+            sym_names: List[str] = ["strcpy", "__builtin_strcpy"]
+        ) -> None:
+        super().__init__(
+            bv, tag, log, sym_names,
+            par_cnt = lambda x: x == 2,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True
+        )
+        return
+
+
 class sscanf(snk_func):
     """
     This class implements a sink for `libc` function `sscanf`.
@@ -107,7 +128,7 @@ class sscanf(snk_func):
             bv: bn.BinaryView,
             tag: str = "libc.sscanf",
             log: Logger = Logger(),
-            sym_names: List[str] = ["sscanf", "__builtin_sscanf"]
+            sym_names: List[str] = ["sscanf", "__builtin_sscanf", "__isoc99_scanf"]
         ) -> None:
         super().__init__(
             bv, tag, log, sym_names,
@@ -116,7 +137,8 @@ class sscanf(snk_func):
             par_slice = lambda x: x < 2
         )
         return
-    
+
+
 class vsscanf(sscanf):
     """
     This class implements a sink for `libc` function `vsscanf`.
@@ -127,7 +149,7 @@ class vsscanf(sscanf):
             bv: bn.BinaryView,
             tag: str = "libc.vsscanf",
             log: Logger = Logger(),
-            sym_names: List[str] = ["vsscanf", "__builtin_vsscanf"]
+            sym_names: List[str] = ["vsscanf", "__builtin_vsscanf", "__isoc99_vsscanf"]
         ) -> None:
         super().__init__(bv, tag, log, sym_names)
         return
