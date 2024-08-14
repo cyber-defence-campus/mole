@@ -1,7 +1,7 @@
 import argparse
 import binaryninja    as bn
 from   typing         import List, Tuple
-from   .analysis      import libc, libgio_2_0
+from   .analysis      import libapr, libc, libgio
 from   .common.log    import Logger
 
 
@@ -70,7 +70,8 @@ class Plugin:
             libc.fgets(bv=bv, log=log),                 # Read string from given stream
             libc.gets(bv=bv, log=log),                  # Read string from standard input stream
             # Network
-            libgio_2_0.g_socket_receive(bv=bv, log=log) # Read bytes from socket
+            libgio.g_socket_receive(bv=bv, log=log),    # Read bytes from socket
+            libapr.apr_socket_recv(bv=bv, log=log)      # Read bytes from socket
         ]
         # Sink functions
         paths.extend(libc.gets(bv=bv, log=log).find(sources, Plugin.max_recursion))

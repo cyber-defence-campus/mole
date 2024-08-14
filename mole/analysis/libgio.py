@@ -6,13 +6,13 @@ from   ..common.log  import Logger
 
 class g_socket_receive(src_func):
     """
-    This class implements a source for `libgio-2.0` function `g_socket_receive`.
+    This class implements a source for `libgio` function `g_socket_receive`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libgio-2.0.g_socket_receive",
+            tag: str = "libgio.g_socket_receive",
             log: Logger = Logger(),
             sym_names: List[str] = ["g_socket_receive"]
         ) -> None:
