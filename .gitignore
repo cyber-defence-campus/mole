@@ -3,6 +3,7 @@ __pycache__/
 
 # Distribution / Packaging
 build/
+dist/
 *.egg-info/
 .gradle
 
