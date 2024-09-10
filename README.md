@@ -1,3 +1,4 @@
+[![Publish Release](https://github.com/pdamian/mole/actions/workflows/release.yml/badge.svg)](https://github.com/pdamian/mole/actions/workflows/release.yml)
 # Mole
 Binary Ninja Plugin for Vulnerability Discovery
 ## Installation
