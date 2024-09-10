@@ -33,3 +33,4 @@ jobs:
             New release for tag ${{ github.ref }}
           draft: false
           prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
