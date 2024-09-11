@@ -2,9 +2,11 @@ from setuptools import setup, find_packages
 
 setup(
     name = "mole",
-    version = "0.0.1",
+    version = "0.0.2",
+    author = 'Damian Pfammatter',
     description = "A Binary Ninja plugin for vulneraiblity discovery",
     packages = find_packages(include = ["mole", "mole.*"]),
+    python_requires = '>= 3.6',
     install_requires = [
         "termcolor==2.4.0"
     ],
