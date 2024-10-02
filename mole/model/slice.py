@@ -85,24 +85,33 @@ class MediumLevelILBackwardSlicer:
                     if ssa_var.var == inst.src:
                         vars.update(self._slice_ssa_var_definition(ssa_var, inst.function, func_depth))
             case (bn.MediumLevelILVarSsa() |
-                  bn.MediumLevelILVarAliased()):
+                  bn.MediumLevelILVarAliased() |
+                  bn.MediumLevelILVarSsaField()):
                 vars.update(self._slice_ssa_var_definition(inst.src, inst.function, func_depth))
-            case (bn.MediumLevelILSx() |
+            case (bn.MediumLevelILNot() |
+                  bn.MediumLevelILSx() |
+                  bn.MediumLevelILZx() |
                   bn.MediumLevelILLoadSsa() |
-                  bn.MediumLevelILLoadStructSsa()):
+                  bn.MediumLevelILLoadStructSsa() |
+                  bn.MediumLevelILLowPart()):
                 vars.update(self._slice_backwards(inst.src, func_depth))
             case (bn.MediumLevelILAdd() |
                   bn.MediumLevelILSub() |
+                  bn.MediumLevelILAnd() |
+                  bn.MediumLevelILOr() |
+                  bn.MediumLevelILXor() |
                   bn.MediumLevelILLsl() |
                   bn.MediumLevelILLsr() |
-                  bn.MediumLevelILXor()):
+                  bn.MediumLevelILAsr() |
+                  bn.MediumLevelILMul()):
                 vars.update(self._slice_backwards(inst.left, func_depth))
                 vars.update(self._slice_backwards(inst.right, func_depth))
             case (bn.MediumLevelILRet()):
                 for ret in inst.src:
                     vars.update(self._slice_backwards(ret, func_depth))
             case (bn.MediumLevelILSetVarSsa() |
-                  bn.MediumLevelILSetVarAliased()):
+                  bn.MediumLevelILSetVarAliased() |
+                  bn.MediumLevelILSetVarSsaField()):
                 vars.add(inst.dest)
                 vars.update(self._slice_backwards(inst.src, func_depth))
             case (bn.MediumLevelILVarPhi()):
