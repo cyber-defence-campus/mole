@@ -147,6 +147,19 @@ class TestMemcpy(unittest.TestCase):
         bv.file.close()
         return
     
+    def test_memcpy_08(self) -> None:
+        # Load and analyze test binary with Binary Ninja
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-08"))
+        bv.update_analysis_and_wait()
+        # Analyze test binary with plugin
+        paths = Plugin.analyze_binary(bv)
+        # TODO: Assert results
+        # - memcpy is not reachable
+        # self.assertTrue(len(paths) == 0, "path(s) identified")
+        # Close test binary
+        bv.file.close()
+        return
+    
 
 class TestSscanf(unittest.TestCase):
     """
