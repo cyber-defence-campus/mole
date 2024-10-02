@@ -96,7 +96,9 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILLowPart()):
                 vars.update(self._slice_backwards(inst.src, func_depth))
             case (bn.MediumLevelILAdd() |
+                  bn.MediumLevelILAdc() |
                   bn.MediumLevelILSub() |
+                  bn.MediumLevelILSbb() |
                   bn.MediumLevelILAnd() |
                   bn.MediumLevelILOr() |
                   bn.MediumLevelILXor() |

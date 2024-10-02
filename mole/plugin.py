@@ -76,12 +76,13 @@ class Plugin:
         # Sink functions
         paths.extend(libc.gets(bv=bv, log=log).find(sources, Plugin.max_recursion))
         paths.extend(libc.memcpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
+        paths.extend(libc.memmove(bv=bv, log=log).find(sources, Plugin.max_recursion))
         paths.extend(libc.strcpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
         paths.extend(libc.strcat(bv=bv, log=log).find(sources, Plugin.max_recursion))
-        paths.extend(libc.wcscpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
         paths.extend(libc.strncpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
         paths.extend(libc.sscanf(bv=bv, log=log).find(sources, Plugin.max_recursion))
         paths.extend(libc.vsscanf(bv=bv, log=log).find(sources, Plugin.max_recursion))
+        paths.extend(libc.wcscpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
         return paths
     
 

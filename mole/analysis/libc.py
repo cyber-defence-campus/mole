@@ -95,6 +95,21 @@ class memcpy(snk_func):
             par_slice = lambda x: True
         )
         return
+    
+class memmove(memcpy):
+    """
+    This class implements a sink for `libc` function `memmove`.
+    """
+    
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            tag: str = "libc.memmove",
+            log: Logger = Logger(),
+            sym_names: List[str] = ["memmove", "__builtin_memmove"]
+        ) -> None:
+        super().__init__(bv, tag, log, sym_names)
+        return
 
 
 class strcpy(snk_func):
@@ -132,21 +147,6 @@ class strcat(strcpy):
         super().__init__(bv, tag, log, sym_names)
         return
     
-class wcscpy(strcpy):
-    """
-    This class implements a sink for `libc` function `wcscpy`.
-    """
-
-    def __init__(
-            self,
-            bv: bn.BinaryView,
-            tag: str = "libc.wcscpy",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["wcscpy", "__builtin_wcscpy"]
-        ) -> None:
-        super().__init__(bv, tag, log, sym_names)
-        return
-    
 class strncpy(snk_func):
     """
     This class implements a sink for `libc` function `strncpy`.
@@ -178,7 +178,7 @@ class sscanf(snk_func):
             bv: bn.BinaryView,
             tag: str = "libc.sscanf",
             log: Logger = Logger(),
-            sym_names: List[str] = ["sscanf", "__builtin_sscanf", "__isoc99_scanf"]
+            sym_names: List[str] = ["sscanf", "__builtin_sscanf", "__isoc99_sscanf", "__isoc23_sscanf"]
         ) -> None:
         super().__init__(
             bv, tag, log, sym_names,
@@ -200,6 +200,21 @@ class vsscanf(sscanf):
             tag: str = "libc.vsscanf",
             log: Logger = Logger(),
             sym_names: List[str] = ["vsscanf", "__builtin_vsscanf", "__isoc99_vsscanf"]
+        ) -> None:
+        super().__init__(bv, tag, log, sym_names)
+        return
+    
+class wcscpy(strcpy):
+    """
+    This class implements a sink for `libc` function `wcscpy`.
+    """
+
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            tag: str = "libc.wcscpy",
+            log: Logger = Logger(),
+            sym_names: List[str] = ["wcscpy", "__builtin_wcscpy"]
         ) -> None:
         super().__init__(bv, tag, log, sym_names)
         return
