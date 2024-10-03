@@ -3,6 +3,7 @@ import binaryninja    as bn
 from   typing         import List, Tuple
 from   .analysis      import libapr, libc, libgio
 from   .common.log    import Logger
+from   .ui.view       import ConfigurationDialog
 
 
 log = Logger("debug")
@@ -21,9 +22,24 @@ class Plugin:
         """
         """
         bn.PluginCommand.register(
-            "Mole\\Analyze Binary",
+            "Mole\\Configure...",
+            "Configure the Mole plugin",
+            Plugin.configure
+        )
+        bn.PluginCommand.register(
+            "Mole\\Analyze Binary...",
             "Search the entire binary for potential vulnerabilities",
             Plugin.analyze_binary)
+        return
+    
+    @staticmethod
+    def configure(
+        bv: bn.BinaryView
+        ) -> None:
+        """
+        """
+        config_dialog = ConfigurationDialog()
+        config_dialog.exec_()
         return
     
     @staticmethod
@@ -66,7 +82,7 @@ class Plugin:
         sources = [
             # Environment
             libc.getenv(bv=bv, log=log),                # Read environment variable
-            # Streams, Files and Directories
+            # Stream, File and Directory
             libc.fgets(bv=bv, log=log),                 # Read string from given stream
             libc.gets(bv=bv, log=log),                  # Read string from standard input stream
             # Network
