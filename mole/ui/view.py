@@ -1,5 +1,6 @@
 import os
 import PySide6.QtWidgets as qtw
+import PySide6.QtCore    as qtc
 import yaml
 from typing import List
 
@@ -93,7 +94,8 @@ class ConfigurationDialog(qtw.QDialog):
         but_wid = qtw.QWidget()
         but_lay = qtw.QHBoxLayout()
         sav_but = qtw.QPushButton("Save")
-        sav_but.clicked.connect(self.save)
+        sav_fun = lambda _, button=sav_but: self.save(button)
+        sav_but.clicked.connect(sav_fun)
         but_lay.addWidget(sav_but)
         cls_but = qtw.QPushButton("Close")
         cls_but.clicked.connect(self.close)
@@ -115,8 +117,9 @@ class ConfigurationDialog(qtw.QDialog):
             checkbox.setChecked(checked)
         return
     
-    def save(self) -> None:
+    def save(self, button: qtw.QPushButton) -> None:
         """
+        Save status of checkboxes to file.
         """
         src = {}
         for grp, cbs in self.src_cbs.items():
@@ -129,4 +132,6 @@ class ConfigurationDialog(qtw.QDialog):
                            default_style=None, default_flow_style=None,
                            encoding="utf-8"
             )
+        button.setText("Config Saved...")
+        qtc.QTimer.singleShot(1000, lambda: button.setText("Save"))
         return
