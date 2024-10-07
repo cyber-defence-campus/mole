@@ -38,7 +38,7 @@ class Plugin:
         ) -> None:
         """
         """
-        config_dialog = ConfigurationDialog()
+        config_dialog = ConfigurationDialog(log=log)
         config_dialog.exec_()
         return
     
