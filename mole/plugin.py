@@ -3,7 +3,7 @@ import binaryninja    as bn
 from   typing         import List, Tuple
 from   .analysis      import libapr, libc, libgio
 from   .common.log    import Logger
-from   .ui.view       import ConfigurationDialog
+from   .ui.config     import ConfigModel, ConfigView, ConfigController
 
 
 log = Logger("debug")
@@ -15,6 +15,7 @@ class Plugin:
     """
 
     max_recursion = 10
+    conf_controller = ConfigController(ConfigModel(), ConfigView())
 
     @staticmethod
     def register(
@@ -37,9 +38,9 @@ class Plugin:
         bv: bn.BinaryView
         ) -> None:
         """
+        Configure the plugin.
         """
-        config_dialog = ConfigurationDialog(log=log)
-        config_dialog.exec_()
+        Plugin.conf_controller.show_view()
         return
     
     @staticmethod
@@ -50,6 +51,7 @@ class Plugin:
                 str, bn.MediumLevelILInstruction, int, bn.SSAVariable
             ]]:
         """
+        Analyze the whole binary.
         """
         paths = []
         # src_sym_names = [
@@ -78,18 +80,29 @@ class Plugin:
         # libc.memcpy(bv, log=log, src_sym_names=src_sym_names).analyze_all()
         # libc.sscanf(bv, log=log, src_sym_names=src_sym_names).analyze_all()
 
-        # Source functions
-        sources = [
-            # Environment
-            libc.getenv(bv=bv, log=log),                # Read environment variable
-            # Stream, File and Directory
-            libc.fgets(bv=bv, log=log),                 # Read string from given stream
-            libc.gets(bv=bv, log=log),                  # Read string from standard input stream
-            # Network
-            libgio.g_socket_receive(bv=bv, log=log),    # Read bytes from socket
-            libapr.apr_socket_recv(bv=bv, log=log)      # Read bytes from socket
-        ]
-        # Sink functions
+        # Sources
+        sources = []
+        # Sources: Environment
+        env = Plugin.conf_controller.read().get("Sources", {}).get("Environment", {})
+        if env.get("libc.getenv", {}).get("checked", False):
+            sources.append(libc.getenv(bv=bv, log=log))
+        # Sources: Stream, File and Directory
+        sfd = Plugin.conf_controller.read().get("Sources", {}).get("Stream, File and Directory", {})
+        if sfd.get("libc.fgets", {}).get("checked", False):
+            sources.append(libc.fgets(bv=bv, log=log))
+        if sfd.get("libc.gets", {}).get("checked", False):
+            sources.append(libc.gets(bv=bv, log=log))
+        # Sources: Network
+        net = Plugin.conf_controller.read().get("Sources", {}).get("Network", {})
+        if net.get("libgio.g_socket_receive", {}).get("checked", False):
+            sources.append(libgio.g_socket_receive(bv=bv, log=log))
+        if net.get("libapr.apr_socket_recv", {}).get("checked", False):
+            sources.append(libapr.apr_socket_recv(bv=bv, log=log))
+        if not sources:
+            log.warn(None, f"No sources configured")
+            return paths
+
+        # Sinks
         paths.extend(libc.gets(bv=bv, log=log).find(sources, Plugin.max_recursion))
         paths.extend(libc.memcpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
         paths.extend(libc.memmove(bv=bv, log=log).find(sources, Plugin.max_recursion))
