@@ -1,59 +1,88 @@
+from __future__    import annotations
+from   typing      import List, Tuple
+from   .analysis   import libapr, libc, libgio
+from   .common.log import Logger
+from   .ui.config  import ConfigModel, ConfigView, ConfigController
 import argparse
-import binaryninja    as bn
-from   typing         import List, Tuple
-from   .analysis      import libapr, libc, libgio
-from   .common.log    import Logger
-from   .ui.config     import ConfigModel, ConfigView, ConfigController
-
-
-log = Logger("debug")
+import binaryninja as bn
 
 
 class Plugin:
     """
-    This class registers the plugin with Binary Ninja.
+    This class registers the plugin with Binary Ninja or runs it in headless mode.
     """
 
-    max_recursion = 10
-    conf_controller = ConfigController(ConfigModel(), ConfigView())
-
-    @staticmethod
-    def register(
-        ) -> None:
+    def __init__(self, runs_headless: bool, max_recursion: int, log: Logger) -> None:
+        self._src_funs = None
+        self._snk_funs = None
+        self._runs_headless = runs_headless
+        self._max_recursion = max_recursion
+        self._log = log
+        return
+    
+    def init_controller(self, bv: bn.BinaryView) -> ConfigController:
         """
+        This method initializes a plugin controller.
+        """
+        # Initialize source functions
+        if self._src_funs is None:
+            self._src_funs = [
+                # Environment
+                libc.getenv(bv=bv, log=self._log),
+                # Stream, File and Directory
+                libc.fgets(bv=bv, log=self._log),
+                libc.gets(bv=bv, log=self._log),
+                # Network
+                libgio.g_socket_receive(bv=bv, log=self._log),
+                libapr.apr_socket_recv(bv=bv, log=self._log)
+            ]
+        # TODO: Initialize sink functions
+        if self._snk_funs is None:
+            self._snk_funs = []
+        # Initialize controller
+        controller = ConfigController(
+            model=ConfigModel(),
+            view=ConfigView(self._runs_headless),
+            src_funs=self._src_funs,
+            snk_funs=self._snk_funs,
+            log=self._log
+        )
+        controller.init()
+        return controller
+    
+    def register(self) -> None:
+        """
+        This method registers plugin commands with Binary Ninja.
         """
         bn.PluginCommand.register(
             "Mole\\Configure...",
             "Configure the Mole plugin",
-            Plugin.configure
+            self.configure
         )
         bn.PluginCommand.register(
             "Mole\\Analyze Binary...",
             "Search the entire binary for potential vulnerabilities",
-            Plugin.analyze_binary)
+            self.analyze_binary)
         return
     
-    @staticmethod
-    def configure(
-        bv: bn.BinaryView
-        ) -> None:
+    def configure(self, bv: bn.BinaryView) -> None:
         """
-        Configure the plugin.
+        This method configures the plugin.
         """
-        Plugin.conf_controller.show_view()
+        controller = self.init_controller(bv)
+        controller.show_view()
         return
     
-    @staticmethod
-    def analyze_binary(
-        bv: bn.BinaryView
-        ) -> List[Tuple[
-                str, bn.MediumLevelILInstruction,
-                str, bn.MediumLevelILInstruction, int, bn.SSAVariable
-            ]]:
+    def analyze_binary(self, bv: bn.BinaryView, enable_all: bool = False) -> List[Tuple[
+            str, bn.MediumLevelILInstruction,
+            str, bn.MediumLevelILInstruction, int, bn.SSAVariable
+        ]]:
         """
-        Analyze the whole binary.
+        This method analyzes the entire binary.
         """
         paths = []
+        controller = self.init_controller(bv)
+
         # src_sym_names = [
         #     # Environment
         #     "getenv", "__builtin_getenv",        # Read environment variable
@@ -80,49 +109,33 @@ class Plugin:
         # libc.memcpy(bv, log=log, src_sym_names=src_sym_names).analyze_all()
         # libc.sscanf(bv, log=log, src_sym_names=src_sym_names).analyze_all()
 
-        # Sources
-        sources = []
-        # Sources: Environment
-        env = Plugin.conf_controller.read().get("Sources", {}).get("Environment", {})
-        if env.get("libc.getenv", {}).get("checked", False):
-            sources.append(libc.getenv(bv=bv, log=log))
-        # Sources: Stream, File and Directory
-        sfd = Plugin.conf_controller.read().get("Sources", {}).get("Stream, File and Directory", {})
-        if sfd.get("libc.fgets", {}).get("checked", False):
-            sources.append(libc.fgets(bv=bv, log=log))
-        if sfd.get("libc.gets", {}).get("checked", False):
-            sources.append(libc.gets(bv=bv, log=log))
-        # Sources: Network
-        net = Plugin.conf_controller.read().get("Sources", {}).get("Network", {})
-        if net.get("libgio.g_socket_receive", {}).get("checked", False):
-            sources.append(libgio.g_socket_receive(bv=bv, log=log))
-        if net.get("libapr.apr_socket_recv", {}).get("checked", False):
-            sources.append(libapr.apr_socket_recv(bv=bv, log=log))
-        if not sources:
-            log.warn(None, f"No sources configured")
-            return paths
+        # Source functions
+        if enable_all:
+            src_funs = controller.get_all_src_funs()
+        else:
+            src_funs = controller.get_enabled_src_funs()
 
-        # Sinks
-        paths.extend(libc.gets(bv=bv, log=log).find(sources, Plugin.max_recursion))
-        paths.extend(libc.memcpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
-        paths.extend(libc.memmove(bv=bv, log=log).find(sources, Plugin.max_recursion))
-        paths.extend(libc.strcpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
-        paths.extend(libc.strcat(bv=bv, log=log).find(sources, Plugin.max_recursion))
-        paths.extend(libc.strncpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
-        paths.extend(libc.sscanf(bv=bv, log=log).find(sources, Plugin.max_recursion))
-        paths.extend(libc.vsscanf(bv=bv, log=log).find(sources, Plugin.max_recursion))
-        paths.extend(libc.wcscpy(bv=bv, log=log).find(sources, Plugin.max_recursion))
+        # Sink functions
+        paths.extend(libc.gets(bv=bv, log=self._log).find(src_funs, self._max_recursion))
+        paths.extend(libc.memcpy(bv=bv, log=self._log).find(src_funs, self._max_recursion))
+        paths.extend(libc.memmove(bv=bv, log=self._log).find(src_funs, self._max_recursion))
+        paths.extend(libc.strcpy(bv=bv, log=self._log).find(src_funs, self._max_recursion))
+        paths.extend(libc.strcat(bv=bv, log=self._log).find(src_funs, self._max_recursion))
+        paths.extend(libc.strncpy(bv=bv, log=self._log).find(src_funs, self._max_recursion))
+        paths.extend(libc.sscanf(bv=bv, log=self._log).find(src_funs, self._max_recursion))
+        paths.extend(libc.vsscanf(bv=bv, log=self._log).find(src_funs, self._max_recursion))
+        paths.extend(libc.wcscpy(bv=bv, log=self._log).find(src_funs, self._max_recursion))
         return paths
-    
 
-def main(
-    ) -> None:
+
+def main() -> None:
     """
-    This method processes a given binary in headless mode.
+    This function processes a given binary in headless mode.
     """
     # Parse arguments
     description = """
-    TODO: Provide a description
+    Mole is a plugin for Binary Ninja that tries to identify interesting code paths using static
+    backward slicing. The plugin can be run both in Binary Ninja and in headless mode.
     """
     parser = argparse.ArgumentParser(
         description=description,
@@ -136,19 +149,31 @@ def main(
         help="log level")
     parser.add_argument(
         "--max_recursion",
-        type=int, default=Plugin.max_recursion,
-        help="Backward slicing visits called functions up to the given recursion depth"
+        type=int, default=10,
+        help="backward slicing visits called functions up to the given recursion depth"
     )
     args = parser.parse_args()
-    Plugin.max_recursion = args.max_recursion
-    # Create logger
-    global log
-    log = Logger(args.log_level, runs_headless=True)
-    # Analyze binary
-    bv = bn.load(args.file)
-    bv.update_analysis_and_wait()
-    Plugin.analyze_binary(bv)
-    bv.file.close()
+
+    # Initialize plugin and logger to operate in headless mode
+    log = Logger(level=args.log_level, runs_headless=True)
+    plugin = Plugin(
+        runs_headless=True,
+        max_recursion=args.max_recursion,
+        log=log
+    )
+
+    try:
+        # Load and analyze binary with Binary Ninja
+        bv = bn.load(args.file)
+        bv.update_analysis_and_wait()
+
+        # Analyze binary with plugin
+        plugin.analyze_binary(bv)
+
+        # Close binary
+        bv.file.close()
+    except:
+        log.error(msg=f"Failed to analze binary '{args.file:s}'")
     return
 
 

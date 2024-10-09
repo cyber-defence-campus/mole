@@ -1,7 +1,8 @@
+from __future__      import annotations
+from mole.plugin     import Plugin
+from mole.common.log import Logger
 import binaryninja   as bn
-import os
-import unittest
-from   mole.plugin import Plugin
+import os, unittest
 
 
 class TestMemcpy(unittest.TestCase):
@@ -9,12 +10,21 @@ class TestMemcpy(unittest.TestCase):
     This class implements unit tests for `libc` function `memcpy`.
     """
 
+    def setUp(self) -> None:
+        # Initialize plugin and logger to operate in headless mode
+        self.plugin = Plugin(
+            runs_headless=True,
+            max_recursion=10,
+            log=Logger(level="debug", runs_headless=True)
+        )
+        return
+
     def test_memcpy_01(self) -> None:
         # Load and analyze test binary with Binary Ninja
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-01"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
@@ -35,7 +45,7 @@ class TestMemcpy(unittest.TestCase):
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-02"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
@@ -56,7 +66,7 @@ class TestMemcpy(unittest.TestCase):
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-03"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
@@ -77,7 +87,7 @@ class TestMemcpy(unittest.TestCase):
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-04"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
@@ -98,7 +108,7 @@ class TestMemcpy(unittest.TestCase):
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-05"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
@@ -119,7 +129,7 @@ class TestMemcpy(unittest.TestCase):
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-06"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # Assert results
         self.assertTrue(len(paths) == 0, "path(s) identified")
         # Close test binary
@@ -131,7 +141,7 @@ class TestMemcpy(unittest.TestCase):
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-07"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
@@ -152,7 +162,7 @@ class TestMemcpy(unittest.TestCase):
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-08"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # TODO: Assert results
         # - memcpy is not reachable
         # self.assertTrue(len(paths) == 0, "path(s) identified")
@@ -165,13 +175,22 @@ class TestSscanf(unittest.TestCase):
     """
     This class implements unit tests for `libc` function `sscanf`.
     """
+
+    def setUp(self) -> None:
+        # Initialize plugin and logger to operate in headless mode
+        self.plugin = Plugin(
+            runs_headless=True,
+            max_recursion=10,
+            log=Logger(level="debug", runs_headless=True)
+        )
+        return
     
     def test_sscanf_01(self) -> None:
         # Load and analyze test binary with Binary Ninja
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "sscanf-01"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
@@ -193,12 +212,21 @@ class TestGets(unittest.TestCase):
     This class implements unit tests for `libc` function `gets`.
     """
 
+    def setUp(self) -> None:
+        # Initialize plugin and logger to operate in headless mode
+        self.plugin = Plugin(
+            runs_headless=True,
+            max_recursion=10,
+            log=Logger(level="debug", runs_headless=True)
+        )
+        return
+
     def test_gets_01(self) -> None:
         # Load and analyze test binary with Binary Ninja
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-01"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
@@ -219,7 +247,7 @@ class TestGets(unittest.TestCase):
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-02"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
-        paths = Plugin.analyze_binary(bv)
+        paths = self.plugin.analyze_binary(bv, enable_all=True)
         # TODO: Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         # gets_memcpy_path = False

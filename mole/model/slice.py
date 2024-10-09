@@ -1,7 +1,8 @@
-import binaryninja     as bn
-from   typing          import List, Set
-from   ..common.helper import InstructionHelper
-from   ..common.log    import Logger
+from __future__      import annotations
+from typing          import List, Set
+from ..common.helper import InstructionHelper
+from ..common.log    import Logger
+import binaryninja as bn
 
 
 class MediumLevelILBackwardSlicer:

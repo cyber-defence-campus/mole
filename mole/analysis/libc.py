@@ -1,23 +1,27 @@
-import binaryninja   as bn
-from   typing        import List
-from   .lib          import src_func, snk_func
-from   ..common.log  import Logger
+from __future__   import annotations
+from typing       import List
+from .lib         import category, src_func, snk_func
+from ..common.log import Logger
+import binaryninja as bn
 
 
 class fgets(src_func):
     """
-    This class implements a source for `libc` function `fgets`.
+    This class represents a source for `libc` function `fgets`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.fgets",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["fgets", "__builtin_fgets"]
+            name: str = "libc.fgets",
+            description: str = "Read string from given stream",
+            category: category = category.sfd,
+            symbols: List[str] = ["fgets", "__builtin_fgets"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, tag, log, sym_names,
+            bv, name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: x == 0
@@ -27,18 +31,21 @@ class fgets(src_func):
 
 class getenv(src_func):
     """
-    This class implements a source for `libc` function `getenv`.
+    This class represents a source for `libc` function `getenv`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.getenv",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["getenv", "__builtin_getenv"]
+            name: str = "libc.getenv",
+            description: str = "Read environment variable",
+            category: category = category.env,
+            symbols: List[str] = ["getenv", "__builtin_getenv"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, tag, log, sym_names,
+            bv, name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 1,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
@@ -48,26 +55,29 @@ class getenv(src_func):
 
 class gets(src_func, snk_func):
     """
-    This class implements a source and sink for `libc` function `gets`.
+    This class represents a source and sink for `libc` function `gets`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.gets",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["gets", "__builtin_gets"]
+            name: str = "libc.gets",
+            description: str = "Read string from standard input stream",
+            category: category = category.sfd,
+            symbols: List[str] = ["gets", "__builtin_gets"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
         src_func.__init__(
             self,
-            bv, tag, log, sym_names,
+            bv, name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 1,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
         )
         snk_func.__init__(
             self,
-            bv, tag, log, sym_names,
+            bv, name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 1,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
@@ -77,90 +87,111 @@ class gets(src_func, snk_func):
 
 class memcpy(snk_func):
     """
-    This class implements a sink for `libc` function `memcpy`.
+    This class represents a sink for `libc` function `memcpy`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.memcpy",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["memcpy", "__builtin_memcpy"]
+            name: str = "libc.memcpy",
+            description: str = "",
+            category: category = category.und,
+            symbols: List[str] = ["memcpy", "__builtin_memcpy"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, tag, log, sym_names,
+            bv, name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 3,
-            # par_dataflow = lambda x: x == 2,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
         )
         return
     
+
 class memmove(memcpy):
     """
-    This class implements a sink for `libc` function `memmove`.
+    This class represents a sink for `libc` function `memmove`.
     """
     
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.memmove",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["memmove", "__builtin_memmove"]
+            name: str = "libc.memmove",
+            description: str = "",
+            category: category = category.und,
+            symbols: List[str] = ["memmove", "__builtin_memmove"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
-        super().__init__(bv, tag, log, sym_names)
+        super().__init__(
+            bv, name, description, category, symbols, enabled, log
+        )
         return
 
 
 class strcpy(snk_func):
     """
-    This class implements a sink for `libc` function `strcpy`.
+    This class represents a sink for `libc` function `strcpy`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.strcpy",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["strcpy", "__builtin_strcpy", "stpcpy", "__builtin_stpcpy"]
+            name: str = "libc.strcpy",
+            description: str = "",
+            category: category = category.und,
+            symbols: List[str] = ["strcpy", "__builtin_strcpy", "stpcpy", "__builtin_stpcpy"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, tag, log, sym_names,
+            bv, name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 2,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
         )
         return
     
+
 class strcat(strcpy):
     """
-    This class implements a sink for `libc` function `strcat`.
+    This class represents a sink for `libc` function `strcpy`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.strcat",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["strcat", "__builtin_strcat"]
-        ) -> None:
-        super().__init__(bv, tag, log, sym_names)
-        return
-    
-class strncpy(snk_func):
-    """
-    This class implements a sink for `libc` function `strncpy`.
-    """
-
-    def __init__(
-            self,
-            bv: bn.BinaryView,
-            tag: str = "libc.strncpy",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["strncpy", "__builtin_strncpy"]
+            name: str = "libc.strcat",
+            description: str = "",
+            category: category = category.und,
+            symbols: List[str] = ["strcat", "__builtin_strcat"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, tag, log, sym_names,
+            bv, name, description, category, symbols, enabled, log
+        )
+        return
+    
+
+class strncpy(snk_func):
+    """
+    This class represents a sink for `libc` function `strncpy`.
+    """
+
+    def __init__(
+            self,
+            bv: bn.BinaryView,
+            name: str = "libc.strncpy",
+            description: str = "",
+            category: category = category.und,
+            symbols: List[str] = ["strncpy", "__builtin_strncpy"],
+            enabled: bool = True,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            bv, name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
@@ -170,18 +201,21 @@ class strncpy(snk_func):
 
 class sscanf(snk_func):
     """
-    This class implements a sink for `libc` function `sscanf`.
+    This class represents a sink for `libc` function `sscanf`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.sscanf",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["sscanf", "__builtin_sscanf", "__isoc99_sscanf", "__isoc23_sscanf"]
+            name: str = "libc.sscanf",
+            description: str = "",
+            category: category = category.und,
+            symbols: List[str] = ["sscanf", "__builtin_sscanf", "__isoc99_sscanf", "__isoc23_sscanf"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, tag, log, sym_names,
+            bv, name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
             par_slice = lambda x: x < 2
@@ -191,30 +225,41 @@ class sscanf(snk_func):
 
 class vsscanf(sscanf):
     """
-    This class implements a sink for `libc` function `vsscanf`.
+    This class represents a sink for `libc` function `vsscanf`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.vsscanf",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["vsscanf", "__builtin_vsscanf", "__isoc99_vsscanf"]
+            name: str = "libc.vsscanf",
+            description: str = "",
+            category: category = category.und,
+            symbols: List[str] = ["vsscanf", "__builtin_vsscanf", "__isoc99_vsscanf"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
-        super().__init__(bv, tag, log, sym_names)
+        super().__init__(
+            bv, name, description, category, symbols, enabled, log
+        )
         return
-    
+
+
 class wcscpy(strcpy):
     """
-    This class implements a sink for `libc` function `wcscpy`.
+    This class represents a sink for `libc` function `wcscpy`.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.wcscpy",
-            log: Logger = Logger(),
-            sym_names: List[str] = ["wcscpy", "__builtin_wcscpy"]
+            name: str = "libc.wcscpy",
+            description: str = "",
+            category: category = category.und,
+            symbols: List[str] = ["wcscpy", "__builtin_wcscpy"],
+            enabled: bool = True,
+            log: Logger = Logger()
         ) -> None:
-        super().__init__(bv, tag, log, sym_names)
+        super().__init__(
+            bv, name, description, category, symbols, enabled, log
+        )
         return

@@ -1,5 +1,6 @@
-import binaryninja  as bn
-from   typing       import Dict, List, Optional, Set
+from __future__ import annotations
+from typing     import Dict, List, Optional, Set
+import binaryninja as bn
 
 
 class SymbolHelper:

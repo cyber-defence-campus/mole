@@ -1,50 +1,71 @@
-import binaryninja     as bn
-from   typing          import Callable, List, Tuple
-from   ..common.helper import SymbolHelper
-from   ..common.log    import Logger
-from   ..model.slice   import MediumLevelILBackwardSlicer
+from __future__      import annotations
+from enum            import Enum
+from typing          import Callable, List, Tuple
+from ..common.helper import SymbolHelper
+from ..common.log    import Logger
+from ..model.slice   import MediumLevelILBackwardSlicer
+import binaryninja as bn
+
+
+class category(Enum):
+    """
+    This class lists different function categories.
+    """
+    und = "Undefined"
+    env = "Environment"
+    sfd = "Stream, File and Directory"
+    net = "Network"
 
 
 class func:
     """
-    This class implements a function.
+    This class represents a generic function.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.func",
-            log: Logger = Logger(),
-            sym_names: List[str] = []
+            name: str = "lib.func",
+            description: str = "Generic function",
+            category: category = category.und,
+            symbols: List[str] = [],
+            enabled: bool = False,
+            log: Logger = Logger()
         ) -> None:
         self._bv = bv
-        self._tag = tag
+        self.name = name
+        self.description = description
+        self.category = category
+        self.symbols = symbols
+        self.enabled = enabled
         self._log = log
-        self._sym_names = sym_names
         return
 
     
 class src_func(func):
     """
-    This class implements a source function.
+    This class represents a generic source function.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.src_func",
+            name: str = "lib.src_func",
+            description: str = "Generic source function",
+            category: category = category.und,
+            symbols: List[str] = [],
+            enabled: bool = False,
             log: Logger = Logger(),
-            sym_names: List[str] = [],
             par_cnt: Callable[[int], bool] = lambda x: x >= 0,
             par_dataflow: Callable[[int], bool] = lambda x: False,
             par_slice: Callable[[int], bool] = lambda x: False
         ) -> None:
-        super().__init__(bv, tag, log, sym_names)
+        super().__init__(bv, name, description, category, symbols, enabled, log)
         self._target_insts = {}
-        code_refs = SymbolHelper.get_code_refs(self._bv, self._sym_names)
+        code_refs = SymbolHelper.get_code_refs(self._bv, self.symbols)
         for symbol_name, insts in code_refs.items():
             for inst in insts:
-                self._log.info(self._tag, f"Analyze source function '0x{inst.address:x} {symbol_name:s}'")
+                self._log.info(self.name, f"Analyze source function '0x{inst.address:x} {symbol_name:s}'")
                 # Ignore everything but call instructions
                 match inst:
                     case (bn.MediumLevelILCallSsa() |
@@ -56,25 +77,25 @@ class src_func(func):
                         continue
                 # Ignore calls with an invalid number of parameters
                 if not par_cnt(len(inst.params)):
-                    self._log.warn(self._tag, f"0x{inst.address:x} Ignore arguments of call '0x{inst.address:x} {symbol_name:s}' due to an unexpected amount")
+                    self._log.warn(self.name, f"0x{inst.address:x} Ignore arguments of call '0x{inst.address:x} {symbol_name:s}' due to an unexpected amount")
                     continue
                 # Analyze parameters
                 for parm_num, parm_var in enumerate(inst.params):
-                    self._log.debug(self._tag, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                    self._log.debug(self.name, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                     # Perform dataflow analysis
                     if par_dataflow(parm_num):
                         # Ignore constant parameters
                         if parm_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            self._log.debug(self._tag, f"0x{inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            self._log.debug(self.name, f"0x{inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
                         possible_sizes = parm_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            self._log.debug(self._tag, f"0x{inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            self._log.debug(self.name, f"0x{inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                             continue
                     # Backward slice the parameter
                     if par_slice(parm_num):
-                        slicer = MediumLevelILBackwardSlicer(self._bv, self._tag, self._log)
+                        slicer = MediumLevelILBackwardSlicer(self._bv, self.name, self._log)
                         slicer.slice_backwards(parm_var)
                         # Add sliced instructions to target instructions
                         s = self._target_insts.get((inst.address, symbol_name), set())
@@ -85,20 +106,23 @@ class src_func(func):
 
 class snk_func(func):
     """
-    This class implements a sink function.
+    This class represents a generic sink function.
     """
 
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str = "libc.snk_func",
+            name: str = "lib.snk_func",
+            description: str = "Generic sink function",
+            category: category = category.und,
+            symbols: List[str] = [],
+            enabled: bool = False,
             log: Logger = Logger(),
-            sym_names: List[str] = [],
             par_cnt: Callable[[int], bool] = lambda x: x >= 0,
             par_dataflow: Callable[[int], bool] = lambda x: False,
             par_slice: Callable[[int], bool] = lambda x: True
         ) -> None:
-        super().__init__(bv, tag, log, sym_names)
+        super().__init__(bv, name, description, category, symbols, enabled, log)
         self._par_cnt = par_cnt
         self._par_dataflow = par_dataflow
         self._par_slice = par_slice
@@ -117,10 +141,10 @@ class snk_func(func):
         given `sources`, using static backward slicing.
         """
         paths = []
-        code_refs = SymbolHelper.get_code_refs(self._bv, self._sym_names)
+        code_refs = SymbolHelper.get_code_refs(self._bv, self.symbols)
         for snk_name, snk_insts in code_refs.items():
             for snk_inst in snk_insts:
-                self._log.info(self._tag, f"Analyze sink function '0x{snk_inst.address:x} {snk_name:s}'")
+                self._log.info(self.name, f"Analyze sink function '0x{snk_inst.address:x} {snk_name:s}'")
                 # Ignore everything but call instructions
                 match snk_inst:
                     case (bn.MediumLevelILCallSsa() |
@@ -130,29 +154,29 @@ class snk_func(func):
                         continue
                 # Ignore calls with an invalid number of parameters
                 if not self._par_cnt(len(snk_inst.params)):
-                    self._log.warn(self._tag, f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments")
+                    self._log.warn(self.name, f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments")
                     continue
                 # Analyze parameters
                 for parm_num, parm_var in enumerate(snk_inst.params):
-                    self._log.debug(self._tag, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                    self._log.debug(self.name, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                     # Perform dataflow analysis
                     if self._par_dataflow(parm_num):
                         # Ignore constant parameters
                         if parm_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            self._log.debug(self._tag, f"0x{snk_inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            self._log.debug(self.name, f"0x{snk_inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
                         possible_sizes = parm_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            self._log.debug(self._tag, f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            self._log.debug(self.name, f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                             continue
                     # Backward slice the parameter
                     if self._par_slice(parm_num):
-                        slicer = MediumLevelILBackwardSlicer(self._bv, self._tag, self._log, max_recursion)
+                        slicer = MediumLevelILBackwardSlicer(self._bv, self.name, self._log, max_recursion)
                         try:
                             slicer.slice_backwards(parm_var)
                         except Exception as e:
-                            self._log.error(self._tag, f"Exception: {str(e):s}")
+                            self._log.error(self.name, f"Exception: {str(e):s}")
                         # Check whether the slice contains any source
                         for source in sources:
                             for (sym_addr, sym_name), src_insts in source._target_insts.items():
@@ -162,7 +186,7 @@ class snk_func(func):
                                         t_snk = f"0x{snk_inst.address:x} {snk_name}"
                                         t_snk = f"{t_snk:s}(arg#{parm_num+1:d}:{str(parm_var):s})"
                                         self._log.info(
-                                            self._tag,
+                                            self.name,
                                             f"Interesting path: {t_src:s} --> {t_snk:s}!"
                                         )
                                         paths.append((sym_name, src_inst, snk_name, snk_inst, parm_num, parm_var))
