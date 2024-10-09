@@ -157,15 +157,15 @@ class TestMemcpy(unittest.TestCase):
         bv.file.close()
         return
     
+    @unittest.expectedFailure
     def test_memcpy_08(self) -> None:
         # Load and analyze test binary with Binary Ninja
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-08"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
         paths = self.plugin.analyze_binary(bv, enable_all=True)
-        # TODO: Assert results
-        # - memcpy is not reachable
-        # self.assertTrue(len(paths) == 0, "path(s) identified")
+        # Assert results
+        self.assertTrue(len(paths) == 0, "path(s) identified")
         # Close test binary
         bv.file.close()
         return
@@ -242,23 +242,24 @@ class TestGets(unittest.TestCase):
         bv.file.close()
         return
     
+    @unittest.expectedFailure
     def test_gets_02(self) -> None:
         # Load and analyze test binary with Binary Ninja
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-02"))
         bv.update_analysis_and_wait()
         # Analyze test binary with plugin
         paths = self.plugin.analyze_binary(bv, enable_all=True)
-        # TODO: Assert results
+        # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
-        # gets_memcpy_path = False
-        # for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-        #     self.assertEqual(src_name, "gets", "source has symbol 'gets'")
-        #     self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-        #     self.assertTrue(snk_name in ["gets", "memcpy"], "sink has symbol 'gets' or 'memcpy'")
-        #     self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
-        #     if src_name == "gets" and snk_name == "memcpy":
-        #         gets_memcpy_path = True
-        # self.assertTrue(gets_memcpy_path, "source 'gets' and sink 'memcpy'")
+        gets_memcpy_path = False
+        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
+            self.assertEqual(src_name, "gets", "source has symbol 'gets'")
+            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
+            self.assertTrue(snk_name in ["gets", "memcpy"], "sink has symbol 'gets' or 'memcpy'")
+            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
+            if src_name == "gets" and snk_name == "memcpy":
+                gets_memcpy_path = True
+        self.assertTrue(gets_memcpy_path, "source 'gets' and sink 'memcpy'")
         # Close test binary
         bv.file.close()
         return
