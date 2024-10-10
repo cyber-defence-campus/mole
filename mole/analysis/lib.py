@@ -12,9 +12,13 @@ class category(Enum):
     This class lists different function categories.
     """
     und = "Undefined"
+    # Sources
     env = "Environment"
     sfd = "Stream, File and Directory"
     net = "Network"
+    # Sinks
+    mem = "Memory"
+    str = "String"
 
 
 class func:

@@ -12,11 +12,18 @@ class Plugin:
     This class registers the plugin with Binary Ninja or runs it in headless mode.
     """
 
-    def __init__(self, runs_headless: bool, max_recursion: int, log: Logger) -> None:
+    def __init__(
+            self,
+            runs_headless: bool,
+            max_recursion: int,
+            tag: str = None,
+            log: Logger = Logger()
+        ) -> None:
         self._src_funs = None
         self._snk_funs = None
         self._runs_headless = runs_headless
         self._max_recursion = max_recursion
+        self._tag = tag
         self._log = log
         return
     
@@ -30,15 +37,29 @@ class Plugin:
                 # Environment
                 libc.getenv(bv=bv, log=self._log),
                 # Stream, File and Directory
-                libc.fgets(bv=bv, log=self._log),
                 libc.gets(bv=bv, log=self._log),
+                libc.fgets(bv=bv, log=self._log),
                 # Network
                 libgio.g_socket_receive(bv=bv, log=self._log),
                 libapr.apr_socket_recv(bv=bv, log=self._log)
             ]
-        # TODO: Initialize sink functions
+        # Initialize sink functions
         if self._snk_funs is None:
-            self._snk_funs = []
+            self._snk_funs = [
+                # Stream, File and Directory
+                libc.gets(bv=bv, log=self._log),
+                # Memory
+                libc.memcpy(bv=bv, log=self._log),
+                libc.memmove(bv=bv, log=self._log),
+                # String
+                libc.strcpy(bv=bv, log=self._log),
+                libc.wcscpy(bv=bv, log=self._log),
+                libc.strcat(bv=bv, log=self._log),
+                libc.strncpy(bv=bv, log=self._log),
+                libc.sscanf(bv=bv, log=self._log),
+                libc.vsscanf(bv=bv, log=self._log)
+            ]
+
         # Initialize controller
         controller = ConfigController(
             model=ConfigModel(),
@@ -111,20 +132,25 @@ class Plugin:
 
         # Source functions
         if enable_all:
-            src_funs = controller.get_all_src_funs()
+            src_funs = controller.get_all_funs(flowtype="Sources")
         else:
-            src_funs = controller.get_enabled_src_funs()
+            src_funs = controller.get_enabled_funs(flowtype="Sources")
+        if not src_funs:
+            self._log.warn(self._tag, "No configured source functions")
 
         # Sink functions
-        paths.extend(libc.gets(bv=bv, log=self._log).find(src_funs, self._max_recursion))
-        paths.extend(libc.memcpy(bv=bv, log=self._log).find(src_funs, self._max_recursion))
-        paths.extend(libc.memmove(bv=bv, log=self._log).find(src_funs, self._max_recursion))
-        paths.extend(libc.strcpy(bv=bv, log=self._log).find(src_funs, self._max_recursion))
-        paths.extend(libc.strcat(bv=bv, log=self._log).find(src_funs, self._max_recursion))
-        paths.extend(libc.strncpy(bv=bv, log=self._log).find(src_funs, self._max_recursion))
-        paths.extend(libc.sscanf(bv=bv, log=self._log).find(src_funs, self._max_recursion))
-        paths.extend(libc.vsscanf(bv=bv, log=self._log).find(src_funs, self._max_recursion))
-        paths.extend(libc.wcscpy(bv=bv, log=self._log).find(src_funs, self._max_recursion))
+        if enable_all:
+            snk_funs = controller.get_all_funs(flowtype="Sinks")
+        else:
+            snk_funs = controller.get_enabled_funs(flowtype="Sinks")
+        if not snk_funs:
+            self._log.warn(self._tag, "No configured sink functions")
+        
+        # Find paths
+        if src_funs and snk_funs:
+            for snk_fun in snk_funs:
+                paths.extend(snk_fun.find(src_funs, self._max_recursion))
+
         return paths
 
 

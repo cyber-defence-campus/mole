@@ -1,5 +1,5 @@
 from __future__   import annotations
-from typing       import Dict, List, Union
+from typing       import Dict, List, Literal, Union
 from ..analysis   import lib
 from ..common.log import Logger
 import os, yaml
@@ -24,32 +24,29 @@ class ConfigModel:
         """
         This method returns the model's default values.
         """
-        # Sources
-        src_conf = {}
-        for src_fun in self._controller.get_all_src_funs():
-            if not src_fun.category.value in src_conf:
-                src_conf[src_fun.category.value] = {}
-            if not src_fun.name in src_conf[src_fun.category.value]:
-                src_conf[src_fun.category.value][src_fun.name] = {}
-            src_conf[src_fun.category.value][src_fun.name]["enabled"] = src_fun.enabled
-            src_conf[src_fun.category.value][src_fun.name]["description"] = src_fun.description
-        # TODO: Sinks
-        snk_conf = {}
-        for snk_fun in self._controller.get_all_snk_funs():
-            pass
-        return {"Sources": src_conf, "Sinks": snk_conf}
+        conf = {}
+        for flowtype in ["Sources", "Sinks"]:
+            conf[flowtype] = {}
+            for fun in self._controller.get_all_funs(flowtype=flowtype):
+                if not fun.category.value in conf[flowtype]:
+                    conf[flowtype][fun.category.value] = {}
+                if not fun.name in conf[flowtype][fun.category.value]:
+                    conf[flowtype][fun.category.value][fun.name] = {}
+                conf[flowtype][fun.category.value][fun.name]["enabled"] = fun.enabled
+                conf[flowtype][fun.category.value][fun.name]["description"] = fun.description
+        return conf
     
-    def get_enabled_src_funs(self) -> List[lib.func]:
+    def get_enabled_funs(self, flowtype: Literal["Sources", "Sinks"]) -> List[lib.func]:
         """
-        This method returns a list of all enabled source functions.
+        This method returns a list of all enabled source or sink functions.
         """
-        ena_src_funs = []
-        all_src_funs = self._controller.get_all_src_funs()
-        for src_fun in all_src_funs:
-            src_fun_conf = self._conf["Sources"][src_fun.category.value][src_fun.name]
-            if src_fun_conf["enabled"]:
-                ena_src_funs.append(src_fun)
-        return ena_src_funs
+        ena_funs = []
+        all_funs = self._controller.get_all_funs(flowtype=flowtype)
+        for fun in all_funs:
+            fun_conf = self._conf.get(flowtype, {}).get(fun.category.value, {}).get(fun.name, {})
+            if fun_conf.get("enabled", False):
+                ena_funs.append(fun)
+        return ena_funs
     
     def read(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]:
         """
@@ -87,7 +84,7 @@ class ConfigView(qtw.QDialog):
     
     def init(self, controller: ConfigController) -> None:
         self._controller = controller
-        self._srcs_cbs = {}
+        self._checkboxes = {}
         if not self._runs_headless:
             self._init_dialog()
         return
@@ -108,35 +105,38 @@ class ConfigView(qtw.QDialog):
         This method initializes the tabs.
         """
         tab_wid = qtw.QTabWidget()
-        tab_wid.addTab(self._init_tab_sources(), "Sources")
-        tab_wid.addTab(self._init_tab_sinks(), "Sinks")
+        tab_wid.addTab(self._init_tab(tab_name="Sources"), "Sources")
+        tab_wid.addTab(self._init_tab(tab_name="Sinks"), "Sinks")
         return tab_wid
     
-    def _init_tab_sources(self) -> qtw.QWidget:
+    def _init_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QWidget:
         """
-        This method initializes the tab `Sources`.
+        This method initializes the tabs `Sources` and `Sinks`.
         """
-        src_wid = qtw.QWidget()
-        src_lay = qtw.QVBoxLayout()
-        for grp_name, grp_conf in self._controller.get_model().get("Sources", {}).items():
-            # Source functions widget
+        tab_wid = qtw.QWidget()
+        tab_lay = qtw.QVBoxLayout()
+        self._checkboxes[tab_name] = {}
+        for grp_name, grp_conf in self._controller.get_model().get(tab_name, {}).items():
+            # Function widget
             fun_lay = qtw.QFormLayout()
-            self._srcs_cbs[grp_name] = []
+            self._checkboxes[tab_name][grp_name] = []
             for chb_name, chb_conf in grp_conf.items():
                 cb = qtw.QCheckBox(chb_name)
                 cb.setChecked(chb_conf.get("enabled", True))
-                self._srcs_cbs[grp_name].append(cb)
+                self._checkboxes[tab_name][grp_name].append(cb)
                 fun_lay.addRow(cb, qtw.QLabel(chb_conf.get("description", "")))
             fun_wid = qtw.QWidget()
             fun_wid.setLayout(fun_lay)
             # Button widget
             but_lay = qtw.QHBoxLayout()
             sel_but = qtw.QPushButton("Select All")
-            sel_fun = lambda _, checkboxes=self._srcs_cbs[grp_name], checked=True: self._controller.check_all(checkboxes, checked)
+            sel_cbs = self._checkboxes[tab_name][grp_name]
+            sel_fun = lambda _, checkboxes=sel_cbs, checked=True: self._controller.check_all(checkboxes, checked)
             sel_but.clicked.connect(sel_fun)
             but_lay.addWidget(sel_but)
             dsl_but = qtw.QPushButton("Deselect All")
-            dsl_fun = lambda _, checkboxes=self._srcs_cbs[grp_name], checked=False: self._controller.check_all(checkboxes, checked) 
+            dsl_cbs = self._checkboxes[tab_name][grp_name]
+            dsl_fun = lambda _, checkboxes=dsl_cbs, checked=False: self._controller.check_all(checkboxes, checked) 
             dsl_but.clicked.connect(dsl_fun)
             but_lay.addWidget(dsl_but)
             but_wid = qtw.QWidget()
@@ -147,16 +147,9 @@ class ConfigView(qtw.QDialog):
             box_lay.addWidget(but_wid)
             box_wid = qtw.QGroupBox(f"{grp_name:s}:")
             box_wid.setLayout(box_lay)
-            src_lay.addWidget(box_wid)
-        src_wid.setLayout(src_lay)
-        return src_wid
-    
-    def _init_tab_sinks(self) -> qtw.QWidget:
-        """
-        TODO: This method initializes the tab `Sinks`.
-        """
-        snk_wid = qtw.QWidget()
-        return snk_wid
+            tab_lay.addWidget(box_wid)
+        tab_wid.setLayout(tab_lay)
+        return tab_wid
     
     def _init_buttons(self) -> qtw.QWidget:
         """
@@ -176,34 +169,30 @@ class ConfigView(qtw.QDialog):
         but_wid.setLayout(but_lay)
         return but_wid
     
-    
-
     def read(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]:
         """
         This method returns the view.
         """
         conf = {}
-        # Read source tab
-        conf["Sources"] = {}
-        for grp_name, cbs in self._srcs_cbs.items():
-            conf["Sources"][grp_name] = {}
-            for cb in cbs:
-                conf["Sources"][grp_name][cb.text()] = {"enabled": cb.isChecked()}
-        # TODO: Read sink tab
+        for tab_name, grp_conf in self._checkboxes.items():
+            conf[tab_name] = {}
+            for grp_name, cbs in grp_conf.items():
+                conf[tab_name][grp_name] = {}
+                for cb in cbs:
+                    conf[tab_name][grp_name][cb.text()] = {"enabled": cb.isChecked()}
         return conf
     
     def update(self, conf: Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]) -> None:
         """
         This method updates the view.
         """
-        # Update source tab
-        src_conf = conf.get("Sources", {})
-        for grp_name, cbs in self._srcs_cbs.items():
-            grp_conf = src_conf.get(grp_name, {})
-            for cb in cbs:
-                cb_conf = grp_conf.get(cb.text(), {})
-                cb.setChecked(bool(cb_conf.get("enabled", False)))
-        # TODO: Update sink tab
+        for tab_name in ["Sources", "Sinks"]:
+            tab_conf = conf.get(tab_name, {})
+            for grp_name, cbs in self._checkboxes.get(tab_name, {}).items():
+                grp_conf = tab_conf.get(grp_name, {})
+                for cb in cbs:
+                    cb_conf = grp_conf.get(cb.text(), {})
+                    cb.setChecked(bool(cb_conf.get("enabled", False)))
         return
 
 
@@ -309,23 +298,23 @@ class ConfigController:
         qtc.QTimer.singleShot(1000, lambda: button.setText("Save"))
         return
     
-    def get_all_src_funs(self) -> List[lib.func]:
+    def get_all_funs(self, flowtype: Literal["Sources", "Sinks"]) -> List[lib.func]:
         """
-        This method returns all source functions.
+        This method returns all source or sink functions.
         """
-        return self._src_funs
+        if flowtype == "Sources":
+            return self._src_funs
+        elif flowtype == "Sinks":
+            return self._snk_funs
+        return []
     
-    def get_all_snk_funs(self) -> List[lib.func]:
+    def get_enabled_funs(self, flowtype: Literal["Sources", "Sinks"]) -> List[lib.func]:
         """
-        This method returns all sink functions.
+        This method returns a list of all enabled source or sink functions.
         """
-        return self._snk_funs
-    
-    def get_enabled_src_funs(self) -> List[lib.func]:
-        """
-        This method returns a list of all enabled source functions.
-        """
-        return self._model.get_enabled_src_funs()
+        if flowtype in ["Sources", "Sinks"]:
+            return self._model.get_enabled_funs(flowtype=flowtype)
+        return []
     
     def get_model(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]:
         """
