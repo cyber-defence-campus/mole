@@ -17,24 +17,29 @@ class ConfigModel:
     
     def init(self, controller: ConfigController) -> None:
         self._controller = controller
-        self._conf = self.get_default_values()
+        self.reset()
         return
     
-    def get_default_values(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]:
+    def reset(self) -> None:
         """
-        This method returns the model's default values.
+        This method resets the model (i.e. sets the model's default values).
         """
-        conf = {}
+        self._conf = {}
         for flowtype in ["Sources", "Sinks"]:
-            conf[flowtype] = {}
-            for fun in self._controller.get_all_funs(flowtype=flowtype):
-                if not fun.category.value in conf[flowtype]:
-                    conf[flowtype][fun.category.value] = {}
-                if not fun.name in conf[flowtype][fun.category.value]:
-                    conf[flowtype][fun.category.value][fun.name] = {}
-                conf[flowtype][fun.category.value][fun.name]["enabled"] = fun.enabled
-                conf[flowtype][fun.category.value][fun.name]["description"] = fun.description
-        return conf
+            self._conf[flowtype] = {}
+            for fun in self._controller.get_all_funs(flowtype):
+                if not fun.category.value in self._conf[flowtype]:
+                    self._conf[flowtype][fun.category.value] = {}
+                if not fun.name in self._conf[flowtype][fun.category.value]:
+                    self._conf[flowtype][fun.category.value][fun.name] = {}
+                self._conf[flowtype][fun.category.value][fun.name]["enabled"] = fun.enabled
+                self._conf[flowtype][fun.category.value][fun.name]["description"] = fun.description
+        self._conf["Settings"] = {
+            "Common": {
+                "max_call_depth": 5
+            }
+        }
+        return
     
     def get_enabled_funs(self, flowtype: Literal["Sources", "Sinks"]) -> List[lib.func]:
         """
@@ -48,26 +53,45 @@ class ConfigModel:
                 ena_funs.append(fun)
         return ena_funs
     
-    def read(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]:
+    def get_max_call_depth(self) -> int:
+        """
+        This method returns the `max_call_depth` value.
+        """
+        return self._conf["Settings"]["Common"]["max_call_depth"]
+    
+    def read(self) -> Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]:
         """
         This method returns the model.
         """
         return self._conf
     
-    def update(self, conf: Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]) -> None:
+    def update(self, new_conf: Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]) -> None:
         """
         This method updates the model.
         """
-        def deep_update(ori: Dict, upd: Dict) -> Dict:
-            for key, val in upd.items():
-                if (key in ori and
-                    isinstance(ori[key], dict) and
-                    isinstance(val, dict)):
-                    deep_update(ori[key], val)
-                else:
-                    ori[key] = val
-            return ori
-        self._conf = deep_update(self._conf, conf)
+        old_conf = self.read()
+        if not isinstance(new_conf, dict): return
+        for tab_name, tab_conf in new_conf.items():
+            if not isinstance(tab_conf, dict): continue
+            if tab_name in ["Sources", "Sinks"]:
+                for grp_name, grp_conf in tab_conf.items():
+                    if not isinstance(grp_conf, dict): continue
+                    if not grp_name in old_conf[tab_name]: continue
+                    for chb_name, chb_conf in grp_conf.items():
+                        if not isinstance(chb_conf, dict): continue
+                        if not chb_name in old_conf[tab_name][grp_name]: continue
+                        try:
+                            chb_enabled = bool(chb_conf.get("enabled", None))
+                            self._conf[tab_name][grp_name][chb_name]["enabled"] = chb_enabled
+                        except:
+                            continue
+            elif tab_name == "Settings":
+                try:
+                    max_call_depth = tab_conf.get("Common", {}).get("max_call_depth", None)
+                    max_call_depth = max(0, min(int(max_call_depth), 25))
+                    self._conf["Settings"]["Common"]["max_call_depth"] = max_call_depth
+                except:
+                    continue
         return
 
 
@@ -76,7 +100,7 @@ class ConfigView(qtw.QDialog):
     This class implements the view for plugin configuration.
     """
 
-    def __init__(self, runs_headless: bool = False) -> None:
+    def __init__(self, runs_headless: bool) -> None:
         self._runs_headless = runs_headless
         if not self._runs_headless:
             super().__init__()
@@ -84,7 +108,7 @@ class ConfigView(qtw.QDialog):
     
     def init(self, controller: ConfigController) -> None:
         self._controller = controller
-        self._checkboxes = {}
+        self._inputs = {}
         if not self._runs_headless:
             self._init_dialog()
         return
@@ -107,6 +131,7 @@ class ConfigView(qtw.QDialog):
         tab_wid = qtw.QTabWidget()
         tab_wid.addTab(self._init_tab(tab_name="Sources"), "Sources")
         tab_wid.addTab(self._init_tab(tab_name="Sinks"), "Sinks")
+        tab_wid.addTab(self._init_tab_settings(), "Settings")
         return tab_wid
     
     def _init_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QWidget:
@@ -115,27 +140,27 @@ class ConfigView(qtw.QDialog):
         """
         tab_wid = qtw.QWidget()
         tab_lay = qtw.QVBoxLayout()
-        self._checkboxes[tab_name] = {}
+        self._inputs[tab_name] = {}
         for grp_name, grp_conf in self._controller.get_model().get(tab_name, {}).items():
             # Function widget
             fun_lay = qtw.QFormLayout()
-            self._checkboxes[tab_name][grp_name] = []
+            self._inputs[tab_name][grp_name] = []
             for chb_name, chb_conf in grp_conf.items():
                 cb = qtw.QCheckBox(chb_name)
                 cb.setChecked(chb_conf.get("enabled", True))
-                self._checkboxes[tab_name][grp_name].append(cb)
+                self._inputs[tab_name][grp_name].append(cb)
                 fun_lay.addRow(cb, qtw.QLabel(chb_conf.get("description", "")))
             fun_wid = qtw.QWidget()
             fun_wid.setLayout(fun_lay)
             # Button widget
             but_lay = qtw.QHBoxLayout()
             sel_but = qtw.QPushButton("Select All")
-            sel_cbs = self._checkboxes[tab_name][grp_name]
+            sel_cbs = self._inputs[tab_name][grp_name]
             sel_fun = lambda _, checkboxes=sel_cbs, checked=True: self._controller.check_all(checkboxes, checked)
             sel_but.clicked.connect(sel_fun)
             but_lay.addWidget(sel_but)
             dsl_but = qtw.QPushButton("Deselect All")
-            dsl_cbs = self._checkboxes[tab_name][grp_name]
+            dsl_cbs = self._inputs[tab_name][grp_name]
             dsl_fun = lambda _, checkboxes=dsl_cbs, checked=False: self._controller.check_all(checkboxes, checked) 
             dsl_but.clicked.connect(dsl_fun)
             but_lay.addWidget(dsl_but)
@@ -148,6 +173,35 @@ class ConfigView(qtw.QDialog):
             box_wid = qtw.QGroupBox(f"{grp_name:s}:")
             box_wid.setLayout(box_lay)
             tab_lay.addWidget(box_wid)
+        tab_wid.setLayout(tab_lay)
+        return tab_wid
+    
+    def _init_tab_settings(self) -> qtw.QWidget:
+        """
+        This method initializes the tab `Settings`.
+        """
+        com_wid = qtw.QWidget()
+        com_lay = qtw.QFormLayout()
+        rec_spi_wid = qtw.QSpinBox()
+        rec_spi_wid.setRange(0, 25)
+        rec_spi_val = self._controller.get_model().get("Settings", {}).get("Common", {}).get("max_call_depth", 5)
+        rec_spi_wid.setValue(rec_spi_val)
+        self._inputs["Settings"] = {
+            "Common": {
+                "max_call_depth": rec_spi_wid
+            }
+        }
+        com_lay.addRow(rec_spi_wid, qtw.QLabel("max_call_depth"))
+        com_wid.setLayout(com_lay)
+
+        box_wid = qtw.QGroupBox("Common:")
+        box_lay = qtw.QVBoxLayout()
+        box_lay.addWidget(com_wid)
+        box_wid.setLayout(box_lay)
+
+        tab_wid = qtw.QWidget()
+        tab_lay = qtw.QVBoxLayout()
+        tab_lay.addWidget(box_wid)
         tab_wid.setLayout(tab_lay)
         return tab_wid
     
@@ -169,30 +223,42 @@ class ConfigView(qtw.QDialog):
         but_wid.setLayout(but_lay)
         return but_wid
     
-    def read(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]:
+    def read(self) -> Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]:
         """
         This method returns the view.
         """
         conf = {}
-        for tab_name, grp_conf in self._checkboxes.items():
+        if self._runs_headless: return conf
+        for tab_name, grp_conf in self._inputs.items():
+            if not tab_name in ["Sources", "Sinks"]: continue
             conf[tab_name] = {}
             for grp_name, cbs in grp_conf.items():
                 conf[tab_name][grp_name] = {}
                 for cb in cbs:
                     conf[tab_name][grp_name][cb.text()] = {"enabled": cb.isChecked()}
+        conf["Settings"] = {
+            "Common": {
+                "max_call_depth": self._inputs["Settings"]["Common"]["max_call_depth"].value()
+            }
+        }
         return conf
     
-    def update(self, conf: Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]) -> None:
+    def update(self, conf: Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]) -> None:
         """
         This method updates the view.
         """
+        if self._runs_headless: return
         for tab_name in ["Sources", "Sinks"]:
             tab_conf = conf.get(tab_name, {})
-            for grp_name, cbs in self._checkboxes.get(tab_name, {}).items():
+            for grp_name, cbs in self._inputs.get(tab_name, {}).items():
                 grp_conf = tab_conf.get(grp_name, {})
                 for cb in cbs:
                     cb_conf = grp_conf.get(cb.text(), {})
                     cb.setChecked(bool(cb_conf.get("enabled", False)))
+        rec_spi_val = conf.get("Settings", {}).get("Common", {}).get("max_call_depth", None)
+        if not rec_spi_val is None:
+            rec_spi_wid = self._inputs["Settings"]["Common"]["max_call_depth"]
+            rec_spi_wid.setValue(rec_spi_val)
         return
 
 
@@ -245,42 +311,12 @@ class ConfigController:
             )
             return
         # Update model
-        old_conf = self._model.read()
-        for tab_name, tab_conf in new_conf.items():
-            if not tab_name in old_conf:
-                self._log(
-                    self._tag,
-                    f"Skipped invalid configuration entry '{tab_name:s}'"
-                )
-                continue
-            for grp_name, grp_conf in tab_conf.items():
-                if not grp_name in old_conf[tab_name]:
-                    self._log.warn(
-                        self._tag,
-                        f"Skipped invalid configuration entry '{tab_name:s}/{grp_name:s}'"
-                    )
-                    continue
-                for chb_name, chb_conf in grp_conf.items():
-                    if not chb_name in old_conf[tab_name][grp_name]:
-                        self._log(
-                            self._tag,
-                            f"Skipped invalid configuration entry '{tab_name:s}/{grp_name:s}/{chb_name:s}'"
-                        )
-                        continue
-                    self._model.update({
-                        tab_name: {
-                            grp_name: {
-                                chb_name: {
-                                    "enabled": bool(chb_conf["enabled"])
-                                }
-                            }
-                        }
-                    })
+        self._model.update(new_conf)
         # Update view
         self._view.update(self._model.read())
         return
     
-    def store_to_file(self, button: qtw.QPushButton) -> None:
+    def store_to_file(self, button: qtw.QPushButton = None) -> None:
         """
         This method stores the plugin configuration to a file.
         """
@@ -294,10 +330,11 @@ class ConfigController:
                            encoding="utf-8"
             )
         # Send user feedback
-        button.setText("Saving...")
-        qtc.QTimer.singleShot(1000, lambda: button.setText("Save"))
+        if not button is None:
+            button.setText("Saving...")
+            qtc.QTimer.singleShot(1000, lambda: button.setText("Save"))
         return
-    
+
     def get_all_funs(self, flowtype: Literal["Sources", "Sinks"]) -> List[lib.func]:
         """
         This method returns all source or sink functions.
@@ -315,8 +352,14 @@ class ConfigController:
         if flowtype in ["Sources", "Sinks"]:
             return self._model.get_enabled_funs(flowtype=flowtype)
         return []
-    
-    def get_model(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[bool, str]]]]]:
+
+    def get_max_call_depth(self) -> int:
+        """
+        This method returns the `max_call_depth` value.
+        """
+        return self._model.get_max_call_depth()
+
+    def get_model(self) -> Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]:
         """
         This method returns the model.
         """
@@ -324,10 +367,10 @@ class ConfigController:
     
     def reset(self, button: qtw.QPushButton) -> None:
         """
-        This method resets the plugin configuration (default values).
+        This method resets the plugin configuration (i.e. set the plugin's default values).
         """
         # Reset model
-        self._model.update(self._model.get_default_values())
+        self._model.reset()
         # Update view
         self._view.update(self._model.read())
         # Send user feedback

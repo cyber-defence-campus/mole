@@ -13,14 +13,14 @@ class MediumLevelILBackwardSlicer:
     def __init__(
             self,
             bv: bn.BinaryView,
+            max_call_depth: int,
             tag: str = "BackSlicer",
-            log: Logger = Logger(),
-            max_recursion: int = 10
+            log: Logger = Logger()
         ) -> None:
         self._bv = bv
         self._tag = tag
         self._log = log
-        self._max_recursion = max_recursion
+        self._max_call_depth = max_call_depth
         self._sliced_insts = {}
         return
     
@@ -139,10 +139,10 @@ class MediumLevelILBackwardSlicer:
                                         # Backward slice starting from possible return instructions
                                         case (bn.MediumLevelILRet() |
                                             bn.MediumLevelILTailcallSsa()):
-                                            if func_depth < self._max_recursion:
+                                            if func_depth < self._max_call_depth:
                                                 vars.update(self._slice_backwards(c_inst, func_depth+1))
                                             else:
-                                                self._log.warn(self._tag, f"{info:s}: Maxium recursion depth reached")
+                                                self._log.warn(self._tag, f"{info:s}: Maxium call depth reached")
                 vars.update(self._slice_backwards(inst.dest, func_depth))
                 for out in inst.output:
                     vars.add(out)

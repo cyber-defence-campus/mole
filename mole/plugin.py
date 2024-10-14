@@ -15,14 +15,12 @@ class Plugin:
     def __init__(
             self,
             runs_headless: bool,
-            max_recursion: int,
             tag: str = None,
             log: Logger = Logger()
         ) -> None:
+        self._runs_headless = runs_headless
         self._src_funs = None
         self._snk_funs = None
-        self._runs_headless = runs_headless
-        self._max_recursion = max_recursion
         self._tag = tag
         self._log = log
         return
@@ -59,7 +57,6 @@ class Plugin:
                 libc.sscanf(bv=bv, log=self._log),
                 libc.vsscanf(bv=bv, log=self._log)
             ]
-
         # Initialize controller
         controller = ConfigController(
             model=ConfigModel(),
@@ -94,7 +91,12 @@ class Plugin:
         controller.show_view()
         return
     
-    def analyze_binary(self, bv: bn.BinaryView, enable_all: bool = False) -> List[Tuple[
+    def analyze_binary(
+            self,
+            bv: bn.BinaryView,
+            enable_all_funs: bool = False,
+            max_call_depth: int = None
+        ) -> List[Tuple[
             str, bn.MediumLevelILInstruction,
             str, bn.MediumLevelILInstruction, int, bn.SSAVariable
         ]]:
@@ -131,7 +133,7 @@ class Plugin:
         # libc.sscanf(bv, log=log, src_sym_names=src_sym_names).analyze_all()
 
         # Source functions
-        if enable_all:
+        if enable_all_funs:
             src_funs = controller.get_all_funs(flowtype="Sources")
         else:
             src_funs = controller.get_enabled_funs(flowtype="Sources")
@@ -139,7 +141,7 @@ class Plugin:
             self._log.warn(self._tag, "No configured source functions")
 
         # Sink functions
-        if enable_all:
+        if enable_all_funs:
             snk_funs = controller.get_all_funs(flowtype="Sinks")
         else:
             snk_funs = controller.get_enabled_funs(flowtype="Sinks")
@@ -147,9 +149,11 @@ class Plugin:
             self._log.warn(self._tag, "No configured sink functions")
         
         # Find paths
+        if max_call_depth is None:
+            max_call_depth = controller.get_max_call_depth()
         if src_funs and snk_funs:
             for snk_fun in snk_funs:
-                paths.extend(snk_fun.find(src_funs, self._max_recursion))
+                paths.extend(snk_fun.find(src_funs, max_call_depth))
 
         return paths
 
@@ -174,9 +178,9 @@ def main() -> None:
         choices=["error", "warning", "info", "debug"], default="info",
         help="log level")
     parser.add_argument(
-        "--max_recursion",
-        type=int, default=10,
-        help="backward slicing visits called functions up to the given recursion depth"
+        "--max_call_depth",
+        type=int, default=None,
+        help="backward slicing visits called functions up to the given depth (default: 5)"
     )
     args = parser.parse_args()
 
@@ -184,7 +188,6 @@ def main() -> None:
     log = Logger(level=args.log_level, runs_headless=True)
     plugin = Plugin(
         runs_headless=True,
-        max_recursion=args.max_recursion,
         log=log
     )
 
@@ -194,7 +197,7 @@ def main() -> None:
         bv.update_analysis_and_wait()
 
         # Analyze binary with plugin
-        plugin.analyze_binary(bv)
+        plugin.analyze_binary(bv, max_call_depth=args.max_call_depth)
 
         # Close binary
         bv.file.close()
