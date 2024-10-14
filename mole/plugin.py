@@ -14,9 +14,9 @@ class Plugin:
 
     def __init__(
             self,
-            runs_headless: bool,
+            runs_headless: bool = False,
             tag: str = None,
-            log: Logger = Logger()
+            log: Logger = Logger(level="debug", runs_headless=False)
         ) -> None:
         self._runs_headless = runs_headless
         self._src_funs = None
@@ -180,7 +180,7 @@ def main() -> None:
     parser.add_argument(
         "--max_func_depth",
         type=int, default=None,
-        help="backward slicing visits called functions up to the given depth (default: 5)"
+        help="backward slicing visits called functions up to the given depth"
     )
     args = parser.parse_args()
 

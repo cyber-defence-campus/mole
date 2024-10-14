@@ -142,7 +142,7 @@ class MediumLevelILBackwardSlicer:
                                             if func_depth < self._max_func_depth:
                                                 vars.update(self._slice_backwards(c_inst, func_depth+1))
                                             else:
-                                                self._log.warn(self._tag, f"{info:s}: Maximum call depth reached")
+                                                self._log.warn(self._tag, f"{info:s}: Maximum function depth reached")
                 vars.update(self._slice_backwards(inst.dest, func_depth))
                 for out in inst.output:
                     vars.add(out)
