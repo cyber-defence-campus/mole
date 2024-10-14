@@ -16,6 +16,9 @@ class ConfigModel:
         return super().__init__()
     
     def init(self, controller: ConfigController) -> None:
+        """
+        This method initializes the model.
+        """
         self._controller = controller
         self.reset()
         return
@@ -36,28 +39,10 @@ class ConfigModel:
                 self._conf[flowtype][fun.category.value][fun.name]["description"] = fun.description
         self._conf["Settings"] = {
             "Common": {
-                "max_call_depth": 5
+                "max_func_depth": 5
             }
         }
         return
-    
-    def get_enabled_funs(self, flowtype: Literal["Sources", "Sinks"]) -> List[lib.func]:
-        """
-        This method returns a list of all enabled source or sink functions.
-        """
-        ena_funs = []
-        all_funs = self._controller.get_all_funs(flowtype=flowtype)
-        for fun in all_funs:
-            fun_conf = self._conf.get(flowtype, {}).get(fun.category.value, {}).get(fun.name, {})
-            if fun_conf.get("enabled", False):
-                ena_funs.append(fun)
-        return ena_funs
-    
-    def get_max_call_depth(self) -> int:
-        """
-        This method returns the `max_call_depth` value.
-        """
-        return self._conf["Settings"]["Common"]["max_call_depth"]
     
     def read(self) -> Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]:
         """
@@ -87,9 +72,9 @@ class ConfigModel:
                             continue
             elif tab_name == "Settings":
                 try:
-                    max_call_depth = tab_conf.get("Common", {}).get("max_call_depth", None)
-                    max_call_depth = max(0, min(int(max_call_depth), 25))
-                    self._conf["Settings"]["Common"]["max_call_depth"] = max_call_depth
+                    max_func_depth = tab_conf.get("Common", {}).get("max_func_depth", None)
+                    max_func_depth = max(0, min(int(max_func_depth), 25))
+                    self._conf["Settings"]["Common"]["max_func_depth"] = max_func_depth
                 except:
                     continue
         return
@@ -107,8 +92,10 @@ class ConfigView(qtw.QDialog):
         return None
     
     def init(self, controller: ConfigController) -> None:
+        """
+        This method initializes the view.
+        """
         self._controller = controller
-        self._inputs = {}
         if not self._runs_headless:
             self._init_dialog()
         return
@@ -117,6 +104,7 @@ class ConfigView(qtw.QDialog):
         """
         This method initializes the main dialog.
         """
+        self._inputs = {}
         self.setWindowTitle("Mole Configuration")
         top_lay = qtw.QVBoxLayout()
         top_lay.addWidget(self._init_tabs())
@@ -184,14 +172,14 @@ class ConfigView(qtw.QDialog):
         com_lay = qtw.QFormLayout()
         rec_spi_wid = qtw.QSpinBox()
         rec_spi_wid.setRange(0, 25)
-        rec_spi_val = self._controller.get_model().get("Settings", {}).get("Common", {}).get("max_call_depth", 5)
+        rec_spi_val = self._controller.get_model().get("Settings", {}).get("Common", {}).get("max_func_depth", 5)
         rec_spi_wid.setValue(rec_spi_val)
         self._inputs["Settings"] = {
             "Common": {
-                "max_call_depth": rec_spi_wid
+                "max_func_depth": rec_spi_wid
             }
         }
-        com_lay.addRow(rec_spi_wid, qtw.QLabel("max_call_depth"))
+        com_lay.addRow(rec_spi_wid, qtw.QLabel("max_func_depth"))
         com_wid.setLayout(com_lay)
 
         box_wid = qtw.QGroupBox("Common:")
@@ -238,7 +226,7 @@ class ConfigView(qtw.QDialog):
                     conf[tab_name][grp_name][cb.text()] = {"enabled": cb.isChecked()}
         conf["Settings"] = {
             "Common": {
-                "max_call_depth": self._inputs["Settings"]["Common"]["max_call_depth"].value()
+                "max_func_depth": self._inputs["Settings"]["Common"]["max_func_depth"].value()
             }
         }
         return conf
@@ -255,9 +243,9 @@ class ConfigView(qtw.QDialog):
                 for cb in cbs:
                     cb_conf = grp_conf.get(cb.text(), {})
                     cb.setChecked(bool(cb_conf.get("enabled", False)))
-        rec_spi_val = conf.get("Settings", {}).get("Common", {}).get("max_call_depth", None)
+        rec_spi_val = conf.get("Settings", {}).get("Common", {}).get("max_func_depth", None)
         if not rec_spi_val is None:
-            rec_spi_wid = self._inputs["Settings"]["Common"]["max_call_depth"]
+            rec_spi_wid = self._inputs["Settings"]["Common"]["max_func_depth"]
             rec_spi_wid.setValue(rec_spi_val)
         return
 
@@ -289,6 +277,9 @@ class ConfigController:
         return
     
     def init(self) -> None:
+        """
+        This method initializes the model and view.
+        """
         self._model.init(self)
         self._view.init(self)
         self.load_from_file()
@@ -301,7 +292,7 @@ class ConfigController:
         # Load configuration from file
         try:
             with open(self._conf_file, "r") as f:
-                new_conf = yaml.safe_load(f)
+                conf = yaml.safe_load(f)
         except FileNotFoundError:
             return
         except:
@@ -311,7 +302,7 @@ class ConfigController:
             )
             return
         # Update model
-        self._model.update(new_conf)
+        self._model.update(conf)
         # Update view
         self._view.update(self._model.read())
         return
@@ -349,15 +340,21 @@ class ConfigController:
         """
         This method returns a list of all enabled source or sink functions.
         """
-        if flowtype in ["Sources", "Sinks"]:
-            return self._model.get_enabled_funs(flowtype=flowtype)
-        return []
+        ena_funs = []
+        all_funs = self.get_all_funs(flowtype=flowtype)
+        model = self._model.read()
+        for fun in all_funs:
+            fun_conf = model.get(flowtype, {}).get(fun.category.value, {}).get(fun.name, {})
+            if fun_conf.get("enabled", False):
+                ena_funs.append(fun)
+        return ena_funs
 
-    def get_max_call_depth(self) -> int:
+    def get_max_func_depth(self) -> int:
         """
-        This method returns the `max_call_depth` value.
+        This method returns the `max_func_depth` value.
         """
-        return self._model.get_max_call_depth()
+        model = self._model.read()
+        return model["Settings"]["Common"]["max_func_depth"]
 
     def get_model(self) -> Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]:
         """

@@ -95,7 +95,7 @@ class Plugin:
             self,
             bv: bn.BinaryView,
             enable_all_funs: bool = False,
-            max_call_depth: int = None
+            max_func_depth: int = None
         ) -> List[Tuple[
             str, bn.MediumLevelILInstruction,
             str, bn.MediumLevelILInstruction, int, bn.SSAVariable
@@ -149,11 +149,11 @@ class Plugin:
             self._log.warn(self._tag, "No configured sink functions")
         
         # Find paths
-        if max_call_depth is None:
-            max_call_depth = controller.get_max_call_depth()
+        if max_func_depth is None:
+            max_func_depth = controller.get_max_func_depth()
         if src_funs and snk_funs:
             for snk_fun in snk_funs:
-                paths.extend(snk_fun.find(src_funs, max_call_depth))
+                paths.extend(snk_fun.find(src_funs, max_func_depth))
 
         return paths
 
@@ -178,7 +178,7 @@ def main() -> None:
         choices=["error", "warning", "info", "debug"], default="info",
         help="log level")
     parser.add_argument(
-        "--max_call_depth",
+        "--max_func_depth",
         type=int, default=None,
         help="backward slicing visits called functions up to the given depth (default: 5)"
     )
@@ -197,7 +197,7 @@ def main() -> None:
         bv.update_analysis_and_wait()
 
         # Analyze binary with plugin
-        plugin.analyze_binary(bv, max_call_depth=args.max_call_depth)
+        plugin.analyze_binary(bv, max_func_depth=args.max_func_depth)
 
         # Close binary
         bv.file.close()

@@ -99,7 +99,7 @@ class src_func(func):
                             continue
                     # Backward slice the parameter
                     if par_slice(parm_num):
-                        slicer = MediumLevelILBackwardSlicer(self._bv, 5, self.name, self._log)
+                        slicer = MediumLevelILBackwardSlicer(self._bv, 0, self.name, self._log)
                         slicer.slice_backwards(parm_var)
                         # Add sliced instructions to target instructions
                         s = self._target_insts.get((inst.address, symbol_name), set())
@@ -135,7 +135,7 @@ class snk_func(func):
     def find(
             self,
             sources: List[src_func],
-            max_call_depth: int
+            max_func_depth: int
         ) -> List[Tuple[
                 str, bn.MediumLevelILInstruction,
                 str, bn.MediumLevelILInstruction, int, bn.SSAVariable
@@ -176,7 +176,7 @@ class snk_func(func):
                             continue
                     # Backward slice the parameter
                     if self._par_slice(parm_num):
-                        slicer = MediumLevelILBackwardSlicer(self._bv, max_call_depth, self.name, self._log)
+                        slicer = MediumLevelILBackwardSlicer(self._bv, max_func_depth, self.name, self._log)
                         try:
                             slicer.slice_backwards(parm_var)
                         except Exception as e:
