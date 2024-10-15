@@ -2,7 +2,7 @@ import sys
 from   binaryninja  import log_alert, log_debug, log_info, log_warn, log_error
 from   datetime     import datetime
 from   termcolor    import colored
-from   typing       import List
+from   typing       import List, Literal
 
 
 class Logger:
@@ -12,7 +12,7 @@ class Logger:
 
     def __init__(
             self,
-            level: str = "info",
+            level: Literal["debug", "info", "warning", "error"] = "info",
             runs_headless: bool = False
         ) -> None:
         self._set_level(level)
@@ -21,22 +21,23 @@ class Logger:
     
     def _set_level(
             self,
-            level: str
+            level: Literal["debug", "info", "warning", "error"]
         ) -> None:
         """
         This method sets the log level to `level`.
         """
         level = level.lower()
-        if level == 'debug':
-            self._level = 0
-        elif level == 'info':
-            self._level = 1
-        elif level == 'warning':
-            self._level = 2
-        elif level == 'error':
-            self._level = 3
-        else:
-            self._level = 4
+        match level:
+            case "debug":
+                self._level = 0
+            case "info":
+                self._level = 1
+            case "warning":
+                self._level = 2
+            case "error":
+                self._level = 3
+            case _:
+                self._level = 4
 
     def _tag_msg(
             self,
