@@ -202,7 +202,7 @@ def main() -> None:
         # Close binary
         bv.file.close()
     except:
-        log.error(msg=f"Failed to analze binary '{args.file:s}'")
+        log.error(msg=f"Failed to analyze binary '{args.file:s}'")
     return
 
 

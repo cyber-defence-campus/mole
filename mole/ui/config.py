@@ -39,7 +39,7 @@ class ConfigModel:
                 self._conf[flowtype][fun.category.value][fun.name]["description"] = fun.description
         self._conf["Settings"] = {
             "Common": {
-                "max_func_depth": 5
+                "max_func_depth": 3
             }
         }
         return
@@ -73,7 +73,7 @@ class ConfigModel:
             elif tab_name == "Settings":
                 try:
                     max_func_depth = tab_conf.get("Common", {}).get("max_func_depth", None)
-                    max_func_depth = max(0, min(int(max_func_depth), 25))
+                    max_func_depth = max(0, min(int(max_func_depth), 10))
                     self._conf["Settings"]["Common"]["max_func_depth"] = max_func_depth
                 except:
                     continue
@@ -171,8 +171,8 @@ class ConfigView(qtw.QDialog):
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
         rec_spi_wid = qtw.QSpinBox()
-        rec_spi_wid.setRange(0, 25)
-        rec_spi_val = self._controller.get_model().get("Settings", {}).get("Common", {}).get("max_func_depth", 5)
+        rec_spi_wid.setRange(0, 10)
+        rec_spi_val = self._controller.get_model().get("Settings", {}).get("Common", {}).get("max_func_depth", 3)
         rec_spi_wid.setValue(rec_spi_val)
         self._inputs["Settings"] = {
             "Common": {
