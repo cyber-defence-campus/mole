@@ -1,9 +1,9 @@
-from __future__      import annotations
-from enum            import Enum
-from typing          import Callable, List, Tuple
-from ..common.helper import SymbolHelper
-from ..common.log    import Logger
-from ..model.slice   import MediumLevelILBackwardSlicer
+from __future__       import annotations
+from enum             import Enum
+from typing           import Callable, List, Tuple
+from ..analysis.slice import MediumLevelILBackwardSlicer
+from ..common.helper  import SymbolHelper
+from ..common.log     import Logger
 import binaryninja as bn
 
 
@@ -28,7 +28,6 @@ class func:
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "lib.func",
             description: str = "Generic function",
             category: category = category.und,
@@ -36,7 +35,6 @@ class func:
             enabled: bool = False,
             log: Logger = Logger()
         ) -> None:
-        self._bv = bv
         self.name = name
         self.description = description
         self.category = category
@@ -53,7 +51,6 @@ class src_func(func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "lib.src_func",
             description: str = "Generic source function",
             category: category = category.und,
@@ -64,11 +61,26 @@ class src_func(func):
             par_dataflow: Callable[[int], bool] = lambda x: False,
             par_slice: Callable[[int], bool] = lambda x: False
         ) -> None:
-        super().__init__(bv, name, description, category, symbols, enabled, log)
+        super().__init__(name, description, category, symbols, enabled, log)
+        self._par_cnt = par_cnt
+        self._par_dataflow = par_dataflow
+        self._par_slice = par_slice
         self._target_insts = {}
-        code_refs = SymbolHelper.get_code_refs(self._bv, self.symbols)
+        return
+    
+    def find_targets(
+            self,
+            bv: bn.BinaryView,
+            canceled: Callable[[], bool]
+        ) -> None:
+        """
+        This method finds a set of target instructions that a static backward slice should hit on.
+        """
+        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         for symbol_name, insts in code_refs.items():
+            if canceled(): break
             for inst in insts:
+                if canceled(): break
                 self._log.info(self.name, f"Analyze source function '0x{inst.address:x} {symbol_name:s}'")
                 # Ignore everything but call instructions
                 match inst:
@@ -80,14 +92,15 @@ class src_func(func):
                     case _:
                         continue
                 # Ignore calls with an invalid number of parameters
-                if not par_cnt(len(inst.params)):
+                if not self._par_cnt(len(inst.params)):
                     self._log.warn(self.name, f"0x{inst.address:x} Ignore arguments of call '0x{inst.address:x} {symbol_name:s}' due to an unexpected amount")
                     continue
                 # Analyze parameters
                 for parm_num, parm_var in enumerate(inst.params):
+                    if canceled(): break
                     self._log.debug(self.name, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                     # Perform dataflow analysis
-                    if par_dataflow(parm_num):
+                    if self._par_dataflow(parm_num):
                         # Ignore constant parameters
                         if parm_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
                             self._log.debug(self.name, f"0x{inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
@@ -98,8 +111,8 @@ class src_func(func):
                             self._log.debug(self.name, f"0x{inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                             continue
                     # Backward slice the parameter
-                    if par_slice(parm_num):
-                        slicer = MediumLevelILBackwardSlicer(self._bv, 0, self.name, self._log)
+                    if self._par_slice(parm_num):
+                        slicer = MediumLevelILBackwardSlicer(bv, 0, self.name, self._log)
                         slicer.slice_backwards(parm_var)
                         # Add sliced instructions to target instructions
                         s = self._target_insts.get((inst.address, symbol_name), set())
@@ -115,7 +128,6 @@ class snk_func(func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "lib.snk_func",
             description: str = "Generic sink function",
             category: category = category.und,
@@ -126,28 +138,33 @@ class snk_func(func):
             par_dataflow: Callable[[int], bool] = lambda x: False,
             par_slice: Callable[[int], bool] = lambda x: True
         ) -> None:
-        super().__init__(bv, name, description, category, symbols, enabled, log)
+        super().__init__(name, description, category, symbols, enabled, log)
         self._par_cnt = par_cnt
         self._par_dataflow = par_dataflow
         self._par_slice = par_slice
         return
     
-    def find(
+    def find_paths(
             self,
+            bv: bn.BinaryView,
             sources: List[src_func],
-            max_func_depth: int
+            max_func_depth: int,
+            canceled: Callable[[], bool]
         ) -> List[Tuple[
                 str, bn.MediumLevelILInstruction,
-                str, bn.MediumLevelILInstruction, int, bn.SSAVariable
+                str, bn.MediumLevelILInstruction,
+                int, bn.SSAVariable
             ]]:
         """
         This method tries to find paths, starting from the current sink and ending in one of the
         given `sources`, using static backward slicing.
         """
         paths = []
-        code_refs = SymbolHelper.get_code_refs(self._bv, self.symbols)
+        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         for snk_name, snk_insts in code_refs.items():
+            if canceled(): break
             for snk_inst in snk_insts:
+                if canceled(): break
                 self._log.info(self.name, f"Analyze sink function '0x{snk_inst.address:x} {snk_name:s}'")
                 # Ignore everything but call instructions
                 match snk_inst:
@@ -162,6 +179,7 @@ class snk_func(func):
                     continue
                 # Analyze parameters
                 for parm_num, parm_var in enumerate(snk_inst.params):
+                    if canceled(): break
                     self._log.debug(self.name, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                     # Perform dataflow analysis
                     if self._par_dataflow(parm_num):
@@ -176,15 +194,18 @@ class snk_func(func):
                             continue
                     # Backward slice the parameter
                     if self._par_slice(parm_num):
-                        slicer = MediumLevelILBackwardSlicer(self._bv, max_func_depth, self.name, self._log)
+                        slicer = MediumLevelILBackwardSlicer(bv, max_func_depth, self.name, self._log)
                         try:
                             slicer.slice_backwards(parm_var)
                         except Exception as e:
                             self._log.error(self.name, f"Exception: {str(e):s}")
                         # Check whether the slice contains any source
                         for source in sources:
+                            if canceled(): break
                             for (sym_addr, sym_name), src_insts in source._target_insts.items():
+                                if canceled(): break
                                 for src_inst in src_insts:
+                                    if canceled(): break
                                     if slicer.includes(src_inst):
                                         t_src = f"0x{sym_addr:x} {sym_name:s}()"
                                         t_snk = f"0x{snk_inst.address:x} {snk_name}"

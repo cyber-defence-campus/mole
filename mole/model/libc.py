@@ -1,8 +1,7 @@
 from __future__   import annotations
 from typing       import List
-from .lib         import category, src_func, snk_func
 from ..common.log import Logger
-import binaryninja as bn
+from ..model.lib  import category, src_func, snk_func
 
 
 class getenv(src_func):
@@ -12,7 +11,6 @@ class getenv(src_func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.getenv",
             description: str = "Read environment variable",
             category: category = category.env,
@@ -21,7 +19,7 @@ class getenv(src_func):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log,
+            name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 1,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
@@ -36,7 +34,6 @@ class gets(src_func, snk_func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.gets",
             description: str = "Read string from standard input stream",
             category: category = category.sfd,
@@ -46,14 +43,14 @@ class gets(src_func, snk_func):
         ) -> None:
         src_func.__init__(
             self,
-            bv, name, description, category, symbols, enabled, log,
+            name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 1,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
         )
         snk_func.__init__(
             self,
-            bv, name, description, category, symbols, enabled, log,
+            name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 1,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
@@ -68,7 +65,6 @@ class fgets(src_func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.fgets",
             description: str = "Read string from given stream",
             category: category = category.sfd,
@@ -77,7 +73,7 @@ class fgets(src_func):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log,
+            name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: x == 0
@@ -92,7 +88,6 @@ class memcpy(snk_func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.memcpy",
             description: str = "Copy memory area",
             category: category = category.mem,
@@ -101,7 +96,7 @@ class memcpy(snk_func):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log,
+            name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
@@ -116,7 +111,6 @@ class memmove(memcpy):
     
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.memmove",
             description: str = "Copy memory area",
             category: category = category.mem,
@@ -125,7 +119,7 @@ class memmove(memcpy):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log
+            name, description, category, symbols, enabled, log
         )
         return
 
@@ -137,7 +131,6 @@ class strcpy(snk_func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.strcpy",
             description: str = "Copy a string",
             category: category = category.str,
@@ -146,7 +139,7 @@ class strcpy(snk_func):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log,
+            name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 2,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
@@ -160,7 +153,6 @@ class wcscpy(strcpy):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.wcscpy",
             description: str = "Copy a string",
             category: category = category.str,
@@ -169,7 +161,7 @@ class wcscpy(strcpy):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log
+            name, description, category, symbols, enabled, log
         )
         return
     
@@ -181,7 +173,6 @@ class strcat(strcpy):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.strcat",
             description: str = "Catenate a string",
             category: category = category.str,
@@ -190,7 +181,7 @@ class strcat(strcpy):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log
+            name, description, category, symbols, enabled, log
         )
         return
     
@@ -202,7 +193,6 @@ class strncpy(snk_func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.strncpy",
             description: str = "Fill buffer with bytes from string",
             category: category = category.str,
@@ -211,7 +201,7 @@ class strncpy(snk_func):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log,
+            name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True
@@ -226,7 +216,6 @@ class sscanf(snk_func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.sscanf",
             description: str = "Input string format conversion",
             category: category = category.str,
@@ -235,7 +224,7 @@ class sscanf(snk_func):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log,
+            name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
             par_slice = lambda x: x < 2
@@ -250,7 +239,6 @@ class vsscanf(sscanf):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libc.vsscanf",
             description: str = "Input string format conversion",
             category: category = category.str,
@@ -259,6 +247,6 @@ class vsscanf(sscanf):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log
+            name, description, category, symbols, enabled, log
         )
         return

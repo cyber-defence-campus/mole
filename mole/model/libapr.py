@@ -1,8 +1,7 @@
-from __future__     import annotations
-from typing         import List
-from .lib           import category, src_func
-from ..common.log   import Logger
-import binaryninja as bn
+from __future__   import annotations
+from typing       import List
+from ..common.log import Logger
+from ..model.lib  import category, src_func
 
 
 class apr_socket_recv(src_func):
@@ -12,7 +11,6 @@ class apr_socket_recv(src_func):
 
     def __init__(
             self,
-            bv: bn.BinaryView,
             name: str = "libapr.apr_socket_recv",
             description: str = "Read bytes from socket",
             category: category = category.net,
@@ -21,7 +19,7 @@ class apr_socket_recv(src_func):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            bv, name, description, category, symbols, enabled, log,
+            name, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: x == 1

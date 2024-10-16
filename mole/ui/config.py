@@ -1,10 +1,11 @@
 from __future__   import annotations
 from typing       import Dict, List, Literal, Union
-from ..analysis   import lib
 from ..common.log import Logger
-import os, yaml
+from ..model      import lib
+import os
 import PySide6.QtWidgets as qtw
 import PySide6.QtCore    as qtc
+import yaml
 
 
 class ConfigModel:
@@ -85,7 +86,7 @@ class ConfigView(qtw.QDialog):
     This class implements the view for plugin configuration.
     """
 
-    def __init__(self, runs_headless: bool) -> None:
+    def __init__(self, runs_headless: bool = False) -> None:
         self._runs_headless = runs_headless
         if not self._runs_headless:
             super().__init__()
