@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = "mole",
-    version = "0.0.3",
+    version = "0.0.4",
     author = 'Damian Pfammatter',
     description = "A Binary Ninja plugin for vulneraiblity discovery",
     packages = find_packages(include = ["mole", "mole.*"]),
