@@ -54,7 +54,7 @@ class fgetc(src_func):
         )
         return
     
-class getc(fgetc):
+class getc(src_func):
     """
     This class represents a source for `libc` function `getc`.
     """
@@ -70,7 +70,10 @@ class getc(fgetc):
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            name, synopsis, description, category, symbols, enabled, log
+            name, synopsis, description, category, symbols, enabled, log,
+            par_cnt = lambda x: x == 1,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: False
         )
         return
     
@@ -250,6 +253,198 @@ class vfscanf(src_func):
         )
         return
 
+
+class fopen(src_func):
+    """
+    This class represents a source for `libc` function `fopen`.
+    """
+
+    def __init__(
+            self,
+            name: str = "libc.fopen",
+            synopsis: str = "FILE* fopen(const char* pathname, const char* mode)",
+            description: str = "Open file",
+            category: category = category.sfd,
+            symbols: List[str] = ["fopen", "__builtin_fopen"],
+            enabled: bool = True,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            name, synopsis, description, category, symbols, enabled, log,
+            par_cnt = lambda x: x == 2,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: False
+        )
+        return
+
+
+class fdopen(src_func):
+    """
+    This class represents a source for `libc` function `fdopen`.
+    """
+
+    def __init__(
+            self,
+            name: str = "libc.fdopen",
+            synopsis: str = "FILE* fdopen(int fd, const char* mode)",
+            description: str = "Open file",
+            category: category = category.sfd,
+            symbols: List[str] = ["fdopen", "__builtin_fdopen"],
+            enabled: bool = True,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            name, synopsis, description, category, symbols, enabled, log,
+            par_cnt = lambda x: x == 2,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: False
+        )
+        return
+    
+
+class freopen(src_func):
+    """
+    This class represents a source for `libc` function `freopen`.
+    """
+
+    def __init__(
+            self,
+            name: str = "libc.freopen",
+            synopsis: str = "FILE* freopen(const char* pathname, const char* mode, FILE* stream)",
+            description: str = "Open file",
+            category: category = category.sfd,
+            symbols: List[str] = ["freopen", "__builtin_freopen"],
+            enabled: bool = True,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            name, synopsis, description, category, symbols, enabled, log,
+            par_cnt = lambda x: x == 3,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: False
+        )
+        return
+    
+
+class opendir(src_func):
+    """
+    This class represents a source for `libc` function `opendir`.
+    """
+
+    def __init__(
+            self,
+            name: str = "libc.opendir",
+            synopsis: str = "DIR* opendir(const char* name)",
+            description: str = "Open file",
+            category: category = category.sfd,
+            symbols: List[str] = ["opendir", "__builtin_opendir"],
+            enabled: bool = True,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            name, synopsis, description, category, symbols, enabled, log,
+            par_cnt = lambda x: x == 1,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: False
+        )
+        return
+
+
+class fdopendir(src_func):
+    """
+    This class represents a source for `libc` function `fdopendir`.
+    """
+
+    def __init__(
+            self,
+            name: str = "libc.fdopendir",
+            synopsis: str = "DIR* fdopendir(int fd)",
+            description: str = "Open file",
+            category: category = category.sfd,
+            symbols: List[str] = ["fdopendir", "__builtin_fdopendir"],
+            enabled: bool = True,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            name, synopsis, description, category, symbols, enabled, log,
+            par_cnt = lambda x: x == 1,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: False
+        )
+        return
+
+
+class recv(src_func):
+    """
+    This class represents a source for `libc` function `recv`.
+    """
+
+    def __init__(
+            self,
+            name: str = "libc.recv",
+            synopsis: str = "ssize_t recv(int sockfd, void* buf, size_t len, int flags)",
+            description: str = "Receive message from socket",
+            category: category = category.net,
+            symbols: List[str] = ["recv", "__builtin_recv"],
+            enabled: bool = True,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            name, synopsis, description, category, symbols, enabled, log,
+            par_cnt = lambda x: x == 4,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x == 1
+        )
+        return
+    
+
+class recvfrom(src_func):
+    """
+    This class represents a source for `libc` function `recvfrom`.
+    """
+
+    def __init__(
+            self,
+            name: str = "libc.recvfrom",
+            synopsis: str = "ssize_t recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t* addrlen)",
+            description: str = "Receive message from socket",
+            category: category = category.net,
+            symbols: List[str] = ["recvfrom", "__builtin_recvfrom"],
+            enabled: bool = True,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            name, synopsis, description, category, symbols, enabled, log,
+            par_cnt = lambda x: x == 6,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x == 1
+        )
+        return
+    
+
+class recvmsg(src_func):
+    """
+    This class represents a source for `libc` function `recvmsg`.
+    """
+
+    def __init__(
+            self,
+            name: str = "libc.recvmsg",
+            synopsis: str = "ssize_t recvmsg(int sockfd, struct msghdr* msg, int flags)",
+            description: str = "Receive message from socket",
+            category: category = category.net,
+            symbols: List[str] = ["recvmsg", "__builtin_recvmsg"],
+            enabled: bool = True,
+            log: Logger = Logger()
+        ) -> None:
+        super().__init__(
+            name, synopsis, description, category, symbols, enabled, log,
+            par_cnt = lambda x: x == 3,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x == 1
+        )
+        return
+    
 
 class sscanf(snk_func):
     """

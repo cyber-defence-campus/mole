@@ -35,17 +35,17 @@ class Plugin:
             libc.vscanf(log=self._log),             # Read formatted input from standard input stream
             libc.fscanf(log=self._log),             # Read formatted input from given stream
             libc.vfscanf(log=self._log),            # Read formatted input from given stream
-            # "fopen", "__builtin_fopen",          # Open file
-            # "fdopen", "__builtin_fdopen",        # Open file
-            # "freopen", "__builtin_freopen",      # Open file
-            # "opendir", "__builtin_opendir",      # Open directory
-            # "fdopendir", "__builtin_fdopendir",  # Open directory
+            libc.fopen(log=self._log),              # Open file
+            libc.fdopen(log=self._log),             # Open file
+            libc.freopen(log=self._log),            # Open file
+            libc.opendir(log=self._log),            # Open directory
+            libc.fdopendir(log=self._log),          # Open directory
             # Network
-            libgio.g_socket_receive(log=self._log),
-            libapr.apr_socket_recv(log=self._log)
-            # "recv", "__builtin_recv",            # Receive message from socket
-            # "recvfrom", "__builtin_recvfrom",    # Receive message from socket
-            # "recvmsg", "__builtin_recvmsg",      # Receive message from socket
+            libc.recv(log=self._log),               # Receive message from socket
+            libc.recvfrom(log=self._log),           # Receive message from socket
+            libc.recvmsg(log=self._log),            # Receive message from socket
+            libgio.g_socket_receive(log=self._log), # Read bytes from socket
+            libapr.apr_socket_recv(log=self._log)   # Read bytes from socket
         ]
         self._snk_funs = [
             # Stream, File and Directory
