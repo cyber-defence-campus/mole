@@ -55,8 +55,8 @@ class Plugin:
             libc.memmove(log=self._log),
             # String
             libc.strcpy(log=self._log),
-            libc.wcscpy(log=self._log),
             libc.strcat(log=self._log),
+            libc.wcscpy(log=self._log),
             libc.strncpy(log=self._log),
             libc.sscanf(log=self._log),
             libc.vsscanf(log=self._log)
