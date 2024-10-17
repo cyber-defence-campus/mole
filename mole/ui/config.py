@@ -123,7 +123,7 @@ class ConfigView(qtw.QDialog):
         tab_wid.addTab(self._init_tab_settings(), "Settings")
         return tab_wid
     
-    def _init_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QWidget:
+    def _init_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QScrollArea:
         """
         This method initializes the tabs `Sources` and `Sinks`.
         """
@@ -163,7 +163,12 @@ class ConfigView(qtw.QDialog):
             box_wid.setLayout(box_lay)
             tab_lay.addWidget(box_wid)
         tab_wid.setLayout(tab_lay)
-        return tab_wid
+        tab_scr = qtw.QScrollArea()
+        tab_scr.setMinimumWidth(650)
+        tab_scr.setMinimumHeight(550)
+        tab_scr.setWidget(tab_wid)
+        tab_scr.setWidgetResizable(True)
+        return tab_scr
     
     def _init_tab_settings(self) -> qtw.QWidget:
         """
