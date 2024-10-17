@@ -16,7 +16,7 @@ class apr_socket_recv(src_func):
             description: str = "Read bytes from socket",
             category: category = category.net,
             symbols: List[str] = ["apr_socket_recv"],
-            enabled: bool = True,
+            enabled: bool = False,
             log: Logger = Logger()
         ) -> None:
         super().__init__(

@@ -16,7 +16,7 @@ class g_socket_receive(src_func):
             description: str = "Read bytes from socket",
             category: category = category.net,
             symbols: List[str] = ["g_socket_receive"],
-            enabled: bool = True,
+            enabled: bool = False,
             log: Logger = Logger()
         ) -> None:
         super().__init__(
