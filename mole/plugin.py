@@ -24,17 +24,17 @@ class Plugin:
         self._log = log
         self._src_funs = [
             # Environment
-            libc.getenv(log=self._log),
+            libc.getenv(log=self._log),             # Read environment variable
             # Stream, File and Directory
-            libc.gets(log=self._log),
-            libc.fgets(log=self._log),
-            # "getchar", "__builtin_getchar"       # Read character from standard input stream
-            # "getc", "__builtin_getc",            # Read character from given sream
-            # "fgetc", "__builtin_fgetc",          # Read character from given stream
-            # "scanf", "__builtin_scanf",          # Read input from standard input stream
-            # "fscanf", "__builtin_fscanf",        # Read input from given stream
-            # "vscanf", "__builtin_vscanf",        # Read input from standard input stream
-            # "vfscanf", "__builtin_vfscanf",      # Read input from given stream
+            libc.fgetc(log=self._log),              # Read character from given stream
+            libc.getc(log=self._log),               # Read character from given stream
+            libc.getchar(log=self._log),            # Read character from standard input stream
+            libc.fgets(log=self._log),              # Read string from given stream
+            libc.gets(log=self._log),               # Read string from standard input stream
+            libc.scanf(log=self._log),              # Read formatted input from standard input stream
+            libc.vscanf(log=self._log),             # Read formatted input from standard input stream
+            libc.fscanf(log=self._log),             # Read formatted input from given stream
+            libc.vfscanf(log=self._log),            # Read formatted input from given stream
             # "fopen", "__builtin_fopen",          # Open file
             # "fdopen", "__builtin_fdopen",        # Open file
             # "freopen", "__builtin_freopen",      # Open file

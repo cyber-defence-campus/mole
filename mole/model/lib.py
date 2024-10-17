@@ -29,6 +29,7 @@ class func:
     def __init__(
             self,
             name: str = "lib.func",
+            synopsis: str = "void func()",
             description: str = "Generic function",
             category: category = category.und,
             symbols: List[str] = [],
@@ -36,6 +37,7 @@ class func:
             log: Logger = Logger()
         ) -> None:
         self.name = name
+        self.synopsis = synopsis
         self.description = description
         self.category = category
         self.symbols = symbols
@@ -52,6 +54,7 @@ class src_func(func):
     def __init__(
             self,
             name: str = "lib.src_func",
+            synopsis: str = "void src_func()",
             description: str = "Generic source function",
             category: category = category.und,
             symbols: List[str] = [],
@@ -61,7 +64,7 @@ class src_func(func):
             par_dataflow: Callable[[int], bool] = lambda x: False,
             par_slice: Callable[[int], bool] = lambda x: False
         ) -> None:
-        super().__init__(name, description, category, symbols, enabled, log)
+        super().__init__(name, synopsis, description, category, symbols, enabled, log)
         self._par_cnt = par_cnt
         self._par_dataflow = par_dataflow
         self._par_slice = par_slice
@@ -129,6 +132,7 @@ class snk_func(func):
     def __init__(
             self,
             name: str = "lib.snk_func",
+            synopsis: str = "void snk_func()",
             description: str = "Generic sink function",
             category: category = category.und,
             symbols: List[str] = [],
@@ -138,7 +142,7 @@ class snk_func(func):
             par_dataflow: Callable[[int], bool] = lambda x: False,
             par_slice: Callable[[int], bool] = lambda x: True
         ) -> None:
-        super().__init__(name, description, category, symbols, enabled, log)
+        super().__init__(name, synopsis, description, category, symbols, enabled, log)
         self._par_cnt = par_cnt
         self._par_dataflow = par_dataflow
         self._par_slice = par_slice

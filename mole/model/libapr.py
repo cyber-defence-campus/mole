@@ -12,14 +12,15 @@ class apr_socket_recv(src_func):
     def __init__(
             self,
             name: str = "libapr.apr_socket_recv",
+            synopsis: str = "apr_status_t apr_socket_recv(apr_socket_t* sock, char* buf, apr_size_t* len)",
             description: str = "Read bytes from socket",
             category: category = category.net,
             symbols: List[str] = ["apr_socket_recv"],
-            enabled: bool = False,
+            enabled: bool = True,
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            name, description, category, symbols, enabled, log,
+            name, synopsis, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: x == 1

@@ -12,14 +12,15 @@ class g_socket_receive(src_func):
     def __init__(
             self,
             name: str = "libgio.g_socket_receive",
+            synopsis: str = "gssize g_socket_receive(GSocket* socket, gchar* buffer, gsize size, GCancellable* cancellable, GError** error)",
             description: str = "Read bytes from socket",
             category: category = category.net,
             symbols: List[str] = ["g_socket_receive"],
-            enabled: bool = False,
+            enabled: bool = True,
             log: Logger = Logger()
         ) -> None:
         super().__init__(
-            name, description, category, symbols, enabled, log,
+            name, synopsis, description, category, symbols, enabled, log,
             par_cnt = lambda x: x == 5,
             par_dataflow = lambda x: False,
             par_slice = lambda x: x == 1
