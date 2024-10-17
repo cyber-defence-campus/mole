@@ -53,11 +53,14 @@ class Plugin:
             # Memory
             libc.memcpy(log=self._log),
             libc.memmove(log=self._log),
-            # String
+            # String Copy
             libc.strcpy(log=self._log),
-            libc.strcat(log=self._log),
             libc.wcscpy(log=self._log),
             libc.strncpy(log=self._log),
+            # String Concatenation
+            libc.strcat(log=self._log),
+            libc.strncat(log=self._log),
+            # Scanf
             libc.sscanf(log=self._log),
             libc.vsscanf(log=self._log)
         ]

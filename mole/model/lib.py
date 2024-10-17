@@ -17,8 +17,10 @@ class category(Enum):
     sfd = "Stream, File and Directory"
     net = "Network"
     # Sinks
-    mem = "Memory"
-    str = "String"
+    mem = "Memory Copy"
+    scp = "String Copy"
+    cat = "String Concatenation"
+    scf = "Scanf"
 
 
 class func:
