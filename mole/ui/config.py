@@ -41,7 +41,10 @@ class ConfigModel:
                 self._conf[flowtype][fun.category.value][fun.name]["synopsis"] = fun.synopsis
         self._conf["Settings"] = {
             "Common": {
-                "max_func_depth": 3
+                "max_func_depth": {
+                    "value": 3,
+                    "help": "backward slicing visits called functions up to the given depth"
+                }
             }
         }
         return
@@ -73,12 +76,18 @@ class ConfigModel:
                         except:
                             continue
             elif tab_name == "Settings":
+                max_func_depth = tab_conf.get("Common", {}).get("max_func_depth", {})
                 try:
-                    max_func_depth = tab_conf.get("Common", {}).get("max_func_depth", None)
-                    max_func_depth = max(0, min(int(max_func_depth), 10))
-                    self._conf["Settings"]["Common"]["max_func_depth"] = max_func_depth
+                    v = max_func_depth.get("value", None)
+                    v = max(0, min(int(v), 10))
+                    self._conf["Settings"]["Common"]["max_func_depth"]["value"] = v
                 except:
-                    continue
+                    pass
+                try:
+                    v = max_func_depth.get("help", "")
+                    self._conf["Settings"]["Common"]["max_func_depth"]["help"] = v
+                except:
+                    pass
         return
 
 
@@ -140,7 +149,9 @@ class ConfigView(qtw.QDialog):
                 cb.setChecked(chb_conf.get("enabled", True))
                 cb.setToolTip(chb_conf.get("synopsis", ""))
                 self._inputs[tab_name][grp_name].append(cb)
-                fun_lay.addRow(cb, qtw.QLabel(chb_conf.get("description", "")))
+                ql = qtw.QLabel(chb_conf.get("description", ""))
+                ql.setToolTip(chb_conf.get("synopsis", ""))
+                fun_lay.addRow(cb, ql)
             fun_wid = qtw.QWidget()
             fun_wid.setLayout(fun_lay)
             # Button widget
@@ -176,18 +187,24 @@ class ConfigView(qtw.QDialog):
         """
         This method initializes the tab `Settings`.
         """
+        settings_common = self._controller.get_model().get("Settings", {}).get("Common", {})
+
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
         rec_spi_wid = qtw.QSpinBox()
         rec_spi_wid.setRange(0, 10)
-        rec_spi_val = self._controller.get_model().get("Settings", {}).get("Common", {}).get("max_func_depth", 3)
+        rec_spi_val = settings_common.get("max_func_depth", {}).get("value", 3)
         rec_spi_wid.setValue(rec_spi_val)
+        rec_spi_tip = settings_common.get("max_func_depth", {}).get("help", "")
+        rec_spi_wid.setToolTip(rec_spi_tip)
         self._inputs["Settings"] = {
             "Common": {
                 "max_func_depth": rec_spi_wid
             }
         }
-        com_lay.addRow(rec_spi_wid, qtw.QLabel("max_func_depth"))
+        rec_spi_lbl = qtw.QLabel("max_func_depth")
+        rec_spi_lbl.setToolTip(rec_spi_tip)
+        com_lay.addRow(rec_spi_wid, rec_spi_lbl)
         com_wid.setLayout(com_lay)
 
         box_wid = qtw.QGroupBox("Common:")
@@ -234,7 +251,9 @@ class ConfigView(qtw.QDialog):
                     conf[tab_name][grp_name][cb.text()] = {"enabled": cb.isChecked()}
         conf["Settings"] = {
             "Common": {
-                "max_func_depth": self._inputs["Settings"]["Common"]["max_func_depth"].value()
+                "max_func_depth": {
+                    "value": self._inputs["Settings"]["Common"]["max_func_depth"].value()
+                }
             }
         }
         return conf
@@ -251,7 +270,8 @@ class ConfigView(qtw.QDialog):
                 for cb in cbs:
                     cb_conf = grp_conf.get(cb.text(), {})
                     cb.setChecked(bool(cb_conf.get("enabled", False)))
-        rec_spi_val = conf.get("Settings", {}).get("Common", {}).get("max_func_depth", None)
+        settings_common = conf.get("Settings", {}).get("Common", {})
+        rec_spi_val = settings_common.get("max_func_depth", {}).get("value", None)
         if not rec_spi_val is None:
             rec_spi_wid = self._inputs["Settings"]["Common"]["max_func_depth"]
             rec_spi_wid.setValue(rec_spi_val)
@@ -362,7 +382,7 @@ class ConfigController:
         This method returns the `max_func_depth` value.
         """
         model = self._model.read()
-        return model["Settings"]["Common"]["max_func_depth"]
+        return model["Settings"]["Common"]["max_func_depth"]["value"]
 
     def get_model(self) -> Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]:
         """
