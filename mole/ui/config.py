@@ -38,6 +38,7 @@ class ConfigModel:
                     self._conf[flowtype][fun.category.value][fun.name] = {}
                 self._conf[flowtype][fun.category.value][fun.name]["enabled"] = fun.enabled
                 self._conf[flowtype][fun.category.value][fun.name]["description"] = fun.description
+                self._conf[flowtype][fun.category.value][fun.name]["synopsis"] = fun.synopsis
         self._conf["Settings"] = {
             "Common": {
                 "max_func_depth": 3
@@ -137,6 +138,7 @@ class ConfigView(qtw.QDialog):
             for chb_name, chb_conf in grp_conf.items():
                 cb = qtw.QCheckBox(chb_name)
                 cb.setChecked(chb_conf.get("enabled", True))
+                cb.setToolTip(chb_conf.get("synopsis", ""))
                 self._inputs[tab_name][grp_name].append(cb)
                 fun_lay.addRow(cb, qtw.QLabel(chb_conf.get("description", "")))
             fun_wid = qtw.QWidget()
