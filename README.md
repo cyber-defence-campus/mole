@@ -1,5 +1,10 @@
 [![Publish Release](https://github.com/pdamian/mole/actions/workflows/release.yml/badge.svg)](https://github.com/pdamian/mole/actions/workflows/release.yml)
 # Mole
+
+<p align="center">
+  <img src="https://drive.google.com/uc?export=view&id=1oToYEJyJOJtT9fgl7Pm4DuVloZGod5MO" style="width: 256px; max-width: 100%; height: auto" alt="Mole Logo"/>
+</p>
+
 *Mole* is a *Binary Ninja* plugin that tries to identify **interesting paths** (from sources to
 sinks) using **static backward slicing**. The plugin can be run both in *Binary Ninja* and in
 headless mode.
