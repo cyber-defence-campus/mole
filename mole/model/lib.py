@@ -7,20 +7,23 @@ from ..common.log     import Logger
 import binaryninja as bn
 
 
-class category(Enum):
+class func_cat(Enum):
     """
     This class lists different function categories.
     """
-    und = "Undefined"
+    oth = "Others"
     # Sources
-    env = "Environment"
-    sfd = "Stream, File and Directory"
-    net = "Network"
+    env = "Environment Accesses"
+    chr = "Character Inputs"
+    lin = "Line Inputs"
+    fmt = "Formatted Inputs"
+    fad = "File and Directories"
+    net = "Networks"
     # Sinks
     mem = "Memory Copy"
     scp = "String Copy"
     cat = "String Concatenation"
-    scf = "Scanf"
+    sfc = "String Format Conversion"
 
 
 class func:
@@ -33,7 +36,7 @@ class func:
             name: str = "lib.func",
             synopsis: str = "void func()",
             description: str = "Generic function",
-            category: category = category.und,
+            category: func_cat = func_cat.oth,
             symbols: List[str] = [],
             enabled: bool = False,
             log: Logger = Logger()
@@ -58,7 +61,7 @@ class src_func(func):
             name: str = "lib.src_func",
             synopsis: str = "void src_func()",
             description: str = "Generic source function",
-            category: category = category.und,
+            category: func_cat = func_cat.oth,
             symbols: List[str] = [],
             enabled: bool = False,
             log: Logger = Logger(),
@@ -136,7 +139,7 @@ class snk_func(func):
             name: str = "lib.snk_func",
             synopsis: str = "void snk_func()",
             description: str = "Generic sink function",
-            category: category = category.und,
+            category: func_cat = func_cat.oth,
             symbols: List[str] = [],
             enabled: bool = False,
             log: Logger = Logger(),

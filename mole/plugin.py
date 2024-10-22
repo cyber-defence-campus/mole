@@ -23,46 +23,70 @@ class Plugin:
         self._tag = tag
         self._log = log
         self._src_funs = [
-            # Environment
-            libc.getenv(log=self._log),             # Read environment variable
-            # Stream, File and Directory
-            libc.fgetc(log=self._log),              # Read character from given stream
-            libc.getc(log=self._log),               # Read character from given stream
-            libc.getchar(log=self._log),            # Read character from standard input stream
-            libc.fgets(log=self._log),              # Read string from given stream
-            libc.gets(log=self._log),               # Read string from standard input stream
-            libc.scanf(log=self._log),              # Read formatted input from standard input stream
-            libc.vscanf(log=self._log),             # Read formatted input from standard input stream
-            libc.fscanf(log=self._log),             # Read formatted input from given stream
-            libc.vfscanf(log=self._log),            # Read formatted input from given stream
-            libc.fopen(log=self._log),              # Open file
-            libc.fdopen(log=self._log),             # Open file
-            libc.freopen(log=self._log),            # Open file
-            libc.opendir(log=self._log),            # Open directory
-            libc.fdopendir(log=self._log),          # Open directory
+            # Environment Access
+            libc.getenv(self._log),                 # Read environment variable
+            libc.secure_getenv(self._log),          # Read environment variable
+            # Character Input
+            libc.fgetc(self._log),                  # Read character from given stream
+            libc.fgetwc(self._log),                 # Read character from given stream
+            libc.fgetc_unlocked(self._log),         # Read character from given stream
+            libc.fgetwc_unlocked(self._log),        # Read character from given stream
+            libc.getc(self._log),                   # Read character from given stream
+            libc.getwc(self._log),                  # Read character from given stream
+            libc.getc_unlocked(self._log),          # Read character from given stream
+            libc.getwc_unlocked(self._log),         # Read character from given stream
+            libc.getchar(self._log),                # Read character from standard input stream
+            libc.getwchar(self._log),               # Read character from standard input stream
+            libc.getchar_unlocked(self._log),       # Read character from standard input stream
+            libc.getwchar_unlocked(self._log),      # Read character from standard input stream
+            libc.getw(self._log),                   # Read word from given stream
+            # Line Input
+            libc.getline(self._log),                # Read line from given stream
+            libc.getdelim(self._log),               # Read line from given stream
+            libc.fgets(self._log),                  # Read string from given stream
+            libc.fgetws(self._log),                 # Read string from given stream
+            libc.fgets_unlocked(self._log),         # Read string from given stream
+            libc.fgetws_unlocked(self._log),        # Read string from given stream
+            libc.gets(self._log),                   # Read string from standard input stream
+            # Formatted Input
+            libc.scanf(self._log),                  # Read formatted input from standard input stream
+            libc.wscanf(self._log),                 # Read formatted input from standard input stream
+            libc.fscanf(self._log),                 # Read formatted input from given stream
+            libc.fwscanf(self._log),                # Read formatted input from given stream
+            libc.vscanf(self._log),                 # Read formatted input from standard input stream
+            libc.vfscanf(self._log),                # Read formatted input from given stream
+            # Opening Streams
+            libc.fopen(self._log),                  # Open file
+            libc.freopen(self._log),                # Open file
+            # Descriptors and Streams
+            libc.fdopen(self._log),                 # Open file
+            # Opening a Directory
+            libc.opendir(self._log),                # Open directory
+            libc.fdopendir(self._log),              # Open directory
             # Network
-            libc.recv(log=self._log),               # Receive message from socket
-            libc.recvfrom(log=self._log),           # Receive message from socket
-            libc.recvmsg(log=self._log),            # Receive message from socket
-            libgio.g_socket_receive(log=self._log), # Read bytes from socket
-            libapr.apr_socket_recv(log=self._log)   # Read bytes from socket
+            libc.recv(self._log),                   # Receive message from socket
+            libc.recvfrom(self._log),               # Receive message from socket
+            libc.recvmsg(self._log),                # Receive message from socket
+            libgio.g_socket_receive(self._log),     # Read bytes from socket
+            libapr.apr_socket_recv(self._log)       # Read bytes from socket
         ]
         self._snk_funs = [
-            # Stream, File and Directory
-            libc.gets(log=self._log),
             # Memory
-            libc.memcpy(log=self._log),
-            libc.memmove(log=self._log),
+            libc.memcpy(self._log),                 # Copy memory area
+            libc.memmove(self._log),                # Copy memory area
             # String Copy
-            libc.strcpy(log=self._log),
-            libc.wcscpy(log=self._log),
-            libc.strncpy(log=self._log),
+            libc.strcpy(self._log),                 # Copy string
+            libc.wcscpy(self._log),                 # Copy string
+            libc.strncpy(self._log),                # Fill buffer with bytes from string
             # String Concatenation
-            libc.strcat(log=self._log),
-            libc.strncat(log=self._log),
+            libc.strcat(self._log),                 # Copy string
+            libc.strncat(self._log),                # Copy string
             # Scanf
-            libc.sscanf(log=self._log),
-            libc.vsscanf(log=self._log)
+            libc.sscanf(self._log),                 # Input string format conversion
+            libc.swscanf(self._log),                # Input string format converstion
+            libc.vsscanf(self._log),                # Input string format conversion
+            # Line Input
+            libc.gets(self._log),                   # Read string from standard input stream
         ]
         return
     
