@@ -521,7 +521,7 @@ class scanf(src_func):
         super().__init__(
             lib = "libc",
             name = "scanf",
-            symbols = ["scanf", "__builtin_scanf"],
+            symbols = ["scanf", "__builtin_scanf", "__isoc99_scanf", "__isoc23_scanf"],
             synopsis = "int scanf(const char* format, ...)",
             description = "Read formatted input from standard input stream",
             category = categories.fmt,
@@ -543,7 +543,7 @@ class wscanf(src_func):
         super().__init__(
             lib = "libc",
             name = "wscanf",
-            symbols = ["wscanf", "__builtin_wscanf"],
+            symbols = ["wscanf", "__builtin_wscanf", "__isoc99_wscanf", "__isoc23_wscanf"],
             synopsis = "int wscanf(const wchar_t* format, ...)",
             description = "Read formatted input from standard input stream",
             category = categories.fmt,
@@ -565,7 +565,7 @@ class fscanf(src_func):
         super().__init__(
             lib = "libc",
             name = "fscanf",
-            symbols = ["fscanf", "__builtin_fscanf"],
+            symbols = ["fscanf", "__builtin_fscanf", "__isoc99_fscanf", "__isoc23_fscanf"],
             synopsis = "int fscanf(FILE* stream, const char* format, ...)",
             description = "Read formatted input from given stream",
             category = categories.fmt,
@@ -587,7 +587,7 @@ class fwscanf(src_func):
         super().__init__(
             lib = "libc",
             name = "fwscanf",
-            symbols = ["fwscanf", "__builtin_fwscanf"],
+            symbols = ["fwscanf", "__builtin_fwscanf", "__isco99_fwscanf", "__isoc23_fwscanf"],
             synopsis = "int fwscanf(FILE* stream, const wchar_t* format, ...)",
             description = "Read formatted input from given stream",
             category = categories.fmt,
@@ -609,7 +609,7 @@ class vscanf(src_func):
         super().__init__(
             lib = "libc",
             name = "vscanf",
-            symbols = ["vscanf", "__builtin_vscanf"],
+            symbols = ["vscanf", "__builtin_vscanf", "__isoc99_vscanf", "__isoc23_vscanf"],
             synopsis = "int vscanf(const char* format, va_list ap)",
             description = "Read formatted input from standard input stream",
             category = categories.fmt,
@@ -631,7 +631,7 @@ class vfscanf(src_func):
         super().__init__(
             lib = "libc",
             name = "vfscanf",
-            symbols = ["vfscanf", "__builtin_vfscanf"],
+            symbols = ["vfscanf", "__builtin_vfscanf", "__isoc99_vfscanf", "__isoc23_vfscanf"],
             synopsis = "int vfscanf(FILE* stream, const char* format, va_list ap)",
             description = "Read formatted input from given stream",
             category = categories.fmt,
@@ -873,8 +873,30 @@ class strcpy(snk_func):
         super().__init__(
             lib = "libc",
             name = "strcpy",
-            symbols = ["strcpy", "__builtin_strcpy", "stpcpy", "__builtin_stpcpy"],
+            symbols = ["strcpy", "__builtin_strcpy"],
             synopsis = "char* strcpy(char* dst, const char* src)",
+            description = "Copy string",
+            category = categories.scp,
+            enabled = True,
+            par_cnt = lambda x: x == 2,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True,
+            log = log
+        )
+        return
+
+
+class stpcpy(snk_func):
+    """
+    This class represents a sink for `libc` function `stpcpy`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libc",
+            name = "stpcpy",
+            symbols = ["stpcpy", "__builtin_stpcpy"],
+            synopsis = "char* stpcpy(char* dst, const char* src)",
             description = "Copy string",
             category = categories.scp,
             enabled = True,
@@ -901,6 +923,28 @@ class wcscpy(snk_func):
             category = categories.scp,
             enabled = True,
             par_cnt = lambda x: x == 2,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True,
+            log = log
+        )
+        return
+    
+
+class wcsncpy(snk_func):
+    """
+    This class represents a sink for `libc` function `wcsncpy`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libc",
+            name = "wcsncpy",
+            symbols = ["wcsncpy", "__builtin_wcsncpy"],
+            synopsis = "wchar_t* wcsncpy(wchar_t* dest, const wchar_t* src, size_t n)",
+            description = "Copy string",
+            category = categories.scp,
+            enabled = True,
+            par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True,
             log = log
@@ -1027,7 +1071,7 @@ class vsscanf(snk_func):
         super().__init__(
             lib = "libc",
             name = "vsscanf",
-            symbols = ["vsscanf", "__builtin_vsscanf", "__isoc99_vsscanf"],
+            symbols = ["vsscanf", "__builtin_vsscanf", "__isoc99_vsscanf", "__isoc23_vsscanf"],
             synopsis = "int vsscanf(const char* s, const char* format, va_list arg)",
             description = "Input string format conversion",
             category = categories.sfc,

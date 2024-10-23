@@ -76,7 +76,9 @@ class Plugin:
             libc.memmove(self._log),                # Copy memory area
             # String Copy
             libc.strcpy(self._log),                 # Copy string
+            libc.stpcpy(self._log),                 # Copy string
             libc.wcscpy(self._log),                 # Copy string
+            libc.wcsncpy(self._log),                # Copy string
             libc.strncpy(self._log),                # Fill buffer with bytes from string
             # String Concatenation
             libc.strcat(self._log),                 # Copy string
