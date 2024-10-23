@@ -1,7 +1,7 @@
 from __future__   import annotations
 from typing       import List
 from ..common.log import Logger
-from ..model.lib  import func_cat, src_func
+from ..model.lib  import categories, src_func
 
 
 class apr_socket_recv(src_func):
@@ -11,11 +11,12 @@ class apr_socket_recv(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libapr.apr_socket_recv",
+            lib = "libapr",
+            name = "apr_socket_recv",
             symbols = ["apr_socket_recv"],
             synopsis = "apr_status_t apr_socket_recv(apr_socket_t* sock, char* buf, apr_size_t* len)",
             description = "Read bytes from socket",
-            category = func_cat.net,
+            category = categories.net,
             enabled = False,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,

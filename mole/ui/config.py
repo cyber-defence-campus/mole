@@ -30,51 +30,58 @@ class ConfigModel:
         """
         self._conf = {}
         for flowtype in ["Sources", "Sinks"]:
-            self._conf[flowtype] = {}
+            conf_flowtype = self._conf.setdefault(flowtype, {})
             for fun in self._controller.get_all_funs(flowtype):
-                if not fun.category.value in self._conf[flowtype]:
-                    self._conf[flowtype][fun.category.value] = {}
-                if not fun.name in self._conf[flowtype][fun.category.value]:
-                    self._conf[flowtype][fun.category.value][fun.name] = {}
-                self._conf[flowtype][fun.category.value][fun.name]["enabled"] = fun.enabled
-                self._conf[flowtype][fun.category.value][fun.name]["description"] = fun.description
-                self._conf[flowtype][fun.category.value][fun.name]["synopsis"] = fun.synopsis
-        self._conf["Settings"] = {
+                conf_lib = conf_flowtype.setdefault(fun.lib, {})
+                conf_cat = conf_lib.setdefault(fun.category.value, {})
+                conf_cat.setdefault(fun.name, {
+                    "enabled": fun.enabled,
+                    "description": fun.description,
+                    "synopsis": fun.synopsis
+                })
+        self._conf.setdefault("Settings", {
             "Common": {
                 "max_func_depth": {
                     "value": 3,
                     "help": "backward slicing visits called functions up to the given depth"
                 }
             }
-        }
+        })
         return
     
-    def read(self) -> Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]:
+    def read(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[
+            Dict[str, Union[bool, str]], Union[int, str]
+        ]]]]]:
         """
         This method returns the model.
         """
         return self._conf
     
-    def update(self, new_conf: Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]) -> None:
+    def update(self, new_conf: Dict[str, Dict[str, Dict[str, Dict[str, Union[
+            Dict[str, Union[bool, str]], Union[int, str]
+        ]]]]]) -> None:
         """
         This method updates the model.
         """
-        old_conf = self.read()
         if not isinstance(new_conf, dict): return
+        old_conf = self.read()
         for tab_name, tab_conf in new_conf.items():
             if not isinstance(tab_conf, dict): continue
             if tab_name in ["Sources", "Sinks"]:
-                for grp_name, grp_conf in tab_conf.items():
-                    if not isinstance(grp_conf, dict): continue
-                    if not grp_name in old_conf[tab_name]: continue
-                    for chb_name, chb_conf in grp_conf.items():
-                        if not isinstance(chb_conf, dict): continue
-                        if not chb_name in old_conf[tab_name][grp_name]: continue
-                        try:
-                            chb_enabled = bool(chb_conf.get("enabled", None))
-                            self._conf[tab_name][grp_name][chb_name]["enabled"] = chb_enabled
-                        except:
-                            continue
+                for lib_tab_name, lib_tab_conf in tab_conf.items():
+                    if not lib_tab_name in old_conf[tab_name]: continue
+                    if not isinstance(lib_tab_conf, dict): continue
+                    for grp_name, grp_conf in lib_tab_conf.items():
+                        if not grp_name in old_conf[tab_name][lib_tab_name]: continue
+                        if not isinstance(grp_conf, dict): continue
+                        for chb_name, chb_conf in grp_conf.items():
+                            if not chb_name in old_conf[tab_name][lib_tab_name][grp_name]: continue
+                            if not isinstance(chb_conf, dict): continue
+                            try:
+                                chb_enabled = bool(chb_conf.get("enabled", None))
+                                self._conf[tab_name][lib_tab_name][grp_name][chb_name]["enabled"] = chb_enabled
+                            except:
+                                continue
             elif tab_name == "Settings":
                 max_func_depth = tab_conf.get("Common", {}).get("max_func_depth", {})
                 try:
@@ -133,55 +140,61 @@ class ConfigView(qtw.QDialog):
         tab_wid.addTab(self._init_tab_settings(), "Settings")
         return tab_wid
     
-    def _init_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QScrollArea:
+    def _init_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QWidget:
         """
         This method initializes the tabs `Sources` and `Sinks`.
         """
-        tab_wid = qtw.QWidget()
-        tab_lay = qtw.QVBoxLayout()
-        self._inputs[tab_name] = {}
-        for grp_name, grp_conf in self._controller.get_model().get(tab_name, {}).items():
-            # Function widget
-            fun_lay = qtw.QFormLayout()
-            self._inputs[tab_name][grp_name] = []
-            for chb_name, chb_conf in grp_conf.items():
-                cb = qtw.QCheckBox(chb_name)
-                cb.setChecked(chb_conf.get("enabled", True))
-                cb.setToolTip(chb_conf.get("synopsis", ""))
-                self._inputs[tab_name][grp_name].append(cb)
-                ql = qtw.QLabel(chb_conf.get("description", ""))
-                ql.setToolTip(chb_conf.get("synopsis", ""))
-                fun_lay.addRow(cb, ql)
-            fun_wid = qtw.QWidget()
-            fun_wid.setLayout(fun_lay)
-            # Button widget
-            but_lay = qtw.QHBoxLayout()
-            sel_but = qtw.QPushButton("Select All")
-            sel_cbs = self._inputs[tab_name][grp_name]
-            sel_fun = lambda _, checkboxes=sel_cbs, checked=True: self._controller.check_all(checkboxes, checked)
-            sel_but.clicked.connect(sel_fun)
-            but_lay.addWidget(sel_but)
-            dsl_but = qtw.QPushButton("Deselect All")
-            dsl_cbs = self._inputs[tab_name][grp_name]
-            dsl_fun = lambda _, checkboxes=dsl_cbs, checked=False: self._controller.check_all(checkboxes, checked) 
-            dsl_but.clicked.connect(dsl_fun)
-            but_lay.addWidget(dsl_but)
-            but_wid = qtw.QWidget()
-            but_wid.setLayout(but_lay)
-            # Box widget
-            box_lay = qtw.QVBoxLayout()
-            box_lay.addWidget(fun_wid)
-            box_lay.addWidget(but_wid)
-            box_wid = qtw.QGroupBox(f"{grp_name:s}:")
-            box_wid.setLayout(box_lay)
-            tab_lay.addWidget(box_wid)
-        tab_wid.setLayout(tab_lay)
-        tab_scr = qtw.QScrollArea()
-        tab_scr.setMinimumWidth(650)
-        tab_scr.setMinimumHeight(550)
-        tab_scr.setWidget(tab_wid)
-        tab_scr.setWidgetResizable(True)
-        return tab_scr
+        tab_wid = qtw.QTabWidget()
+        inputs_tab = self._inputs.setdefault(tab_name, {})
+        for lib_tab_name, lib_tab_conf in self._controller.get_model().get(tab_name, {}).items():
+            lib_tab_wid = qtw.QWidget()
+            lib_tab_lay = qtw.QVBoxLayout()
+            inputs_lib_tab = inputs_tab.setdefault(lib_tab_name, {})
+            for grp_name, grp_conf in lib_tab_conf.items():
+                # Function widget
+                fun_lay = qtw.QFormLayout()
+                inputs_grp = inputs_lib_tab.setdefault(grp_name, [])
+                for chb_name, chb_conf in grp_conf.items():
+                    cb = qtw.QCheckBox(chb_name)
+                    cb.setChecked(chb_conf.get("enabled", True))
+                    cb.setToolTip(chb_conf.get("synopsis", ""))
+                    inputs_grp.append(cb)
+                    ql = qtw.QLabel(chb_conf.get("description", ""))
+                    ql.setToolTip(chb_conf.get("synopsis", ""))
+                    fun_lay.addRow(cb, ql)
+                fun_wid = qtw.QWidget()
+                fun_wid.setLayout(fun_lay)
+                # Button widget
+                but_lay = qtw.QHBoxLayout()
+                sel_but = qtw.QPushButton("Select All")
+                sel_fun = lambda _, checkboxes=inputs_grp, checked=True: self._controller.check_all(checkboxes, checked)
+                sel_but.clicked.connect(sel_fun)
+                but_lay.addWidget(sel_but)
+                dsl_but = qtw.QPushButton("Deselect All")
+                dsl_fun = lambda _, checkboxes=inputs_grp, checked=False: self._controller.check_all(checkboxes, checked) 
+                dsl_but.clicked.connect(dsl_fun)
+                but_lay.addWidget(dsl_but)
+                but_wid = qtw.QWidget()
+                but_wid.setLayout(but_lay)
+                # Box widget
+                box_lay = qtw.QVBoxLayout()
+                box_lay.addWidget(fun_wid)
+                box_lay.addWidget(but_wid)
+                box_wid = qtw.QGroupBox(f"{grp_name:s}:")
+                box_wid.setLayout(box_lay)
+                lib_tab_lay.addWidget(box_wid)
+            lib_tab_wid.setLayout(lib_tab_lay)
+            tab_scr = qtw.QScrollArea()
+            tab_scr.setMinimumWidth(650)
+            tab_scr.setMinimumHeight(550)
+            tab_scr.setWidget(lib_tab_wid)
+            tab_scr.setWidgetResizable(True)
+            tab_wid.addTab(tab_scr, lib_tab_name)
+        wid = qtw.QWidget()
+        lay = qtw.QVBoxLayout()
+        lay.addWidget(tab_wid)
+        wid.setLayout(lay)
+        return wid
     
     def _init_tab_settings(self) -> qtw.QWidget:
         """
@@ -236,40 +249,47 @@ class ConfigView(qtw.QDialog):
         but_wid.setLayout(but_lay)
         return but_wid
     
-    def read(self) -> Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]:
+    def read(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[
+            Dict[str, Union[bool, str]], Union[int, str]
+        ]]]]]:
         """
         This method returns the view.
         """
         conf = {}
         if self._runs_headless: return conf
-        for tab_name, grp_conf in self._inputs.items():
+        for tab_name, tab_conf in self._inputs.items():
             if not tab_name in ["Sources", "Sinks"]: continue
-            conf[tab_name] = {}
-            for grp_name, cbs in grp_conf.items():
-                conf[tab_name][grp_name] = {}
-                for cb in cbs:
-                    conf[tab_name][grp_name][cb.text()] = {"enabled": cb.isChecked()}
-        conf["Settings"] = {
+            conf_tab = conf.setdefault(tab_name, {})
+            for lib_tab_name, lib_tab_conf in tab_conf.items():
+                conf_lib_tab = conf_tab.setdefault(lib_tab_name, {})
+                for grp_name, cbs in lib_tab_conf.items():
+                    conf_grp = conf_lib_tab.setdefault(grp_name, {})
+                    for cb in cbs:
+                        conf_grp.setdefault(cb.text(), {"enabled": cb.isChecked()})
+        conf.setdefault("Settings", {
             "Common": {
                 "max_func_depth": {
                     "value": self._inputs["Settings"]["Common"]["max_func_depth"].value()
                 }
             }
-        }
+        })
         return conf
     
-    def update(self, conf: Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]) -> None:
+    def update(self, conf: Dict[str, Dict[str, Dict[str, Dict[str, Union[
+            Dict[str, Union[bool, str]], Union[int, str]
+        ]]]]]) -> None:
         """
         This method updates the view.
         """
         if self._runs_headless: return
         for tab_name in ["Sources", "Sinks"]:
             tab_conf = conf.get(tab_name, {})
-            for grp_name, cbs in self._inputs.get(tab_name, {}).items():
-                grp_conf = tab_conf.get(grp_name, {})
-                for cb in cbs:
-                    cb_conf = grp_conf.get(cb.text(), {})
-                    cb.setChecked(bool(cb_conf.get("enabled", False)))
+            for lib_tab_name, lib_tab_conf in tab_conf.items():
+                for grp_name, cbs in self._inputs.get(tab_name, {}).get(lib_tab_name, {}).items():
+                    grp_conf = lib_tab_conf.get(grp_name, {})
+                    for cb in cbs:
+                        cb_conf = grp_conf.get(cb.text(), {})
+                        cb.setChecked(bool(cb_conf.get("enabled", False)))
         settings_common = conf.get("Settings", {}).get("Common", {})
         rec_spi_val = settings_common.get("max_func_depth", {}).get("value", None)
         if not rec_spi_val is None:
@@ -372,7 +392,7 @@ class ConfigController:
         all_funs = self.get_all_funs(flowtype=flowtype)
         model = self._model.read()
         for fun in all_funs:
-            fun_conf = model.get(flowtype, {}).get(fun.category.value, {}).get(fun.name, {})
+            fun_conf = model.get(flowtype, {}).get(fun.lib, {}).get(fun.category.value, {}).get(fun.name, {})
             if fun_conf.get("enabled", False):
                 ena_funs.append(fun)
         return ena_funs
@@ -384,7 +404,9 @@ class ConfigController:
         model = self._model.read()
         return model["Settings"]["Common"]["max_func_depth"]["value"]
 
-    def get_model(self) -> Dict[str, Dict[str, Dict[str, Union[int, Dict[str, Union[bool, str]]]]]]:
+    def get_model(self) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[
+            Dict[str, Union[bool, str]], Union[int, str]
+        ]]]]]:
         """
         This method returns the model.
         """

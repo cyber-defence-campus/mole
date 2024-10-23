@@ -7,7 +7,7 @@ from ..common.log     import Logger
 import binaryninja as bn
 
 
-class func_cat(Enum):
+class categories(Enum):
     """
     This class lists different function categories.
     """
@@ -33,14 +33,16 @@ class func:
 
     def __init__(
             self,
-            name: str = "lib.func",
+            lib: str = "lib",
+            name: str = "func",
             synopsis: str = "void func()",
             description: str = "Generic function",
-            category: func_cat = func_cat.oth,
+            category: categories = categories.oth,
             symbols: List[str] = [],
             enabled: bool = False,
             log: Logger = Logger()
         ) -> None:
+        self.lib = lib
         self.name = name
         self.synopsis = synopsis
         self.description = description
@@ -49,6 +51,9 @@ class func:
         self.enabled = enabled
         self._log = log
         return
+    
+    def __str__(self) -> str:
+        return f"{self.lib:s}.{self.name:s}"
 
     
 class src_func(func):
@@ -58,10 +63,11 @@ class src_func(func):
 
     def __init__(
             self,
-            name: str = "lib.src_func",
+            lib: str = "lib",
+            name: str = "src_func",
             synopsis: str = "void src_func()",
             description: str = "Generic source function",
-            category: func_cat = func_cat.oth,
+            category: categories = categories.oth,
             symbols: List[str] = [],
             enabled: bool = False,
             log: Logger = Logger(),
@@ -69,7 +75,7 @@ class src_func(func):
             par_dataflow: Callable[[int], bool] = lambda x: False,
             par_slice: Callable[[int], bool] = lambda x: False
         ) -> None:
-        super().__init__(name, synopsis, description, category, symbols, enabled, log)
+        super().__init__(lib, name, synopsis, description, category, symbols, enabled, log)
         self._par_cnt = par_cnt
         self._par_dataflow = par_dataflow
         self._par_slice = par_slice
@@ -89,7 +95,7 @@ class src_func(func):
             if canceled(): break
             for inst in insts:
                 if canceled(): break
-                self._log.info(self.name, f"Analyze source function '0x{inst.address:x} {symbol_name:s}'")
+                self._log.info(str(self), f"Analyze source function '0x{inst.address:x} {symbol_name:s}'")
                 # Ignore everything but call instructions
                 match inst:
                     case (bn.MediumLevelILCallSsa() |
@@ -101,26 +107,26 @@ class src_func(func):
                         continue
                 # Ignore calls with an invalid number of parameters
                 if not self._par_cnt(len(inst.params)):
-                    self._log.warn(self.name, f"0x{inst.address:x} Ignore arguments of call '0x{inst.address:x} {symbol_name:s}' due to an unexpected amount")
+                    self._log.warn(str(self), f"0x{inst.address:x} Ignore arguments of call '0x{inst.address:x} {symbol_name:s}' due to an unexpected amount")
                     continue
                 # Analyze parameters
                 for parm_num, parm_var in enumerate(inst.params):
                     if canceled(): break
-                    self._log.debug(self.name, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                    self._log.debug(str(self), f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                     # Perform dataflow analysis
                     if self._par_dataflow(parm_num):
                         # Ignore constant parameters
                         if parm_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            self._log.debug(self.name, f"0x{inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            self._log.debug(str(self), f"0x{inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
                         possible_sizes = parm_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            self._log.debug(self.name, f"0x{inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            self._log.debug(str(self), f"0x{inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                             continue
                     # Backward slice the parameter
                     if self._par_slice(parm_num):
-                        slicer = MediumLevelILBackwardSlicer(bv, 0, self.name, self._log)
+                        slicer = MediumLevelILBackwardSlicer(bv, 0, str(self), self._log)
                         slicer.slice_backwards(parm_var)
                         # Add sliced instructions to target instructions
                         s = self._target_insts.get((inst.address, symbol_name), set())
@@ -136,10 +142,11 @@ class snk_func(func):
 
     def __init__(
             self,
-            name: str = "lib.snk_func",
+            lib: str = "lib",
+            name: str = "snk_func",
             synopsis: str = "void snk_func()",
             description: str = "Generic sink function",
-            category: func_cat = func_cat.oth,
+            category: categories = categories.oth,
             symbols: List[str] = [],
             enabled: bool = False,
             log: Logger = Logger(),
@@ -147,7 +154,7 @@ class snk_func(func):
             par_dataflow: Callable[[int], bool] = lambda x: False,
             par_slice: Callable[[int], bool] = lambda x: True
         ) -> None:
-        super().__init__(name, synopsis, description, category, symbols, enabled, log)
+        super().__init__(lib, name, synopsis, description, category, symbols, enabled, log)
         self._par_cnt = par_cnt
         self._par_dataflow = par_dataflow
         self._par_slice = par_slice
@@ -174,7 +181,7 @@ class snk_func(func):
             if canceled(): break
             for snk_inst in snk_insts:
                 if canceled(): break
-                self._log.info(self.name, f"Analyze sink function '0x{snk_inst.address:x} {snk_name:s}'")
+                self._log.info(str(self), f"Analyze sink function '0x{snk_inst.address:x} {snk_name:s}'")
                 # Ignore everything but call instructions
                 match snk_inst:
                     case (bn.MediumLevelILCallSsa() |
@@ -184,22 +191,22 @@ class snk_func(func):
                         continue
                 # Ignore calls with an invalid number of parameters
                 if not self._par_cnt(len(snk_inst.params)):
-                    self._log.warn(self.name, f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments")
+                    self._log.warn(str(self), f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments")
                     continue
                 # Analyze parameters
                 for parm_num, parm_var in enumerate(snk_inst.params):
                     if canceled(): break
-                    self._log.debug(self.name, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                    self._log.debug(str(self), f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                     # Perform dataflow analysis
                     if self._par_dataflow(parm_num):
                         # Ignore constant parameters
                         if parm_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            self._log.debug(self.name, f"0x{snk_inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            self._log.debug(str(self), f"0x{snk_inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
                         possible_sizes = parm_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            self._log.debug(self.name, f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            self._log.debug(str(self), f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
                             continue
                     # Backward slice the parameter
                     if self._par_slice(parm_num):
@@ -207,7 +214,7 @@ class snk_func(func):
                         try:
                             slicer.slice_backwards(parm_var)
                         except Exception as e:
-                            self._log.error(self.name, f"Exception: {str(e):s}")
+                            self._log.error(str(self), f"Exception: {str(e):s}")
                         # Check whether the slice contains any source
                         for source in sources:
                             if canceled(): break
@@ -220,7 +227,7 @@ class snk_func(func):
                                         t_snk = f"0x{snk_inst.address:x} {snk_name}"
                                         t_snk = f"{t_snk:s}(arg#{parm_num+1:d}:{str(parm_var):s})"
                                         self._log.info(
-                                            self.name,
+                                            str(self),
                                             f"Interesting path: {t_src:s} --> {t_snk:s}!"
                                         )
                                         paths.append((sym_name, src_inst, snk_name, snk_inst, parm_num, parm_var))

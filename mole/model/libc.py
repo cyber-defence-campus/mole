@@ -1,7 +1,6 @@
 from __future__   import annotations
-from typing       import List
 from ..common.log import Logger
-from ..model.lib  import func_cat, src_func, snk_func
+from ..model.lib  import categories, src_func, snk_func
 
 
 class getenv(src_func):
@@ -11,11 +10,12 @@ class getenv(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getenv",
+            lib = "libc",
+            name = "getenv",
             symbols = ["getenv", "__builtin_getenv"],
             synopsis = "char* getenv(const char* name)",
             description = "Read environment variable",
-            category = func_cat.env,
+            category = categories.env,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -32,11 +32,12 @@ class secure_getenv(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.secure_getenv",
+            lib = "libc",
+            name = "secure_getenv",
             symbols = ["secure_getenv", "__builtin_secure_getenv"],
             synopsis = "char* secure_getenv(const char* name)",
             description = "Read environment variable",
-            category = func_cat.env,
+            category = categories.env,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -53,11 +54,12 @@ class fgetc(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fgetc",
+            lib = "libc",
+            name = "fgetc",
             symbols = ["fgetc", "__builtin_fgetc"],
             synopsis = "int fgetc(FILE* stream)",
             description = "Read character from given stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -74,11 +76,12 @@ class fgetwc(src_func):
     
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fgetwc",
+            lib = "libc",
+            name = "fgetwc",
             symbols = ["fgetwc", "__builtin_fgetwc"],
             synopsis = "wint_t fgetwc(FILE *stream)",
             description = "Read character from given stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -95,11 +98,12 @@ class fgetc_unlocked(src_func):
     
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fgetc_unlocked",
+            lib = "libc",
+            name = "fgetc_unlocked",
             symbols = ["fgetc_unlocked", "__builtin_fgetc_unlocked"],
             synopsis = "int fgetc_unlocked(FILE *stream)",
             description = "Read character from given stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -116,11 +120,12 @@ class fgetwc_unlocked(src_func):
     
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fgetwc_unlocked",
+            lib = "libc",
+            name = "fgetwc_unlocked",
             symbols = ["fgetwc_unlocked", "__builtin_fgetwc_unlocked"],
             synopsis = "wint_t fgetwc_unlocked(FILE *stream)",
             description = "Read character from given stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -137,11 +142,12 @@ class getc(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getc",
+            lib = "libc",
+            name = "getc",
             symbols = ["getc", "__builtin_getc"],
             synopsis = "int getc(FILE* stream)",
             description = "Read character from given stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -158,11 +164,12 @@ class getwc(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getwc",
+            lib = "libc",
+            name = "getwc",
             symbols = ["getwc", "__builtin_getwc"],
             synopsis = "wint_t getc(FILE* stream)",
             description = "Read character from given stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -179,11 +186,12 @@ class getc_unlocked(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getc_unlocked",
+            lib = "libc",
+            name = "getc_unlocked",
             symbols = ["getc_unlocked", "__builtin_getc_unlocked"],
             synopsis = "int getc_unlocked(FILE* stream)",
             description = "Read character from given stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -200,11 +208,12 @@ class getwc_unlocked(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getwc_unlocked",
+            lib = "libc",
+            name = "getwc_unlocked",
             symbols = ["getwc_unlocked", "__builtin_getwc_unlocked"],
             synopsis = "wint_t getwc_unlocked(FILE* stream)",
             description = "Read character from given stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -221,11 +230,12 @@ class getchar(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getchar",
+            lib = "libc",
+            name = "getchar",
             symbols = ["getchar", "__builtin_getchar"],
             synopsis = "int getchar(void)",
             description = "Read character from standard input stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==0,
             par_dataflow = lambda x: False,
@@ -242,11 +252,12 @@ class getwchar(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getwchar",
+            lib = "libc",
+            name = "getwchar",
             symbols = ["getwchar", "__builtin_getwchar"],
             synopsis = "wint_t getwchar(void)",
             description = "Read character from standard input stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==0,
             par_dataflow = lambda x: False,
@@ -263,11 +274,12 @@ class getchar_unlocked(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getchar_unlocked",
+            lib = "libc",
+            name = "getchar_unlocked",
             symbols = ["getchar_unlocked", "__builtin_getchar_unlocked"],
             synopsis = "int getchar_unlocked(void)",
             description = "Read character from standard input stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==0,
             par_dataflow = lambda x: False,
@@ -284,11 +296,12 @@ class getwchar_unlocked(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getwchar_unlocked",
+            lib = "libc",
+            name = "getwchar_unlocked",
             symbols = ["getwchar_unlocked", "__builtin_getwchar_unlocked"],
             synopsis = "wint_t getwchar_unlocked(void)",
             description = "Read character from standard input stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==0,
             par_dataflow = lambda x: False,
@@ -305,11 +318,12 @@ class getw(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getw",
+            lib = "libc",
+            name = "getw",
             symbols = ["getw", "__builtin_getw"],
             synopsis = "int getw(FILE* stream)",
             description = "Read word from given stream",
-            category = func_cat.chr,
+            category = categories.chr,
             enabled = True,
             par_cnt = lambda x: x==1,
             par_dataflow = lambda x: False,
@@ -326,11 +340,12 @@ class getline(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getline",
+            lib = "libc",
+            name = "getline",
             symbols = ["getline", "__builtin_getline"],
             synopsis = "ssize_t getline(char** lineptr, size_t* n, FILE* stream)",
             description = "Read line from given stream",
-            category = func_cat.lin,
+            category = categories.lin,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -347,11 +362,12 @@ class getdelim(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.getdelim",
+            lib = "libc",
+            name = "getdelim",
             symbols = ["getdelim", "__builtin_getdelim"],
             synopsis = "ssize_t getdelim(char** lineptr, size_t* n, int delimiter, FILE* stream)",
             description = "Read line from given stream",
-            category = func_cat.lin,
+            category = categories.lin,
             enabled = True,
             par_cnt = lambda x: x == 4,
             par_dataflow = lambda x: False,
@@ -368,11 +384,12 @@ class fgets(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fgets",
+            lib = "libc",
+            name = "fgets",
             symbols = ["fgets", "__builtin_fgets"],
             synopsis = "char* fgets(char* s, int n, FILE* stream)",
             description = "Read string from given stream",
-            category = func_cat.lin,
+            category = categories.lin,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -389,11 +406,12 @@ class fgetws(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fgetws",
+            lib = "libc",
+            name = "fgetws",
             symbols = ["fgetws", "__builtin_fgetws"],
             synopsis = "wchar_t* fgetws(wchar_t* ws, int n, FILE* stream)",
             description = "Read string from given stream",
-            category = func_cat.lin,
+            category = categories.lin,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -410,11 +428,12 @@ class fgets_unlocked(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fgets_unlocked",
+            lib = "libc",
+            name = "fgets_unlocked",
             symbols = ["fgets_unlocked", "__builtin_fgets_unlocked"],
             synopsis = "char* fgets_unlocked(char* s, int n, FILE* stream)",
             description = "Read string from given stream",
-            category = func_cat.lin,
+            category = categories.lin,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -431,11 +450,12 @@ class fgetws_unlocked(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fgetws_unlocked",
+            lib = "libc",
+            name = "fgetws_unlocked",
             symbols = ["fgetws_unlocked", "__builtin_fgetws_unlocked"],
             synopsis = "wchar_t* fgetws_unlocked(wchar_t* ws, int n, FILE* stream)",
             description = "Read string from given stream",
-            category = func_cat.lin,
+            category = categories.lin,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -451,17 +471,19 @@ class gets(src_func, snk_func):
     """
 
     def __init__(self, log: Logger = Logger()) -> None:
-        name = "libc.gets"
+        lib = "libc"
+        name = "gets"
         symbols = ["gets", "__builtin_gets"]
         synopsis = "char* gets(char* s)"
         description = "Read string from standard input stream"
-        category = func_cat.lin
+        category = categories.lin
         enabled = True
         par_cnt = lambda x: x == 1
         par_dataflow = lambda x: False
         par_slice = lambda x: True
         src_func.__init__(
             self,
+            lib = lib,
             name = name,
             symbols = symbols,
             synopsis = synopsis,
@@ -475,6 +497,7 @@ class gets(src_func, snk_func):
         )
         snk_func.__init__(
             self,
+            lib = lib,
             name = name,
             symbols = symbols,
             synopsis = synopsis,
@@ -496,11 +519,12 @@ class scanf(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.scanf",
+            lib = "libc",
+            name = "scanf",
             symbols = ["scanf", "__builtin_scanf"],
             synopsis = "int scanf(const char* format, ...)",
             description = "Read formatted input from standard input stream",
-            category = func_cat.fmt,
+            category = categories.fmt,
             enabled = True,
             par_cnt = lambda x: x >= 1,
             par_dataflow = lambda x: False,
@@ -517,11 +541,12 @@ class wscanf(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.wscanf",
+            lib = "libc",
+            name = "wscanf",
             symbols = ["wscanf", "__builtin_wscanf"],
             synopsis = "int wscanf(const wchar_t* format, ...)",
             description = "Read formatted input from standard input stream",
-            category = func_cat.fmt,
+            category = categories.fmt,
             enabled = True,
             par_cnt = lambda x: x >= 1,
             par_dataflow = lambda x: False,
@@ -538,11 +563,12 @@ class fscanf(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fscanf",
+            lib = "libc",
+            name = "fscanf",
             symbols = ["fscanf", "__builtin_fscanf"],
             synopsis = "int fscanf(FILE* stream, const char* format, ...)",
             description = "Read formatted input from given stream",
-            category = func_cat.fmt,
+            category = categories.fmt,
             enabled = True,
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
@@ -559,11 +585,12 @@ class fwscanf(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fwscanf",
+            lib = "libc",
+            name = "fwscanf",
             symbols = ["fwscanf", "__builtin_fwscanf"],
             synopsis = "int fwscanf(FILE* stream, const wchar_t* format, ...)",
             description = "Read formatted input from given stream",
-            category = func_cat.fmt,
+            category = categories.fmt,
             enabled = True,
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
@@ -580,11 +607,12 @@ class vscanf(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.vscanf",
+            lib = "libc",
+            name = "vscanf",
             symbols = ["vscanf", "__builtin_vscanf"],
             synopsis = "int vscanf(const char* format, va_list ap)",
             description = "Read formatted input from standard input stream",
-            category = func_cat.fmt,
+            category = categories.fmt,
             enabled = True,
             par_cnt = lambda x: x == 2,
             par_dataflow = lambda x: False,
@@ -601,11 +629,12 @@ class vfscanf(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.vfscanf",
+            lib = "libc",
+            name = "vfscanf",
             symbols = ["vfscanf", "__builtin_vfscanf"],
             synopsis = "int vfscanf(FILE* stream, const char* format, va_list ap)",
             description = "Read formatted input from given stream",
-            category = func_cat.fmt,
+            category = categories.fmt,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -622,11 +651,12 @@ class fopen(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fopen",
+            lib = "libc",
+            name = "fopen",
             symbols = ["fopen", "__builtin_fopen"],
             synopsis = "FILE* fopen(const char* pathname, const char* mode)",
             description = "Open file",
-            category = func_cat.fad,
+            category = categories.fad,
             enabled = True,
             par_cnt = lambda x: x == 2,
             par_dataflow = lambda x: False,
@@ -643,11 +673,12 @@ class freopen(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.freopen",
+            lib = "libc",
+            name = "freopen",
             symbols = ["freopen", "__builtin_freopen"],
             synopsis = "FILE* freopen(const char* pathname, const char* mode, FILE* stream)",
             description = "Open file",
-            category = func_cat.fad,
+            category = categories.fad,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -664,11 +695,12 @@ class fdopen(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fdopen",
+            lib = "libc",
+            name = "fdopen",
             symbols = ["fdopen", "__builtin_fdopen"],
             synopsis = "FILE* fdopen(int fd, const char* mode)",
             description = "Open file",
-            category = func_cat.fad,
+            category = categories.fad,
             enabled = True,
             par_cnt = lambda x: x == 2,
             par_dataflow = lambda x: False,
@@ -685,11 +717,12 @@ class opendir(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.opendir",
+            lib = "libc",
+            name = "opendir",
             symbols = ["opendir", "__builtin_opendir"],
             synopsis = "DIR* opendir(const char* name)",
             description = "Open directory",
-            category = func_cat.fad,
+            category = categories.fad,
             enabled = True,
             par_cnt = lambda x: x == 1,
             par_dataflow = lambda x: False,
@@ -706,11 +739,12 @@ class fdopendir(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.fdopendir",
+            lib = "libc",
+            name = "fdopendir",
             symbols = ["fdopendir", "__builtin_fdopendir"],
             synopsis = "DIR* fdopendir(int fd)",
             description = "Open directory",
-            category = func_cat.fad,
+            category = categories.fad,
             enabled = True,
             par_cnt = lambda x: x == 1,
             par_dataflow = lambda x: False,
@@ -727,11 +761,12 @@ class recv(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.recv",
+            lib = "libc",
+            name = "recv",
             symbols = ["recv", "__builtin_recv"],
             synopsis = "ssize_t recv(int sockfd, void* buf, size_t len, int flags)",
             description = "Receive message from socket",
-            category = func_cat.net,
+            category = categories.net,
             enabled = True,
             par_cnt = lambda x: x == 4,
             par_dataflow = lambda x: False,
@@ -748,11 +783,12 @@ class recvfrom(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.recvfrom",
+            lib = "libc",
+            name = "recvfrom",
             symbols = ["recvfrom", "__builtin_recvfrom"],
             synopsis = "ssize_t recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t* addrlen)",
             description = "Receive message from socket",
-            category = func_cat.net,
+            category = categories.net,
             enabled = True,
             par_cnt = lambda x: x == 6,
             par_dataflow = lambda x: False,
@@ -769,11 +805,12 @@ class recvmsg(src_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.recvmsg",
+            lib = "libc",
+            name = "recvmsg",
             symbols = ["recvmsg", "__builtin_recvmsg"],
             synopsis = "ssize_t recvmsg(int sockfd, struct msghdr* msg, int flags)",
             description = "Receive message from socket",
-            category = func_cat.net,
+            category = categories.net,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -790,11 +827,12 @@ class memcpy(snk_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.memcpy",
+            lib = "libc",
+            name = "memcpy",
             symbols = ["memcpy", "__builtin_memcpy"],
             synopsis = "void* memcpy(void* dest, const void* src, size_t n)",
             description = "Copy memory area",
-            category = func_cat.mem,
+            category = categories.mem,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -811,11 +849,12 @@ class memmove(snk_func):
     
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.memmove",
+            lib = "libc",
+            name = "memmove",
             symbols = ["memmove", "__builtin_memmove"],
             synopsis = "void* memmove(void* dest, const void* src, size_t n)",
             description = "Copy memory area",
-            category = func_cat.mem,
+            category = categories.mem,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -832,11 +871,12 @@ class strcpy(snk_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.strcpy",
+            lib = "libc",
+            name = "strcpy",
             symbols = ["strcpy", "__builtin_strcpy", "stpcpy", "__builtin_stpcpy"],
             synopsis = "char* strcpy(char* dst, const char* src)",
             description = "Copy string",
-            category = func_cat.scp,
+            category = categories.scp,
             enabled = True,
             par_cnt = lambda x: x == 2,
             par_dataflow = lambda x: False,
@@ -853,11 +893,12 @@ class wcscpy(snk_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.wcscpy",
+            lib = "libc",
+            name = "wcscpy",
             symbols = ["wcscpy", "__builtin_wcscpy"],
             synopsis = "wchar_t* wcscpy(wchar_t* dest, const wchar_t* src)",
             description = "Copy string",
-            category = func_cat.scp,
+            category = categories.scp,
             enabled = True,
             par_cnt = lambda x: x == 2,
             par_dataflow = lambda x: False,
@@ -874,11 +915,12 @@ class strncpy(snk_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.strncpy",
+            lib = "libc",
+            name = "strncpy",
             symbols = ["strncpy", "__builtin_strncpy", "stpncpy", "__builtin_stpncpy"],
             synopsis = "char* strncpy(char* s1, const char* s2, size_t n)",
             description = "Fill buffer with bytes from string",
-            category = func_cat.scp,
+            category = categories.scp,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -895,11 +937,12 @@ class strcat(snk_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.strcat",
+            lib = "libc",
+            name = "strcat",
             symbols = ["strcat", "__builtin_strcat"],
             synopsis = "char* strcat(char* s1, const char* s2)",
             description = "Copy string",
-            category = func_cat.cat,
+            category = categories.cat,
             enabled = True,
             par_cnt = lambda x: x == 2,
             par_dataflow = lambda x: False,
@@ -916,11 +959,12 @@ class strncat(snk_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.strncat",
+            lib = "libc",
+            name = "strncat",
             symbols = ["strncat", "__builtin_strncat"],
             synopsis = "char* strncat(char* dst, const char* src, size_t ssize)",
             description = "Copy string",
-            category = func_cat.cat,
+            category = categories.cat,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -937,11 +981,12 @@ class sscanf(snk_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.sscanf",
+            lib = "libc",
+            name = "sscanf",
             symbols = ["sscanf", "__builtin_sscanf", "__isoc99_sscanf", "__isoc23_sscanf"],
             synopsis = "int sscanf(const char* str, const char* format, ...)",
             description = "Input string format conversion",
-            category = func_cat.sfc,
+            category = categories.sfc,
             enabled = True,
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
@@ -958,11 +1003,12 @@ class swscanf(snk_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.swscanf",
+            lib = "libc",
+            name = "swscanf",
             symbols = ["swscanf", "__builtin_swscanf", "__isoc99_swscanf", "__isoc23_swscanf"],
             synopsis = "int sscanf(const wchar_t* ws, const wchar_t* format, ...)",
             description = "Input string format conversion",
-            category = func_cat.sfc,
+            category = categories.sfc,
             enabled = True,
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
@@ -979,11 +1025,12 @@ class vsscanf(snk_func):
 
     def __init__(self, log: Logger = Logger()) -> None:
         super().__init__(
-            name = "libc.vsscanf",
+            lib = "libc",
+            name = "vsscanf",
             symbols = ["vsscanf", "__builtin_vsscanf", "__isoc99_vsscanf"],
             synopsis = "int vsscanf(const char* s, const char* format, va_list arg)",
             description = "Input string format conversion",
-            category = func_cat.sfc,
+            category = categories.sfc,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
