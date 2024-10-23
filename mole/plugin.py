@@ -81,8 +81,10 @@ class Plugin:
             libc.wcsncpy(self._log),                # Copy string
             libc.strncpy(self._log),                # Fill buffer with bytes from string
             # String Concatenation
-            libc.strcat(self._log),                 # Copy string
-            libc.strncat(self._log),                # Copy string
+            libc.strcat(self._log),                 # Concatenate string
+            libc.strncat(self._log),                # Concatenate string
+            libc.wcscat(self._log),                 # Truncate string
+            libc.wcsncat(self._log),                # Truncate string
             # Scanf
             libc.sscanf(self._log),                 # Input string format conversion
             libc.swscanf(self._log),                # Input string format converstion

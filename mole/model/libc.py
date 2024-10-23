@@ -985,7 +985,7 @@ class strcat(snk_func):
             name = "strcat",
             symbols = ["strcat", "__builtin_strcat"],
             synopsis = "char* strcat(char* s1, const char* s2)",
-            description = "Copy string",
+            description = "Concatenate string",
             category = categories.cat,
             enabled = True,
             par_cnt = lambda x: x == 2,
@@ -1007,7 +1007,51 @@ class strncat(snk_func):
             name = "strncat",
             symbols = ["strncat", "__builtin_strncat"],
             synopsis = "char* strncat(char* dst, const char* src, size_t ssize)",
-            description = "Copy string",
+            description = "Concatenate string",
+            category = categories.cat,
+            enabled = True,
+            par_cnt = lambda x: x == 3,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True,
+            log = log
+        )
+        return
+
+
+class wcscat(snk_func):
+    """
+    This class represents a sink for `libc` function `wcscat`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libc",
+            name = "wcscat",
+            symbols = ["wcscat", "__builtin_wcscat"],
+            synopsis = "wchar_t* wcscat(wchar_t* dest, const wchar_t* src)",
+            description = "Truncate string",
+            category = categories.cat,
+            enabled = True,
+            par_cnt = lambda x: x == 2,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True,
+            log = log
+        )
+        return
+
+
+class wcsncat(snk_func):
+    """
+    This class represents a sink for `libc` function `wcsncat`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libc",
+            name = "wcsncat",
+            symbols = ["wcsncat", "__builtin_wcsncat"],
+            synopsis = "wchar_t* wcsncat(wchar_t* dest, const wchar_t* src, size_t n)",
+            description = "Truncate string",
             category = categories.cat,
             enabled = True,
             par_cnt = lambda x: x == 3,
