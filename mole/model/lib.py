@@ -212,9 +212,15 @@ class snk_func(func):
                     if self._par_slice(parm_num):
                         slicer = MediumLevelILBackwardSlicer(bv, max_func_depth, self.name, self._log)
                         try:
-                            slicer.slice_backwards(parm_var)
+                            slice = slicer.slice_backwards(parm_var)
                         except Exception as e:
                             self._log.error(str(self), f"Exception: {str(e):s}")
+                            continue
+                        # Determine slice's (set of) branch dependencies
+                        slice_branch_dependence = {}
+                        for inst in slice.keys():
+                            for bch_idx, bch_dep in inst.branch_dependence.items():
+                                slice_branch_dependence.setdefault(bch_idx, bch_dep)
                         # Check whether the slice contains any source
                         for source in sources:
                             if canceled(): break
@@ -226,9 +232,8 @@ class snk_func(func):
                                         t_src = f"0x{sym_addr:x} {sym_name:s}()"
                                         t_snk = f"0x{snk_inst.address:x} {snk_name}"
                                         t_snk = f"{t_snk:s}(arg#{parm_num+1:d}:{str(parm_var):s})"
-                                        self._log.info(
-                                            str(self),
-                                            f"Interesting path: {t_src:s} --> {t_snk:s}!"
-                                        )
+                                        t_log = f"Interesting path: {t_src:s} --> {t_snk:s}"
+                                        t_log = f"{t_log:s} [L:{len(slice):d}, B:{len(slice_branch_dependence):d}]!"
+                                        self._log.info(str(self), t_log)
                                         paths.append((sym_name, src_inst, snk_name, snk_inst, parm_num, parm_var))
         return paths

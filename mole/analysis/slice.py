@@ -1,5 +1,5 @@
 from __future__      import annotations
-from typing          import List, Set
+from typing          import Dict, Set
 from ..common.helper import InstructionHelper
 from ..common.log    import Logger
 import binaryninja as bn
@@ -166,8 +166,11 @@ class MediumLevelILBackwardSlicer:
     def slice_backwards(
             self,
             inst: bn.MediumLevelILInstruction
-        ) -> List[Set[bn.SSAVariable]]:
+        ) -> Dict[bn.MediumLevelILInstruction, Set[bn.SSAVariable]]:
         """
-        This method backward slices instruction `inst`.
+        This method backward slices the instruction `inst`. It returns the slice as a dictionary,
+        where keys correspond to the sliced instructions (1st key == 1st instruction in the backward
+        slice), and values to sets of corresponding static single assignment variables.
         """
-        return list(inst.ssa_form.traverse(self._slice_backwards))
+        for _ in inst.ssa_form.traverse(self._slice_backwards): pass
+        return self._sliced_insts
