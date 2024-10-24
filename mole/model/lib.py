@@ -16,7 +16,7 @@ class categories(Enum):
     env = "Environment Accesses"
     chr = "Character Inputs"
     lin = "Line Inputs"
-    fmt = "Formatted Inputs"
+    fmi = "Formatted Inputs"
     fad = "File and Directories"
     net = "Networks"
     # Sinks

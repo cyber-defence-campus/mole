@@ -1,7 +1,6 @@
 from __future__   import annotations
-from typing       import List
 from ..common.log import Logger
-from ..model.lib  import categories, src_func
+from ..model.lib  import categories, src_func, snk_func
 
 
 class apr_socket_recv(src_func):
@@ -21,6 +20,28 @@ class apr_socket_recv(src_func):
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: x == 1,
+            log = log
+        )
+        return
+    
+
+class apr_cpystrn(snk_func):
+    """
+    This class represents a sink for `libapr` function `apr_cpystrn`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libapr",
+            name = "apr_cpystrn",
+            symbols = ["apr_cpystrn", "__builtin_apr_cpystrn"],
+            synopsis = "char* apr_cpystrn(char* dst, const char* src, apr_size_t dst_size)",
+            description = "Fill buffer with bytes from string",
+            category = categories.scp,
+            enabled = False,
+            par_cnt = lambda x: x == 3,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True,
             log = log
         )
         return

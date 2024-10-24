@@ -48,7 +48,7 @@ class Plugin:
             libc.fgets_unlocked(self._log),         # Read string from given stream
             libc.fgetws_unlocked(self._log),        # Read string from given stream
             libc.gets(self._log),                   # Read string from standard input stream
-            # Formatted Input
+            # Formatted Inputs
             libc.scanf(self._log),                  # Read formatted input from standard input stream
             libc.wscanf(self._log),                 # Read formatted input from standard input stream
             libc.fscanf(self._log),                 # Read formatted input from given stream
@@ -80,15 +80,20 @@ class Plugin:
             libc.wcscpy(self._log),                 # Copy string
             libc.wcsncpy(self._log),                # Copy string
             libc.strncpy(self._log),                # Fill buffer with bytes from string
+            libapr.apr_cpystrn(self._log),          # Fill buffer with bytes from string
             # String Concatenation
             libc.strcat(self._log),                 # Concatenate string
             libc.strncat(self._log),                # Concatenate string
             libc.wcscat(self._log),                 # Truncate string
             libc.wcsncat(self._log),                # Truncate string
-            # Scanf
-            libc.sscanf(self._log),                 # Input string format conversion
-            libc.swscanf(self._log),                # Input string format converstion
-            libc.vsscanf(self._log),                # Input string format conversion
+            # String Format Conversion
+            libc.sscanf(self._log),                 # Format string
+            libc.swscanf(self._log),                # Format string
+            libc.vsscanf(self._log),                # Format string
+            libc.sprintf(self._log),                # Print formatted output
+            libc.swprintf(self._log),               # Print formatted output
+            libc.vsprintf(self._log),               # Print formatted output
+            libc.vswprintf(self._log),              # Print formatted output
             # Line Input
             libc.gets(self._log),                   # Read string from standard input stream
         ]

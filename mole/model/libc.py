@@ -524,7 +524,7 @@ class scanf(src_func):
             symbols = ["scanf", "__builtin_scanf", "__isoc99_scanf", "__isoc23_scanf"],
             synopsis = "int scanf(const char* format, ...)",
             description = "Read formatted input from standard input stream",
-            category = categories.fmt,
+            category = categories.fmi,
             enabled = True,
             par_cnt = lambda x: x >= 1,
             par_dataflow = lambda x: False,
@@ -546,7 +546,7 @@ class wscanf(src_func):
             symbols = ["wscanf", "__builtin_wscanf", "__isoc99_wscanf", "__isoc23_wscanf"],
             synopsis = "int wscanf(const wchar_t* format, ...)",
             description = "Read formatted input from standard input stream",
-            category = categories.fmt,
+            category = categories.fmi,
             enabled = True,
             par_cnt = lambda x: x >= 1,
             par_dataflow = lambda x: False,
@@ -568,7 +568,7 @@ class fscanf(src_func):
             symbols = ["fscanf", "__builtin_fscanf", "__isoc99_fscanf", "__isoc23_fscanf"],
             synopsis = "int fscanf(FILE* stream, const char* format, ...)",
             description = "Read formatted input from given stream",
-            category = categories.fmt,
+            category = categories.fmi,
             enabled = True,
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
@@ -590,7 +590,7 @@ class fwscanf(src_func):
             symbols = ["fwscanf", "__builtin_fwscanf", "__isco99_fwscanf", "__isoc23_fwscanf"],
             synopsis = "int fwscanf(FILE* stream, const wchar_t* format, ...)",
             description = "Read formatted input from given stream",
-            category = categories.fmt,
+            category = categories.fmi,
             enabled = True,
             par_cnt = lambda x: x >= 2,
             par_dataflow = lambda x: False,
@@ -612,7 +612,7 @@ class vscanf(src_func):
             symbols = ["vscanf", "__builtin_vscanf", "__isoc99_vscanf", "__isoc23_vscanf"],
             synopsis = "int vscanf(const char* format, va_list ap)",
             description = "Read formatted input from standard input stream",
-            category = categories.fmt,
+            category = categories.fmi,
             enabled = True,
             par_cnt = lambda x: x == 2,
             par_dataflow = lambda x: False,
@@ -634,7 +634,7 @@ class vfscanf(src_func):
             symbols = ["vfscanf", "__builtin_vfscanf", "__isoc99_vfscanf", "__isoc23_vfscanf"],
             synopsis = "int vfscanf(FILE* stream, const char* format, va_list ap)",
             description = "Read formatted input from given stream",
-            category = categories.fmt,
+            category = categories.fmi,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
@@ -1073,7 +1073,7 @@ class sscanf(snk_func):
             name = "sscanf",
             symbols = ["sscanf", "__builtin_sscanf", "__isoc99_sscanf", "__isoc23_sscanf"],
             synopsis = "int sscanf(const char* str, const char* format, ...)",
-            description = "Input string format conversion",
+            description = "Format string",
             category = categories.sfc,
             enabled = True,
             par_cnt = lambda x: x >= 2,
@@ -1095,7 +1095,7 @@ class swscanf(snk_func):
             name = "swscanf",
             symbols = ["swscanf", "__builtin_swscanf", "__isoc99_swscanf", "__isoc23_swscanf"],
             synopsis = "int sscanf(const wchar_t* ws, const wchar_t* format, ...)",
-            description = "Input string format conversion",
+            description = "Format string",
             category = categories.sfc,
             enabled = True,
             par_cnt = lambda x: x >= 2,
@@ -1117,12 +1117,100 @@ class vsscanf(snk_func):
             name = "vsscanf",
             symbols = ["vsscanf", "__builtin_vsscanf", "__isoc99_vsscanf", "__isoc23_vsscanf"],
             synopsis = "int vsscanf(const char* s, const char* format, va_list arg)",
-            description = "Input string format conversion",
+            description = "Format string",
             category = categories.sfc,
             enabled = True,
             par_cnt = lambda x: x == 3,
             par_dataflow = lambda x: False,
             par_slice = lambda x: True,
+            log = log
+        )
+        return
+
+
+class sprintf(snk_func):
+    """
+    This class represents a sink for `libc` function `sprintf`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libc",
+            name = "sprintf",
+            symbols = ["sprintf", "__builtin_sprintf"],
+            synopsis = "int sprintf(char* s, const char* format, ...)",
+            description = "Print formatted output",
+            category = categories.sfc,
+            enabled = True,
+            par_cnt = lambda x: x >= 2,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x >= 1,
+            log = log
+        )
+        return
+
+
+class swprintf(snk_func):
+    """
+    This class represents a sink for `libc` function `swprintf`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libc",
+            name = "swprintf",
+            symbols = ["swprintf", "__builtin_swprintf"],
+            synopsis = "int swprintf(wchar_t* ws, size_t n, const wchar_t* format, ...)",
+            description = "Print formatted output",
+            category = categories.sfc,
+            enabled = True,
+            par_cnt = lambda x: x >= 3,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x >= 1,
+            log = log
+        )
+        return
+
+
+class vsprintf(snk_func):
+    """
+    This class represents a sink for `libc` function `vsprintf`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libc",
+            name = "vsprintf",
+            symbols = ["vsprintf", "__builtin_vsprintf"],
+            synopsis = "int vsprintf(char* s, const char* format, va_list ap)",
+            description = "Print formatted output",
+            category = categories.sfc,
+            enabled = True,
+            par_cnt = lambda x: x == 3,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x >= 1,
+            log = log
+        )
+        return
+    
+
+class vswprintf(snk_func):
+    """
+    This class represents a sink for `libc` function `vswprintf`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libc",
+            name = "vswprintf",
+            symbols = ["vswprintf", "__builtin_vswprintf"],
+            synopsis = "int vswprintf(wchar_t* ws, size_t n, const wchar_t* format, va_list arg)",
+            description = "Print formatted output",
+            category = categories.sfc,
+            enabled = True,
+            par_cnt = lambda x: x == 4,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x >= 1,
             log = log
         )
         return
