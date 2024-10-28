@@ -73,6 +73,7 @@ class Plugin:
         self._snk_funs = [
             # Memory
             libc.memcpy(self._log),                 # Copy memory area
+            libc.wmemcpy(self._log),                # Copy memory area
             libc.memmove(self._log),                # Copy memory area
             # String Copy
             libc.strcpy(self._log),                 # Copy string

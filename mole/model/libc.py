@@ -842,6 +842,28 @@ class memcpy(snk_func):
         return
     
 
+class wmemcpy(snk_func):
+    """
+    This class represents a sink for `libc` function `wmemcpy`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libc",
+            name = "wmemcpy",
+            symbols = ["wmemcpy", "__builtin_wmemcpy"],
+            synopsis = "wchar_t* wmemcpy(wchar_t* dest, const wchar_t* src, size_t n)",
+            description = "Copy memory area",
+            category = categories.mem,
+            enabled = True,
+            par_cnt = lambda x: x == 3,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: True,
+            log = log
+        )
+        return
+    
+
 class memmove(snk_func):
     """
     This class represents a sink for `libc` function `memmove`.
