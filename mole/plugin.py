@@ -40,6 +40,7 @@ class Plugin:
             libc.getchar_unlocked(self._log),       # Read character from standard input stream
             libc.getwchar_unlocked(self._log),      # Read character from standard input stream
             libc.getw(self._log),                   # Read word from given stream
+            libapr.apr_file_getc(self._log),        # Read character from given file
             # Line Input
             libc.getline(self._log),                # Read line from given stream
             libc.getdelim(self._log),               # Read line from given stream
@@ -48,6 +49,7 @@ class Plugin:
             libc.fgets_unlocked(self._log),         # Read string from given stream
             libc.fgetws_unlocked(self._log),        # Read string from given stream
             libc.gets(self._log),                   # Read string from standard input stream
+            libapr.apr_file_gets(self._log),        # Read line from given file
             # Formatted Inputs
             libc.scanf(self._log),                  # Read formatted input from standard input stream
             libc.wscanf(self._log),                 # Read formatted input from standard input stream
