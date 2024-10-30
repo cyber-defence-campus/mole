@@ -47,6 +47,50 @@ class apr_file_gets(src_func):
         return
 
 
+class apr_file_read(src_func):
+    """
+    This class represents a source for `libapr` function `apr_file_read`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libapr",
+            name = "apr_file_read",
+            symbols = ["apr_file_read", "apr_file_read"],
+            synopsis = "apr_status_t apr_file_read(apr_file_t* thefile, void* buf, apr_size_t* nbytes)",
+            description = "Read data from given file",
+            category = categories.fad,
+            enabled = False,
+            par_cnt = lambda x: x == 3,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x >= 1,
+            log = log
+        )
+        return
+    
+
+class apr_file_read_full(src_func):
+    """
+    This class represents a source for `libapr` function `apr_file_read_full`.
+    """
+
+    def __init__(self, log: Logger = Logger()) -> None:
+        super().__init__(
+            lib = "libapr",
+            name = "apr_file_read_full",
+            symbols = ["apr_file_read_full", "__builtin_apr_file_read_full"],
+            synopsis = "apr_status_t apr_file_read_full(apr_file_t* thefile, void* buf, apr_size_t nbytes, apr_size_t* bytes_read)",
+            description = "Read data from given file",
+            category = categories.fad,
+            enabled = False,
+            par_cnt = lambda x: x == 4,
+            par_dataflow = lambda x: False,
+            par_slice = lambda x: x == 1 or x==3,
+            log = log
+        )
+        return
+
+
 class apr_socket_recv(src_func):
     """
     This class represents a source for `libapr` function `apr_socket_recv`.

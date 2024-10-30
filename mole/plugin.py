@@ -22,7 +22,10 @@ class Plugin:
         self._runs_headless = runs_headless
         self._tag = tag
         self._log = log
-        self._src_funs = [
+        self._src_funs = []
+        self._snk_funs = []
+        # libc
+        self._src_funs.extend([
             # Environment Access
             libc.getenv(self._log),                 # Read environment variable
             libc.secure_getenv(self._log),          # Read environment variable
@@ -40,7 +43,6 @@ class Plugin:
             libc.getchar_unlocked(self._log),       # Read character from standard input stream
             libc.getwchar_unlocked(self._log),      # Read character from standard input stream
             libc.getw(self._log),                   # Read word from given stream
-            libapr.apr_file_getc(self._log),        # Read character from given file
             # Line Input
             libc.getline(self._log),                # Read line from given stream
             libc.getdelim(self._log),               # Read line from given stream
@@ -49,7 +51,6 @@ class Plugin:
             libc.fgets_unlocked(self._log),         # Read string from given stream
             libc.fgetws_unlocked(self._log),        # Read string from given stream
             libc.gets(self._log),                   # Read string from standard input stream
-            libapr.apr_file_gets(self._log),        # Read line from given file
             # Formatted Inputs
             libc.scanf(self._log),                  # Read formatted input from standard input stream
             libc.wscanf(self._log),                 # Read formatted input from standard input stream
@@ -57,22 +58,18 @@ class Plugin:
             libc.fwscanf(self._log),                # Read formatted input from given stream
             libc.vscanf(self._log),                 # Read formatted input from standard input stream
             libc.vfscanf(self._log),                # Read formatted input from given stream
-            # Opening Streams
+            # File and Directories
             libc.fopen(self._log),                  # Open file
             libc.freopen(self._log),                # Open file
-            # Descriptors and Streams
             libc.fdopen(self._log),                 # Open file
-            # Opening a Directory
             libc.opendir(self._log),                # Open directory
             libc.fdopendir(self._log),              # Open directory
             # Network
             libc.recv(self._log),                   # Receive message from socket
             libc.recvfrom(self._log),               # Receive message from socket
             libc.recvmsg(self._log),                # Receive message from socket
-            libgio.g_socket_receive(self._log),     # Read bytes from socket
-            libapr.apr_socket_recv(self._log)       # Read bytes from socket
-        ]
-        self._snk_funs = [
+        ])
+        self._snk_funs.extend([
             # Memory
             libc.memcpy(self._log),                 # Copy memory area
             libc.wmemcpy(self._log),                # Copy memory area
@@ -83,7 +80,6 @@ class Plugin:
             libc.wcscpy(self._log),                 # Copy string
             libc.wcsncpy(self._log),                # Copy string
             libc.strncpy(self._log),                # Fill buffer with bytes from string
-            libapr.apr_cpystrn(self._log),          # Fill buffer with bytes from string
             # String Concatenation
             libc.strcat(self._log),                 # Concatenate string
             libc.strncat(self._log),                # Concatenate string
@@ -99,7 +95,31 @@ class Plugin:
             libc.vswprintf(self._log),              # Print formatted output
             # Line Input
             libc.gets(self._log),                   # Read string from standard input stream
-        ]
+        ])
+        # libgio
+        self._src_funs.extend([
+            # Network
+            libgio.g_socket_receive(self._log)      # Read bytes from socket
+        ])
+        self._snk_funs.extend([
+
+        ])
+        # libapr
+        self._src_funs.extend([
+            # Character Input
+            libapr.apr_file_getc(self._log),        # Read character from given file
+            # Line Input
+            libapr.apr_file_gets(self._log),        # Read line from given file
+            # File and Directories
+            libapr.apr_file_read(self._log),        # Read data from file
+            libapr.apr_file_read_full(self._log),   # Read data from file
+            # Network
+            libapr.apr_socket_recv(self._log)       # Read bytes from socket
+        ])
+        self._snk_funs.extend([
+            # String Copy
+            libapr.apr_cpystrn(self._log),          # Fill buffer with bytes from string
+        ])
         return
     
     def register(self) -> None:
