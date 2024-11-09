@@ -27,7 +27,7 @@ source venv/mole/bin/activate
 
 Install *Binary Ninja*'s Python [API](https://docs.binary.ninja/dev/batch.html#install-the-api):
 ```shell
-$BINJA_BIN/scripts/install_api.py
+python $BINJA_BIN/scripts/install_api.py
 ```
 
 Install *Mole*:
@@ -41,8 +41,8 @@ python3 -m venv venv/mole_dev
 source venv/mole_dev/bin/activate
 
 # Binary Ninja Python API
-$BINJA_BIN/scripts/install_api.py
+python $BINJA_BIN/scripts/install_api.py
 
 # Mole
-pip install .[develop]
+pip install -e .[develop]
 ```
