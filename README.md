@@ -46,3 +46,6 @@ python $BINJA_BIN/scripts/install_api.py
 # Mole
 pip install -e .[develop]
 ```
+### Note
+In Binary Ninja, consider setting the site-package directory of your virtual environment
+(`venv/mole_dev/lib/python3.XX/site-packages`).
