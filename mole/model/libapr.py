@@ -16,7 +16,7 @@ class apr_file_getc(src_func):
             synopsis = "apr_status_t apr_file_getc(char* ch, apr_file_t* thefile)",
             description = "Read character from given file",
             category = categories.chr,
-            enabled = True,
+            enabled = False,
             par_cnt = lambda x: x==2,
             par_dataflow = lambda x: False,
             par_slice = lambda x: x==0,
