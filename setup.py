@@ -6,11 +6,11 @@ setup(
     author = 'Damian Pfammatter',
     description = "A Binary Ninja plugin for vulneraiblity discovery",
     packages = find_packages(include = ["mole", "mole.*"]),
-    python_requires = '>= 3.8',
+    python_requires = '>= 3.10',
     install_requires = [
-        "termcolor==2.4.0",
+        "PySide6==6.7.2",
         "PyYAML==6.0.2",
-        "PySide6==6.7.3"
+        "termcolor==2.4.0",
     ],
     extras_require = {
         "develop": [
