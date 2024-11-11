@@ -76,8 +76,9 @@ class MediumLevelILBackwardSlicer:
         # TODO: Support all instructions
         match inst:
             case (bn.MediumLevelILConst() |
-                  bn.MediumLevelILConstPtr() |
                   bn.MediumLevelILConstData() |
+                  bn.MediumLevelILConstPtr() |
+                  bn.MediumLevelILFloatConst() |
                   bn.MediumLevelILImport()):
                 pass
             case (bn.MediumLevelILAddressOf()):
@@ -87,6 +88,7 @@ class MediumLevelILBackwardSlicer:
                         vars.update(self._slice_ssa_var_definition(ssa_var, inst.function, func_depth))
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased() |
+                  bn.MediumLevelILVarAliasedField() |
                   bn.MediumLevelILVarSsaField()):
                 vars.update(self._slice_ssa_var_definition(inst.src, inst.function, func_depth))
             case (bn.MediumLevelILNot() |
@@ -94,7 +96,9 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILZx() |
                   bn.MediumLevelILLoadSsa() |
                   bn.MediumLevelILLoadStructSsa() |
-                  bn.MediumLevelILLowPart()):
+                  bn.MediumLevelILLowPart() |
+                  bn.MediumLevelILFneg() |
+                  bn.MediumLevelILFloatConv()):
                 vars.update(self._slice_backwards(inst.src, func_depth))
             case (bn.MediumLevelILAdd() |
                   bn.MediumLevelILAdc() |
@@ -106,7 +110,18 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILLsl() |
                   bn.MediumLevelILLsr() |
                   bn.MediumLevelILAsr() |
-                  bn.MediumLevelILMul()):
+                  bn.MediumLevelILRor() |
+                  bn.MediumLevelILMul() |
+                  bn.MediumLevelILMuluDp() |
+                  bn.MediumLevelILMulsDp() |
+                  bn.MediumLevelILDivu() |
+                  bn.MediumLevelILDivuDp() |
+                  bn.MediumLevelILDivs() |
+                  bn.MediumLevelILDivsDp() |
+                  bn.MediumLevelILFadd() |
+                  bn.MediumLevelILFsub() |
+                  bn.MediumLevelILFmul() |
+                  bn.MediumLevelILFdiv()):
                 vars.update(self._slice_backwards(inst.left, func_depth))
                 vars.update(self._slice_backwards(inst.right, func_depth))
             case (bn.MediumLevelILRet()):
@@ -114,8 +129,13 @@ class MediumLevelILBackwardSlicer:
                     vars.update(self._slice_backwards(ret, func_depth))
             case (bn.MediumLevelILSetVarSsa() |
                   bn.MediumLevelILSetVarAliased() |
+                  bn.MediumLevelILSetVarAliasedField() |
                   bn.MediumLevelILSetVarSsaField()):
                 vars.add(inst.dest)
+                vars.update(self._slice_backwards(inst.src, func_depth))
+            case (bn.MediumLevelILSetVarSplitSsa()):
+                vars.add(inst.high)
+                vars.add(inst.low)
                 vars.update(self._slice_backwards(inst.src, func_depth))
             case (bn.MediumLevelILVarPhi()):
                 vars.add(inst.dest)
@@ -144,6 +164,11 @@ class MediumLevelILBackwardSlicer:
                                             else:
                                                 self._log.debug(self._tag, f"{info:s}: Maximum function depth reached")
                 vars.update(self._slice_backwards(inst.dest, func_depth))
+                for out in inst.output:
+                    vars.add(out)
+                for par in inst.params:
+                    vars.update(self._slice_backwards(par, func_depth))
+            case (bn.MediumLevelILSyscallSsa()):
                 for out in inst.output:
                     vars.add(out)
                 for par in inst.params:
