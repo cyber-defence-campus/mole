@@ -17,7 +17,7 @@ class Plugin:
             self,
             runs_headless: bool = False,
             tag: str = None,
-            log: Logger = Logger()
+            log: Logger = Logger(level="debug")
         ) -> None:
         self._runs_headless = runs_headless
         self._tag = tag
