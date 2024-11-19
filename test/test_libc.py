@@ -24,15 +24,31 @@ class TestMemcpy(unittest.TestCase):
         paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
-        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-            self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
-            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-            self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue((
-                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
-                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
+        for path in paths:
+            src_sym = path.get("src_sym")
+            snk_sym = path.get("snk_sym")
+            par_num = path.get("snk_par", {}).get("num")
+            par_var = path.get("snk_par", {}).get("var")
+            src_inst = path.get("insts", [])[-1]
+            snk_inst = path.get("insts", [])[0]
+            self.assertEqual(src_sym, "getenv", "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(src_inst, bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertEqual(snk_sym, "memcpy", "sink has symbol 'memcpy'")
+            self.assertTrue(
+                (
+                    isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                    isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
             self.assertEqual(par_num, 2, "arg3")
-            self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
+            self.assertTrue(
+                isinstance(par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
         # Close test binary
         bv.file.close()
         return
@@ -45,15 +61,31 @@ class TestMemcpy(unittest.TestCase):
         paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
-        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-            self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
-            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-            self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue((
-                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
-                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
+        for path in paths:
+            src_sym = path.get("src_sym")
+            snk_sym = path.get("snk_sym")
+            par_num = path.get("snk_par", {}).get("num")
+            par_var = path.get("snk_par", {}).get("var")
+            src_inst = path.get("insts", [])[-1]
+            snk_inst = path.get("insts", [])[0]
+            self.assertEqual(src_sym, "getenv", "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(src_inst, bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertEqual(snk_sym, "memcpy", "sink has symbol 'memcpy'")
+            self.assertTrue(
+                (
+                    isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                    isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
             self.assertTrue(par_num in [1, 2], "arg2 or arg3")
-            self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
+            self.assertTrue(
+                isinstance(par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
         # Close test binary
         bv.file.close()
         return
@@ -66,15 +98,31 @@ class TestMemcpy(unittest.TestCase):
         paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
-        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-            self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
-            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-            self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue((
-                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
-                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
+        for path in paths:
+            src_sym = path.get("src_sym")
+            snk_sym = path.get("snk_sym")
+            par_num = path.get("snk_par", {}).get("num")
+            par_var = path.get("snk_par", {}).get("var")
+            src_inst = path.get("insts", [])[-1]
+            snk_inst = path.get("insts", [])[0]
+            self.assertEqual(src_sym, "getenv", "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(src_inst, bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertEqual(snk_sym, "memcpy", "sink has symbol 'memcpy'")
+            self.assertTrue(
+                (
+                    isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                    isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
             self.assertEqual(par_num, 0, "arg1")
-            self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
+            self.assertTrue(
+                isinstance(par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
         # Close test binary
         bv.file.close()
         return
@@ -87,15 +135,31 @@ class TestMemcpy(unittest.TestCase):
         paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
-        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-            self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
-            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-            self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue((
-                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
-                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
+        for path in paths:
+            src_sym = path.get("src_sym")
+            snk_sym = path.get("snk_sym")
+            par_num = path.get("snk_par", {}).get("num")
+            par_var = path.get("snk_par", {}).get("var")
+            src_inst = path.get("insts", [])[-1]
+            snk_inst = path.get("insts", [])[0]
+            self.assertEqual(src_sym, "getenv", "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(src_inst, bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertEqual(snk_sym, "memcpy", "sink has symbol 'memcpy'")
+            self.assertTrue(
+                (
+                    isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                    isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
             self.assertEqual(par_num, 2, "arg3")
-            self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
+            self.assertTrue(
+                isinstance(par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
         # Close test binary
         bv.file.close()
         return
@@ -108,15 +172,31 @@ class TestMemcpy(unittest.TestCase):
         paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
-        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-            self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
-            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-            self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue((
-                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
-                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
+        for path in paths:
+            src_sym = path.get("src_sym")
+            snk_sym = path.get("snk_sym")
+            par_num = path.get("snk_par", {}).get("num")
+            par_var = path.get("snk_par", {}).get("var")
+            src_inst = path.get("insts", [])[-1]
+            snk_inst = path.get("insts", [])[0]
+            self.assertEqual(src_sym, "getenv", "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(src_inst, bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertEqual(snk_sym, "memcpy", "sink has symbol 'memcpy'")
+            self.assertTrue(
+                (
+                    isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                    isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
             self.assertTrue(par_num in [1, 2], "arg2 or arg3")
-            self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
+            self.assertTrue(
+                isinstance(par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
         # Close test binary
         bv.file.close()
         return
@@ -141,15 +221,31 @@ class TestMemcpy(unittest.TestCase):
         paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
-        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-            self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
-            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-            self.assertEqual(snk_name, "memcpy", "sink has symbol 'memcpy'")
-            self.assertTrue((
-                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
-                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
+        for path in paths:
+            src_sym = path.get("src_sym")
+            snk_sym = path.get("snk_sym")
+            par_num = path.get("snk_par", {}).get("num")
+            par_var = path.get("snk_par", {}).get("var")
+            src_inst = path.get("insts", [])[-1]
+            snk_inst = path.get("insts", [])[0]
+            self.assertEqual(src_sym, "getenv", "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(src_inst, bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertEqual(snk_sym, "memcpy", "sink has symbol 'memcpy'")
+            self.assertTrue(
+                (
+                    isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                    isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
             self.assertTrue(par_num in [1, 2], "arg2 or arg3")
-            self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
+            self.assertTrue(
+                isinstance(par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
         # Close test binary
         bv.file.close()
         return
@@ -222,15 +318,31 @@ class TestSscanf(unittest.TestCase):
         paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
-        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-            self.assertEqual(src_name, "getenv", "source has symbol 'getenv'")
-            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-            self.assertEqual(snk_name, "sscanf", "sink has symbol 'sscanf'")
-            self.assertTrue((
-                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
-                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
+        for path in paths:
+            src_sym = path.get("src_sym")
+            snk_sym = path.get("snk_sym")
+            par_num = path.get("snk_par", {}).get("num")
+            par_var = path.get("snk_par", {}).get("var")
+            src_inst = path.get("insts", [])[-1]
+            snk_inst = path.get("insts", [])[0]
+            self.assertEqual(src_sym, "getenv", "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(src_inst, bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertEqual(snk_sym, "sscanf", "sink has symbol 'sscanf'")
+            self.assertTrue(
+                (
+                    isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                    isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
             self.assertEqual(par_num, 0, "arg1")
-            self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
+            self.assertTrue(
+                isinstance(par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
         # Close test binary
         bv.file.close()
         return
@@ -254,15 +366,31 @@ class TestGets(unittest.TestCase):
         paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
-        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-            self.assertEqual(src_name, "gets", "source has symbol 'gets'")
-            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-            self.assertEqual(snk_name, "gets", "sink has symbol 'gets'")
-            self.assertTrue((
-                isinstance(snk_inst, bn.MediumLevelILCallSsa) or
-                isinstance(snk_inst, bn.MediumLevelILTailcallSsa)), "sink is a MLIL call instruction")
+        for path in paths:
+            src_sym = path.get("src_sym")
+            snk_sym = path.get("snk_sym")
+            par_num = path.get("snk_par", {}).get("num")
+            par_var = path.get("snk_par", {}).get("var")
+            src_inst = path.get("insts", [])[-1]
+            snk_inst = path.get("insts", [])[0]
+            self.assertEqual(src_sym, "gets", "source has symbol 'gets'")
+            self.assertTrue(
+                isinstance(src_inst, bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertEqual(snk_sym, "gets", "sink has symbol 'gets'")
+            self.assertTrue(
+                (
+                    isinstance(snk_inst, bn.MediumLevelILCallSsa) or
+                    isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
             self.assertEqual(par_num, 0, "arg1")
-            self.assertTrue(isinstance(par_var, bn.MediumLevelILVarSsa), "argument is a MLIL variable")
+            self.assertTrue(
+                isinstance(par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
         # Close test binary
         bv.file.close()
         return
@@ -277,12 +405,22 @@ class TestGets(unittest.TestCase):
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         gets_memcpy_path = False
-        for src_name, src_inst, snk_name, snk_inst, par_num, par_var in paths:
-            self.assertEqual(src_name, "gets", "source has symbol 'gets'")
-            self.assertTrue(isinstance(src_inst, bn.MediumLevelILInstruction), "source is a MLIL instruction")
-            self.assertTrue(snk_name in ["gets", "memcpy"], "sink has symbol 'gets' or 'memcpy'")
-            self.assertTrue(isinstance(snk_inst, bn.MediumLevelILCallSsa), "sink is a MLIL call instruction")
-            if src_name == "gets" and snk_name == "memcpy":
+        for path in paths:
+            src_sym = path.get("src_sym")
+            snk_sym = path.get("snk_sym")
+            src_inst = path.get("insts", [])[-1]
+            snk_inst = path.get("insts", [])[0]
+            self.assertEqual(src_sym, "gets", "source has symbol 'gets'")
+            self.assertTrue(
+                isinstance(src_inst, bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertTrue(snk_sym in ["gets", "memcpy"], "sink has symbol 'gets' or 'memcpy'")
+            self.assertTrue(
+                isinstance(snk_inst, bn.MediumLevelILCallSsa),
+                "sink is a MLIL call instruction"
+            )
+            if src_sym == "gets" and snk_sym == "memcpy":
                 gets_memcpy_path = True
         self.assertTrue(gets_memcpy_path, "source 'gets' and sink 'memcpy'")
         # Close test binary

@@ -2,7 +2,7 @@ from __future__       import annotations
 from enum             import Enum
 from typing           import Callable, List, Tuple
 from ..analysis.slice import MediumLevelILBackwardSlicer
-from ..common.helper  import SymbolHelper
+from ..common.helper  import InstructionHelper, SymbolHelper
 from ..common.log     import Logger
 import binaryninja as bn
 
@@ -216,11 +216,6 @@ class snk_func(func):
                         except Exception as e:
                             self._log.error(str(self), f"Exception: {str(e):s}")
                             continue
-                        # Determine slice's (set of) branch dependencies
-                        slice_branch_dependence = {}
-                        for inst in slice.keys():
-                            for bch_idx, bch_dep in inst.branch_dependence.items():
-                                slice_branch_dependence.setdefault(bch_idx, bch_dep)
                         # Check whether the slice contains any source
                         for source in sources:
                             if canceled(): break
@@ -229,11 +224,38 @@ class snk_func(func):
                                 for src_inst in src_insts:
                                     if canceled(): break
                                     if slicer.includes(src_inst):
+                                        # Slice's instructions and branch dependencies
+                                        insts = [snk_inst]
+                                        branch_deps = {}
+                                        for inst in slice.keys():
+                                            insts.append(inst)
+                                            if inst == src_inst:
+                                                break
+                                            for bch_idx, bch_dep in inst.branch_dependence.items():
+                                                branch_deps.setdefault(bch_idx, bch_dep)
+                                        paths.append({
+                                            "src_sym": sym_name,
+                                            "snk_sym": snk_name,
+                                            "snk_par": {
+                                                "num": parm_num,
+                                                "var": parm_var
+                                            },
+                                            "insts": insts
+                                        })
                                         t_src = f"0x{sym_addr:x} {sym_name:s}()"
                                         t_snk = f"0x{snk_inst.address:x} {snk_name}"
                                         t_snk = f"{t_snk:s}(arg#{parm_num+1:d}:{str(parm_var):s})"
                                         t_log = f"Interesting path: {t_src:s} --> {t_snk:s}"
-                                        t_log = f"{t_log:s} [L:{len(slice):d}, B:{len(slice_branch_dependence):d}]!"
+                                        t_log = f"{t_log:s} [L:{len(insts):d}, B:{len(branch_deps):d}]!"
                                         self._log.info(str(self), t_log)
-                                        paths.append((sym_name, src_inst, snk_name, snk_inst, parm_num, parm_var))
+                                        self._log.debug(str(self), "--- Backward Slice ---")
+                                        basic_block = None
+                                        for inst in insts:
+                                            if inst.il_basic_block != basic_block:
+                                                basic_block = inst.il_basic_block
+                                                fun_name = basic_block.function.name
+                                                bb_addr = basic_block[0].address
+                                                self._log.debug(str(self), f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+                                            self._log.debug(str(self), InstructionHelper.get_inst_info(inst))
+                                        self._log.debug(str(self), "----------------------")
         return paths

@@ -1,5 +1,5 @@
 from __future__   import annotations
-from typing       import List, Tuple
+from typing       import Dict, List, Union
 from ..common.log import Logger
 from ..ui.config  import ConfigController
 import binaryninja as bn
@@ -69,11 +69,9 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                 self._paths.extend(ps)
         return
     
-    def get_paths(self) -> List[Tuple[
-            str, bn.MediumLevelILInstruction,
-            str, bn.MediumLevelILInstruction,
-            int, bn.SSAVariable
-        ]]:
+    def get_paths(self) -> List[
+            Dict[str, Union[str, Dict[str, Union[int, bn.MediumLevelILInstruction]]]]
+        ]:
         """
         This method blocks until backward slicing finished and then returns all identified
         interesting looking code paths.

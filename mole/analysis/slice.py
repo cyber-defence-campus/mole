@@ -1,5 +1,5 @@
 from __future__      import annotations
-from typing          import Dict, Set
+from typing          import Dict, List, Set
 from ..common.helper import InstructionHelper
 from ..common.log    import Logger
 import binaryninja as bn
@@ -177,16 +177,6 @@ class MediumLevelILBackwardSlicer:
                 self._log.warn(self._tag, f"{info:s}: Missing handler")
         self._sliced_insts[inst] = vars
         return vars
-    
-    def includes(
-            self,
-            inst: bn.MediumLevelILInstruction
-        ) -> bool:
-        """
-        This method returns whether or not instruction `inst` was part of a previously conducted
-        backward slice.
-        """
-        return inst in self._sliced_insts
 
     def slice_backwards(
             self,
@@ -199,3 +189,13 @@ class MediumLevelILBackwardSlicer:
         """
         for _ in inst.ssa_form.traverse(self._slice_backwards): pass
         return self._sliced_insts
+    
+    def includes(
+            self,
+            inst: bn.MediumLevelILInstruction
+        ) -> bool:
+        """
+        This method returns whether or not instruction `inst` was part of a previously conducted
+        backward slice.
+        """
+        return inst in self._sliced_insts

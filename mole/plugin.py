@@ -1,5 +1,5 @@
 from __future__       import annotations
-from typing           import List, Tuple
+from typing           import Dict, List, Union
 from .analysis.thread import MediumLevelILBackwardSlicerThread
 from .common.log      import Logger
 from .model           import libapr, libc, libgio
@@ -158,11 +158,8 @@ class Plugin:
             bv: bn.BinaryView,
             max_func_depth: int = None,
             enable_all_funs: bool = False
-        ) -> None | List[Tuple[
-            str, bn.MediumLevelILInstruction,
-            str, bn.MediumLevelILInstruction,
-            int, bn.SSAVariable
-        ]]:
+        ) -> None | List[Dict[str, Union[str, Dict[str, Union[int, bn.MediumLevelILInstruction]]]]
+        ]:
         """
         This method analyzes the entire binary for interesting looking code paths.
         """
