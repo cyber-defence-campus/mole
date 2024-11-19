@@ -179,6 +179,30 @@ class TestMemcpy(unittest.TestCase):
         bv.file.close()
         return
     
+    @unittest.expectedFailure
+    def test_memcpy_10(self) -> None:
+        # Load and analyze test binary with Binary Ninja
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-10"))
+        bv.update_analysis_and_wait()
+        # Analyze test binary with plugin
+        paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
+        # Assert results
+        # TODO: What should be the expected result?
+        self.assertTrue(len(paths) == 0, "path(s) identified")
+        bv.file.close()
+        return
+    
+    def test_memcpy_11(self) -> None:
+        # Load and analyze test binary with Binary Ninja
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-11"))
+        bv.update_analysis_and_wait()
+        # Analyze test binary with plugin
+        paths = self.plugin.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
+        # Assert results
+        self.assertTrue(len(paths) == 0, "path(s) identified")
+        bv.file.close()
+        return
+    
 
 class TestSscanf(unittest.TestCase):
     """
