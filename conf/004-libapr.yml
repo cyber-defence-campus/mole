@@ -1,0 +1,71 @@
+sources:
+  libapr:
+    name: libapr
+    categories:
+      Character Inputs:
+        name: Character Inputs
+        functions:
+          apr_file_getc:
+            name: apr_file_getc
+            symbols: [apr_file_getc, __builtin_apr_file_getc]
+            synopsis: apr_status_t apr_file_getc(char* ch, apr_file_t* thefile)
+            enabled: false
+            par_cnt: i == 2
+            par_dataflow: 'False'
+            par_slice: i == 0
+      Line Inputs:
+        name: Line Inputs
+        functions:
+          apr_file_gets:
+            name: apr_file_gets
+            symbols: [apr_file_gets, __builtin_apr_file_gets]
+            synopsis: apr_status_t apr_file_gets(char* str, int len, apr_file_t* thefile)
+            enabled: false
+            par_cnt: i == 3
+            par_dataflow: 'False'
+            par_slice: i == 0
+      File and Directories:
+        name: File and Directories
+        functions:
+          apr_file_read:
+            name: apr_file_read
+            symbols: [apr_file_read, __builtin_apr_file_read]
+            synopsis: apr_status_t apr_file_read(apr_file_t* thefile, void* buf, apr_size_t* nbytes)
+            enabled: false
+            par_cnt: i == 3
+            par_dataflow: 'False'
+            par_slice: i >= 0
+          apr_file_read_full:
+            name: apr_file_read_full
+            symbols: [apr_file_read_full, __builtin_apr_file_read_full]
+            synopsis: apr_status_t apr_file_read_full(apr_file_t* thefile, void* buf, apr_size_t nbytes, apr_size_t* bytes_read)
+            enabled: false
+            par_cnt: i == 4
+            par_dataflow: 'False'
+            par_slice: i == 1 or i == 3
+      Networks:
+        name: Networks
+        functions:
+          apr_socket_recv:
+            name: apr_socket_recv
+            symbols: [apr_socket_recv, __builtin_apr_socket_recv]
+            synopsis: apr_status_t apr_socket_recv(apr_socket_t* sock, char* buf, apr_size_t* len)
+            enabled: false
+            par_cnt: i == 3
+            par_dataflow: 'False'
+            par_slice: i == 1
+sinks:
+  libapr:
+    name: libapr
+    categories:
+      String Copy:
+        name: String Copy
+        functions:
+          apr_cpystrn:
+            name: apr_cpystrn
+            symbols: [apr_cpystrn, __builtin_apr_cpystrn]
+            synopsis: char* apr_cpystrn(char* dst, const char* src, apr_size_t dst_size)
+            enabled: false
+            par_cnt: i == 3
+            par_dataflow: 'False'
+            par_slice: 'True'

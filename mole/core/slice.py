@@ -1,7 +1,7 @@
 from __future__      import annotations
-from typing          import Dict, List, Set
-from ..common.helper import InstructionHelper
+from ..common.help import InstructionHelper
 from ..common.log    import Logger
+from typing          import Dict, Set
 import binaryninja as bn
 
 

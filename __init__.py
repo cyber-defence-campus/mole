@@ -1,6 +1,5 @@
 from __future__       import annotations
-from .mole.common.log import Logger
-from .mole.plugin     import Plugin
+from .mole.main       import Controller
 
-# Initialize plugin and register it with Binary Ninja
-Plugin().register()
+# Initialize controller
+Controller().init()

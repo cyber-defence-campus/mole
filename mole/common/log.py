@@ -1,8 +1,8 @@
+from   binaryninja import log_debug, log_info, log_warn, log_error
+from   datetime    import datetime
+from   termcolor   import colored
+from   typing      import List, Literal
 import sys
-from   binaryninja  import log_debug, log_info, log_warn, log_error
-from   datetime     import datetime
-from   termcolor    import colored
-from   typing       import List, Literal
 
 
 class Logger:
