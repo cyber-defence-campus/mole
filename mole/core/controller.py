@@ -278,7 +278,7 @@ class Controller:
         This method updates the model to reflect a changing value of all checkboxes in a given
         category.
         """
-        for _, fun in cat.functions.items():
+        for fun in cat.functions.values():
             fun.enabled = checked
             fun.checkbox.setChecked(checked)
         return

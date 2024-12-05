@@ -124,14 +124,14 @@ class SidebarWidget(bnui.SidebarWidget):
         This method initializes the tabs `Sources` and `Sinks`.
         """
         tab_wid = qtw.QTabWidget()
-        for _, lib in self._ctr.get_libraries(tab_name).items():
+        for lib in self._ctr.get_libraries(tab_name).values():
             lib_lay = qtw.QVBoxLayout()
             lib_wid = qtw.QWidget()
             lib_wid.setLayout(lib_lay)
-            for _, cat in lib.categories.items():
+            for cat in lib.categories.values():
                 # Function widget
                 fun_lay = qtw.QFormLayout()
-                for _, fun in cat.functions.items():
+                for fun in cat.functions.values():
                     fun.checkbox = qtw.QCheckBox(fun.name)
                     fun.checkbox.setChecked(fun.enabled)
                     fun.checkbox.setToolTip(fun.synopsis)
