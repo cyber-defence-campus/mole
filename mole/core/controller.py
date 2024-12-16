@@ -312,9 +312,7 @@ class Controller:
             enable_all_funs: bool = False,
             button: qtw.QPushButton = None,
             widget: qtw.QListWidget = None
-        ) -> None | List[
-            Dict[str, Union[str, Dict[str, Union[int, bn.MediumLevelILInstruction]]]]
-        ]:
+        ) -> None | List[Path]:
         """
         This method analyzes the entire binary for interesting looking code paths.
         """
