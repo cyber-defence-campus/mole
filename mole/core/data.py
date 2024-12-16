@@ -242,17 +242,14 @@ class SinkFunction(Function):
             bv: bn.BinaryView,
             sources: List[SourceFunction],
             max_func_depth: int,
+            found_path: Callable[[Path], None],
             canceled: Callable[[], bool],
             tag: str = None,
             log: Logger = Logger()
-        ) -> List[Tuple[
-            str, bn.MediumLevelILInstruction,
-            str, bn.MediumLevelILInstruction,
-            int, bn.SSAVariable
-        ]]:
+        ) -> List[Path]:
         """
         This method tries to find paths, starting from the current sink and ending in one of the
-        given `sources`, using static backward slicing.
+        given `sources` using static backward slicing.
         """
         paths = []
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
@@ -273,25 +270,25 @@ class SinkFunction(Function):
                     log.warn(tag, f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments")
                     continue
                 # Analyze parameters
-                for parm_num, parm_var in enumerate(snk_inst.params):
+                for par_idx, par_var in enumerate(snk_inst.params):
                     if canceled(): break
-                    log.debug(tag, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                    log.debug(tag, f"Analyze argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
                     # Perform dataflow analysis
-                    if self.par_dataflow_fun(parm_num):
+                    if self.par_dataflow_fun(par_idx):
                         # Ignore constant parameters
-                        if parm_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            log.debug(tag, f"0x{snk_inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                        if par_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
+                            log.debug(tag, f"0x{snk_inst.address:x} Ignore constant argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
-                        possible_sizes = parm_var.possible_values
+                        possible_sizes = par_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            log.debug(tag, f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            log.debug(tag, f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
                             continue
                     # Backward slice the parameter
-                    if self.par_slice_fun(parm_num):
+                    if self.par_slice_fun(par_idx):
                         slicer = MediumLevelILBackwardSlicer(bv, max_func_depth, self.name, log)
                         try:
-                            slice = slicer.slice_backwards(parm_var)
+                            slice = slicer.slice_backwards(par_var)
                         except Exception as e:
                             log.error(tag, f"Exception: {str(e):s}")
                             continue
@@ -303,29 +300,31 @@ class SinkFunction(Function):
                                 for src_inst in src_insts:
                                     if canceled(): break
                                     if slicer.includes(src_inst):
-                                        # Slice's instructions and branch dependencies
+                                        # Calculate slice's instructions and branch dependencies
                                         insts = [snk_inst]
-                                        branch_deps = {}
+                                        bdeps = {}
                                         for inst in slice.keys():
                                             insts.append(inst)
                                             if inst == src_inst:
                                                 break
                                             for bch_idx, bch_dep in inst.branch_dependence.items():
-                                                branch_deps.setdefault(bch_idx, bch_dep)
-                                        paths.append({
-                                            "src_sym": sym_name,
-                                            "snk_sym": snk_name,
-                                            "snk_par": {
-                                                "num": parm_num,
-                                                "var": parm_var
-                                            },
-                                            "insts": insts
-                                        })
-                                        t_src = f"0x{sym_addr:x} {sym_name:s}()"
-                                        t_snk = f"0x{snk_inst.address:x} {snk_name}"
-                                        t_snk = f"{t_snk:s}(arg#{parm_num+1:d}:{str(parm_var):s})"
-                                        t_log = f"Interesting path: {t_src:s} --> {t_snk:s}"
-                                        t_log = f"{t_log:s} [L:{len(insts):d}, B:{len(branch_deps):d}]!"
+                                                bdeps.setdefault(bch_idx, bch_dep)
+                                        # Store path
+                                        path = Path(
+                                            src_sym_addr=sym_addr,
+                                            src_sym_name=sym_name,
+                                            snk_sym_addr=snk_inst.address,
+                                            snk_sym_name=snk_name,
+                                            snk_par_idx=par_idx,
+                                            snk_par_var=par_var,
+                                            insts=insts,
+                                            bdeps=bdeps
+                                        )
+                                        paths.append(path)
+                                        found_path(path)
+                                        # Log path
+                                        t_log = f"Interesting path: {str(path):s}"
+                                        t_log = f"{t_log:s} [L:{len(insts):d}, B:{len(bdeps):d}]!"
                                         log.info(tag, t_log)
                                         log.debug(tag, "--- Backward Slice ---")
                                         basic_block = None
@@ -338,7 +337,45 @@ class SinkFunction(Function):
                                             log.debug(tag, InstructionHelper.get_inst_info(inst))
                                         log.debug(tag, "----------------------")
         return paths
+
+
+@dataclass
+class Path:
+    """
+    This class is a representation of the data associated with identified paths.
+    """
+    src_sym_addr: int
+    src_sym_name: str
+    snk_sym_addr: int
+    snk_sym_name: str
+    snk_par_idx: int
+    snk_par_var: bn.MediumLevelILVarSsa
+    insts: List[bn.MediumLevelILInstruction] = field(default_factory=list)
+    bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
+
+    def __eq__(self, other: Path) -> bool:
+        if not isinstance(other, Path):
+            try:
+                other = Path(**other)
+            except:
+                return False
+        return (
+            self.src_sym_addr == other.src_sym_addr and
+            self.src_sym_name == other.src_sym_name and
+            self.snk_sym_addr == other.snk_sym_addr and
+            self.snk_sym_name == other.snk_sym_name and
+            self.snk_par_idx  == other.snk_par_idx  and
+            self.snk_par_var  == other.snk_par_var  and
+            self.insts        == other.insts        and
+            self.bdeps        == other.bdeps
+        )
     
+    def __str__(self) -> str:
+        src = f"0x{self.src_sym_addr:x} {self.src_sym_name:s}"
+        snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
+        snk = f"{snk:s}(arg#{self.snk_par_idx+1:d}:{str(self.snk_par_var):s})"
+        return f"{src:s} --> {snk:s}"
+
 
 @dataclass
 class WidgetSetting:
@@ -364,7 +401,8 @@ class WidgetSetting:
             "value": self.value,
             "help": self.help
         }
-    
+
+
 @dataclass
 class SpinboxSetting(WidgetSetting):
     """

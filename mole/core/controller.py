@@ -26,6 +26,7 @@ class Controller:
         self._runs_headless = runs_headless
         self._tag = tag
         self._log = log
+        self._thread = None
         self._model = None
         self._view = None
         self._conf_path = os.path.join(
@@ -33,6 +34,8 @@ class Controller:
             "../../conf/"
         )
         self._parser = LogicalExpressionParser(log=log)
+        self._paths = {}
+        self._paths_widget = None
         return
     
     def init(self) -> Controller:
@@ -47,6 +50,22 @@ class Controller:
         self.load_custom_conf_files()
         self.load_main_conf_file()
         return self
+    
+    def __give_feedback(self, button: qtw.QPushButton, text: str, msec: int = 1000) -> None:
+        """
+        This method provides user feedback using a `QPushButton`'s text.
+        """
+        def __reset_button(text: str) -> None:
+            button.setText(text)
+            button.setEnabled(True)
+            return
+        
+        if button:
+            button.setEnabled(False)
+            old_text = button.text()
+            button.setText(text)
+            qtc.QTimer.singleShot(msec, lambda text=old_text: __reset_button(text=text))
+        return
     
     def load_custom_conf_files(self) -> None:
         """
@@ -167,9 +186,7 @@ class Controller:
                 encoding="utf-8"
             )
         # User feedback
-        if button:
-            button.setText("Saving...")
-            qtc.QTimer.singleShot(1000, lambda: button.setText("Save"))
+        self.__give_feedback(button, "Saving...")
         return
     
     def reset_conf(self, button: qtw.QPushButton = None) -> None:
@@ -218,9 +235,7 @@ class Controller:
             if isinstance(setting, SpinboxSetting):
                 setting.widget.setValue(setting.value)
         # User feedback
-        if button:
-            button.setText("Resetting...")
-            qtc.QTimer.singleShot(1000, lambda: button.setText("Reset"))
+        self.__give_feedback(button, "Resetting...")
         return
 
     def get_libraries(self, type: Literal["Sources", "Sinks"]) -> Dict[str, Library]:
@@ -295,7 +310,8 @@ class Controller:
             bv: bn.BinaryView,
             max_func_depth: int = None,
             enable_all_funs: bool = False,
-            button: qtw.QPushButton = None
+            button: qtw.QPushButton = None,
+            widget: qtw.QListWidget = None
         ) -> None | List[
             Dict[str, Union[str, Dict[str, Union[int, bn.MediumLevelILInstruction]]]]
         ]:
@@ -305,12 +321,20 @@ class Controller:
         # Require a binary to be loaded
         if not bv:
             self._log.warn(self._tag, "No binary loaded.")
-            if button:
-                button.setText("No Binary Loaded...")
-                qtc.QTimer.singleShot(1000, lambda: button.setText("Run"))
+            self.__give_feedback(button, "No binary loaded...")
             return
+        # Require previous analyses to complete
+        if self._thread and not self._thread.finished:
+            self._log.warn(self._tag, "Analysis already running.")
+            self.__give_feedback(button, "Analysis already running...")
+            return
+        # Initialize data structures
+        self._paths = {}
+        if widget:
+            self._paths_widget = widget
+            self._paths_widget.clear()
         # Run background thread
-        thread = MediumLevelILBackwardSlicerThread(
+        self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
             ctr=self,
             runs_headless=self._runs_headless,
@@ -318,10 +342,60 @@ class Controller:
             enable_all_funs=enable_all_funs,
             log=self._log
         )
-        thread.start()
+        self._thread.start()
         if self._runs_headless:
-            return thread.get_paths()
+            return self._thread.get_paths()
         return None
+    
+    def add_path_to_view(
+            self,
+            path: Path
+        ) -> None:
+        """
+        This method updates the UI with a newly identified path.
+        """
+        def update_paths_widget() -> None:
+            if not self._paths_widget:
+                return
+            self._paths[str(path)] = path
+            self._paths_widget.addItem(str(path))
+        
+        bn.execute_on_main_thread(update_paths_widget)
+        return
+    
+    def select_path(self, item: qtw.QListWidgetItem) -> None:
+        """
+        This method logs information about a path.
+        """
+        if not item: return
+        path = self._paths.get(item.text(), None)
+        if not path: return
+        msg = f"Selected path: {str(path):s}"
+        msg = f"{msg:s} [L: {len(path.insts):d}, B:{len(path.bdeps):d}]!"
+        self._log.info(self._tag, msg)
+        self._log.debug(self._tag, "--- Backward Slice ---")
+        basic_block = None
+        for inst in path.insts:
+            if inst.il_basic_block != basic_block:
+                basic_block = inst.il_basic_block
+                fun_name = basic_block.function.name
+                bb_addr = basic_block[0].address
+                self._log.debug(self._tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+            self._log.debug(self._tag, InstructionHelper.get_inst_info(inst))
+        self._log.debug(self._tag, "----------------------")
+        return
+
+    def highlight_path(self, item: qtw.QListWidgetItem) -> None:
+        """
+        TODO: This method highlights all instructions in a path.
+        """
+        if not item: return
+        path = self._paths.get(item.text(), None)
+        if not path: return
+        msg = f"Highlighted path: {str(path):s}"
+        msg = f"{msg:s} [L: {len(path.insts):d}, B:{len(path.bdeps):d}]!"
+        self._log.debug(self._tag, msg)
+        return
 
 
 class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
@@ -379,20 +453,19 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             for i, snk_fun in enumerate(snk_funs):
                 if self.cancelled: break
                 self.progress = f"Find paths for sink function {i+1:d}/{len(snk_funs):d}..."
-                ps = snk_fun.find_paths(
-                    self._bv,
-                    src_funs,
-                    max_func_depth,
-                    lambda: self.cancelled,
-                    self._tag,
-                    self._log
+                paths = snk_fun.find_paths(
+                    bv=self._bv,
+                    sources=src_funs,
+                    max_func_depth=max_func_depth,
+                    found_path=self._ctr.add_path_to_view,
+                    canceled=lambda:self.cancelled,
+                    tag=self._tag,
+                    log=self._log
                 )
-                self._paths.extend(ps)
+                self._paths.extend(paths)
         return
     
-    def get_paths(self) -> List[
-            Dict[str, Union[str, Dict[str, Union[int, bn.MediumLevelILInstruction]]]]
-        ]:
+    def get_paths(self) -> List[Path]:
         """
         This method blocks until backward slicing finished and then returns all identified
         interesting looking code paths.

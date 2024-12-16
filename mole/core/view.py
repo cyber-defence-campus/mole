@@ -228,9 +228,20 @@ class SidebarWidget(bnui.SidebarWidget):
         """
         This method initializes the tab `Run`.
         """
+        res_lst = qtw.QListWidget()
+        res_lst.itemClicked.connect(
+            lambda _: self._ctr.select_path(res_lst.currentItem())
+        )
+        res_lst.itemDoubleClicked.connect(
+            lambda: self._ctr.highlight_path(res_lst.currentItem())
+        )
+        res_box_lay = qtw.QVBoxLayout()
+        res_box_lay.addWidget(res_lst)
+        res_box_wid = qtw.QGroupBox("Interesting Paths:")
+        res_box_wid.setLayout(res_box_lay)
         run_but = qtw.QPushButton("Run")
         run_but.clicked.connect(
-            lambda _, but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but)
+            lambda _, but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but, widget=res_lst)
         )
         run_box_lay = qtw.QVBoxLayout()
         run_box_lay.addWidget(run_but)
@@ -238,6 +249,7 @@ class SidebarWidget(bnui.SidebarWidget):
         run_box_wid.setLayout(run_box_lay)
         lay = qtw.QVBoxLayout()
         lay.addWidget(run_box_wid)
+        lay.addWidget(res_box_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid, "Run"
