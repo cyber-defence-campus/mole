@@ -323,12 +323,17 @@ class Controller:
         # Require a binary to be loaded
         if not bv:
             self._log.warn(self._tag, "No binary loaded.")
-            self.__give_feedback(button, "No binary loaded...")
+            self.__give_feedback(button, "No Binary Loaded...")
+            return
+        # Require the binary to be in mapped view
+        if bv.view_type == "Raw":
+            self._log.warn(self._tag, "Binary in 'Raw' view.")
+            self.__give_feedback(button, "Binary in 'Raw' View...")
             return
         # Require previous analyses to complete
         if self._thread and not self._thread.finished:
             self._log.warn(self._tag, "Analysis already running.")
-            self.__give_feedback(button, "Analysis already running...")
+            self.__give_feedback(button, "Analysis Already Running...")
             return
         # Initialize data structures
         self._paths = {}
