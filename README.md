@@ -69,3 +69,7 @@ At log level *DEBUG*, we get a list of all the instructions in the identified pa
 [...]
 ```
 Note also that the output groups the instructions by basic blocks (*BB*). For example, the instructions 1-5 belong to the basic block starting at adddress `0x4d4` and to the function (*FUN*) named `main`. Instructions 6-8 to the BB at `0x480` and FUN `atoi`, and so on. This grouping especially helps when following along an identified path in *Binary Ninja*'s graph view.
+
+In addition to the log entries mentioned before, *Mole* also summarizes the identified paths in its *Run* tab (when used with the *Binary Ninja UI*). Clicking on a listed path prints its details to the log once again. Double-clicking a path highlights its corresponding instructions, as shown in the screenshot below. Double-clicking the same path a second time removes the instruction highlights. Visualizing a path's instructions helps users to better understand and verify a path.
+
+![Mole UI Interesting Paths](https://github.com/user-attachments/assets/e466d5b0-f36e-4032-ba4e-97bd431ff46f)
