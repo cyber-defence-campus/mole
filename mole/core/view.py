@@ -2,6 +2,7 @@ from __future__   import annotations
 from ..common.log import Logger
 from ..main       import Controller
 from typing       import Any, Literal, Tuple
+import binaryninja       as bn
 import binaryninjaui     as bnui
 import os                as os
 import PySide6.QtCore    as qtc
@@ -21,9 +22,9 @@ class SidebarView(bnui.SidebarWidgetType):
             log: Logger = Logger()
         ) -> None:
         super().__init__(self._init_icon(), "Mole")
-        self._ctr = ctr
-        self._tag = tag
-        self._log = log
+        self._ctr: Controller = ctr
+        self._tag: str = tag
+        self._log: Logger = log
         return
     
     def _init_icon(self) -> qtui.QImage:
@@ -85,10 +86,10 @@ class SidebarWidget(bnui.SidebarWidget):
             log: Logger = Logger()
         ) -> None:
         super().__init__("Mole")
-        self._ctr = ctr
-        self._tag = tag
-        self._log = log
-        self._bv = None
+        self._ctr: Controller = ctr
+        self._tag: str = tag
+        self._log: Logger = log
+        self._bv: bn.BinaryView = None
         return
     
     def init(self) -> SidebarWidget:

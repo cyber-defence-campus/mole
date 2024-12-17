@@ -16,7 +16,7 @@ class Logger:
             runs_headless: bool = False
         ) -> None:
         self._set_level(level)
-        self._runs_headless = runs_headless
+        self._runs_headless: bool = runs_headless
         return
     
     def _set_level(

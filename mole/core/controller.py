@@ -2,7 +2,7 @@ from __future__        import annotations
 from ..common.parse    import LogicalExpressionParser
 from ..common.log      import Logger
 from .data             import *
-from typing            import Dict, List, Literal
+from typing            import Any, Dict, List, Literal
 import binaryninja       as bn
 import copy              as copy
 import fnmatch           as fn
@@ -23,23 +23,23 @@ class Controller:
             tag: str = "Controller",
             log: Logger = Logger(level="debug")
         ) -> None:
-        self._runs_headless = runs_headless
-        self._tag = tag
-        self._log = log
-        self._thread = None
-        self._model = None
-        self._view = None
-        self._conf_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "../../conf/"
-        )
-        self._parser = LogicalExpressionParser(log=log)
+        self._runs_headless: bool = runs_headless
+        self._tag: str = tag
+        self._log: Logger = log
+        self._model: Any = None
+        self._view: Any = None
+        self._thread: MediumLevelILBackwardSlicerThread = None
+        self._parser: LogicalExpressionParser = LogicalExpressionParser(log=log)
         self._paths: Dict[str, Path] = {}
-        self._paths_widget = None
+        self._paths_widget: qtw.QListWidget = None
         self._paths_highlight: Tuple[
             Path,
             Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
+        self._conf_path: str = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "../../conf/"
+        )
         return
     
     def init(self) -> Controller:
@@ -437,13 +437,13 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             log: Logger = Logger()
         ) -> None:
         super().__init__(initial_progress_text="Start slicing...", can_cancel=True)
-        self._bv = bv
-        self._ctr = ctr
-        self._runs_headless = runs_headless
-        self._max_func_depth = max_func_depth
-        self._enable_all_funs = enable_all_funs
-        self._tag = tag
-        self._log = log
+        self._bv: bn.BinaryView = bv
+        self._ctr: Controller = ctr
+        self._runs_headless: bool = runs_headless
+        self._max_func_depth: int = max_func_depth
+        self._enable_all_funs: bool = enable_all_funs
+        self._tag: str = tag
+        self._log: Logger = log
         return
     
     def run(self) -> None:

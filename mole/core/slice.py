@@ -17,11 +17,11 @@ class MediumLevelILBackwardSlicer:
             tag: str = "BackSlicer",
             log: Logger = Logger()
         ) -> None:
-        self._bv = bv
-        self._tag = tag
-        self._log = log
-        self._max_func_depth = max_func_depth
-        self._sliced_insts = {}
+        self._bv: bn.BinaryView = bv
+        self._tag: str = tag
+        self._log: Logger = log
+        self._max_func_depth: int = max_func_depth
+        self._sliced_insts: Dict[bn.MediumLevelILInstruction, Set[bn.SSAVariable]] = {}
         return
     
     def _slice_ssa_var_definition(

@@ -41,9 +41,9 @@ class LogicalExpressionParser:
             tag: str = "LogicalExpressionParser",
             log: Logger = Logger()
         ) -> None:
-        self._tag = tag
-        self._log = log
-        self._parser = Lark(
+        self._tag: str = tag
+        self._log: Logger = log
+        self._parser: Lark = Lark(
             grammar=self.grammar,
             parser="lalr",
             transformer=LogicalExpressionTransformer()

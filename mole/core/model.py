@@ -15,10 +15,10 @@ class SidebarModel:
             tag: str = "Sidebar",
             log: Logger = Logger()
         ) -> None:
-        self._ctr = ctr
-        self._tag = tag
-        self._log = log
-        self._cfg = None
+        self._ctr: Controller = ctr
+        self._tag: str = tag
+        self._log: Logger = log
+        self._cfg: Configuration = None
         return
 
     def init(self) -> SidebarModel:
