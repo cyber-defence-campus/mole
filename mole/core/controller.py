@@ -2,7 +2,7 @@ from __future__        import annotations
 from ..common.parse    import LogicalExpressionParser
 from ..common.log      import Logger
 from .data             import *
-from typing            import Dict, List, Literal, Union
+from typing            import Dict, List, Literal
 import binaryninja       as bn
 import copy              as copy
 import fnmatch           as fn
@@ -34,8 +34,12 @@ class Controller:
             "../../conf/"
         )
         self._parser = LogicalExpressionParser(log=log)
-        self._paths = {}
+        self._paths: Dict[str, Path] = {}
         self._paths_widget = None
+        self._paths_highlight: Tuple[
+            Path,
+            Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
+        ] = (None, {})
         return
     
     def init(self) -> Controller:
@@ -368,7 +372,7 @@ class Controller:
         if not item: return
         path = self._paths.get(item.text(), None)
         if not path: return
-        msg = f"Selected path: {str(path):s}"
+        msg = f"Path: {str(path):s}"
         msg = f"{msg:s} [L: {len(path.insts):d}, B:{len(path.bdeps):d}]!"
         self._log.info(self._tag, msg)
         self._log.debug(self._tag, "--- Backward Slice ---")
@@ -381,18 +385,39 @@ class Controller:
                 self._log.debug(self._tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
             self._log.debug(self._tag, InstructionHelper.get_inst_info(inst))
         self._log.debug(self._tag, "----------------------")
+        self._log.debug(self._tag, msg)
         return
 
-    def highlight_path(self, item: qtw.QListWidgetItem) -> None:
+    def highlight_path(
+            self, item: qtw.QListWidgetItem,
+            color: bn.HighlightStandardColor = bn.HighlightStandardColor.RedHighlightColor
+        ) -> None:
         """
-        TODO: This method highlights all instructions in a path.
+        This method highlights all instructions in a path.
         """
         if not item: return
         path = self._paths.get(item.text(), None)
         if not path: return
-        msg = f"Highlighted path: {str(path):s}"
-        msg = f"{msg:s} [L: {len(path.insts):d}, B:{len(path.bdeps):d}]!"
-        self._log.debug(self._tag, msg)
+        highlighted_path, insts_colors = self._paths_highlight
+        # Undo path highlighting
+        for addr, (inst, old_color) in insts_colors.items():
+            func = inst.function.source_function
+            func.set_auto_instr_highlight(addr, old_color)
+        # Remove path highlighting
+        if path == highlighted_path:
+            highlighted_path = None
+            insts_colors = {}
+        # Add path highlighting
+        else:
+            highlighted_path = path
+            insts_colors = {}
+            for inst in path.insts:
+                func = inst.function.source_function
+                addr = inst.address
+                if not addr in insts_colors:
+                    insts_colors[addr] = (inst, func.get_instr_highlight(addr))
+                func.set_auto_instr_highlight(addr, color)
+        self._paths_highlight = (highlighted_path, insts_colors)
         return
 
 
