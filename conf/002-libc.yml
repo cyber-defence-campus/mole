@@ -246,7 +246,7 @@ sources:
             symbols: [fopen, __builtin_fopen]
             synopsis: FILE* fopen(const char* pathname, const char* mode)
             enabled: true
-            par_cnt: i == 3
+            par_cnt: i == 2
             par_dataflow: 'False'
             par_slice: 'False'
           freopen:
