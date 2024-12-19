@@ -427,3 +427,27 @@ class SpinboxSetting(WidgetSetting):
             "max_value": self.max_value
         })
         return d
+
+
+@dataclass
+class ComboboxSetting(WidgetSetting):
+    """
+    This class is a representation of the data associated with a combobox widget.
+    """
+    items: List[str] = field(default_factory=list)
+    widget: qtw.QComboBox = None
+
+    def __eq__(self, other: ComboboxSetting) -> bool:
+        if not isinstance(other, ComboboxSetting):
+            try:
+                other = ComboboxSetting(**other)
+            except:
+                return False
+        return super().__eq__(other)
+    
+    def to_dict(self) -> Dict:
+        d = super().to_dict()
+        d.update({
+            "items": self.items
+        })
+        return d

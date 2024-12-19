@@ -2,7 +2,7 @@ from __future__        import annotations
 from ..common.parse    import LogicalExpressionParser
 from ..common.log      import Logger
 from .data             import *
-from typing            import Any, Dict, List, Literal
+from typing            import Dict, List, Literal
 import binaryninja       as bn
 import copy              as copy
 import fnmatch           as fn
@@ -26,8 +26,8 @@ class Controller:
         self._runs_headless: bool = runs_headless
         self._tag: str = tag
         self._log: Logger = log
-        self._model: Any = None
-        self._view: Any = None
+        # self._model: Any = None
+        # self._view: Any = None
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(log=log)
         self._paths: Dict[str, Path] = {}
@@ -47,10 +47,10 @@ class Controller:
         This method initializes the plugin's model and view.
         """
         from .model import SidebarModel
-        self._model = SidebarModel(self, self._tag, self._log).init()
+        self._model: SidebarModel = SidebarModel(self, self._tag, self._log).init()
         if not self._runs_headless:
             from .view import SidebarView
-            self._view = SidebarView(self, self._tag, self._log).init()
+            self._view: SidebarView = SidebarView(self, self._tag, self._log).init()
         self.load_custom_conf_files()
         self.load_main_conf_file()
         return self
@@ -161,10 +161,24 @@ class Controller:
                 parsed_conf["settings"].update({
                     mfd_name: SpinboxSetting(
                         name=mfd_name,
-                        help=mfd_help,
                         value=mfd_value,
+                        help=mfd_help,
                         min_value=mfd_min_value,
                         max_value=mfd_max_value
+                    )
+                })
+            col_name = "highlight_color"
+            col_settings = settings.get(col_name, None)
+            if col_settings:
+                col_value = col_settings.get("value", "")
+                col_help = col_settings.get("help", "")
+                col_items = col_settings.get("items", [])
+                parsed_conf["settings"].update({
+                    col_name: ComboboxSetting(
+                        name=col_name,
+                        value=col_value,
+                        help=col_help,
+                        items=col_items
                     )
                 })
         except Exception as e:
@@ -238,6 +252,9 @@ class Controller:
             setting.widget = settings.get(setting_name, None)
             if isinstance(setting, SpinboxSetting):
                 setting.widget.setValue(setting.value)
+            elif isinstance(setting, ComboboxSetting):
+                if setting.value in setting.items:
+                    setting.widget.setCurrentText(setting.value)
         # User feedback
         self.__give_feedback(button, "Resetting...")
         return
@@ -305,6 +322,13 @@ class Controller:
     def spinbox_change_value(self, setting: SpinboxSetting, value: int) -> None:
         """
         This method updates the model to reflect spinbox value changes.
+        """
+        setting.value = value
+        return
+    
+    def combobox_change_value(self, setting: ComboboxSetting, value: str) -> None:
+        """
+        This method updates the model to reflect combobox value changes.
         """
         setting.value = value
         return
@@ -393,10 +417,7 @@ class Controller:
         self._log.debug(self._tag, msg)
         return
 
-    def highlight_path(
-            self, item: qtw.QListWidgetItem,
-            color: bn.HighlightStandardColor = bn.HighlightStandardColor.RedHighlightColor
-        ) -> None:
+    def highlight_path(self, item: qtw.QListWidgetItem) -> None:
         """
         This method highlights all instructions in a path.
         """
@@ -416,6 +437,13 @@ class Controller:
         else:
             highlighted_path = path
             insts_colors = {}
+            try:
+                model = self._model.get()
+                widget = model.settings.get("highlight_color").widget
+                color_name = widget.currentText().capitalize()
+                color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
+            except:
+                color = bn.HighlightStandardColor.RedHighlightColor
             for inst in path.insts:
                 func = inst.function.source_function
                 addr = inst.address

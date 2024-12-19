@@ -64,6 +64,22 @@ class TestData(unittest.TestCase):
                     min_value=0,
                     max_value=10,
                     help="backward slicing visits called functions up to the given depth"
+                ),
+                "highlight_color": ComboboxSetting(
+                    name="highlight_color",
+                    value="Red",
+                    items=[
+                        "Blue",
+                        "Green",
+                        "Cyan",
+                        "Red",
+                        "Magenta",
+                        "Yellow",
+                        "Orange",
+                        "White",
+                        "Black"
+                    ],
+                    help="color used to highlight paths"
                 )
             }
         )
@@ -175,6 +191,24 @@ class TestData(unittest.TestCase):
         ydoc = yaml.safe_load(self.tf)
         # Assert
         self.assertEqual(ydoc, setting, "Serialization error of 'SpinboxSetting'")
+        return
+    
+    def test_serialize_combobox_settings(self) -> None:
+        setting = self.conf.settings["highlight_color"]
+        # Serialize
+        yaml.safe_dump(
+            setting.to_dict(),
+            self.tf,
+            sort_keys=False,
+            default_style=None,
+            default_flow_style=None,
+            encoding="utf-8"
+        )
+        # Deserialize
+        self.tf.seek(0)
+        ydoc = yaml.safe_load(self.tf)
+        # Assert
+        self.assertEqual(ydoc, setting, "Serialization error of 'ComboboxSetting'")
         return
     
     def tearDown(self) -> None:

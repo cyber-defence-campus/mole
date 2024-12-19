@@ -177,9 +177,9 @@ class SidebarWidget(bnui.SidebarWidget):
         """
         This method initializes the tab `Settings`.
         """
+        settings = self._ctr.get_settings()
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
-        settings = self._ctr.get_settings()
         mfd_name = "max_func_depth"
         mfd = settings.get(mfd_name, None)
         if mfd:
@@ -190,16 +190,37 @@ class SidebarWidget(bnui.SidebarWidget):
             mfd.widget.valueChanged.connect(
                 lambda value, setting=mfd: self._ctr.spinbox_change_value(setting, value)
             )
-            mfd_lbl = qtw.QLabel(mfd_name)
+            mfd_lbl = qtw.QLabel(f"{mfd_name:s}:")
             mfd_lbl.setToolTip(mfd.help)
-            com_lay.addRow(mfd.widget, mfd_lbl)
+            com_lay.addRow(mfd_lbl, mfd.widget)
         com_wid.setLayout(com_lay)
         com_box_lay = qtw.QVBoxLayout()
         com_box_lay.addWidget(com_wid)
         com_box_wid = qtw.QGroupBox("Common:")
         com_box_wid.setLayout(com_box_lay)
+        pth_wid = qtw.QWidget()
+        pth_lay = qtw.QFormLayout()
+        col_name = "highlight_color"
+        col = settings.get(col_name, None)
+        if col:
+            col.widget = qtw.QComboBox()
+            col.widget.addItems(col.items)
+            if col.value in col.items:
+                col.widget.setCurrentText(col.value)
+            col.widget.setToolTip(col.help)
+            col.widget.currentTextChanged.connect(
+                lambda value, setting=col: self._ctr.combobox_change_value(setting, value)
+            )
+            col_lbl = qtw.QLabel(f"{col_name:s}:")
+            pth_lay.addRow(col_lbl, col.widget)
+        pth_wid.setLayout(pth_lay)
+        pth_box_lay = qtw.QVBoxLayout()
+        pth_box_lay.addWidget(pth_wid)
+        pth_box_wid = qtw.QGroupBox("Path Identification:")
+        pth_box_wid.setLayout(pth_box_lay)
         lay = qtw.QVBoxLayout()
         lay.addWidget(com_box_wid)
+        lay.addWidget(pth_box_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid, "Settings"
@@ -238,7 +259,7 @@ class SidebarWidget(bnui.SidebarWidget):
         )
         res_lay = qtw.QVBoxLayout()
         res_lay.addWidget(res_lst)
-        res_wid = qtw.QGroupBox("Interesting Paths:")
+        res_wid = qtw.QGroupBox("Path Identification:")
         res_wid.setLayout(res_lay)
         run_but = qtw.QPushButton("Analyze Binary")
         run_but.clicked.connect(

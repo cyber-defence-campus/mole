@@ -5,3 +5,17 @@ settings:
     value: 3
     min_value: 0
     max_value: 10
+  highlight_color:
+    name: highlight_color
+    help: color used to highlight paths
+    value: Red
+    items:
+    - Blue
+    - Green
+    - Cyan
+    - Red
+    - Magenta
+    - Yellow
+    - Orange
+    - White
+    - Black
