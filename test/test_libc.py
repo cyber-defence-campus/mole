@@ -31,12 +31,12 @@ class TestMemcpy(unittest.TestCase):
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for path in paths:
-            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
             )
-            self.assertEqual(path.snk_sym_name, "memcpy", "sink has symbol 'memcpy'")
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
@@ -62,12 +62,12 @@ class TestMemcpy(unittest.TestCase):
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for path in paths:
-            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
             )
-            self.assertEqual(path.snk_sym_name, "memcpy", "sink has symbol 'memcpy'")
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
@@ -93,12 +93,12 @@ class TestMemcpy(unittest.TestCase):
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for path in paths:
-            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
             )
-            self.assertEqual(path.snk_sym_name, "memcpy", "sink has symbol 'memcpy'")
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
@@ -124,12 +124,12 @@ class TestMemcpy(unittest.TestCase):
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for path in paths:
-            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
             )
-            self.assertEqual(path.snk_sym_name, "memcpy", "sink has symbol 'memcpy'")
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
@@ -155,12 +155,12 @@ class TestMemcpy(unittest.TestCase):
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for path in paths:
-            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
             )
-            self.assertEqual(path.snk_sym_name, "memcpy", "sink has symbol 'memcpy'")
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
@@ -198,12 +198,12 @@ class TestMemcpy(unittest.TestCase):
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for path in paths:
-            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
             )
-            self.assertEqual(path.snk_sym_name, "memcpy", "sink has symbol 'memcpy'")
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
@@ -295,12 +295,12 @@ class TestSscanf(unittest.TestCase):
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for path in paths:
-            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
             )
-            self.assertEqual(path.snk_sym_name, "sscanf", "sink has symbol 'sscanf'")
+            self.assertIn(path.snk_sym_name, ["sscanf", "__isoc99_sscanf"], "sink has symbol 'sscanf'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
@@ -343,18 +343,12 @@ class TestGets(unittest.TestCase):
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for path in paths:
-            # src_sym = path.get("src_sym")
-            # snk_sym = path.get("snk_sym")
-            # par_num = path.get("snk_par", {}).get("num")
-            # par_var = path.get("snk_par", {}).get("var")
-            # src_inst = path.get("insts", [])[-1]
-            # snk_inst = path.get("insts", [])[0]
-            self.assertEqual(path.src_sym_name, "gets", "source has symbol 'gets'")
+            self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
             )
-            self.assertEqual(path.snk_sym_name, "gets", "sink has symbol 'gets'")
+            self.assertIn(path.snk_sym_name, ["gets"], "sink has symbol 'gets'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
@@ -382,7 +376,7 @@ class TestGets(unittest.TestCase):
         self.assertTrue(len(paths) > 0, "path(s) identified")
         gets_memcpy_path = False
         for path in paths:
-            self.assertEqual(path.src_sym_name, "gets", "source has symbol 'gets'")
+            self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
