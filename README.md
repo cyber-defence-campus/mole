@@ -42,7 +42,7 @@ In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` poi
 In the following we show an example log output as given by *Mole*. The listed path is identified when compiling unittest [memcpy-01.c](./test/testcases/memcpy-01.c) for `linux-armv7` and analyzing the resulting binary with *Mole*. At log level *INFO* we get the following entry:
 ```
 [...]
-Interesting path: 0x4c4 getenv() --> 0x4e8 memcpy(arg#3:r2#1) [L:10, B:1]!
+Interesting path: 0x4c4 getenv --> 0x4e8 memcpy(arg#3:r2#1) [L:10, B:1]!
 [...]
 ```
 The entry indicates that a potential path exists between source function `getenv` (at address `0x4c4`) and sink function `memcpy` (at address `0x4e8`). In addition, the entry tells us that the 3rd argument of `memcpy` (synopsis: `void* memcpy(void* dest, const void* src, size_t n)`) is the one being influenced by the source. Also we may learn that the path consists of 10 [MLIL](https://docs.binary.ninja/dev/bnil-mlil.html) instructions (`L:10`) and depends on 1 branch (`B:1`). These two values can give us a first intuition of how complex the identified path might be and in consequence some indication whether it is more or less likely to be a true positive.

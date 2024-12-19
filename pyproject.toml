@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mole"]
+
+[project]
+name = "mole"
+version = "0.0.5"
+description = "A Binary Ninja plugin for vulneraiblity discovery"
+authors = [
+    {name = "Damian Pfammatter"}
+]
+requires-python = ">=3.10"
+dependencies = [
+    "lark==1.2.2",
+    "PySide6==6.7.2",
+    "PyYAML==6.0.2",
+    "termcolor==2.4.0",
+]
+
+[project.optional-dependencies]
+develop = [
+    "debugpy==1.8.1"
+]
+
+[project.scripts]
+mole = "mole.main:main"
