@@ -283,7 +283,7 @@ class SinkFunction(Function):
                         continue
                 # Ignore calls with an invalid number of parameters
                 if not self.par_cnt_fun(len(snk_inst.params)):
-                    log.warn(tag, f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments")
+                    log.warn(tag, f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments ({len(snk_inst.params):d})")
                     continue
                 # Analyze parameters
                 for par_idx, par_var in enumerate(snk_inst.params):
@@ -344,14 +344,20 @@ class SinkFunction(Function):
                                         log.info(tag, t_log)
                                         log.debug(tag, "--- Backward Slice ---")
                                         basic_block = None
+                                        last_function = None
+                                        fn_call_stack = []
                                         for inst in insts:
                                             if inst.il_basic_block != basic_block:
                                                 basic_block = inst.il_basic_block
+                                                if last_function != basic_block.function:
+                                                    last_function = basic_block.function
+                                                    fn_call_stack.append(last_function)
                                                 fun_name = basic_block.function.name
                                                 bb_addr = basic_block[0].address
-                                                log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+                                                log.info(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
                                             log.debug(tag, InstructionHelper.get_inst_info(inst))
                                         log.debug(tag, "----------------------")
+                                        path.fn_call_stack = fn_call_stack
         return paths
 
 
@@ -368,6 +374,7 @@ class Path:
     snk_par_var: bn.MediumLevelILVarSsa
     insts: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
+    fn_call_stack: List[bn.Function] = field(default_factory=list)
 
     def __eq__(self, other: Path) -> bool:
         if not isinstance(other, Path):
@@ -388,9 +395,18 @@ class Path:
     
     def __str__(self) -> str:
         src = f"0x{self.src_sym_addr:x} {self.src_sym_name:s}"
+        # hops: number of functions in the call stack
+        # callers: number of callers for the first function in the call stack (the source)
+        stats = f"{len(self.fn_call_stack)}h"
+        # we care more about the source caller than the source itself
+        if len(self.fn_call_stack) > 1 and len(self.fn_call_stack[0].callers) > 0:
+            src = f"{self.fn_call_stack[0].callers[0].name:s}({src:s})"
+            stats += f",{len(self.fn_call_stack[0].callers):d}c"
+
         snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
         snk = f"{snk:s}(arg#{self.snk_par_idx+1:d}:{str(self.snk_par_var):s})"
-        return f"{src:s} --> {snk:s}"
+        
+        return f"{src:s} --> {snk:s} [{stats}]"
 
 
 @dataclass

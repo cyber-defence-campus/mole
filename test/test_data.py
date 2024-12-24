@@ -69,6 +69,7 @@ class TestData(unittest.TestCase):
                     name="highlight_color",
                     value="Red",
                     items=[
+                        "Disabled",
                         "Blue",
                         "Green",
                         "Cyan",

@@ -8,8 +8,9 @@ settings:
   highlight_color:
     name: highlight_color
     help: color used to highlight paths
-    value: Red
+    value: Disabled
     items:
+    - Disabled
     - Blue
     - Green
     - Cyan

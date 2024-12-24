@@ -438,7 +438,50 @@ class Controller:
         self._log.debug(self._tag, "----------------------")
         self._log.debug(self._tag, msg)
         return
-    
+
+    def _build_node_text(self, function):
+        """
+        This method builds the text for a node in the graph.
+        """
+        res = \
+			bn.DisassemblyTextLine ([
+					bn.InstructionTextToken(
+						bn.InstructionTextTokenType.AddressDisplayToken,
+						"{:#x}".format(function.start),
+						value=function.start,
+					),
+					bn.InstructionTextToken(
+						bn.InstructionTextTokenType.OperandSeparatorToken,
+						" @ "
+					),
+					bn.InstructionTextToken(
+						bn.InstructionTextTokenType.CodeSymbolToken,
+						function.name,
+						function.start
+					)
+				])
+        return res
+
+    def generate_graph_from_path(self, item: qtw.QListWidgetItem) -> None:
+        """
+        This method generates a graph from a path.
+        """
+        if not item: return
+        path: Path = self._paths.get(item.text(), None)
+        if not path: return
+
+        graph = bn.FlowGraph()
+        for fn in path.fn_call_stack:
+            node = bn.FlowGraphNode(graph)
+            node.lines = [self._build_node_text(fn)]
+            graph.append(node)
+            
+        edge = bn.EdgeStyle(bn.EdgePenStyle.DashLine, 2, bn.ThemeColor.AddressColor)
+        for i in range(len(graph.nodes) - 1):
+            graph.nodes[i].add_outgoing_edge(bn.BranchType.UnconditionalBranch, graph.nodes[i + 1], edge)
+            
+        graph.show("Call Stack")
+
     def highlight_path(self, tbl: qtw.QTableWidget, row: int) -> None:
         """
         This method highlights all instructions in a path.
@@ -453,6 +496,18 @@ class Controller:
         path = self._paths.get(path_id, None)
         if not path: return
         highlighted_path, insts_colors = self._paths_highlight
+
+        try:
+            model = self._model.get()
+            widget = model.settings.get("highlight_color").widget
+            color_name = widget.currentText().capitalize()
+            if color_name == "DISABLED":
+                self._log.info("Highlighting disabled")
+                return
+            color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
+        except:
+            color = bn.HighlightStandardColor.RedHighlightColor
+
         # Undo path highlighting
         for addr, (inst, old_color) in insts_colors.items():
             func = inst.function.source_function
@@ -465,13 +520,6 @@ class Controller:
         else:
             highlighted_path = path
             insts_colors = {}
-            try:
-                model = self._model.get()
-                widget = model.settings.get("highlight_color").widget
-                color_name = widget.currentText().capitalize()
-                color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
-            except:
-                color = bn.HighlightStandardColor.RedHighlightColor
             for inst in path.insts:
                 func = inst.function.source_function
                 addr = inst.address
@@ -494,6 +542,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             runs_headless: bool = False,
             max_func_depth: int = None,
             enable_all_funs: bool = False,
+            enable_highlight: bool = False,
             tag: str = "BackSlicer",
             log: Logger = Logger()
         ) -> None:
@@ -503,6 +552,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         self._runs_headless: bool = runs_headless
         self._max_func_depth: int = max_func_depth
         self._enable_all_funs: bool = enable_all_funs
+        self._enable_highlight: bool = enable_highlight
         self._tag: str = tag
         self._log: Logger = log
         return
