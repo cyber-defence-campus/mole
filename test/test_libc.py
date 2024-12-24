@@ -100,7 +100,7 @@ class TestMemcpy(unittest.TestCase):
 
     def test_memcpy_01(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-01"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-01.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -131,7 +131,7 @@ class TestMemcpy(unittest.TestCase):
     
     def test_memcpy_02(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-02"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-02.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -162,7 +162,7 @@ class TestMemcpy(unittest.TestCase):
     
     def test_memcpy_03(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-03"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-03.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -193,7 +193,7 @@ class TestMemcpy(unittest.TestCase):
     
     def test_memcpy_04(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-04"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-04.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -224,7 +224,7 @@ class TestMemcpy(unittest.TestCase):
     
     def test_memcpy_05(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-05"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-05.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -255,7 +255,7 @@ class TestMemcpy(unittest.TestCase):
     
     def test_memcpy_06(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-06"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-06.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -267,7 +267,7 @@ class TestMemcpy(unittest.TestCase):
     
     def test_memcpy_07(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-07"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-07.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -299,7 +299,7 @@ class TestMemcpy(unittest.TestCase):
     @unittest.expectedFailure
     def test_memcpy_08(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-08"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-08.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -311,7 +311,7 @@ class TestMemcpy(unittest.TestCase):
     
     def test_memcpy_09(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-09"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-09.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -324,7 +324,7 @@ class TestMemcpy(unittest.TestCase):
     @unittest.expectedFailure
     def test_memcpy_10(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-10"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-10.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -336,7 +336,7 @@ class TestMemcpy(unittest.TestCase):
     
     def test_memcpy_11(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-11"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "memcpy-11.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -364,7 +364,7 @@ class TestSscanf(unittest.TestCase):
     
     def test_sscanf_01(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "sscanf-01"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "sscanf-01.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -412,7 +412,11 @@ class TestSystem(unittest.TestCase):
     @unittest.expectedFailure
     def test_system_01(self) -> None:
         # Load and analyze test binary with Binary Ninja
+<<<<<<< HEAD
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "system-01"))
+=======
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-01.elf"))
+>>>>>>> 01aea26 (added new test, ignore elf binaries)
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -439,4 +443,35 @@ class TestSystem(unittest.TestCase):
             )
         # Close test binary
         bv.file.close()
+<<<<<<< HEAD
+=======
+        return
+    
+    @unittest.expectedFailure
+    def test_gets_02(self) -> None:
+        # Load and analyze test binary with Binary Ninja
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-02.elf"))
+        bv.update_analysis_and_wait()
+        # Analyze test binary
+        paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
+        # Assert results
+        self.assertTrue(len(paths) > 0, "path(s) identified")
+        gets_memcpy_path = False
+        for path in paths:
+            self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
+            self.assertTrue(
+                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertTrue(path.snk_sym_name in ["gets", "memcpy"], "sink has symbol 'gets' or 'memcpy'")
+            self.assertTrue(
+                isinstance(path.insts[0], bn.MediumLevelILCallSsa),
+                "sink is a MLIL call instruction"
+            )
+            if path.src_sym_name == "gets" and path.snk_sym_name == "memcpy":
+                gets_memcpy_path = True
+        self.assertTrue(gets_memcpy_path, "source 'gets' and sink 'memcpy'")
+        # Close test binary
+        bv.file.close()
+>>>>>>> 01aea26 (added new test, ignore elf binaries)
         return

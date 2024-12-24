@@ -12,3 +12,6 @@ venv/
 
 # Visual Studio Code
 .vscode
+
+# Compiled
+*.elf

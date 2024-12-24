@@ -14,7 +14,7 @@ all: $(BINARIES)
 
 # Compile each source file into a binary
 %: %.c
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< -o $@.elf
 
 # Remove binaries
 clean:
