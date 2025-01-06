@@ -66,8 +66,11 @@ class MediumLevelILBackwardSlicer:
         This method backward slices instruction `inst` based on its type.
         """
         vars = set()
+        metadata = {}
         info = InstructionHelper.get_inst_info(inst)
-        self._log.debug(self._tag, f"{info:s}")
+        #self._log.debug(self._tag, f"{info:s}")
+        func = self._bv.get_functions_containing(inst.instr.address)[0]
+        self._log.info(self._tag, f"[{func.name:<20s} | {func_depth:<2d}] {info:s}")
         # Instruction sliced before
         if inst in self._sliced_insts:
             return self._sliced_insts[inst]
@@ -144,13 +147,15 @@ class MediumLevelILBackwardSlicer:
             case (bn.MediumLevelILCallSsa(dest=dest_inst) |
                   bn.MediumLevelILTailcallSsa(dest=dest_inst)):
                 match dest_inst:
-                    case bn.MediumLevelILConstPtr(constant=func_addr):
+                    case (bn.MediumLevelILConstPtr(constant=func_addr) |
+                         bn.MediumLevelILImport(constant=func_addr)):
                         # TODO: Backward slice into functions defined within the binary
                         func = self._bv.get_function_at(func_addr)
                         if func is not None:
                             try:
                                 func = func.mlil.ssa_form
-                            except bn.ILException:
+                            except bn.ILException as ilex:
+                                self._log.warn(self._tag, f"{info:s}: Missing MLIL {str(ilex)}")
                                 func = None
                             if func is not None:
                                 for c_inst in func.instructions:
@@ -163,6 +168,10 @@ class MediumLevelILBackwardSlicer:
                                                 vars.update(self._slice_backwards(c_inst, func_depth+1))
                                             else:
                                                 self._log.debug(self._tag, f"{info:s}: Maximum function depth reached")
+                        else:
+                            self._log.warn(self._tag, f"{info:s}: Missing function @ {hex(func_addr)}")
+                    case _:
+                        self._log.warn(self._tag, f"{info:s}: {dest_inst.__class__.__name__:s} not supported")
                 vars.update(self._slice_backwards(inst.dest, func_depth))
                 for out in inst.output:
                     vars.add(out)
@@ -175,6 +184,7 @@ class MediumLevelILBackwardSlicer:
                     vars.update(self._slice_backwards(par, func_depth))
             case _:
                 self._log.warn(self._tag, f"{info:s}: Missing handler")
+        
         self._sliced_insts[inst] = vars
         return vars
 
