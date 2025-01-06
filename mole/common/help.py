@@ -40,18 +40,10 @@ class SymbolHelper:
         mlil_ssa_code_refs = {}
         for symbol_name in symbol_names:
             for symbol in bv.symbols.get(symbol_name, []):
-                if symbol.type not in symbol_types: continue
+                if symbol.type == bn.SymbolType.ImportAddressSymbol or symbol.type == bn.SymbolType.ExternalSymbol:
+                    continue
                 for code_ref in bv.get_code_refs(symbol.address):
-                    if code_ref.function is None: continue
-                    llil_instrs = code_ref.function.get_llils_at(code_ref.address)
-                    mlil_instrs = mlil_ssa_code_refs.get(symbol_name, set())
-                    for llil_instr in llil_instrs:
-                        try:
-                            mlil_instr = llil_instr.mlil.ssa_form
-                            mlil_instrs.add(mlil_instr)
-                        except:
-                            continue
-                    mlil_ssa_code_refs[symbol_name] = mlil_instrs
+                    mlil_ssa_code_refs[symbol_name] = [code_ref.mlil.ssa_form]
         return mlil_ssa_code_refs
 
 
