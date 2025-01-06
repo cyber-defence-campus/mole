@@ -402,7 +402,7 @@ class Controller:
         path = self._paths.get(item.text(), None)
         if not path: return
         msg = f"Path: {str(path):s}"
-        msg = f"{msg:s} [L: {len(path.insts):d}, B:{len(path.bdeps):d}]!"
+        msg = f"{msg:s} [L:{len(path.insts):d},B:{len(path.bdeps):d}]!"
         self._log.info(self._tag, msg)
         self._log.debug(self._tag, "--- Backward Slice ---")
         basic_block = None

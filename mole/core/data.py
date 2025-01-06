@@ -324,7 +324,7 @@ class SinkFunction(Function):
                                         found_path(path)
                                         # Log path
                                         t_log = f"Interesting path: {str(path):s}"
-                                        t_log = f"{t_log:s} [L:{len(insts):d}, B:{len(bdeps):d}]!"
+                                        t_log = f"{t_log:s} [L:{len(insts):d},B:{len(bdeps):d}]!"
                                         log.info(tag, t_log)
                                         log.debug(tag, "--- Backward Slice ---")
                                         basic_block = None
