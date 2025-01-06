@@ -97,8 +97,8 @@ class SidebarWidget(bnui.SidebarWidget):
         This method initiliazes the main widget.
         """
         tab = qtw.QTabWidget()
-        tab.addTab(*self._init_cnf_tab())
         tab.addTab(*self._init_run_tab())
+        tab.addTab(*self._init_cnf_tab())
         lay = qtw.QVBoxLayout()
         lay.addWidget(tab)
         self.setLayout(lay)
@@ -276,9 +276,6 @@ class SidebarWidget(bnui.SidebarWidget):
         )
         res_tbl.cellDoubleClicked.connect(
             lambda row, _: self._ctr.highlight_path(res_tbl, row)
-        )
-        res_tbl.cellDoubleClicked.connect(
-            lambda row, col: _navigate(self._bv, res_tbl, row, col)
         )
 
         res_lay = qtw.QVBoxLayout()

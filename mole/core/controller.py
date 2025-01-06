@@ -439,7 +439,7 @@ class Controller:
         self._log.debug(self._tag, msg)
         return
 
-    def _build_node_text(self, function):
+    def _build_node_text(self, name: str, addr: int):
         """
         This method builds the text for a node in the graph.
         """
@@ -447,8 +447,8 @@ class Controller:
 			bn.DisassemblyTextLine ([
 					bn.InstructionTextToken(
 						bn.InstructionTextTokenType.AddressDisplayToken,
-						"{:#x}".format(function.start),
-						value=function.start,
+						"{:#x}".format(addr),
+						value=addr,
 					),
 					bn.InstructionTextToken(
 						bn.InstructionTextTokenType.OperandSeparatorToken,
@@ -456,13 +456,12 @@ class Controller:
 					),
 					bn.InstructionTextToken(
 						bn.InstructionTextTokenType.CodeSymbolToken,
-						function.name,
-						function.start
+						name,
+						addr
 					)
 				])
         return res
-
-    def generate_graph_from_path(self, item: qtw.QListWidgetItem) -> None:
+    def generate_graph_from_path(self, bv: bn.BinaryView, item: qtw.QListWidgetItem) -> None:
         """
         This method generates a graph from a path.
         """
@@ -471,15 +470,27 @@ class Controller:
         if not path: return
 
         graph = bn.FlowGraph()
+
+        node = bn.FlowGraphNode(graph)
+        node.lines = [self._build_node_text(path.src_sym_name, path.src_sym_addr)]
+        node.highlight = bn.HighlightStandardColor.YellowHighlightColor
+        graph.append(node)
+
         for fn in path.fn_call_stack:
             node = bn.FlowGraphNode(graph)
-            node.lines = [self._build_node_text(fn)]
+            node.lines = [self._build_node_text(fn.name, fn.start)]
             graph.append(node)
-            
+        
+        node = bn.FlowGraphNode(graph)
+        node.lines = [self._build_node_text(path.snk_sym_name, path.snk_sym_addr)]
+        node.highlight = bn.HighlightStandardColor.RedHighlightColor
+        graph.append(node)
+
         edge = bn.EdgeStyle(bn.EdgePenStyle.DashLine, 2, bn.ThemeColor.AddressColor)
         for i in range(len(graph.nodes) - 1):
             graph.nodes[i].add_outgoing_edge(bn.BranchType.UnconditionalBranch, graph.nodes[i + 1], edge)
-            
+        # this is stupid since there is no direct path between the source and sink functions
+        # graph = self.generate_call_graph(bv, bv.get_functions_by_name(path.src_sym_name)[0], bv.get_functions_by_name(path.snk_sym_name)[0])
         graph.show("Call Stack")
 
     def highlight_path(self, tbl: qtw.QTableWidget, row: int) -> None:
