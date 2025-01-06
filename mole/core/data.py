@@ -311,7 +311,7 @@ class SinkFunction(Function):
                         # Check whether the slice contains any source
                         for source in sources:
                             if canceled(): break
-                            for (sym_addr, sym_name), src_insts in source.target_insts.items():
+                            for (src_sym_addr, src_sym_name), src_insts in source.target_insts.items():
                                 if canceled(): break
                                 for src_inst in src_insts:
                                     if canceled(): break
@@ -319,16 +319,22 @@ class SinkFunction(Function):
                                         # Calculate slice's instructions and branch dependencies
                                         insts = [snk_inst]
                                         bdeps = {}
+                                        path_found = False
                                         for inst in slice.keys():
                                             insts.append(inst)
                                             if inst == src_inst:
+                                                log.info(tag, f"Found path from '0x{src_inst.address:x} {src_sym_name:s}' to '0x{snk_inst.address:x} {snk_name:s}'")
+                                                path_found = True
                                                 break
                                             for bch_idx, bch_dep in inst.branch_dependence.items():
                                                 bdeps.setdefault(bch_idx, bch_dep)
+                                        if not path_found:
+                                            log.warn(tag, f"Path from '0x{src_inst.address:x} {src_sym_name:s}' to '0x{snk_inst.address:x} {snk_name:s}' not found")
+                                            return paths
                                         # Store path
                                         path = Path(
-                                            src_sym_addr=sym_addr,
-                                            src_sym_name=sym_name,
+                                            src_sym_addr=src_sym_addr,
+                                            src_sym_name=src_sym_name,
                                             snk_sym_addr=snk_inst.address,
                                             snk_sym_name=snk_name,
                                             snk_par_idx=par_idx,
@@ -351,7 +357,7 @@ class SinkFunction(Function):
                                                 basic_block = inst.il_basic_block
                                                 if last_function != basic_block.function:
                                                     last_function = basic_block.function
-                                                    fn_call_stack.append(last_function)
+                                                    fn_call_stack.insert(0, last_function)
                                                 fun_name = basic_block.function.name
                                                 bb_addr = basic_block[0].address
                                                 log.info(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
