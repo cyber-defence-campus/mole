@@ -11,6 +11,9 @@ void handle_client(int client_socket);
 void execute_cgi_command(const char *buffer);
 void send_response(int client_socket, const char *response);
 int create_server_socket(struct sockaddr_in *address);
+void handle_get_request(int client_socket);
+void handle_post_request(int client_socket);
+char* receive_data(int client_socket, int *size);
 
 int main() {
     int server_fd, client_socket;
@@ -33,18 +36,54 @@ int main() {
 }
 
 void handle_client(int client_socket) {
-    char buffer[BUFFER_SIZE];
-    int bytes_read = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
-    if (bytes_read < 0) {
-        perror("recv");
+    int size;
+    char *method = receive_data(client_socket, &size);
+
+    if (method == NULL) {
         close(client_socket);
         return;
     }
 
-    buffer[bytes_read] = '\0';
+    if (strncmp(method, "GET ", 4) == 0) {
+        handle_get_request(client_socket);
+    } else if (strncmp(method, "POST", 4) == 0) {
+        handle_post_request(client_socket);
+    } else {
+        send_response(client_socket, "HTTP/1.1 405 Method Not Allowed\r\nContent-Type: text/plain\r\n\r\nMethod Not Allowed.\n");
+        close(client_socket);
+    }
+
+    free(method);
+}
+
+void handle_get_request(int client_socket) {
+    int size;
+    char *buffer = receive_data(client_socket, &size);
+
+    if (buffer == NULL) {
+        close(client_socket);
+        return;
+    }
+
     execute_cgi_command(buffer);
-    send_response(client_socket, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nCommand executed.\n");
+    send_response(client_socket, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nGET request received.\n");
     close(client_socket);
+    free(buffer);
+}
+
+void handle_post_request(int client_socket) {
+    int size;
+    char *buffer = receive_data(client_socket, &size);
+
+    if (buffer == NULL) {
+        close(client_socket);
+        return;
+    }
+
+    execute_cgi_command(buffer);
+    send_response(client_socket, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nPOST request received.\n");
+    close(client_socket);
+    free(buffer);
 }
 
 void execute_cgi_command(const char *buffer) {
@@ -54,9 +93,7 @@ void execute_cgi_command(const char *buffer) {
         char *cgi_end = strchr(cgi_start, ' ');
         if (cgi_end) {
             *cgi_end = '\0';
-            char command[BUFFER_SIZE];
-            sprintf(command, "%s", cgi_start);
-            system(command);
+            system(cgi_start);
         }
     }
 }
@@ -90,4 +127,23 @@ int create_server_socket(struct sockaddr_in *address) {
     }
 
     return server_fd;
+}
+
+char* receive_data(int client_socket, int *size) {
+    char *buffer = (char *)malloc(BUFFER_SIZE);
+    if (buffer == NULL) {
+        perror("malloc");
+        return NULL;
+    }
+
+    int bytes_read = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
+    if (bytes_read < 0) {
+        perror("recv");
+        free(buffer);
+        return NULL;
+    }
+
+    buffer[bytes_read] = '\0';
+    *size = bytes_read;
+    return buffer;
 }
