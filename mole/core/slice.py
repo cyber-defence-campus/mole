@@ -187,7 +187,7 @@ class MediumLevelILBackwardSlicer:
                 self._log.warn(self._tag, f"{info:s}: Missing handler")
         
         self._sliced_insts[inst] = vars
-        self._log.debug(self._tag, f"{info:s}:  ----  [{len(vars):>3d}] {','.join([v.name for v in vars])}")
+        self._log.debug(self._tag, f"--- [{len(vars):>3d}] {','.join([v.name for v in vars])}")
         return vars
 
     def slice_backwards(
