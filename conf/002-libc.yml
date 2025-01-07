@@ -487,3 +487,11 @@ sinks:
             par_cnt: i == 1
             par_dataflow: 'False'
             par_slice: 'True'
+          system:
+            name: system
+            symbols: [system, __builtin_system]
+            synopsis: int system(const char *command);
+            enabled: true
+            par_cnt: i == 1
+            par_dataflow: 'False'
+            par_slice: 'True'
