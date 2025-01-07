@@ -22,6 +22,7 @@ class MediumLevelILBackwardSlicer:
         self._log: Logger = log
         self._max_func_depth: int = max_func_depth
         self._sliced_insts: Dict[bn.MediumLevelILInstruction, Set[bn.SSAVariable]] = {}
+        self._log.info(self._tag, f"Slicer initialized with max_func_depth={max_func_depth}")
         return
     
     def _slice_ssa_var_definition(
@@ -144,8 +145,7 @@ class MediumLevelILBackwardSlicer:
                 vars.add(inst.dest)
                 for var in inst.src:
                     vars.update(self._slice_ssa_var_definition(var, inst.function, func_depth))
-            case (bn.MediumLevelILCallSsa(dest=dest_inst) |
-                  bn.MediumLevelILTailcallSsa(dest=dest_inst)):
+            case (bn.MediumLevelILCallSsa(dest=dest_inst)):
                 match dest_inst:
                     case (bn.MediumLevelILConstPtr(constant=func_addr) |
                          bn.MediumLevelILImport(constant=func_addr)):
@@ -167,7 +167,9 @@ class MediumLevelILBackwardSlicer:
                                             if func_depth < self._max_func_depth:
                                                 vars.update(self._slice_backwards(c_inst, func_depth+1))
                                             else:
-                                                self._log.debug(self._tag, f"{info:s}: Maximum function depth reached")
+                                                self._log.warn(self._tag, f"{info:s}: Maximum function depth {func_depth} reached")
+                                        case _:
+                                            self._log.warn(self._tag, f"{info:s}: Missing return instruction")
                         else:
                             self._log.warn(self._tag, f"{info:s}: Missing function @ {hex(func_addr)}")
                     case _:
@@ -177,6 +179,8 @@ class MediumLevelILBackwardSlicer:
                     vars.add(out)
                 for par in inst.params:
                     vars.update(self._slice_backwards(par, func_depth))
+            case bn.MediumLevelILTailcallSsa(dest=dest_inst):
+                self._log.warn(self._tag, f"{info:s}: We dont slice tail calls, no need to right?")
             case (bn.MediumLevelILSyscallSsa()):
                 for out in inst.output:
                     vars.add(out)
@@ -186,6 +190,7 @@ class MediumLevelILBackwardSlicer:
                 self._log.warn(self._tag, f"{info:s}: Missing handler")
         
         self._sliced_insts[inst] = vars
+        self._log.debug(self._tag, f"{info:s}: ----------------------------------------------")
         return vars
 
     def slice_backwards(

@@ -330,7 +330,7 @@ class SinkFunction(Function):
                                                 bdeps.setdefault(bch_idx, bch_dep)
                                         if not path_found:
                                             log.warn(tag, f"Path from '0x{src_inst.address:x} {src_sym_name:s}' to '0x{snk_inst.address:x} {snk_name:s}' not found")
-                                            return paths
+                                            continue
                                         # Store path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,
