@@ -46,11 +46,15 @@ class MediumLevelILBackwardSlicer:
         for parm_num, parm_var in enumerate(func.source_function.parameter_vars):
             if parm_var != ssa_var.var:
                 continue
+            self._log.debug(self._tag, f"[{func.source_function.name}] parameter {parm_num} found")
             # type: bn.Function
-            for caller_site in func.source_function.caller_sites:
+            call_sites: list[bn.Function] = list(func.source_function.caller_sites)
+            for idx,caller_site in enumerate(call_sites):
                 try:
-                    r_parm = caller_site.mlil.ssa_form.params[parm_num]
-                    vars.update(self._slice_backwards(r_parm, func_depth))
+                    r_param: bn.MediumLevelILInstruction = caller_site.mlil.ssa_form.params[parm_num]
+                    self._log.debug(self._tag, f"[{idx:>2d}/{len(call_sites):>2d}] start tracing function parameter {r_param} from {caller_site.mlil.ssa_form}")
+                    vars.update(self._slice_backwards(r_param, func_depth))
+                    self._log.debug(self._tag, f"[{idx:>2d}/{len(call_sites):>2d}] end tracing function parameter {r_param} from {caller_site.mlil.ssa_form}")
                 except:
                     # this will likely happen when the function prototype is not correct/complete
                     # maybe we could even automatically fix the prototype by adding the amount of 
@@ -175,8 +179,10 @@ class MediumLevelILBackwardSlicer:
                     case _:
                         self._log.warn(self._tag, f"{info:s}: {dest_inst.__class__.__name__:s} not supported")
                 vars.update(self._slice_backwards(inst.dest, func_depth))
-                for out in inst.output:
-                    vars.add(out)
+                #if not isinstance(inst, bn.MediumLevelILTailcallSsa):
+                #    # tail calls output contains ALL registers, not just the ones that are used
+                #    for out in inst.output:
+                #        vars.add(out)
                 for par in inst.params:
                     vars.update(self._slice_backwards(par, func_depth))
             case (bn.MediumLevelILSyscallSsa()):
@@ -200,6 +206,7 @@ class MediumLevelILBackwardSlicer:
         where keys correspond to the sliced instructions (1st key == 1st instruction in the backward
         slice), and values to sets of corresponding static single assignment variables.
         """
+        self._log.info(self._tag, f"Start backward slicing at {InstructionHelper.get_inst_info(inst)}")
         for _ in inst.ssa_form.traverse(self._slice_backwards): pass
         return self._sliced_insts
     

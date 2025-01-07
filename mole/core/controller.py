@@ -584,6 +584,11 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                 self.progress = f"Find targets for source function {i+1:d}/{len(src_funs):d}..."
                 src_fun.find_targets(self._bv, lambda: self.cancelled, self._tag, self._log)
 
+        self._log.debug(self._tag, f"Found {len(src_fun.target_insts)} targets for source functions:")
+        for (src_sym_addr, src_sym_name), insts in src_fun.target_insts.items():
+            inst_str = "\n   -".join([InstructionHelper.get_inst_info(inst) for inst in insts])
+            self._log.debug(self._tag, f"- 0x{src_sym_addr:x} ({src_sym_name}): {len(insts)} instructions: {inst_str}")
+
         # Sink functions
         snk_funs = self._ctr.get_functions("Sinks", not self._enable_all_funs)
         if not snk_funs:
