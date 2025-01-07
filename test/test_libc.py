@@ -6,6 +6,82 @@ import os
 import unittest
 
 
+class TestGets(unittest.TestCase):
+    """
+    This class implements unit tests for `libc` function `gets`.
+    """
+
+    def setUp(self) -> None:
+        # Initialize controller to operate in headless mode
+        self.ctr = Controller(
+            runs_headless=True,
+            log=Logger(
+                runs_headless=True,
+                level="debug"
+            )
+        ).init()
+        return
+
+    def test_gets_01(self) -> None:
+        # Load and analyze test binary with Binary Ninja
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-01"))
+        bv.update_analysis_and_wait()
+        # Analyze test binary
+        paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
+        # Assert results
+        self.assertTrue(len(paths) > 0, "path(s) identified")
+        for path in paths:
+            self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
+            self.assertTrue(
+                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertIn(path.snk_sym_name, ["gets"], "sink has symbol 'gets'")
+            self.assertTrue(
+                (
+                    isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                    isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
+            self.assertEqual(path.snk_par_idx, 0, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
+        # Close test binary
+        bv.file.close()
+        return
+    
+    @unittest.expectedFailure
+    def test_gets_02(self) -> None:
+        # Load and analyze test binary with Binary Ninja
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-02"))
+        bv.update_analysis_and_wait()
+        # Analyze test binary
+        paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
+        # Assert results
+        self.assertTrue(len(paths) > 0, "path(s) identified")
+        gets_memcpy_path = False
+        for path in paths:
+            self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
+            self.assertTrue(
+                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertTrue(path.snk_sym_name in ["gets", "memcpy"], "sink has symbol 'gets' or 'memcpy'")
+            self.assertTrue(
+                isinstance(path.insts[0], bn.MediumLevelILCallSsa),
+                "sink is a MLIL call instruction"
+            )
+            if path.src_sym_name == "gets" and path.snk_sym_name == "memcpy":
+                gets_memcpy_path = True
+        self.assertTrue(gets_memcpy_path, "source 'gets' and sink 'memcpy'")
+        # Close test binary
+        bv.file.close()
+        return
+
+
 class TestMemcpy(unittest.TestCase):
     """
     This class implements unit tests for `libc` function `memcpy`.
@@ -317,10 +393,9 @@ class TestSscanf(unittest.TestCase):
         bv.file.close()
         return
     
-
-class TestGets(unittest.TestCase):
+class TestSystem(unittest.TestCase):
     """
-    This class implements unit tests for `libc` function `gets`.
+    This class implements unit tests for `libc` function `system`.
     """
 
     def setUp(self) -> None:
@@ -333,22 +408,23 @@ class TestGets(unittest.TestCase):
             )
         ).init()
         return
-
-    def test_gets_01(self) -> None:
+    
+    @unittest.expectedFailure
+    def test_system_01(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-01"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "system-01"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
         self.assertTrue(len(paths) > 0, "path(s) identified")
         for path in paths:
-            self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
                 "source is a MLIL instruction"
             )
-            self.assertIn(path.snk_sym_name, ["gets"], "sink has symbol 'gets'")
+            self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
@@ -361,34 +437,6 @@ class TestGets(unittest.TestCase):
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
             )
-        # Close test binary
-        bv.file.close()
-        return
-    
-    @unittest.expectedFailure
-    def test_gets_02(self) -> None:
-        # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-02"))
-        bv.update_analysis_and_wait()
-        # Analyze test binary
-        paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
-        # Assert results
-        self.assertTrue(len(paths) > 0, "path(s) identified")
-        gets_memcpy_path = False
-        for path in paths:
-            self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
-            self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction"
-            )
-            self.assertTrue(path.snk_sym_name in ["gets", "memcpy"], "sink has symbol 'gets' or 'memcpy'")
-            self.assertTrue(
-                isinstance(path.insts[0], bn.MediumLevelILCallSsa),
-                "sink is a MLIL call instruction"
-            )
-            if path.src_sym_name == "gets" and path.snk_sym_name == "memcpy":
-                gets_memcpy_path = True
-        self.assertTrue(gets_memcpy_path, "source 'gets' and sink 'memcpy'")
         # Close test binary
         bv.file.close()
         return
