@@ -43,19 +43,20 @@ class MediumLevelILBackwardSlicer:
             return self._slice_backwards(inst, func_depth)
         # SSAVariable defined in another function
         vars: set[bn.SSAVariable] = set()
-        func_addr = func.llil[0].address
         for parm_num, parm_var in enumerate(func.source_function.parameter_vars):
             if parm_var != ssa_var.var:
                 continue
-            for code_ref in self._bv.get_code_refs(func_addr):
+            # type: bn.Function
+            for caller_site in func.source_function.caller_sites:
                 try:
-                    r_addr = code_ref.address
-                    r_func = code_ref.function
-                    r_call = r_func.get_low_level_il_at(r_addr).mlil.ssa_form
-                    r_parm = r_call.params[parm_num]
+                    r_parm = caller_site.mlil.ssa_form.params[parm_num]
+                    vars.update(self._slice_backwards(r_parm, func_depth))
                 except:
+                    # this will likely happen when the function prototype is not correct/complete
+                    # maybe we could even automatically fix the prototype by adding the amount of 
+                    # parameters we are missing ?
+                    self._log.warn(self._tag, f"Can't grab parameter {parm_num} from call {caller_site.mlil.ssa_form}")
                     continue
-                vars.update(self._slice_backwards(r_parm, func_depth))
         return vars
 
     def _slice_backwards(
@@ -187,7 +188,7 @@ class MediumLevelILBackwardSlicer:
                 self._log.warn(self._tag, f"{info:s}: Missing handler")
         
         self._sliced_insts[inst] = vars
-        self._log.debug(self._tag, f"--- [{len(vars):>3d}] {','.join([v.name for v in vars])}")
+        self._log.debug(self._tag, f"--- {info:s} [{len(vars):>3d}] {','.join([v.name for v in vars])}")
         return vars
 
     def slice_backwards(
