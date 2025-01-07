@@ -42,7 +42,7 @@ class MediumLevelILBackwardSlicer:
         if inst is not None:
             return self._slice_backwards(inst, func_depth)
         # SSAVariable defined in another function
-        vars = set()
+        vars: set[bn.SSAVariable] = set()
         func_addr = func.llil[0].address
         for parm_num, parm_var in enumerate(func.source_function.parameter_vars):
             if parm_var != ssa_var.var:
@@ -66,8 +66,7 @@ class MediumLevelILBackwardSlicer:
         """
         This method backward slices instruction `inst` based on its type.
         """
-        vars = set()
-        metadata = {}
+        vars: set[bn.SSAVariable] = set()
         info = InstructionHelper.get_inst_info(inst)
         #self._log.debug(self._tag, f"{info:s}")
         func = self._bv.get_functions_containing(inst.instr.address)[0]
@@ -145,7 +144,7 @@ class MediumLevelILBackwardSlicer:
                 vars.add(inst.dest)
                 for var in inst.src:
                     vars.update(self._slice_ssa_var_definition(var, inst.function, func_depth))
-            case (bn.MediumLevelILCallSsa(dest=dest_inst)):
+            case (bn.MediumLevelILCallSsa(dest=dest_inst)) | bn.MediumLevelILTailcallSsa(dest=dest_inst):
                 match dest_inst:
                     case (bn.MediumLevelILConstPtr(constant=func_addr) |
                          bn.MediumLevelILImport(constant=func_addr)):
@@ -179,8 +178,6 @@ class MediumLevelILBackwardSlicer:
                     vars.add(out)
                 for par in inst.params:
                     vars.update(self._slice_backwards(par, func_depth))
-            case bn.MediumLevelILTailcallSsa(dest=dest_inst):
-                self._log.warn(self._tag, f"{info:s}: We dont slice tail calls, no need to right?")
             case (bn.MediumLevelILSyscallSsa()):
                 for out in inst.output:
                     vars.add(out)
@@ -190,7 +187,7 @@ class MediumLevelILBackwardSlicer:
                 self._log.warn(self._tag, f"{info:s}: Missing handler")
         
         self._sliced_insts[inst] = vars
-        self._log.debug(self._tag, f"{info:s}: ----------------------------------------------")
+        self._log.debug(self._tag, f"{info:s}:  ----  [{len(vars):>3d}] {','.join([v.name for v in vars])}")
         return vars
 
     def slice_backwards(
