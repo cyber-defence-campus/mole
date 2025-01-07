@@ -178,7 +178,15 @@ class SourceFunction(Function):
         """
         This method finds a set of target instructions that a static backward slice should hit on.
         """
-        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
+        code_refs = SymbolHelper.get_code_refs(
+            bv,
+            self.symbols,
+            [
+                bn.SymbolType.FunctionSymbol,
+                bn.SymbolType.ImportedFunctionSymbol,
+                bn.SymbolType.SymbolicFunctionSymbol
+            ]
+        )
         for symbol_name, insts in code_refs.items():
             if canceled(): break
             for inst in insts:
@@ -252,7 +260,15 @@ class SinkFunction(Function):
         given `sources` using static backward slicing.
         """
         paths = []
-        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
+        code_refs = SymbolHelper.get_code_refs(
+            bv,
+            self.symbols,
+            [
+                bn.SymbolType.FunctionSymbol,
+                bn.SymbolType.ImportedFunctionSymbol,
+                bn.SymbolType.SymbolicFunctionSymbol
+            ]
+        )
         for snk_name, snk_insts in code_refs.items():
             if canceled(): break
             for snk_inst in snk_insts:
