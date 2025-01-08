@@ -24,7 +24,7 @@ class TestGets(unittest.TestCase):
 
     def test_gets_01(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-01"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-01.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -56,7 +56,7 @@ class TestGets(unittest.TestCase):
     @unittest.expectedFailure
     def test_gets_02(self) -> None:
         # Load and analyze test binary with Binary Ninja
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-02"))
+        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-02.elf"))
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -412,11 +412,7 @@ class TestSystem(unittest.TestCase):
     @unittest.expectedFailure
     def test_system_01(self) -> None:
         # Load and analyze test binary with Binary Ninja
-<<<<<<< HEAD
         bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "system-01"))
-=======
-        bv = bn.load(os.path.join(os.path.dirname(__file__), "testcases", "gets-01.elf"))
->>>>>>> 01aea26 (added new test, ignore elf binaries)
         bv.update_analysis_and_wait()
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
@@ -443,8 +439,6 @@ class TestSystem(unittest.TestCase):
             )
         # Close test binary
         bv.file.close()
-<<<<<<< HEAD
-=======
         return
     
     @unittest.expectedFailure
@@ -473,5 +467,4 @@ class TestSystem(unittest.TestCase):
         self.assertTrue(gets_memcpy_path, "source 'gets' and sink 'memcpy'")
         # Close test binary
         bv.file.close()
->>>>>>> 01aea26 (added new test, ignore elf binaries)
         return
