@@ -26,12 +26,10 @@ class Controller:
         self._runs_headless: bool = runs_headless
         self._tag: str = tag
         self._log: Logger = log
-        # self._model: Any = None
-        # self._view: Any = None
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(log=log)
         self._paths: Dict[str, Path] = {}
-        self._paths_widget: qtw.QListWidget = None
+        self._paths_widget: qtw.QTableWidget = None
         self._paths_highlight: Tuple[
             Path,
             Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
@@ -339,7 +337,7 @@ class Controller:
             max_func_depth: int = None,
             enable_all_funs: bool = False,
             button: qtw.QPushButton = None,
-            widget: qtw.QListWidget = None
+            widget: qtw.QTableWidget = None
         ) -> None | List[Path]:
         """
         This method analyzes the entire binary for interesting looking code paths.
@@ -363,7 +361,7 @@ class Controller:
         self._paths = {}
         if widget:
             self._paths_widget = widget
-            self._paths_widget.clear()
+            self._paths_widget.setRowCount(0)
         # Run background thread
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
@@ -389,17 +387,41 @@ class Controller:
             if not self._paths_widget:
                 return
             self._paths[str(path)] = path
-            self._paths_widget.addItem(str(path))
+            row = self._paths_widget.rowCount()
+            self._paths_widget.setSortingEnabled(False)
+            self._paths_widget.insertRow(row)
+            src_addr = qtw.QTableWidgetItem(f"0x{path.src_sym_addr:x}")
+            src_addr.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 0, src_addr)
+            src_name = qtw.QTableWidgetItem(path.src_sym_name)
+            src_name.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 1, src_name)
+            snk_addr = qtw.QTableWidgetItem(f"0x{path.snk_sym_addr:x}")
+            snk_addr.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 2, snk_addr)
+            snk_name = qtw.QTableWidgetItem(path.snk_sym_name)
+            snk_name.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 3, snk_name)
+            snk_parm = qtw.QTableWidgetItem(f"arg#{path.snk_par_idx+1:d}:{str(path.snk_par_var):s}")
+            snk_parm.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 4, snk_parm)
+            self._paths_widget.setSortingEnabled(True)
         
         bn.execute_on_main_thread(update_paths_widget)
         return
     
-    def select_path(self, item: qtw.QListWidgetItem) -> None:
+    def select_path(self, tbl: qtw.QTableWidget, row: int) -> None:
         """
         This method logs information about a path.
         """
-        if not item: return
-        path = self._paths.get(item.text(), None)
+        if not tbl: return
+        src_addr = tbl.item(row, 0).text()
+        src_name = tbl.item(row, 1).text()
+        snk_addr = tbl.item(row, 2).text()
+        snk_name = tbl.item(row, 3).text()
+        snk_parm = tbl.item(row, 4).text()
+        path_id = f"{src_addr:s} {src_name:s} --> {snk_addr:s} {snk_name:s}({snk_parm:s})"
+        path = self._paths.get(path_id, None)
         if not path: return
         msg = f"Path: {str(path):s}"
         msg = f"{msg:s} [L:{len(path.insts):d},B:{len(path.bdeps):d}]!"
@@ -416,13 +438,19 @@ class Controller:
         self._log.debug(self._tag, "----------------------")
         self._log.debug(self._tag, msg)
         return
-
-    def highlight_path(self, item: qtw.QListWidgetItem) -> None:
+    
+    def highlight_path(self, tbl: qtw.QTableWidget, row: int) -> None:
         """
         This method highlights all instructions in a path.
         """
-        if not item: return
-        path = self._paths.get(item.text(), None)
+        if not tbl: return
+        src_addr = tbl.item(row, 0).text()
+        src_name = tbl.item(row, 1).text()
+        snk_addr = tbl.item(row, 2).text()
+        snk_name = tbl.item(row, 3).text()
+        snk_parm = tbl.item(row, 4).text()
+        path_id = f"{src_addr:s} {src_name:s} --> {snk_addr:s} {snk_name:s}({snk_parm:s})"
+        path = self._paths.get(path_id, None)
         if not path: return
         highlighted_path, insts_colors = self._paths_highlight
         # Undo path highlighting

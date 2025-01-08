@@ -250,20 +250,43 @@ class SidebarWidget(bnui.SidebarWidget):
         """
         This method initializes the tab `Run`.
         """
-        res_lst = qtw.QListWidget()
-        res_lst.itemClicked.connect(
-            lambda _: self._ctr.select_path(res_lst.currentItem())
+
+        def _navigate(bv: bn.BinaryView, tbl: qtw.QTableWidget, row: int, col: int) -> None:
+            ctx = bnui.UIContext.activeContext()
+            if not ctx: return
+            vf = ctx.getCurrentViewFrame()
+            if not vf: return
+            if not tbl: return
+            if col in [0, 1]:
+                addr = int(tbl.item(row, 0).text(), 16)
+            else:
+                addr = int(tbl.item(row, 2).text(), 16)
+            vf.navigate(bv, addr)
+            return
+
+        res_tbl = qtw.QTableWidget()
+        res_tbl.setColumnCount(5)
+        res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm"])
+        res_tbl.setSortingEnabled(True)
+        res_tbl.cellClicked.connect(
+            lambda row, _: self._ctr.select_path(res_tbl, row)
         )
-        res_lst.itemDoubleClicked.connect(
-            lambda: self._ctr.highlight_path(res_lst.currentItem())
+        res_tbl.cellClicked.connect(
+            lambda row, col: _navigate(self._bv, res_tbl, row, col)
+        )
+        res_tbl.cellDoubleClicked.connect(
+            lambda row, _: self._ctr.highlight_path(res_tbl, row)
+        )
+        res_tbl.cellDoubleClicked.connect(
+            lambda row, col: _navigate(self._bv, res_tbl, row, col)
         )
         res_lay = qtw.QVBoxLayout()
-        res_lay.addWidget(res_lst)
+        res_lay.addWidget(res_tbl)
         res_wid = qtw.QGroupBox("Path Identification:")
         res_wid.setLayout(res_lay)
         run_but = qtw.QPushButton("Analyze Binary")
         run_but.clicked.connect(
-            lambda _, but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but, widget=res_lst)
+            lambda _, but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but, widget=res_tbl)
         )
         lay = qtw.QVBoxLayout()
         lay.addWidget(res_wid)
