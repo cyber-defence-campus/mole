@@ -290,7 +290,7 @@ class SidebarWidget(bnui.SidebarWidget):
         
         clear_but = qtw.QPushButton("Clear")
         clear_but.clicked.connect(
-            lambda _: res_lst.clear()
+            lambda _: res_tbl.clear()
         )
         
         but_lay = qtw.QHBoxLayout()
