@@ -1,6 +1,6 @@
 # Compiler (cross-compile with `CC=arm-linux-gcc make`) and compiler flags
 CC    ?= clang
-CFLAGS = -Wall -O3 -g -fno-builtin
+CFLAGS = -Wall -O3 -fno-builtin -fno-inline
 
 # Source and binary files (in the current directory)
 SOURCES = $(wildcard *.c)

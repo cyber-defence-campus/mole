@@ -166,14 +166,13 @@ class MediumLevelILBackwardSlicer:
                                     # TODO: Support all return instructions
                                     match c_inst:
                                         # Backward slice starting from possible return instructions
-                                        case (bn.MediumLevelILRet() |
-                                            bn.MediumLevelILTailcallSsa()):
+                                        case (bn.MediumLevelILRet()):
                                             if func_depth < self._max_func_depth:
-                                                vars.update(self._slice_backwards(c_inst, func_depth+1))
+                                                vars.update(self._slice_backwards(c_inst, self._max_func_depth))
                                             else:
-                                                self._log.warn(self._tag, f"{info:s}: Maximum function depth {func_depth} reached")
+                                                self._log.warn(self._tag, f"{info:s}: Maximum function depth {self._max_func_depth} reached")
                                         case _:
-                                            self._log.warn(self._tag, f"{info:s}: Missing return instruction")
+                                            pass
                         else:
                             self._log.warn(self._tag, f"{info:s}: Missing function @ {hex(func_addr)}")
                     case _:
