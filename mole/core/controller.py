@@ -505,7 +505,9 @@ class Controller:
         snk_parm = tbl.item(row, 4).text()
         path_id = f"{src_addr:s} {src_name:s} --> {snk_addr:s} {snk_name:s}({snk_parm:s})"
         path = self._paths.get(path_id, None)
-        if not path: return
+        if not path: 
+            self._log.warn(self._tag, f"Path {path_id} not found")
+            return
         highlighted_path, insts_colors = self._paths_highlight
 
         try:

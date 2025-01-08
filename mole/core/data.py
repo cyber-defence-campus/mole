@@ -399,18 +399,10 @@ class Path:
     
     def __str__(self) -> str:
         src = f"0x{self.src_sym_addr:x} {self.src_sym_name:s}"
-        # hops: number of functions in the call stack
-        # callers: number of callers for the first function in the call stack (the source)
-        stats = f"{len(self.fn_call_stack)}h"
-        # we care more about the source caller than the source itself
-        if len(self.fn_call_stack) > 1 and len(self.fn_call_stack[0].callers) > 0:
-            src = f"{self.fn_call_stack[0].callers[0].name:s}({src:s})"
-            stats += f",{len(self.fn_call_stack[0].callers):d}c"
-
         snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
         snk = f"{snk:s}(arg#{self.snk_par_idx+1:d}:{str(self.snk_par_var):s})"
         
-        return f"{src:s} --> {snk:s} [{stats}]"
+        return f"{src:s} --> {snk:s}"
 
 
 @dataclass
