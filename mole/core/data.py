@@ -300,7 +300,7 @@ class SinkFunction(Function):
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
-                        slicer = MediumLevelILBackwardSlicer(bv, max_func_depth, self.name, log)
+                        slicer = MediumLevelILBackwardSlicer(bv, max_func_depth, log=log)
                         try:
                             slice = slicer.slice_backwards(par_var)
                         except Exception as e:
