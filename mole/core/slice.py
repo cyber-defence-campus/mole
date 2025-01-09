@@ -67,7 +67,7 @@ class MediumLevelILBackwardSlicer:
         """
         vars = set()
         info = InstructionHelper.get_inst_info(inst)
-        self._log.debug(self._tag, f"{info:s}")
+        self._log.debug(self._tag, f"[{func_depth:d}/{self._max_func_depth:d}] {info:s}")
         # Instruction sliced before
         if inst in self._sliced_insts:
             return self._sliced_insts[inst]
