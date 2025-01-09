@@ -258,24 +258,23 @@ class SidebarWidget(bnui.SidebarWidget):
             if not vf: return
             if not tbl: return
             if col in [0, 1]:
-                addr = int(tbl.item(row, 0).text(), 16)
-            else:
-                addr = int(tbl.item(row, 2).text(), 16)
-            vf.navigate(bv, addr)
+                vf.navigate(bv, int(tbl.item(row, 0).text(), 16))
+            elif col in [2, 3, 4]:
+                vf.navigate(bv, int(tbl.item(row, 2).text(), 16))
             return
 
         res_tbl = qtw.QTableWidget()
-        res_tbl.setColumnCount(5)
-        res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm"])
+        res_tbl.setColumnCount(6)
+        res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Tag"])
         res_tbl.setSortingEnabled(True)
         res_tbl.cellClicked.connect(
-            lambda row, _: self._ctr.select_path(res_tbl, row)
+            lambda row, col: self._ctr.select_path(res_tbl, row, col)
         )
         res_tbl.cellClicked.connect(
             lambda row, col: _navigate(self._bv, res_tbl, row, col)
         )
         res_tbl.cellDoubleClicked.connect(
-            lambda row, _: self._ctr.highlight_path(res_tbl, row)
+            lambda row, col: self._ctr.highlight_path(res_tbl, row, col)
         )
         res_tbl.cellDoubleClicked.connect(
             lambda row, col: _navigate(self._bv, res_tbl, row, col)
@@ -286,7 +285,7 @@ class SidebarWidget(bnui.SidebarWidget):
         res_wid.setLayout(res_lay)
         run_but = qtw.QPushButton("Analyze Binary")
         run_but.clicked.connect(
-            lambda _, but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but, widget=res_tbl)
+            lambda but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but, widget=res_tbl)
         )
         lay = qtw.QVBoxLayout()
         lay.addWidget(res_wid)

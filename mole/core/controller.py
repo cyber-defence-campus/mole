@@ -405,16 +405,18 @@ class Controller:
             snk_parm = qtw.QTableWidgetItem(f"arg#{path.snk_par_idx+1:d}:{str(path.snk_par_var):s}")
             snk_parm.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
             self._paths_widget.setItem(row, 4, snk_parm)
+            tag = qtw.QTableWidgetItem("")
+            self._paths_widget.setItem(row, 5, tag)
             self._paths_widget.setSortingEnabled(True)
         
         bn.execute_on_main_thread(update_paths_widget)
         return
     
-    def select_path(self, tbl: qtw.QTableWidget, row: int) -> None:
+    def select_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
         """
         This method logs information about a path.
         """
-        if not tbl: return
+        if not tbl or col > 4: return
         src_addr = tbl.item(row, 0).text()
         src_name = tbl.item(row, 1).text()
         snk_addr = tbl.item(row, 2).text()
@@ -439,11 +441,11 @@ class Controller:
         self._log.debug(self._tag, msg)
         return
     
-    def highlight_path(self, tbl: qtw.QTableWidget, row: int) -> None:
+    def highlight_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
         """
         This method highlights all instructions in a path.
         """
-        if not tbl: return
+        if not tbl or col > 4: return
         src_addr = tbl.item(row, 0).text()
         src_name = tbl.item(row, 1).text()
         snk_addr = tbl.item(row, 2).text()
