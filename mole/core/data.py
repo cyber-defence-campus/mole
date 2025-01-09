@@ -183,8 +183,7 @@ class SourceFunction(Function):
             self.symbols,
             [
                 bn.SymbolType.FunctionSymbol,
-                bn.SymbolType.ImportedFunctionSymbol,
-                bn.SymbolType.SymbolicFunctionSymbol
+                bn.SymbolType.ImportedFunctionSymbol
             ]
         )
         for symbol_name, insts in code_refs.items():
@@ -265,8 +264,7 @@ class SinkFunction(Function):
             self.symbols,
             [
                 bn.SymbolType.FunctionSymbol,
-                bn.SymbolType.ImportedFunctionSymbol,
-                bn.SymbolType.SymbolicFunctionSymbol
+                bn.SymbolType.ImportedFunctionSymbol
             ]
         )
         for snk_name, snk_insts in code_refs.items():
