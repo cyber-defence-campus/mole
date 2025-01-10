@@ -1,6 +1,6 @@
-# Compiler (cross-compile with `CC=arm-linux-gcc make`) and compiler flags
+# Compiler (cross-compile with `CC=arm-linux-gcc EXT=.linux-armv7 make`) and compiler flags
 CC     ?= gcc
-CFLAGS ?= -Wall -O0 -g -fno-builtin -U_FORTIFY_SOURCE
+CFLAGS ?= -Wall -O3 -g -fno-builtin -U_FORTIFY_SOURCE
 EXT    ?=
 
 # Source and binary files
