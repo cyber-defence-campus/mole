@@ -41,20 +41,17 @@ class MediumLevelILBackwardSlicer:
         if inst is not None:
             return self._slice_backwards(inst, func_depth)
         # SSAVariable defined in another function
-        vars = set()
-        func_addr = func.llil[0].address
+        vars: set[bn.SSAVariable] = set()
         for parm_num, parm_var in enumerate(func.source_function.parameter_vars):
             if parm_var != ssa_var.var:
                 continue
-            for code_ref in self._bv.get_code_refs(func_addr):
+            call_sites: list[bn.Function] = list(func.source_function.call_sites)
+            for call_site in call_sites:
                 try:
-                    r_addr = code_ref.address
-                    r_func = code_ref.function
-                    r_call = r_func.get_low_level_il_at(r_addr).mlil.ssa_form
-                    r_parm = r_call.params[parm_num]
+                    r_parm: bn.MediumLevelILInstruction = call_site.mlil.ssa_form.params[parm_num]
+                    vars.update(self._slice_backwards(r_parm, func_depth))
                 except:
                     continue
-                vars.update(self._slice_backwards(r_parm, func_depth))
         return vars
 
     def _slice_backwards(
@@ -143,29 +140,30 @@ class MediumLevelILBackwardSlicer:
                     vars.update(self._slice_ssa_var_definition(var, inst.function, func_depth))
             case (bn.MediumLevelILCallSsa(dest=dest_inst) |
                   bn.MediumLevelILTailcallSsa(dest=dest_inst)):
-                match dest_inst:
-                    case bn.MediumLevelILConstPtr(constant=func_addr):
-                        # TODO: Backward slice into functions defined within the binary
-                        func = self._bv.get_function_at(func_addr)
-                        if func is not None:
-                            try:
-                                func = func.mlil.ssa_form
-                            except bn.ILException:
-                                func = None
-                            if func is not None:
-                                for c_inst in func.instructions:
-                                    # TODO: Support all return instructions
-                                    match c_inst:
-                                        # Backward slice starting from possible return instructions
-                                        case (bn.MediumLevelILRet() |
-                                            bn.MediumLevelILTailcallSsa()):
-                                            if func_depth < self._max_func_depth:
-                                                vars.update(self._slice_backwards(c_inst, func_depth+1))
-                                            else:
-                                                self._log.debug(self._tag, f"{info:s}: Maximum function depth reached")
-                vars.update(self._slice_backwards(inst.dest, func_depth))
                 for out in inst.output:
                     vars.add(out)
+                vars.update(self._slice_backwards(inst.dest, func_depth))
+                dest_info = InstructionHelper.get_inst_info(dest_inst)
+                match dest_inst:
+                    case (bn.MediumLevelILConstPtr(constant=func_addr) |
+                          bn.MediumLevelILImport(constant=func_addr)):
+                        # TODO: Backward slice into functions defined within the binary
+                        try:
+                            func = self._bv.get_function_at(func_addr).mlil.ssa_form
+                            for func_inst in func.instructions:
+                                # TODO: Support all return instructions
+                                match func_inst:
+                                    # Backward slice starting from possible return instructions
+                                    case (bn.MediumLevelILRet() |
+                                            bn.MediumLevelILTailcallSsa()):
+                                        if func_depth < self._max_func_depth:
+                                            vars.update(self._slice_backwards(func_inst, func_depth+1))
+                                        else:
+                                            self._log.warn(self._tag, f"{dest_info:s}: Maximum function depth reached")
+                        except:
+                            pass
+                    case _:
+                        self._log.warn(self._tag, f"{dest_info:s} Missing handler")
                 for par in inst.params:
                     vars.update(self._slice_backwards(par, func_depth))
             case (bn.MediumLevelILSyscallSsa()):
