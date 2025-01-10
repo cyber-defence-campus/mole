@@ -1,11 +1,14 @@
 # Compiler (cross-compile with `CC=arm-linux-gcc make`) and compiler flags
 CC     ?= gcc
-CFLAGS ?= -Wall -O3 -fno-builtin -U_FORTIFY_SOURCE
+CFLAGS ?= -Wall -O0 -g -fno-builtin -U_FORTIFY_SOURCE
 EXT    ?=
 
-# Source and binary files (in the current directory)
+# Source and binary files
 SOURCES = $(wildcard *.c)
 BINARIES = $(SOURCES:.c=$(EXT))
+
+# Ensure bin/ directory exists
+$(shell mkdir -p bin)
 
 # Prevent make from confusing targets `all` and `clean` with a file name
 .PHONY: all clean
@@ -15,8 +18,8 @@ all: $(BINARIES)
 
 # Compile each source file into a binary
 %$(EXT): %.c
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< -o bin/$@
 
 # Remove binaries
 clean:
-	rm -f $(BINARIES)
+	rm -f $(addprefix bin/,$(BINARIES))
