@@ -105,26 +105,26 @@ class TestMemcpy(unittest.TestCase):
         # Analyze test binary
         paths = self.ctr.analyze_binary(bv, max_func_depth=3, enable_all_funs=True)
         # Assert results
-        self.assertTrue(len(paths) > 0, "path(s) identified")
-        for path in paths:
-            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
-            self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction"
-            )
-            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
-            self.assertTrue(
-                (
-                    isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
-                    isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
-                ),
-                "sink is a MLIL call instruction"
-            )
-            self.assertEqual(path.snk_par_idx, 2, "arg3")
-            self.assertTrue(
-                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable"
-            )
+        self.assertTrue(len(paths) == 1, "path(s) identified")
+        path = paths[0]
+        self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+        self.assertTrue(
+            isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+            "source is a MLIL instruction"
+        )
+        self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
+        self.assertTrue(
+            (
+                isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+            ),
+            "sink is a MLIL call instruction"
+        )
+        self.assertEqual(path.snk_par_idx, 2, "arg3")
+        self.assertTrue(
+            isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+            "argument is a MLIL variable"
+        )
         # Close test binary
         bv.file.close()
         return
