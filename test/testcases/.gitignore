@@ -1,0 +1,10 @@
+# Ignore everything
+*
+
+# Allow .gitignore and Makefile
+!.gitignore
+!Makefile
+
+# Allow .c files in the src/ directory
+!/src/
+!/src/**/*.c
