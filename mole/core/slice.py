@@ -45,11 +45,16 @@ class MediumLevelILBackwardSlicer:
         for parm_num, parm_var in enumerate(func.source_function.parameter_vars):
             if parm_var != ssa_var.var:
                 continue
-            call_sites: list[bn.Function] = list(func.source_function.call_sites)
-            for call_site in call_sites:
+            caller_sites: list[bn.ReferenceSource] = list(func.source_function.caller_sites)
+            for caller_site in caller_sites:
                 try:
-                    r_parm: bn.MediumLevelILInstruction = call_site.mlil.ssa_form.params[parm_num]
-                    vars.update(self._slice_backwards(r_parm, func_depth))
+                    caller_inst = caller_site.mlil.ssa_form
+                    caller_parm: bn.MediumLevelILInstruction = caller_inst.params[parm_num]
+                    self._log.debug(
+                        self._tag,
+                        f"Follow '{ssa_var.name}#{ssa_var.version}' to caller '0x{caller_inst.address:x} {str(caller_inst):s}'"
+                    )
+                    vars.update(self._slice_backwards(caller_parm, func_depth-1))
                 except:
                     continue
         return vars
@@ -64,7 +69,7 @@ class MediumLevelILBackwardSlicer:
         """
         vars = set()
         info = InstructionHelper.get_inst_info(inst)
-        self._log.debug(self._tag, f"[{func_depth:d}/{self._max_func_depth:d}] {info:s}")
+        self._log.debug(self._tag, f"[{func_depth:+d}] {info:s}")
         # Instruction sliced before
         if inst in self._sliced_insts:
             return self._sliced_insts[inst]
