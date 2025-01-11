@@ -45,8 +45,7 @@ class MediumLevelILBackwardSlicer:
         for parm_num, parm_var in enumerate(func.source_function.parameter_vars):
             if parm_var != ssa_var.var:
                 continue
-            caller_sites: list[bn.ReferenceSource] = list(func.source_function.caller_sites)
-            for caller_site in caller_sites:
+            for caller_site in func.source_function.caller_sites:
                 try:
                     caller_inst = caller_site.mlil.ssa_form
                     caller_parm: bn.MediumLevelILInstruction = caller_inst.params[parm_num]
