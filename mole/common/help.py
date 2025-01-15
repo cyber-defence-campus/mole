@@ -32,10 +32,10 @@ class SymbolHelper:
             symbol_types: List[bn.SymbolType]
         ) -> Dict[str, Set[bn.MediumLevelILInstruction]]:
         """
-        This method determines code references for the provided `symbol_names`. Only symbols having
-        a type included in `symbol_types` are considered. The returned dictionary contains
-        individual `symbol_names` as keys, and the corresponding code references as values. Code
-        references correspond to `bn.MediumLevelILInstruction`s in SSA form.
+        This method determines code references for the provided `symbol_names`. Symbols having a
+        type not included in `symbol_types` are ignored. The returned dictionary contains individual
+        `symbol_names` as keys, and the corresponding code references as values. Code references
+        correspond to `bn.MediumLevelILInstruction`s in SSA form.
         """
         mlil_ssa_code_refs = {}
         for symbol_name in symbol_names:
