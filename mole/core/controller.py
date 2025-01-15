@@ -28,7 +28,7 @@ class Controller:
         self._log: Logger = log
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(log=log)
-        self._paths: Dict[str, Path] = {}
+        self._paths: List[Path] = []
         self._paths_widget: qtw.QTableWidget = None
         self._paths_highlight: Tuple[
             Path,
@@ -358,7 +358,7 @@ class Controller:
             self.__give_feedback(button, "Analysis Already Running...")
             return
         # Initialize data structures
-        self._paths = {}
+        self._paths = []
         if widget:
             self._paths_widget = widget
             self._paths_widget.setRowCount(0)
@@ -386,7 +386,7 @@ class Controller:
         def update_paths_widget() -> None:
             if not self._paths_widget:
                 return
-            self._paths[str(path)] = path
+            self._paths.append(path)
             row = self._paths_widget.rowCount()
             self._paths_widget.setSortingEnabled(False)
             self._paths_widget.insertRow(row)
@@ -417,13 +417,7 @@ class Controller:
         This method logs information about a path.
         """
         if not tbl or col > 4: return
-        src_addr = tbl.item(row, 0).text()
-        src_name = tbl.item(row, 1).text()
-        snk_addr = tbl.item(row, 2).text()
-        snk_name = tbl.item(row, 3).text()
-        snk_parm = tbl.item(row, 4).text()
-        path_id = f"{src_addr:s} {src_name:s} --> {snk_addr:s} {snk_name:s}({snk_parm:s})"
-        path = self._paths.get(path_id, None)
+        path = self._paths[row]
         if not path: return
         msg = f"Path: {str(path):s}"
         msg = f"{msg:s} [L:{len(path.insts):d},B:{len(path.bdeps):d}]!"
@@ -446,13 +440,7 @@ class Controller:
         This method highlights all instructions in a path.
         """
         if not tbl or col > 4: return
-        src_addr = tbl.item(row, 0).text()
-        src_name = tbl.item(row, 1).text()
-        snk_addr = tbl.item(row, 2).text()
-        snk_name = tbl.item(row, 3).text()
-        snk_parm = tbl.item(row, 4).text()
-        path_id = f"{src_addr:s} {src_name:s} --> {snk_addr:s} {snk_name:s}({snk_parm:s})"
-        path = self._paths.get(path_id, None)
+        path = self._paths[row]
         if not path: return
         highlighted_path, insts_colors = self._paths_highlight
         # Undo path highlighting
@@ -513,7 +501,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         """
         This method tries to identify intersting code paths using static backward slicing.
         """
-        self._paths = []
+        self._paths: List[Path] = []
 
         # Source functions
         src_funs = self._ctr.get_functions("Sources", not self._enable_all_funs)
