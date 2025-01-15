@@ -10,15 +10,28 @@
 /*
 Testcase Description:
 - server example
-- allowing function inlining
+- disallowing function inlining
 */
 
+__attribute__ ((noinline)) 
 void handle_client(int client_socket);
+
+__attribute__ ((noinline)) 
 void execute_cgi_command(const char *buffer);
+
+__attribute__ ((noinline)) 
 void send_response(int client_socket, const char *response);
+
+__attribute__ ((noinline)) 
 int create_server_socket(struct sockaddr_in *address);
+
+__attribute__ ((noinline)) 
 void handle_get_request(int client_socket);
+
+__attribute__ ((noinline)) 
 void handle_post_request(int client_socket);
+
+__attribute__ ((noinline)) 
 char* receive_data(int client_socket, int *size);
 
 int main() {

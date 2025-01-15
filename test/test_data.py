@@ -61,7 +61,7 @@ class TestData(unittest.TestCase):
                 "max_func_depth": SpinboxSetting(
                     name="max_func_depth",
                     value=3,
-                    min_value=0,
+                    min_value=-1,
                     max_value=10,
                     help="backward slicing visits called functions up to the given depth"
                 ),
