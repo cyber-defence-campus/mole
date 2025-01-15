@@ -186,47 +186,47 @@ class SourceFunction(Function):
                 bn.SymbolType.ImportedFunctionSymbol
             ]
         )
-        for symbol_name, insts in code_refs.items():
+        for src_name, src_insts in code_refs.items():
             if canceled(): break
-            for inst in insts:
+            for src_inst in src_insts:
                 if canceled(): break
-                log.info(tag, f"Analyze source function '0x{inst.address:x} {symbol_name:s}'")
+                log.info(tag, f"Analyze source function '0x{src_inst.address:x} {src_name:s}'")
                 # Ignore everything but call instructions
-                match inst:
+                match src_inst:
                     case (bn.MediumLevelILCallSsa() |
                           bn.MediumLevelILTailcallSsa()):
-                        s = self.target_insts.get((inst.address, symbol_name), set())
-                        s.add(inst)
-                        self.target_insts[(inst.address, symbol_name)] = s
+                        s = self.target_insts.get((src_inst.address, src_name), set())
+                        s.add(src_inst)
+                        self.target_insts[(src_inst.address, src_name)] = s
                     case _:
                         continue
                 # Ignore calls with an invalid number of parameters
-                if not self.par_cnt_fun(len(inst.params)):
-                    log.warn(tag, f"0x{inst.address:x} Ignore arguments of call '0x{inst.address:x} {symbol_name:s}' due to an unexpected amount")
+                if not self.par_cnt_fun(len(src_inst.params)):
+                    log.warn(tag, f"0x{src_inst.address:x} Ignore arguments of call '0x{src_inst.address:x} {src_name:s}' due to an unexpected amount")
                     continue
                 # Analyze parameters
-                for parm_num, parm_var in enumerate(inst.params):
+                for par_idx, par_var in enumerate(src_inst.params):
                     if canceled(): break
-                    log.debug(tag, f"Analyze argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                    log.debug(tag, f"Analyze argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
                     # Perform dataflow analysis
-                    if self.par_dataflow_fun(parm_num):
+                    if self.par_dataflow_fun(par_idx):
                         # Ignore constant parameters
-                        if parm_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            log.debug(tag, f"0x{inst.address:x} Ignore constant argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                        if par_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
+                            log.debug(tag, f"0x{src_inst.address:x} Ignore constant argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
-                        possible_sizes = parm_var.possible_values
+                        possible_sizes = par_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            log.debug(tag, f"0x{inst.address:x} Ignore dataflow determined argument 'arg#{parm_num+1:d}:{str(parm_var):s}'")
+                            log.debug(tag, f"0x{src_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
                             continue
                     # Backward slice the parameter
-                    if self.par_slice_fun(parm_num):
-                        slicer = MediumLevelILBackwardSlicer(bv, 0, tag, log)
-                        slicer.slice_backwards(parm_var)
-                        # Add sliced instructions to target instructions
-                        s = self.target_insts.get((inst.address, symbol_name), set())
-                        s.update(slicer._sliced_insts)
-                        self.target_insts[(inst.address, symbol_name)] = s
+                    if self.par_slice_fun(par_idx):
+                        slicer = MediumLevelILBackwardSlicer(bv, -1, 1, tag, log)
+                        slicer.slice_backwards(par_var)
+                        # Add sliced instructions to the target instructions
+                        s: Set[bn.MediumLevelILInstruction] = self.target_insts.get((src_inst.address, src_name), set())
+                        s.update(slicer.get_insts())
+                        self.target_insts[(src_inst.address, src_name)] = s
         return
 
 
@@ -243,7 +243,7 @@ class SinkFunction(Function):
             except:
                 return False
         return super().__eq__(other)
-
+    
     def find_paths(
             self,
             bv: bn.BinaryView,
@@ -300,33 +300,27 @@ class SinkFunction(Function):
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
-                        slicer = MediumLevelILBackwardSlicer(bv, max_func_depth, log=log)
-                        try:
-                            slice = slicer.slice_backwards(par_var)
-                        except Exception as e:
-                            log.error(tag, f"Exception: {str(e):s}")
-                            continue
-                        # Check whether the slice contains any source
+                        slicer = MediumLevelILBackwardSlicer(bv, max_func_depth, -1, tag, log)
+                        slicer.slice_backwards(par_var)
                         for source in sources:
                             if canceled(): break
-                            for (sym_addr, sym_name), src_insts in source.target_insts.items():
+                            for (src_sym_addr, src_sym_name), src_insts in source.target_insts.items():
                                 if canceled(): break
                                 for src_inst in src_insts:
                                     if canceled(): break
-                                    if slicer.includes(src_inst):
-                                        # Calculate slice's instructions and branch dependencies
-                                        insts = [snk_inst]
+                                    # Find paths
+                                    for insts in slicer.find_paths(par_var, src_inst):
+                                        # Prepend sink instruction
+                                        insts.insert(0, snk_inst)
+                                        # Calculate branch dependencies
                                         bdeps = {}
-                                        for inst in slice.keys():
-                                            insts.append(inst)
-                                            if inst == src_inst:
-                                                break
+                                        for inst in insts:
                                             for bch_idx, bch_dep in inst.branch_dependence.items():
                                                 bdeps.setdefault(bch_idx, bch_dep)
                                         # Store path
                                         path = Path(
-                                            src_sym_addr=sym_addr,
-                                            src_sym_name=sym_name,
+                                            src_sym_addr=src_sym_addr,
+                                            src_sym_name=src_sym_name,
                                             snk_sym_addr=snk_inst.address,
                                             snk_sym_name=snk_name,
                                             snk_par_idx=par_idx,
