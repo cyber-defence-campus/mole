@@ -15,6 +15,9 @@ class SidebarModel:
             tag: str = "Sidebar",
             log: Logger = Logger()
         ) -> None:
+        """
+        This method initializes a model (MVC pattern).
+        """
         self._ctr: Controller = ctr
         self._tag: str = tag
         self._log: Logger = log

@@ -41,6 +41,9 @@ class LogicalExpressionParser:
             tag: str = "LogicalExpressionParser",
             log: Logger = Logger()
         ) -> None:
+        """
+        This method initializes a parser for logical expressions.
+        """
         self._tag: str = tag
         self._log: Logger = log
         self._parser: Lark = Lark(

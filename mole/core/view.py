@@ -21,6 +21,9 @@ class SidebarView(bnui.SidebarWidgetType):
             tag: str = "Sidebar",
             log: Logger = Logger()
         ) -> None:
+        """
+        This method initializes a view (MVC pattern).
+        """
         super().__init__(self._init_icon(), "Mole")
         self._ctr: Controller = ctr
         self._tag: str = tag
@@ -85,6 +88,9 @@ class SidebarWidget(bnui.SidebarWidget):
             tag: str = "Sidebar",
             log: Logger = Logger()
         ) -> None:
+        """
+        This method initializes a sidebar widget.
+        """
         super().__init__("Mole")
         self._ctr: Controller = ctr
         self._tag: str = tag

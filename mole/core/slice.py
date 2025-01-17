@@ -143,6 +143,9 @@ class MediumLevelILBackwardSlicer:
             tag: str = "BackSlicer",
             log: Logger = Logger()
         ) -> None:
+        """
+        This method initializes a backward slicer for for MLIL instructions.
+        """
         self._bv: bn.BinaryView = bv
         self._max_func_depth: int = max_func_depth
         self._max_vdef_depth: int = max_vdef_depth

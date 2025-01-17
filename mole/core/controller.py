@@ -23,6 +23,9 @@ class Controller:
             tag: str = "Controller",
             log: Logger = Logger(level="debug")
         ) -> None:
+        """
+        This method initializes a controller (MVC pattern).
+        """
         self._runs_headless: bool = runs_headless
         self._tag: str = tag
         self._log: Logger = log
@@ -487,6 +490,9 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             tag: str = "BackSlicer",
             log: Logger = Logger()
         ) -> None:
+        """
+        This method initializes a background task that backward slices MLIL instructions.
+        """
         super().__init__(initial_progress_text="Start slicing...", can_cancel=True)
         self._bv: bn.BinaryView = bv
         self._ctr: Controller = ctr

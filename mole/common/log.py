@@ -15,6 +15,11 @@ class Logger:
             level: Literal["debug", "info", "warning", "error"] = "info",
             runs_headless: bool = False
         ) -> None:
+        """
+        This method initializes a logger that writes messages of a given `level` and above to
+        `stdout`/`stderr`, as well as to Binary Ninja's log in case `runs_headless` is set to
+        `False`.
+        """
         self._set_level(level)
         self._runs_headless: bool = runs_headless
         return
