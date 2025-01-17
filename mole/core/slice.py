@@ -1,50 +1,135 @@
 from __future__      import annotations
-from ..common.help import InstructionHelper
+from ..common.help   import FunctionHelper, InstructionHelper
 from ..common.log    import Logger
-from typing          import Generator, List
+from typing          import Generator, List, Set
 import binaryninja as bn
 import networkx    as nx
 
 
-# class MediumLevelILGraph(nx.DiGraph):
-#     """
-#     TODO:
-#     - Do something like this if we need each node (`MediumLevelILInstruction`) to have associated
-#       parameters (e.g. `func_depth`,`vdef_depth` or `ssa_vars`)
-#     """
+class MediumLevelILInstructionGraph(nx.DiGraph):
+    """
+    This class represents a directed graph that stores the `MediumLevelILInstruction` of a slice.
+    """
 
-#     def __init__(self) -> None:
-#         super().__init__()
-#         return
+    def __init__(
+            self,
+            tag: str = "InstructionGraph",
+            log: Logger = Logger()
+        ) -> None:
+        """
+        This method initializes an empty graph.
+        """
+        self._tag = tag
+        self._log = log
+        return super().__init__()
     
-#     def add_node(
-#             self,
-#             inst: bn.MediumLevelILInstruction,
-#             ssa_vars: Set[bn.SSAVariable] = set()
-#         ) -> None:
-#         """
-#         """
-#         super().add_node(inst, ssa_vars=ssa_vars)
-#         return
+    def add_node(
+            self,
+            inst: bn.MediumLevelILInstruction,
+            is_definition: bool = None,
+            call_level: int = None,
+            caller_site: bn.MediumLevelILFunction = None
+        ) -> None:
+        """
+        This method adds a node for the given instruction `inst` with the following node attributes:
+        The attribute `is_definition` should indicate whether or not instruction `inst` defines a
+        SSA variable, i.e. represents an assigning instruction. The attribute `call_level` should
+        indicate the `inst`'s level within the call stack. The attribute `caller_site` should
+        indicate the function that called `inst.function`.
+        """
+        super().add_node(
+            inst,
+            is_definition=is_definition,
+            call_level=call_level,
+            caller_site=caller_site
+        )
+        return
     
-#     def get_ssa_vars(
-#             self,
-#             inst: bn.MediumLevelILInstruction
-#         ) -> Set[bn.SSAVariable]:
-#         """
-#         """
-#         return self.nodes[inst]["ssa_vars"]
+    def add_edge(
+            self,
+            inst_from: bn.MediumLevelILInstruction,
+            inst_to:   bn.MediumLevelILInstruction
+        ) -> None:
+        """
+        This method adds an edge from `inst_from` to `inst_to`.
+        """
+        if not inst_from in self.nodes:
+            info = InstructionHelper.get_inst_info(inst_from)
+            self._log.warn(
+                self._tag,
+                f"Edge not added to instruction graph due to an inexisting from node ({info:s})"
+            )
+            return
+        if not inst_to in self.nodes:
+            info = InstructionHelper.get_inst_info(inst_to)
+            self._log.warn(
+                self._tag,
+                f"Edge not added to instruction graph due to an inexisting to node ({info:s})"
+            )
+            return
+        super().add_edge(inst_from, inst_to)
+        return
+
+
+class MediumLevelILFunctionGraph(nx.DiGraph):
+    """
+    This class represents a directed graph that stores the `MediumLevelILFunction` call graph of a
+    slice.
+    """
+
+    def __init__(
+            self,
+            tag: str = "FunctionGraph",
+            log: Logger = Logger()
+        ) -> None:
+        """
+        This method initializes an empty graph.
+        """
+        self._tag = tag
+        self._log = log
+        return super().__init__()
     
-#     def update_ssa_vars(
-#             self,
-#             inst: bn.MediumLevelILInstruction,
-#             ssa_vars: Set[bn.SSAVariable]
-#         ) -> None:
-#         """
-#         """
-#         self.get_ssa_vars(inst).update(ssa_vars)
-#         return
+    def add_node(
+            self,
+            call_site: bn.MediumLevelILFunction,
+            call_level: int = None
+        ) -> None:
+        """
+        This method adds a node for the given `call_site`, with the following node attribute: The
+        attribute `call_level` should indicate the `call_site`'s level within the call stack.
+        """
+        super().add_node(
+            call_site,
+            call_level=call_level
+        )
+        return
     
+    def add_edge(
+            self,
+            call_site_from: bn.MediumLevelILFunction,
+            call_site_to:   bn.MediumLevelILFunction,
+        ) -> None:
+        """
+        This method adds an edge from `call_site_from` to `call_site_to`.
+        """
+        if not call_site_from in self.nodes:
+            info = FunctionHelper.get_func_info(call_site_from)
+            self._log.warn(
+                self._tag,
+                f"Edge not added to function graph due to an inexisting from node ({info:s})"
+            )
+            return
+        if not call_site_to in self.nodes:
+            info = FunctionHelper.get_func_info(call_site_to)
+            self._log.warn(
+                self._tag,
+                f"Edge not added to function graph due to an inexisting to node ({info:s})"
+            )
+            return
+        super().add_edge(call_site_from, call_site_to)
+        return
+    
+
 class MediumLevelILBackwardSlicer:
     """
     This class implements backward slicing for MLIL instructions.
@@ -63,71 +148,100 @@ class MediumLevelILBackwardSlicer:
         self._max_vdef_depth: int = max_vdef_depth
         self._tag: str = tag
         self._log: Logger = log
-        self._sliced_insts: nx.DiGraph = nx.DiGraph()
+        self._inst_visited: Set[bn.MediumLevelILInstruction] = set()
+        self._inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
+        self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
         return
     
     def _slice_ssa_var_definition(
             self,
             ssa_var: bn.SSAVariable,
             inst: bn.MediumLevelILInstruction,
-            func_depth: int = 0,
-            vdef_depth: int = 0
+            call_level: int = 0,
+            caller_site: bn.MediumLevelILFunction = None
+            # func_depth: int = 0,
+            # vdef_depth: int = 0
         ) -> None:
         """
+        TODO:
         This method determines and slices the instruction defining variable `ssa_var` of instruction
         `inst`. The definition is searched within `inst`'s function first. If not found, it checks
         whether `ssa_var` corresponds to a function argument and if so, searches its definition in
         callers.
         """
-        # Defined withing the same function
-        def_inst = inst.function.get_ssa_var_definition(ssa_var)
-        if def_inst:
-            self._slice_backwards(def_inst, func_depth, vdef_depth+1)
-            self._sliced_insts.add_edge(inst, def_inst)
+        # Try finding the definition withing the current function
+        inst_def = inst.function.get_ssa_var_definition(ssa_var)
+        if inst_def:
+            self._inst_graph.add_node(inst, False, call_level, caller_site)
+            self._inst_graph.add_node(inst_def, True, call_level, caller_site)
+            self._inst_graph.add_edge(inst, inst_def)
+            self._slice_backwards(inst_def, call_level, caller_site)
             return
-        # Defined in another function
-        for par_idx, par_var in enumerate(inst.function.source_function.parameter_vars):
-            if par_var != ssa_var.var: continue
-            for caller_site in inst.function.source_function.caller_sites:
-                try:
-                    caller_inst = caller_site.mlil.ssa_form
-                    caller_parm: bn.MediumLevelILInstruction = caller_inst.params[par_idx]
-                    self._log.debug(
-                        self._tag,
-                        f"Follow '{ssa_var.name}#{ssa_var.version}' to caller '0x{caller_inst.address:x} {str(caller_inst):s}'"
-                    )
-                    self._slice_backwards(caller_parm, func_depth-1, vdef_depth+1)
-                    self._sliced_insts.add_edge(inst, caller_parm)
-                except:
-                    continue
+        # TODO: Try finding the definition in another function if we go down the call stack
+        if abs(call_level) > self._max_func_depth and self._max_func_depth >= 0: return
+        caller_site_level = self._call_graph.nodes.get(caller_site, {}).get("call_level", None)
+        if caller_site_level is None or call_level < caller_site_level:
+            # # TODO: Added the next line
+            # if func_depth > 0: return
+            for parm_idx, parm_var in enumerate(inst.function.source_function.parameter_vars):
+                if parm_var != ssa_var.var: continue
+                for cs in inst.function.source_function.caller_sites:
+                    try:
+                        inst_caller: bn.MediumLevelILInstruction = cs.mlil.ssa_form
+                        parm_caller: bn.MediumLevelILInstruction = inst_caller.params[parm_idx]
+                        func_caller: bn.MediumLevelILFunction = parm_caller.function
+                        self._log.debug(
+                            self._tag,
+                            f"[{call_level:+d}] Follow '{ssa_var.name}#{ssa_var.version}' to caller '0x{inst_caller.address:x}: {str(inst_caller):s}'"
+                        )
+                        # self._slice_backwards(parm_caller, func_depth-1, vdef_depth+1)
+                        # # TODO: Added the next line
+                        # self._inst_graph.add_edge(inst, inst_caller)
+                        # self._inst_graph.add_edge(inst_caller, parm_caller)
+                        # self._call_graph.add_node(func_caller, call_level-1)
+                        # self._call_graph.add_edge(inst.function, func_caller)
+                        # self._slice_backwards(parm_caller, call_level-1, inst.function)
+                        # self._inst_graph.add_edge(inst, parm_caller)
+                        self._inst_graph.add_node(inst, False, call_level, caller_site)
+                        self._inst_graph.add_node(parm_caller, False, call_level-1, inst.function)
+                        self._inst_graph.add_edge(inst, parm_caller)
+                        self._call_graph.add_node(inst.function, call_level)
+                        self._call_graph.add_node(func_caller, call_level-1)
+                        self._call_graph.add_edge(inst.function, func_caller)
+                        self._slice_backwards(parm_caller, call_level-1, inst.function)
+                    except:
+                        continue
         return
     
     def _slice_backwards(
             self,
             inst: bn.MediumLevelILInstruction,
-            func_depth: int = 0,
-            vdef_depth: int = 0
+            call_level: int = 0,
+            caller_site: bn.MediumLevelILFunction = None
+            # func_depth: int = 0,
+            # vdef_depth: int = 0
         ) -> None:
         """
         This method backward slices instruction `inst` based on its type.
         """
         info = InstructionHelper.get_inst_info(inst)
         # Instruction sliced before
-        if inst in self._sliced_insts:
+        if inst in self._inst_visited:
             self._log.debug(
                 self._tag,
-                f"[{func_depth:+d}] {info:s}: Sliced before"
+                f"[{call_level:+d}] {info:s}: Sliced before"
             )
             return
-        if vdef_depth > self._max_vdef_depth and self._max_vdef_depth >= 0:
-            self._log.debug(
-                self._tag,
-                f"[{func_depth:+d}] {info:s}: Maximum variable definition depth {self._max_vdef_depth} reached"
-            )
-            return
-        self._log.debug(self._tag, f"[{func_depth:+d}] {info:s}")
+        # TODO:
+        # if vdef_depth > self._max_vdef_depth and self._max_vdef_depth >= 0:
+        #     self._log.debug(
+        #         self._tag,
+        #         f"[{func_depth:+d}] {info:s}: Maximum variable definition depth {self._max_vdef_depth} reached"
+        #     )
+        #     return
         # Slice instruction
-        self._sliced_insts.add_node(inst)
+        self._inst_visited.add(inst)
+        self._log.debug(self._tag, f"[{call_level:+d}] {info:s}")
         match inst:
             # TODO: Support all instructions
             case (bn.MediumLevelILConst() |
@@ -140,12 +254,12 @@ class MediumLevelILBackwardSlicer:
                 # Backward slice at all possible variable definitions
                 for ssa_var in inst.function.ssa_vars:
                     if ssa_var.var == inst.src:
-                        self._slice_ssa_var_definition(ssa_var, inst, func_depth, vdef_depth)
+                        self._slice_ssa_var_definition(ssa_var, inst, call_level, caller_site)
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILVarAliasedField() |
                   bn.MediumLevelILVarSsaField()):
-                self._slice_ssa_var_definition(inst.src, inst, func_depth, vdef_depth)
+                self._slice_ssa_var_definition(inst.src, inst, call_level, caller_site)
             case (bn.MediumLevelILNot() |
                   bn.MediumLevelILSx() |
                   bn.MediumLevelILZx() |
@@ -154,8 +268,10 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILLowPart() |
                   bn.MediumLevelILFneg() |
                   bn.MediumLevelILFloatConv()):
-                self._slice_backwards(inst.src, func_depth, vdef_depth)
-                self._sliced_insts.add_edge(inst, inst.src)
+                self._inst_graph.add_node(inst, False, call_level, caller_site)
+                self._inst_graph.add_node(inst.src, None, call_level, caller_site)
+                self._inst_graph.add_edge(inst, inst.src)
+                self._slice_backwards(inst.src, call_level, caller_site)
             case (bn.MediumLevelILAdd() |
                   bn.MediumLevelILAdc() |
                   bn.MediumLevelILSub() |
@@ -178,28 +294,32 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILFsub() |
                   bn.MediumLevelILFmul() |
                   bn.MediumLevelILFdiv()):
-                self._slice_backwards(inst.left, func_depth, vdef_depth)
-                self._sliced_insts.add_edge(inst, inst.left)
-                self._slice_backwards(inst.right, func_depth, vdef_depth)
-                self._sliced_insts.add_edge(inst, inst.right)
+                self._inst_graph.add_node(inst, False, call_level, caller_site)
+                self._inst_graph.add_node(inst.left, None, call_level, caller_site)
+                self._inst_graph.add_edge(inst, inst.left)
+                self._slice_backwards(inst.left, call_level, caller_site)
+                self._inst_graph.add_node(inst, False, call_level, caller_site)
+                self._inst_graph.add_node(inst.right, None, call_level, caller_site)
+                self._inst_graph.add_edge(inst, inst.right)
+                self._slice_backwards(inst.right, call_level, caller_site)
             case (bn.MediumLevelILRet()):
                 for ret in inst.src:
-                    self._slice_backwards(ret, func_depth, vdef_depth)
-                    self._sliced_insts.add_edge(inst, ret)
+                    self._inst_graph.add_node(inst, False, call_level, caller_site)
+                    self._inst_graph.add_node(ret, None, call_level, caller_site)
+                    self._inst_graph.add_edge(inst, ret)
+                    self._slice_backwards(ret, call_level, caller_site)
             case (bn.MediumLevelILSetVarSsa() |
                   bn.MediumLevelILSetVarAliased() |
                   bn.MediumLevelILSetVarAliasedField() |
-                  bn.MediumLevelILSetVarSsaField()):
-                # TODO: If we do not use `vars`, merge with above case
-                self._slice_backwards(inst.src, func_depth, vdef_depth)
-                self._sliced_insts.add_edge(inst, inst.src)
-            case (bn.MediumLevelILSetVarSplitSsa()):
-                # TODO: If we do not use `vars`, merge with above case
-                self._slice_backwards(inst.src, func_depth, vdef_depth)
-                self._sliced_insts.add_edge(inst, inst.src)
+                  bn.MediumLevelILSetVarSsaField() |
+                  bn.MediumLevelILSetVarSplitSsa()):
+                self._inst_graph.add_node(inst, True, call_level, caller_site)
+                self._inst_graph.add_node(inst.src, None, call_level, caller_site)
+                self._inst_graph.add_edge(inst, inst.src)
+                self._slice_backwards(inst.src, call_level, caller_site)
             case (bn.MediumLevelILVarPhi()):
                 for var in inst.src:
-                    self._slice_ssa_var_definition(var, inst, func_depth, vdef_depth)
+                    self._slice_ssa_var_definition(var, inst, call_level, caller_site)
             case (bn.MediumLevelILCallSsa(dest=dest_inst) |
                   bn.MediumLevelILTailcallSsa(dest=dest_inst)):
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
@@ -215,27 +335,40 @@ class MediumLevelILBackwardSlicer:
                                     # Backward slice starting from possible return instructions
                                     case (bn.MediumLevelILRet() |
                                             bn.MediumLevelILTailcallSsa()):
-                                        if func_depth < self._max_func_depth or self._max_func_depth < 0:
-                                            self._slice_backwards(func_inst, func_depth+1, vdef_depth)
-                                            self._sliced_insts.add_edge(inst, func_inst)
+                                        # TODO: Rename _max_func_depth
+                                        if abs(call_level) <= self._max_func_depth or self._max_func_depth < 0:
+                                            self._inst_graph.add_node(inst, True, call_level, caller_site)
+                                            self._inst_graph.add_node(func_inst, None, call_level+1, inst.function)
+                                            self._inst_graph.add_edge(inst, func_inst)
+                                            self._call_graph.add_node(inst.function, call_level)
+                                            self._call_graph.add_node(func, call_level+1)
+                                            self._call_graph.add_edge(inst.function, func)
+                                            self._slice_backwards(func_inst, call_level+1, inst.function)
                                         else:
                                             self._log.debug(
                                                 self._tag,
-                                                f"[{func_depth:+d}] {dest_info:s}: Maximum function depth {self._max_func_depth:d} reached"
+                                                f"[{call_level:+d}] {dest_info:s}: Maximum function depth {self._max_func_depth:d} reached"
                                             )
                         except:
                             pass
                     case _:
-                        self._log.warn(self._tag, f"[{func_depth:+d}] {dest_info:s}: Missing handler")
+                        self._log.warn(self._tag, f"[{call_level:+d}] {dest_info:s}: Missing handler")
+                # TODO: Do we need to check here too?
+                # caller_site_level = self._call_graph.nodes.get(caller_site, {}).get("call_level", None)
+                # if caller_site_level is None or call_level < caller_site_level:
                 for par in inst.params:
-                    self._slice_backwards(par, func_depth, vdef_depth)
-                    self._sliced_insts.add_edge(inst, par)
+                    self._inst_graph.add_node(inst, True, call_level, caller_site)
+                    self._inst_graph.add_node(par, None, call_level, caller_site)
+                    self._inst_graph.add_edge(inst, par)
+                    self._slice_backwards(par, call_level, caller_site)
             case (bn.MediumLevelILSyscallSsa()):
                 for par in inst.params:
-                    self._slice_backwards(par, func_depth, vdef_depth)
-                    self._sliced_insts.add_edge(inst, par)
+                    self._inst_graph.add_node(inst, False, call_level, caller_site)
+                    self._inst_graph.add_node(par, None, call_level, caller_site)
+                    self._inst_graph.add_edge(inst, par)
+                    self._slice_backwards(par, call_level, caller_site)
             case _:
-                self._log.warn(self._tag, f"[{func_depth:+d}] {info:s}: Missing handler")
+                self._log.warn(self._tag, f"[{call_level:+d}] {info:s}: Missing handler")
         return
     
     def slice_backwards(
@@ -246,13 +379,14 @@ class MediumLevelILBackwardSlicer:
         This method backward slices the instruction `inst`.
         """
         for _ in inst.ssa_form.traverse(self._slice_backwards): pass
+
         return
     
     def get_insts(self) -> Generator[bn.MediumLevelILInstruction]:
         """
         This method returns all sliced instructions.
         """
-        return self._sliced_insts.nodes()
+        return self._inst_graph.nodes()
     
     def find_paths(
             self,
@@ -262,8 +396,32 @@ class MediumLevelILBackwardSlicer:
         """
         This method finds paths from `snk_inst` to `src_inst`.
         """
+        # import matplotlib.pyplot as plt
+
+        # def plot_call_graph() -> None:
+        #     plt.figure()
+        #     graph = self._call_graph
+        #     pos = nx.nx_agraph.graphviz_layout(graph, prog="dot")
+        #     label_mapping = {node:  FunctionHelper.get_func_info(node, False) for node in graph.nodes}
+        #     nx.draw_networkx_nodes(graph, pos)
+        #     nx.draw_networkx_labels(graph, pos, labels=label_mapping)
+        #     nx.draw_networkx_edges(graph, pos)
+        #     plt.show()
+        # bn.execute_on_main_thread(plot_call_graph)
+
+        # def plot_inst_graph() -> None:
+        #     plt.figure()
+        #     graph = self._inst_graph
+        #     pos = nx.nx_agraph.graphviz_layout(graph, prog="dot")
+        #     label_mapping = {node:  InstructionHelper.get_inst_info(node, False) for node in graph.nodes}
+        #     nx.draw_networkx_nodes(graph, pos)
+        #     nx.draw_networkx_labels(graph, pos, labels=label_mapping)
+        #     nx.draw_networkx_edges(graph, pos)
+        #     plt.show()
+        # bn.execute_on_main_thread(plot_inst_graph)
+
         try:
-            yield from nx.all_simple_paths(self._sliced_insts, snk_inst, src_inst)
+            yield from nx.all_simple_paths(self._inst_graph, snk_inst, src_inst)
         except (nx.NodeNotFound, nx.NetworkXNoPath):
             pass
         yield from ()
