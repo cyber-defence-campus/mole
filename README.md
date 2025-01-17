@@ -5,7 +5,7 @@
   <img src="https://drive.google.com/uc?export=view&id=1oToYEJyJOJtT9fgl7Pm4DuVloZGod5MO" style="width: 256px; max-width: 100%; height: auto" alt="Mole Logo"/>
 </p>
 
-*Mole* is a *Binary Ninja* plugin that tries to identify **interesting paths** (from sources to sinks) using **static backward slicing**. The plugin can be run both in the *Binary Ninja UI* and in headless mode.
+*Mole* is a *Binary Ninja* plugin that tries to identify **interesting paths** (from untrusted sources to sensitive sinks) using **static backward slicing**. The plugin can be run both in the *Binary Ninja UI* and in headless mode.
 
 ## Installation
 In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your *Binary Ninja*'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respectively. Use the following steps to install *Mole*:
