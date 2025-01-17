@@ -58,9 +58,31 @@ class InstructionHelper:
 
     @staticmethod
     def get_inst_info(
-            inst: bn.MediumLevelILInstruction    
+            inst: bn.MediumLevelILInstruction,
+            with_class_name: bool = True
         ) -> str:
         """
         This method returns a string with information about the instruction `inst`.
         """
-        return f"0x{inst.instr.address:x} {str(inst):s} ({inst.__class__.__name__:s})"
+        info = f"0x{inst.instr.address:x} {str(inst):s}"
+        if with_class_name:
+            info = f"{info:s} ({inst.__class__.__name__:s})"
+        return info
+    
+class FunctionHelper:
+    """
+    This class provides helper functions with respect to functions.
+    """
+
+    @staticmethod
+    def get_func_info(
+        func: bn.MediumLevelILFunction,
+        with_class_name: bool = True
+    ) -> str:
+        """
+        This method returns a string with information about the function `func`.
+        """
+        info = f"0x{func.source_function.start:x} {func.source_function.name:s}"
+        if with_class_name:
+            info = f"{info:s} ({func.__class__.__name__:s})"
+        return info
