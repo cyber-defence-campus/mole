@@ -151,7 +151,7 @@ class Controller:
                     parsed_conf[type][lib_name] = Library(lib_name, lib_categories)
             # Parse settings
             settings = conf.get("settings", {})
-            mfd_name = "max_func_depth"
+            mfd_name = "max_call_level"
             mfd_settings = settings.get(mfd_name, None)
             if mfd_settings:
                 mfd_value = int(mfd_settings.get("value", None))
@@ -337,7 +337,7 @@ class Controller:
     def analyze_binary(
             self,
             bv: bn.BinaryView,
-            max_func_depth: int = None,
+            max_call_level: int = None,
             enable_all_funs: bool = False,
             button: qtw.QPushButton = None,
             widget: qtw.QTableWidget = None
@@ -370,7 +370,7 @@ class Controller:
             bv=bv,
             ctr=self,
             runs_headless=self._runs_headless,
-            max_func_depth=max_func_depth,
+            max_call_level=max_call_level,
             enable_all_funs=enable_all_funs,
             log=self._log
         )
@@ -485,7 +485,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             bv: bn.BinaryView,
             ctr: Controller,
             runs_headless: bool = False,
-            max_func_depth: int = None,
+            max_call_level: int = None,
             enable_all_funs: bool = False,
             tag: str = "BackSlicer",
             log: Logger = Logger()
@@ -497,7 +497,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         self._bv: bn.BinaryView = bv
         self._ctr: Controller = ctr
         self._runs_headless: bool = runs_headless
-        self._max_func_depth: int = max_func_depth
+        self._max_call_level: int = max_call_level
         self._enable_all_funs: bool = enable_all_funs
         self._tag: str = tag
         self._log: Logger = log
@@ -525,10 +525,10 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             self._log.warn(self._tag, "No sink functions configured")
 
         # Find paths
-        max_func_depth = self._max_func_depth
-        if max_func_depth is None:
+        max_call_level = self._max_call_level
+        if max_call_level is None:
             settings = self._ctr.get_settings()
-            max_func_depth = settings.get("max_func_depth").value
+            max_call_level = settings.get("max_call_level").value
         if src_funs and snk_funs:
             for i, snk_fun in enumerate(snk_funs):
                 if self.cancelled: break
@@ -536,7 +536,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                 paths = snk_fun.find_paths(
                     bv=self._bv,
                     sources=src_funs,
-                    max_func_depth=max_func_depth,
+                    max_call_level=max_call_level,
                     found_path=self._ctr.add_path_to_view,
                     canceled=lambda:self.cancelled,
                     tag=self._tag,

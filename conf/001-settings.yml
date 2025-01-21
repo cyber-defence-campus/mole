@@ -1,7 +1,7 @@
 settings:
-  max_func_depth:
-    name: max_func_depth
-    help: backward slicing visits called functions up to the given depth
+  max_call_level:
+    name: max_call_level
+    help: backward slicing visits called functions up to the given level
     value: 3
     min_value: -1
     max_value: 10

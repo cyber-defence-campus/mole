@@ -186,7 +186,7 @@ class SidebarWidget(bnui.SidebarWidget):
         settings = self._ctr.get_settings()
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
-        mfd_name = "max_func_depth"
+        mfd_name = "max_call_level"
         mfd = settings.get(mfd_name, None)
         if mfd:
             mfd.widget = qtw.QSpinBox()

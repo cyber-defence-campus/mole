@@ -248,7 +248,7 @@ class SinkFunction(Function):
             self,
             bv: bn.BinaryView,
             sources: List[SourceFunction],
-            max_func_depth: int,
+            max_call_level: int,
             found_path: Callable[[Path], None],
             canceled: Callable[[], bool],
             tag: str = None,
@@ -300,7 +300,7 @@ class SinkFunction(Function):
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
-                        slicer = MediumLevelILBackwardSlicer(bv, max_func_depth, -1, tag, log)
+                        slicer = MediumLevelILBackwardSlicer(bv, max_call_level, -1, tag, log)
                         slicer.slice_backwards(par_var)
                         for source in sources:
                             if canceled(): break

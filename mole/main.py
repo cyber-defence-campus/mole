@@ -25,9 +25,9 @@ def main() -> None:
         choices=["error", "warning", "info", "debug"], default="info",
         help="log level")
     parser.add_argument(
-        "--max_func_depth",
+        "--max_call_level",
         type=int, default=None,
-        help="backward slicing visits called functions up to the given depth"
+        help="backward slicing visits called functions up to the given level"
     )
     args = parser.parse_args()
 
@@ -39,7 +39,7 @@ def main() -> None:
         bv = bn.load(args.file)
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
-        ctr.analyze_binary(bv, args.max_func_depth)
+        ctr.analyze_binary(bv, args.max_call_level)
         # Close binary
         bv.file.close()
     except KeyboardInterrupt:
