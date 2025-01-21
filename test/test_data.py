@@ -58,12 +58,12 @@ class TestData(unittest.TestCase):
                 )
             },
             settings={
-                "max_func_depth": SpinboxSetting(
-                    name="max_func_depth",
+                "max_call_level": SpinboxSetting(
+                    name="max_call_level",
                     value=3,
                     min_value=-1,
                     max_value=10,
-                    help="backward slicing visits called functions up to the given depth"
+                    help="backward slicing visits called functions up to the given level"
                 ),
                 "highlight_color": ComboboxSetting(
                     name="highlight_color",
@@ -176,7 +176,7 @@ class TestData(unittest.TestCase):
         return
     
     def test_serialize_spinbox_settings(self) -> None:
-        setting = self.conf.settings["max_func_depth"]
+        setting = self.conf.settings["max_call_level"]
         # Serialize
         yaml.safe_dump(
             setting.to_dict(),
