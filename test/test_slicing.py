@@ -38,6 +38,87 @@ class TestCase(unittest.TestCase):
         return
 
 
+class TestGets(TestCase):
+    
+    def test_01(
+            self,
+            filenames: List[str] = ["gets-01"]
+        ) -> None:
+        for file in load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) >= 1, ">= 1 paths identified")
+            for path in paths:
+                self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
+                self.assertTrue(
+                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                    "source is a MLIL instruction"
+                )
+                self.assertIn(path.snk_sym_name, ["gets"], "sink has symbol 'gets'")
+                self.assertTrue(
+                    (
+                        isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                        isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "sink is a MLIL call instruction"
+                )
+                self.assertEqual(path.snk_par_idx, 0, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "argument is a MLIL variable"
+                )
+                calls = [path.snk_sym_name]
+                for inst in path.insts:
+                    call = inst.function.source_function.name
+                    if calls[-1] != call:
+                        calls.append(call)
+                calls.append(path.src_sym_name)
+                self.assertEqual(
+                    calls,
+                    ["gets", "main", "gets"],
+                    "call paths"
+                )
+            # Close test binary
+            bv.file.close()
+        return
+    
+    @unittest.expectedFailure
+    def test_02(
+        self,
+        filenames: List[str] = ["gets-02"]
+        ) -> None:
+        for file in load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) >= 1, ">= 1 paths identified")
+            gets_memcpy_path = False
+            for path in paths:
+                self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
+                self.assertTrue(
+                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                    "source is a MLIL instruction"
+                )
+                self.assertTrue(path.snk_sym_name in ["gets", "memcpy"], "sink has symbol 'gets' or 'memcpy'")
+                self.assertTrue(
+                    isinstance(path.insts[0], bn.MediumLevelILCallSsa),
+                    "sink is a MLIL call instruction"
+                )
+                if path.src_sym_name == "gets" and path.snk_sym_name == "memcpy":
+                    gets_memcpy_path = True
+            self.assertTrue(gets_memcpy_path, "source 'gets' and sink 'memcpy'")
+            # Close test binary
+            bv.file.close()
+        return
+
+
 class TestFunctionCalling(TestCase):
     
     def test_01(
@@ -212,7 +293,7 @@ class TestSimpleServer(TestCase):
             # Analyze test binary
             paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) >= 2, ">= 2 paths identified")
+            self.assertTrue(len(paths) == 2, "== 2 paths identified")
             call_paths = []
             for path in paths:
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
@@ -271,7 +352,7 @@ class TestSimpleServer(TestCase):
             # Analyze test binary
             paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) >= 2, ">= 2 paths identified")
+            self.assertTrue(len(paths) == 2, "== 2 paths identified")
             call_paths = []
             for path in paths:
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
