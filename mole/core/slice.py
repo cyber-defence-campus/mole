@@ -385,29 +385,6 @@ class MediumLevelILBackwardSlicer:
         """
         This method finds paths from `snk_inst` to `src_inst`.
         """
-        # import matplotlib.pyplot as plt
-
-        # def plot_call_graph() -> None:
-        #     plt.figure()
-        #     graph = self._call_graph
-        #     pos = nx.nx_agraph.graphviz_layout(graph, prog="dot")
-        #     label_mapping = {node:  FunctionHelper.get_func_info(node, False) for node in graph.nodes}
-        #     nx.draw_networkx_nodes(graph, pos)
-        #     nx.draw_networkx_labels(graph, pos, labels=label_mapping)
-        #     nx.draw_networkx_edges(graph, pos)
-        #     plt.show()
-        # bn.execute_on_main_thread(plot_call_graph)
-
-        # def plot_inst_graph() -> None:
-        #     plt.figure()
-        #     graph = self._inst_graph
-        #     pos = nx.nx_agraph.graphviz_layout(graph, prog="dot")
-        #     label_mapping = {node:  InstructionHelper.get_inst_info(node, False) for node in graph.nodes}
-        #     nx.draw_networkx_nodes(graph, pos)
-        #     nx.draw_networkx_labels(graph, pos, labels=label_mapping)
-        #     nx.draw_networkx_edges(graph, pos)
-        #     plt.show()
-        # bn.execute_on_main_thread(plot_inst_graph)
         try:
             yield from nx.all_simple_paths(self._inst_graph, snk_inst, src_inst)
         except (nx.NodeNotFound, nx.NetworkXNoPath):
