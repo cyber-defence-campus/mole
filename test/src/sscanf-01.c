@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+Testcase Description:
+- sscanf
+*/
+
 int main(int argc, char *argv[]) {
     int result, integer;
 

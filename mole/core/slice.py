@@ -165,7 +165,6 @@ class MediumLevelILBackwardSlicer:
             vdef_level: int = 0
         ) -> None:
         """
-        TODO:
         This method first tries to find the instruction defining variable `ssa_var` within `inst`'s
         function. If it is found, slicing proceeds at the identified defining instruction. If no
         defining instruction is found, it is checked whether `ssa_var` belongs to a function
