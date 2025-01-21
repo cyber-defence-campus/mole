@@ -245,6 +245,65 @@ class TestSimpleServer(TestCase):
                 [
                     [
                         "system",
+                        "handle_get_request",
+                        "recv"
+                    ],
+                    [
+                        "system",
+                        "handle_post_request",
+                        "recv"
+                    ]
+                ],
+                "call paths"
+            )
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_02(
+            self,
+            filenames: List[str] = ["simple_http_server-02"]
+        ) -> None:
+        for file in load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) >= 2, ">= 2 paths identified")
+            call_paths = []
+            for path in paths:
+                self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
+                self.assertTrue(
+                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                    "source is a MLIL instruction"
+                )
+                self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
+                self.assertTrue(
+                    (
+                        isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                        isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "sink is a MLIL call instruction"
+                )
+                self.assertEqual(path.snk_par_idx, 0, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "argument is a MLIL variable"
+                )
+                calls = [path.snk_sym_name]
+                for inst in path.insts:
+                    call = inst.function.source_function.name
+                    if calls[-1] != call:
+                        calls.append(call)
+                calls.append(path.src_sym_name)
+                call_paths.append(calls)
+            self.assertCountEqual(
+                call_paths,
+                [
+                    [
+                        "system",
                         "execute_cgi_command",
                         "handle_get_request",
                         "receive_data",
@@ -262,11 +321,4 @@ class TestSimpleServer(TestCase):
             )
             # Close test binary
             bv.file.close()
-        return
-    
-    def test_02(
-            self,
-            filenames: List[str] = ["simple_http_server-02"]
-        ) -> None:
-        self.test_01(filenames)
         return
