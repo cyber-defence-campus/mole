@@ -3,7 +3,7 @@ from ..common.help import InstructionHelper, SymbolHelper
 from ..common.log  import Logger
 from .slice        import MediumLevelILBackwardSlicer
 from dataclasses   import dataclass, field
-from typing        import Callable, Dict, List, Set, Tuple
+from typing        import Callable, Dict, List, Tuple
 import binaryninja       as bn
 import PySide6.QtWidgets as qtw
 
