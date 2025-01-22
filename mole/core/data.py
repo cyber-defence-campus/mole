@@ -158,7 +158,7 @@ class SourceFunction(Function):
     """
     This class is a representation of the data associated with source functions.
     """
-    target_insts: Dict[Tuple[int, str], Set[int, str]] = field(default_factory=dict)
+    target_insts: Dict[Tuple[int, str], List[bn.MediumLevelILInstruction]] = field(default_factory=dict)
 
     def __eq__(self, other: Function) -> bool:
         if not isinstance(other, SourceFunction):
@@ -195,9 +195,7 @@ class SourceFunction(Function):
                 match src_inst:
                     case (bn.MediumLevelILCallSsa() |
                           bn.MediumLevelILTailcallSsa()):
-                        s = self.target_insts.get((src_inst.address, src_name), set())
-                        s.add(src_inst)
-                        self.target_insts[(src_inst.address, src_name)] = s
+                        self.target_insts.setdefault((src_inst.address, src_name), []).append(src_inst)
                     case _:
                         continue
                 # Ignore calls with an invalid number of parameters
@@ -221,12 +219,13 @@ class SourceFunction(Function):
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
-                        slicer = MediumLevelILBackwardSlicer(bv, -1, 1, tag, log)
+                        slicer = MediumLevelILBackwardSlicer(bv, 0, tag, log)
                         slicer.slice_backwards(par_var)
                         # Add sliced instructions to the target instructions
-                        s: Set[bn.MediumLevelILInstruction] = self.target_insts.get((src_inst.address, src_name), set())
-                        s.update(slicer.get_insts())
-                        self.target_insts[(src_inst.address, src_name)] = s
+                        l = self.target_insts.setdefault((src_inst.address, src_name), [])
+                        for inst in slicer.get_insts():
+                            if not inst in l:
+                                l.append(inst)
         return
 
 
@@ -300,7 +299,7 @@ class SinkFunction(Function):
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
-                        slicer = MediumLevelILBackwardSlicer(bv, max_call_level, -1, tag, log)
+                        slicer = MediumLevelILBackwardSlicer(bv, max_call_level, tag, log)
                         slicer.slice_backwards(par_var)
                         for source in sources:
                             if canceled(): break
@@ -317,6 +316,12 @@ class SinkFunction(Function):
                                         for inst in insts:
                                             for bch_idx, bch_dep in inst.branch_dependence.items():
                                                 bdeps.setdefault(bch_idx, bch_dep)
+                                        # Find split between sink and source originating instructions
+                                        src_inst_idx = len(insts)
+                                        for src_inst_idx in range(src_inst_idx-1, -1, -1):
+                                            if not insts[src_inst_idx] in src_insts:
+                                                break
+                                        src_inst_idx += 1
                                         # Store path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,
@@ -325,25 +330,31 @@ class SinkFunction(Function):
                                             snk_sym_name=snk_name,
                                             snk_par_idx=par_idx,
                                             snk_par_var=par_var,
+                                            src_inst_idx=src_inst_idx,
                                             insts=insts,
                                             bdeps=bdeps
                                         )
+                                        # Found the same path before
+                                        if path in paths:
+                                            continue
                                         paths.append(path)
                                         found_path(path)
                                         # Log path
                                         t_log = f"Interesting path: {str(path):s}"
                                         t_log = f"{t_log:s} [L:{len(insts):d},B:{len(bdeps):d}]!"
                                         log.info(tag, t_log)
-                                        log.debug(tag, "--- Backward Slice ---")
+                                        log.debug(tag, "--- Backward Slice  ---")
                                         basic_block = None
-                                        for inst in insts:
+                                        for idx, inst in enumerate(insts):
+                                            if idx == src_inst_idx:
+                                                log.debug(tag, "--- Source Function ---")
                                             if inst.il_basic_block != basic_block:
                                                 basic_block = inst.il_basic_block
                                                 fun_name = basic_block.function.name
                                                 bb_addr = basic_block[0].address
                                                 log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
                                             log.debug(tag, InstructionHelper.get_inst_info(inst))
-                                        log.debug(tag, "----------------------")
+                                        log.debug(tag, "-----------------------")
         return paths
 
 
@@ -358,6 +369,7 @@ class Path:
     snk_sym_name: str
     snk_par_idx: int
     snk_par_var: bn.MediumLevelILVarSsa
+    src_inst_idx: int
     insts: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
 
@@ -374,8 +386,7 @@ class Path:
             self.snk_sym_name == other.snk_sym_name and
             self.snk_par_idx  == other.snk_par_idx  and
             self.snk_par_var  == other.snk_par_var  and
-            self.insts        == other.insts        and
-            self.bdeps        == other.bdeps
+            self.insts[1:self.src_inst_idx-1] == other.insts[1:other.src_inst_idx-1]
         )
     
     def __str__(self) -> str:
