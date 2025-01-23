@@ -1,7 +1,7 @@
 from __future__      import annotations
 from ..common.help   import FunctionHelper, InstructionHelper
 from ..common.log    import Logger
-from typing          import Generator, List, Set
+from typing          import Generator, List, Set, Tuple
 import binaryninja as bn
 import networkx    as nx
 
@@ -359,7 +359,6 @@ class MediumLevelILBackwardSlicer:
         This method backward slices the instruction `inst`.
         """
         for _ in inst.ssa_form.traverse(self._slice_backwards): pass
-
         return
     
     def get_insts(self) -> Generator[bn.MediumLevelILInstruction]:
@@ -372,12 +371,39 @@ class MediumLevelILBackwardSlicer:
             self,
             snk_inst: bn.MediumLevelILInstruction,
             src_inst: bn.MediumLevelILInstruction
-        ) -> Generator[List[bn.MediumLevelILInstruction], None, None]:
+        ) -> List[Tuple[List[bn.MediumLevelILInstruction], MediumLevelILFunctionGraph]]:
         """
-        This method finds paths from `snk_inst` to `src_inst`.
+        This method finds all simple paths from `snk_inst` to `src_inst`. For each found path, the
+        following is returned: First, a list of instructions belonging to the path. And second, a
+        function call graph, where nodes and edges belonging to the path, have an attribute
+        `in_path` set to `True`.
         """
+        paths = []
+        # Find all simple paths
         try:
-            yield from nx.all_simple_paths(self._inst_graph, snk_inst, src_inst)
+            simple_paths: List[List[bn.MediumLevelILInstruction]] = list(
+                nx.all_simple_paths(self._inst_graph, snk_inst, src_inst)
+            )
         except (nx.NodeNotFound, nx.NetworkXNoPath):
-            pass
-        yield from ()
+            return paths
+        # Process all simple paths
+        for simple_path in simple_paths:
+            # Copy the call graph
+            call_graph = self._call_graph.copy()
+            # Add attribute `in_path = False` to all nodes
+            for node in call_graph.nodes():
+                call_graph.nodes[node]["in_path"] = False
+            # Change attribute to `in_path = True` where functions are part of the path
+            for inst in simple_path:
+                func = inst.function
+                if func in call_graph:
+                    call_graph.nodes[func]["in_path"] = True
+            # Add attribute `ìn_path` to edges where both nodes have `in_path = True`
+            for node_from, node_to in call_graph.edges():
+                call_graph[node_from][node_to]["in_path"] = (
+                    call_graph.nodes[node_from]["in_path"] and
+                    call_graph.nodes[node_to]["in_path"]
+                )
+            # Add path and call graph
+            paths.append((simple_path, call_graph))
+        return paths
