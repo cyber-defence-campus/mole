@@ -1,7 +1,7 @@
 from __future__    import annotations
 from ..common.help import InstructionHelper, SymbolHelper
 from ..common.log  import Logger
-from .slice        import MediumLevelILBackwardSlicer
+from .slice        import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph
 from dataclasses   import dataclass, field
 from typing        import Callable, Dict, List, Tuple
 import binaryninja       as bn
@@ -308,7 +308,7 @@ class SinkFunction(Function):
                                 for src_inst in src_insts:
                                     if canceled(): break
                                     # Find paths
-                                    for insts in slicer.find_paths(par_var, src_inst):
+                                    for insts, call_graph in slicer.find_paths(par_var, src_inst):
                                         # Prepend sink instruction
                                         insts.insert(0, snk_inst)
                                         # Calculate branch dependencies
@@ -322,6 +322,13 @@ class SinkFunction(Function):
                                             if not insts[src_inst_idx] in src_insts:
                                                 break
                                         src_inst_idx += 1
+                                        # Add additional attributes to call graph
+                                        # NOTE: This only serves as an example, maybe becoming handy
+                                        # for creating the graph view. Can be removed if not needed.
+                                        if snk_inst.function in call_graph:
+                                            call_graph.nodes[snk_inst.function]["snk"] = f"0x{snk_inst.address:x} {snk_name}"
+                                        if src_inst.function in call_graph:
+                                            call_graph.nodes[src_inst.function]["src"] = f"0x{src_inst.address:x} {src_sym_name}"
                                         # Store path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,
@@ -332,7 +339,8 @@ class SinkFunction(Function):
                                             snk_par_var=par_var,
                                             src_inst_idx=src_inst_idx,
                                             insts=insts,
-                                            bdeps=bdeps
+                                            bdeps=bdeps,
+                                            call_graph=call_graph
                                         )
                                         # Found the same path before
                                         if path in paths:
@@ -355,6 +363,20 @@ class SinkFunction(Function):
                                                 log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
                                             log.debug(tag, InstructionHelper.get_inst_info(inst))
                                         log.debug(tag, "-----------------------")
+
+                                        # # TODO: Visualization Test for the Graph View
+                                        # import matplotlib.pyplot as plt
+                                        # import networkx as nx
+                                        # from ..common.help import FunctionHelper
+                                        # def plot_call_graph(g: MediumLevelILFunctionGraph) -> None:
+                                        #     plt.figure()
+                                        #     pos = nx.nx_agraph.graphviz_layout(g, prog="dot")
+                                        #     node_color = ["red" if g.nodes[node]["in_path"] else "blue" for node in g.nodes]
+                                        #     edge_color = ["red" if g.edges[edge]["in_path"] else "blue" for edge in g.edges]
+                                        #     labels = {node:  FunctionHelper.get_func_info(node, False) for node in g.nodes}
+                                        #     nx.draw(g, pos, node_color=node_color, edge_color=edge_color, labels=labels)
+                                        #     plt.show()
+                                        # bn.execute_on_main_thread(lambda g=call_graph: plot_call_graph(g))
         return paths
 
 
@@ -372,6 +394,7 @@ class Path:
     src_inst_idx: int
     insts: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
+    call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
 
     def __eq__(self, other: Path) -> bool:
         if not isinstance(other, Path):
