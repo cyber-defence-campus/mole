@@ -28,7 +28,7 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
             inst: bn.MediumLevelILInstruction,
             is_definition: bool = None,
             call_level: int = None,
-            caller_site: bn.MediumLevelILFunction = None
+            caller_inst: bn.MediumLevelILInstruction = None
         ) -> None:
         """
         This method adds a node for the given instruction `inst` with the following node attributes:
@@ -41,7 +41,7 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
             inst,
             is_definition=is_definition,
             call_level=call_level,
-            caller_site=caller_site
+            caller_inst=caller_inst
         )
         return
     
@@ -154,12 +154,17 @@ class MediumLevelILBackwardSlicer:
         self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph(tag, log)
         return
     
+    # TODO:
+    # - Graphs are incomplete
+    # - Updates docstrings
+    # - Test / visualize
+    
     def _slice_ssa_var_definition(
             self,
             ssa_var: bn.SSAVariable,
             inst: bn.MediumLevelILInstruction,
-            call_level: int = 0,
-            caller_site: bn.MediumLevelILFunction = None
+            caller_inst: bn.MediumLevelILInstruction = None,
+            call_level: int = 0
         ) -> None:
         """
         This method first tries to find the instruction defining variable `ssa_var` within `inst`'s
@@ -171,42 +176,53 @@ class MediumLevelILBackwardSlicer:
         # Try finding the definition withing the current function
         inst_def = inst.function.get_ssa_var_definition(ssa_var)
         if inst_def:
-            self._inst_graph.add_node(inst, False, call_level, caller_site)
-            self._inst_graph.add_node(inst_def, True, call_level, caller_site)
+            self._inst_graph.add_node(inst, False, call_level, caller_inst)
+            self._inst_graph.add_node(inst_def, True, call_level, caller_inst)
             self._inst_graph.add_edge(inst, inst_def)
-            self._slice_backwards(inst_def, call_level, caller_site)
+            self._slice_backwards(inst_def, caller_inst, call_level)
             return
         # Try finding the definition in another function if we go down the call stack
         if abs(call_level) > self._max_call_level and self._max_call_level >= 0: return
-        caller_site_level = self._call_graph.nodes.get(caller_site, {}).get("call_level", None)
-        if caller_site_level is None or call_level < caller_site_level:
-            for parm_idx, parm_var in enumerate(inst.function.source_function.parameter_vars):
-                if parm_var != ssa_var.var: continue
+        caller_site_level = self._call_graph.nodes.get(caller_inst.function, {}).get("call_level", None)
+        for parm_idx, parm_var in enumerate(inst.function.source_function.parameter_vars):
+            if parm_var != ssa_var.var: continue
+            # Going done the call stack
+            if caller_site_level is None or call_level < caller_site_level:
                 for cs in inst.function.source_function.caller_sites:
                     try:
-                        inst_caller: bn.MediumLevelILInstruction = cs.mlil.ssa_form
-                        parm_caller: bn.MediumLevelILInstruction = inst_caller.params[parm_idx]
-                        func_caller: bn.MediumLevelILFunction = parm_caller.function
+                        cs_inst: bn.MediumLevelILInstruction = cs.mlil.ssa_form
+                        cs_parm: bn.MediumLevelILInstruction = cs_inst.params[parm_idx]
+                        cs_func: bn.MediumLevelILFunction = cs_parm.function
                         self._log.debug(
                             self._tag,
-                            f"[{call_level:+d}] Follow '{ssa_var.name}#{ssa_var.version}' to caller '0x{inst_caller.address:x}: {str(inst_caller):s}'"
+                            f"[{call_level:+d}] Follow '{ssa_var.name}#{ssa_var.version}' to caller '0x{cs_inst.address:x}: {str(cs_inst):s}'"
                         )
-                        self._inst_graph.add_node(inst, False, call_level, caller_site)
-                        self._inst_graph.add_node(parm_caller, False, call_level-1, inst.function)
-                        self._inst_graph.add_edge(inst, parm_caller)
+                        self._inst_graph.add_node(inst, False, call_level, caller_inst)
+                        self._inst_graph.add_node(cs_parm, False, call_level-1, inst)
+                        self._inst_graph.add_edge(inst, cs_parm)
                         self._call_graph.add_node(inst.function, call_level)
-                        self._call_graph.add_node(func_caller, call_level-1)
-                        self._call_graph.add_edge(inst.function, func_caller)
-                        self._slice_backwards(parm_caller, call_level-1, inst.function)
+                        self._call_graph.add_node(cs_func, call_level-1)
+                        self._call_graph.add_edge(inst.function, cs_func)
+                        self._slice_backwards(cs_parm, inst, call_level-1)
                     except:
                         continue
+            # Going up the call stack
+            else:
+                caller_parm = caller_inst.params[parm_idx]
+                # TODO: Do we need to update the graphs?
+                # self._inst_graph.add_node(caller_inst, True, call_level, caller_inst)
+                # self._inst_graph.add_node(caller_parm, None, call_level-1, caller_inst)
+                # self._inst_graph.add_edge(caller_inst, caller_parm)
+
+                # TODO: caller_inst is wrong
+                self._slice_backwards(caller_parm, caller_inst, call_level-1)
         return
     
     def _slice_backwards(
             self,
             inst: bn.MediumLevelILInstruction,
-            call_level: int = 0,
-            caller_site: bn.MediumLevelILFunction = None
+            caller_inst: bn.MediumLevelILInstruction = None,
+            call_level: int = 0
         ) -> None:
         """
         This method backward slices instruction `inst` based on its type.
@@ -234,12 +250,12 @@ class MediumLevelILBackwardSlicer:
                 # Backward slice at all possible variable definitions
                 for ssa_var in inst.function.ssa_vars:
                     if ssa_var.var == inst.src:
-                        self._slice_ssa_var_definition(ssa_var, inst, call_level, caller_site)
+                        self._slice_ssa_var_definition(ssa_var, inst, caller_inst, call_level)
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILVarAliasedField() |
                   bn.MediumLevelILVarSsaField()):
-                self._slice_ssa_var_definition(inst.src, inst, call_level, caller_site)
+                self._slice_ssa_var_definition(inst.src, inst, caller_inst, call_level)
             case (bn.MediumLevelILNot() |
                   bn.MediumLevelILSx() |
                   bn.MediumLevelILZx() |
@@ -248,10 +264,10 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILLowPart() |
                   bn.MediumLevelILFneg() |
                   bn.MediumLevelILFloatConv()):
-                self._inst_graph.add_node(inst, False, call_level, caller_site)
-                self._inst_graph.add_node(inst.src, None, call_level, caller_site)
+                self._inst_graph.add_node(inst, False, call_level, caller_inst)
+                self._inst_graph.add_node(inst.src, None, call_level, caller_inst)
                 self._inst_graph.add_edge(inst, inst.src)
-                self._slice_backwards(inst.src, call_level, caller_site)
+                self._slice_backwards(inst.src, caller_inst, call_level)
             case (bn.MediumLevelILAdd() |
                   bn.MediumLevelILAdc() |
                   bn.MediumLevelILSub() |
@@ -274,79 +290,80 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILFsub() |
                   bn.MediumLevelILFmul() |
                   bn.MediumLevelILFdiv()):
-                self._inst_graph.add_node(inst, False, call_level, caller_site)
-                self._inst_graph.add_node(inst.left, None, call_level, caller_site)
+                self._inst_graph.add_node(inst, False, call_level, caller_inst)
+                self._inst_graph.add_node(inst.left, None, call_level, caller_inst)
                 self._inst_graph.add_edge(inst, inst.left)
-                self._slice_backwards(inst.left, call_level, caller_site)
-                self._inst_graph.add_node(inst, False, call_level, caller_site)
-                self._inst_graph.add_node(inst.right, None, call_level, caller_site)
+                self._slice_backwards(inst.left, caller_inst, call_level)
+                self._inst_graph.add_node(inst, False, call_level, caller_inst)
+                self._inst_graph.add_node(inst.right, None, call_level, caller_inst)
                 self._inst_graph.add_edge(inst, inst.right)
-                self._slice_backwards(inst.right, call_level, caller_site)
+                self._slice_backwards(inst.right, caller_inst, call_level)
             case (bn.MediumLevelILRet()):
                 for ret in inst.src:
-                    self._inst_graph.add_node(inst, False, call_level, caller_site)
-                    self._inst_graph.add_node(ret, None, call_level, caller_site)
+                    self._inst_graph.add_node(inst, False, call_level, caller_inst)
+                    self._inst_graph.add_node(ret, None, call_level, caller_inst)
                     self._inst_graph.add_edge(inst, ret)
-                    self._slice_backwards(ret, call_level, caller_site)
+                    self._slice_backwards(ret, caller_inst, call_level)
             case (bn.MediumLevelILSetVarSsa() |
                   bn.MediumLevelILSetVarAliased() |
                   bn.MediumLevelILSetVarAliasedField() |
                   bn.MediumLevelILSetVarSsaField() |
                   bn.MediumLevelILSetVarSplitSsa()):
-                self._inst_graph.add_node(inst, True, call_level, caller_site)
-                self._inst_graph.add_node(inst.src, None, call_level, caller_site)
+                self._inst_graph.add_node(inst, True, call_level, caller_inst)
+                self._inst_graph.add_node(inst.src, None, call_level, caller_inst)
                 self._inst_graph.add_edge(inst, inst.src)
-                self._slice_backwards(inst.src, call_level, caller_site)
+                self._slice_backwards(inst.src, caller_inst, call_level)
             case (bn.MediumLevelILVarPhi()):
                 for var in inst.src:
-                    self._slice_ssa_var_definition(var, inst, call_level, caller_site)
-            case (bn.MediumLevelILCallSsa(dest=dest_inst) |
-                  bn.MediumLevelILTailcallSsa(dest=dest_inst)):
+                    self._slice_ssa_var_definition(var, inst, caller_inst, call_level)
+            case (bn.MediumLevelILCallSsa(dest=dest_inst)):
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
                 match dest_inst:
                     case (bn.MediumLevelILConstPtr(constant=func_addr) |
                           bn.MediumLevelILImport(constant=func_addr)):
-                        # Backward slice into functions defined within the binary
                         try:
                             func = self._bv.get_function_at(func_addr).mlil.ssa_form
                             for func_inst in func.instructions:
+                                # TODO: Support all return instructions
                                 match func_inst:
-                                    # TODO: Support all return instructions
-                                    # Backward slice starting from possible return instructions
-                                    case (bn.MediumLevelILRet() |
-                                            bn.MediumLevelILTailcallSsa()):
+                                    case (bn.MediumLevelILRet()):
                                         if (
-                                            self._max_call_level < 0 or
-                                            (self._max_call_level != 0 and abs(call_level) < self._max_call_level)
+                                            self._max_call_level < 0 or 
+                                            (
+                                                abs(call_level) < self._max_call_level and
+                                                self._max_call_level != 0
+                                            )
                                         ):
-                                            self._inst_graph.add_node(inst, True, call_level, caller_site)
-                                            self._inst_graph.add_node(func_inst, None, call_level+1, inst.function)
+                                            self._inst_graph.add_node(inst, True, call_level, caller_inst)
+                                            self._inst_graph.add_node(func_inst, None, call_level+1, inst)
                                             self._inst_graph.add_edge(inst, func_inst)
                                             self._call_graph.add_node(inst.function, call_level)
                                             self._call_graph.add_node(func, call_level+1)
                                             self._call_graph.add_edge(inst.function, func)
-                                            self._slice_backwards(func_inst, call_level+1, inst.function)
+                                            self._slice_backwards(func_inst, inst, call_level+1)
+                                            pass
                                         else:
                                             self._log.debug(
                                                 self._tag,
-                                                f"[{call_level:+d}] {dest_info:s}: Maximum function depth {self._max_call_level:d} reached"
+                                                f"[{call_level:+d}] {dest_info:s}: Maximum call level {self._max_call_level:d} reached"
                                             )
+                                    case (bn.MediumLevelILTailcallSsa()):
+                                        for par in inst.params:
+                                            self._inst_graph.add_node(inst, True, call_level, caller_inst)
+                                            self._inst_graph.add_node(par, None, call_level, caller_inst)
+                                            self._inst_graph.add_edge(inst, par)
+                                            self._slice_backwards(par, caller_inst, call_level)
                         except:
+                            # Function not found within the binary
                             pass
                     case _:
                         self._log.warn(self._tag, f"[{call_level:+d}] {dest_info:s}: Missing handler")
-                # Backward slice function parameters
-                for par in inst.params:
-                    self._inst_graph.add_node(inst, True, call_level, caller_site)
-                    self._inst_graph.add_node(par, None, call_level, caller_site)
-                    self._inst_graph.add_edge(inst, par)
-                    self._slice_backwards(par, call_level, caller_site)
             case (bn.MediumLevelILSyscallSsa()):
                 for par in inst.params:
-                    self._inst_graph.add_node(inst, False, call_level, caller_site)
-                    self._inst_graph.add_node(par, None, call_level, caller_site)
+                    self._inst_graph.add_node(inst, True, call_level, caller_inst)
+                    self._inst_graph.add_node(par, None, call_level, caller_inst)
                     self._inst_graph.add_edge(inst, par)
-                    self._slice_backwards(par, call_level, caller_site)
+                    self._slice_backwards(par, caller_inst, call_level)
             case _:
                 self._log.warn(self._tag, f"[{call_level:+d}] {info:s}: Missing handler")
         return

@@ -294,6 +294,22 @@ class TestFunctionCalling(TestCase):
         ) -> None:
         self.test_02(filenames)
         return
+    
+    def test_05(
+            self,
+            filenames: List[str] = ["function_calling-05"]
+        ) -> None:
+        for file in load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 0, "0 paths identified")
+            # Close test binary
+            bv.file.close()
+        return
 
 
 class TestPointerAnalysis(TestCase):
