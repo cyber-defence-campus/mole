@@ -178,6 +178,7 @@ class SourceFunction(Function):
         """
         This method finds a set of target instructions that a static backward slice should hit on.
         """
+        self.target_insts.clear()
         code_refs = SymbolHelper.get_code_refs(
             bv,
             self.symbols,
