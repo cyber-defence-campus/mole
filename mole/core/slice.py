@@ -26,45 +26,45 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
     def add_node(
             self,
             inst: bn.MediumLevelILInstruction,
-            call_level: int = None,
-            caller_inst: bn.MediumLevelILInstruction = None
+            caller_inst: bn.MediumLevelILInstruction = None,
+            call_level: int = None
         ) -> None:
         """
         This method adds a node for the given instruction `inst` with the following node attributes:
-        The attribute `call_level` should indicate the `inst`'s level within the call stack. The
-        attribute `caller_inst` should point to the instruction in the caller that led to `inst`
-        being called.
+        The attribute `caller_inst` is expected to be the instruction in the caller that called into
+        `inst.function`. The attribute `call_level` is expected to be `inst`'s level within the call
+        stack.
         """
         super().add_node(
             inst,
-            call_level=call_level,
-            caller_inst=caller_inst
+            caller_inst=caller_inst,
+            call_level=call_level
         )
         return
     
     def add_edge(
             self,
-            inst_from: bn.MediumLevelILInstruction,
-            inst_to:   bn.MediumLevelILInstruction
+            from_inst: bn.MediumLevelILInstruction,
+            to_inst:   bn.MediumLevelILInstruction
         ) -> None:
         """
-        This method adds an edge from `inst_from` to `inst_to`.
+        This method adds an edge from `from_inst` to `to_inst`.
         """
-        if not inst_from in self.nodes:
-            info = InstructionHelper.get_inst_info(inst_from)
+        if not from_inst in self.nodes:
+            info = InstructionHelper.get_inst_info(from_inst)
             self._log.warn(
                 self._tag,
                 f"Edge not added to instruction graph due to an inexisting from node ({info:s})"
             )
             return
-        if not inst_to in self.nodes:
-            info = InstructionHelper.get_inst_info(inst_to)
+        if not to_inst in self.nodes:
+            info = InstructionHelper.get_inst_info(to_inst)
             self._log.warn(
                 self._tag,
                 f"Edge not added to instruction graph due to an inexisting to node ({info:s})"
             )
             return
-        super().add_edge(inst_from, inst_to)
+        super().add_edge(from_inst, to_inst)
         return
 
 
@@ -93,7 +93,7 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         ) -> None:
         """
         This method adds a node for the given `call_site`, with the following node attribute: The
-        attribute `call_level` should indicate the `call_site`'s level within the call stack.
+        attribute `call_level` is expected to be the `call_site`'s level within the call stack.
         """
         super().add_node(
             call_site,
@@ -103,27 +103,27 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
     
     def add_edge(
             self,
-            call_site_from: bn.MediumLevelILFunction,
-            call_site_to:   bn.MediumLevelILFunction,
+            from_call_site: bn.MediumLevelILFunction,
+            to_call_site:   bn.MediumLevelILFunction,
         ) -> None:
         """
-        This method adds an edge from `call_site_from` to `call_site_to`.
+        This method adds an edge from `from_call_site` to `to_call_site`.
         """
-        if not call_site_from in self.nodes:
-            info = FunctionHelper.get_func_info(call_site_from)
+        if not from_call_site in self.nodes:
+            info = FunctionHelper.get_func_info(from_call_site)
             self._log.warn(
                 self._tag,
                 f"Edge not added to function graph due to an inexisting from node ({info:s})"
             )
             return
-        if not call_site_to in self.nodes:
-            info = FunctionHelper.get_func_info(call_site_to)
+        if not to_call_site in self.nodes:
+            info = FunctionHelper.get_func_info(to_call_site)
             self._log.warn(
                 self._tag,
                 f"Edge not added to function graph due to an inexisting to node ({info:s})"
             )
             return
-        super().add_edge(call_site_from, call_site_to)
+        super().add_edge(from_call_site, to_call_site)
         return
     
 
@@ -151,11 +151,6 @@ class MediumLevelILBackwardSlicer:
         self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph(tag, log)
         return
     
-    # TODO:
-    # - Graphs are incomplete
-    # - Updates docstrings
-    # - Test / visualize
-    
     def _slice_ssa_var_definition(
             self,
             ssa_var: bn.SSAVariable,
@@ -164,11 +159,12 @@ class MediumLevelILBackwardSlicer:
             call_level: int = 0
         ) -> None:
         """
-        This method first tries to find the instruction defining variable `ssa_var` within `inst`'s
-        function. If it is found, slicing proceeds at the identified defining instruction. If no
-        defining instruction is found, it is checked whether `ssa_var` belongs to a function
-        argument, and if so, defining instructions are searched within the callers (only if we go
-        down the call stack). Slicing then proceeds in all found defining instructions.
+        This method first tries to find the instruction defining variable `ssa_var` within
+        `inst.function`. If it is found, slicing proceeds at the identified defining instruction. If
+        no defining instruction is found, the method distinguishes whether we went up
+        (caller_level <= call_level) or down (caller_level > call_level) the call stack. If we went
+        up, we know from which caller we came and can proceed there. If we went down, we don't know
+        this an need to follow all caller sites.
         """
         # Try finding the definition withing the current function
         inst_def = inst.function.get_ssa_var_definition(ssa_var)
@@ -180,11 +176,12 @@ class MediumLevelILBackwardSlicer:
             return
         # Try finding the definition in another function if we go down the call stack
         if abs(call_level) > self._max_call_level and self._max_call_level >= 0: return
-        caller_site_level = self._call_graph.nodes.get(caller_inst.function, {}).get("call_level", None)
+        caller_func = caller_inst.function if not caller_inst is None else None
+        caller_level = self._call_graph.nodes.get(caller_func, {}).get("call_level", None)
         for parm_idx, parm_var in enumerate(inst.function.source_function.parameter_vars):
             if parm_var != ssa_var.var: continue
-            # Going done the call stack
-            if caller_site_level is None or call_level < caller_site_level:
+            # Went down the call stack (visit all caller_sites)
+            if caller_level is None or caller_level > call_level:
                 for cs in inst.function.source_function.caller_sites:
                     try:
                         cs_inst: bn.MediumLevelILInstruction = cs.mlil.ssa_form
@@ -203,21 +200,14 @@ class MediumLevelILBackwardSlicer:
                         self._slice_backwards(cs_parm, inst, call_level-1)
                     except:
                         continue
-            # Going up the call stack
+            # Went up the call stack (visit specific caller site)
             else:
                 caller_parm = caller_inst.params[parm_idx]
                 caller_caller_inst = self._inst_graph.nodes[caller_inst]
-                # TODO: Do we need to update the graphs?
-                # self._inst_graph.add_node(caller_inst, True, call_level, caller_inst)
-                # self._inst_graph.add_node(caller_parm, None, call_level-1, caller_inst)
-                # self._inst_graph.add_edge(caller_inst, caller_parm)
-
                 self._inst_graph.add_node(inst, call_level, caller_inst)
                 self._inst_graph.add_node(caller_parm, caller_caller_inst["call_level"], caller_caller_inst["caller_inst"])
                 self._inst_graph.add_edge(inst, caller_parm)
-
-                # TODO: caller_inst is wrong
-                self._slice_backwards(caller_parm, caller_inst, call_level-1)
+                self._slice_backwards(caller_parm, caller_caller_inst["caller_inst"], call_level-1)
         return
     
     def _slice_backwards(
@@ -227,7 +217,9 @@ class MediumLevelILBackwardSlicer:
             call_level: int = 0
         ) -> None:
         """
-        This method backward slices instruction `inst` based on its type.
+        This method backward slices instruction `inst` based on its type. Parameter `caller_inst` is
+        expected to be the instruction in the caller that called into `inst.function`. Parameter
+        `call_level` is expected to be `inst`'s level within the call stack.
         """
         info = InstructionHelper.get_inst_info(inst)
         # Instruction sliced before
