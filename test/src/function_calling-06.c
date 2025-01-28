@@ -5,12 +5,16 @@
 /*
 Testcase Description:
 - allow function inlining
-- do not follow all function parameters blindly (positive)
+- do not follow all function parameters blindly (negative)
 */
 
 char* func(char* env) {
-    char *cmd = (char *) malloc(strlen(env) + 1);
-    strcpy(cmd, env);
+    char *cmd = (char *) malloc(4);
+    cmd[0] = 'l';
+    cmd[1] = 's';
+    cmd[2] = '\0';
+    cmd[3] = '\0';
+    fprintf(stdout, "--- FUN ---\n");
     fprintf(stdout, "env: '%s'\ncmd: '%s'\n", env, cmd);
     return cmd;
 }
