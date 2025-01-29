@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+Testcase Description:
+- controllable source and size
+- copying source
+*/
 
 int main() {
     char dest[16];

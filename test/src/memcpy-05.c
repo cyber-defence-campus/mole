@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+Testcase Description:
+- controllable source and size
+- source in function without inlining
+*/
+
 __attribute__ ((noinline)) char* my_getenv(const char* name) {
     char *env = getenv(name);
     if(env == NULL) {

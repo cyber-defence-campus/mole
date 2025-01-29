@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+Testcase Description:
+- controllable size
+- non-reachable
+*/
+
 volatile int always_false = 0;
 
 int main(int argc, char *argv[]) {

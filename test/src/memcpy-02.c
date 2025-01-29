@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+Testcase Description:
+- controllable source and size
+*/
+
 int main(int argc, char *argv[]) {
     char dest[16];
 

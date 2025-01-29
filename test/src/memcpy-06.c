@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+Testcase Description:
+- uncontrollable source
+*/
 
 int main(int argc, char *argv[]) {
     char dest[16];

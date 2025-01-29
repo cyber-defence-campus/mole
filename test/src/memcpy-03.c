@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+Testcase Description:
+- controllable destination
+*/
+
 int main(int argc, char *argv[]) {
     char src[] = "03-memcpy";
 
