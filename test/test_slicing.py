@@ -344,6 +344,13 @@ class TestFunctionCalling(TestCase):
             self,
             filenames: List[str] = ["function_calling-06"]
         ) -> None:
+        self.test_05(filenames)
+        return
+    
+    def test_07(
+            self,
+            filenames: List[str] = ["function_calling-07"]
+        ) -> None:
         for file in load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
@@ -354,6 +361,13 @@ class TestFunctionCalling(TestCase):
             self.assertTrue(len(paths) == 0, "0 paths identified")
             # Close test binary
             bv.file.close()
+        return
+    
+    def test_08(
+            self,
+            filenames: List[str] = ["function_calling-08"]
+        ) -> None:
+        self.test_07(filenames)
         return
 
 

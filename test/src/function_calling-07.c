@@ -4,18 +4,17 @@
 
 /*
 Testcase Description:
-- disallow function inlining
-- do not follow all function parameters blindly (positive)
+- allow function inlining
+- do not follow all function parameters blindly (negative)
 */
 
-__attribute__ ((noinline))
 char* func(char* env) {
-    size_t len = strlen(env);
-    char *cmd = (char *) malloc(len+1);
-    for(int i = 0; i<len; i++) {
-        cmd[i] = env[i];
-    }
-    cmd[len] = '\0';
+    char *cmd = (char *) malloc(4);
+    cmd[0] = 'l';
+    cmd[1] = 's';
+    cmd[2] = '\0';
+    cmd[3] = '\0';
+    fprintf(stdout, "--- FUN ---\n");
     fprintf(stdout, "env: '%s'\ncmd: '%s'\n", env, cmd);
     return cmd;
 }
