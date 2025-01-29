@@ -174,7 +174,7 @@ class MediumLevelILBackwardSlicer:
             self._slice_backwards(inst_def, call_level, caller_site)
             return
         # Try finding the definition in another function
-        if abs(call_level) > self._max_call_level and self._max_call_level >= 0: return
+        if self._max_call_level >= 0 and abs(call_level) > self._max_call_level: return
         caller_level = self._call_graph.nodes.get(caller_site, {}).get("call_level", None)
         for parm_idx, parm_var in enumerate(inst.function.source_function.parameter_vars):
             if parm_var != ssa_var.var: continue
@@ -214,6 +214,13 @@ class MediumLevelILBackwardSlicer:
         be the function that called `inst.function`.
         """
         info = InstructionHelper.get_inst_info(inst)
+        # Maxium call level
+        if self._max_call_level >= 0 and abs(call_level) > self._max_call_level:
+            self._log.warn(
+                self._tag,
+                f"Maximum call level {self._max_call_level:d} reached"
+            )
+            return
         # Instruction sliced before
         if inst in self._inst_visited:
             self._log.debug(
@@ -317,46 +324,34 @@ class MediumLevelILBackwardSlicer:
                                 match func_inst:
                                     case (bn.MediumLevelILRet() |
                                           bn.MediumLevelILTailcallSsa()):
-                                        if (
-                                            self._max_call_level < 0 or 
-                                            (
-                                                abs(call_level) < self._max_call_level and
-                                                self._max_call_level != 0
-                                            )
-                                        ):
-                                            # Function
-                                            if symb.type == bn.SymbolType.FunctionSymbol:
-                                                ret_info = InstructionHelper.get_inst_info(func_inst, False)
-                                                self._log.debug(
-                                                    self._tag,
-                                                    f"Follow return instruction '{ret_info:s}' of function '{func_info:s}'"
-                                                )
-                                                self._inst_graph.add_node(inst, call_level, caller_site)
-                                                self._inst_graph.add_node(func_inst, call_level+1, inst.function)
-                                                self._inst_graph.add_edge(inst, func_inst)
-                                                self._call_graph.add_node(inst.function, call_level)
-                                                self._call_graph.add_node(func, call_level+1)
-                                                self._call_graph.add_edge(inst.function, func)
-                                                self._slice_backwards(func_inst, call_level+1, inst.function)
-                                            # Imported function
-                                            elif symb.type == bn.SymbolType.ImportedFunctionSymbol:
-                                                for par in inst.params:
-                                                    par_info = InstructionHelper.get_inst_info(par, False)
-                                                    self._log.debug(
-                                                        self._tag,
-                                                        f"Follow parameter '{par_info:s}' of imported function '{func_info:s}'"
-                                                    )
-                                                    self._inst_graph.add_node(inst, call_level, caller_site)
-                                                    self._inst_graph.add_node(par, call_level, caller_site)
-                                                    self._inst_graph.add_edge(inst, par)
-                                                    self._slice_backwards(par, call_level, caller_site)
-                                            else:
-                                                self._log.warn(self._tag, f"Function '{func_info:s}' has an uexpected type '{str(symb.type):s}'")
-                                        else:
+                                        # Function
+                                        if symb.type == bn.SymbolType.FunctionSymbol:
+                                            ret_info = InstructionHelper.get_inst_info(func_inst, False)
                                             self._log.debug(
                                                 self._tag,
-                                                f"[{call_level:+d}] {dest_info:s}: Maximum call level {self._max_call_level:d} reached"
+                                                f"Follow return instruction '{ret_info:s}' of function '{func_info:s}'"
                                             )
+                                            self._inst_graph.add_node(inst, call_level, caller_site)
+                                            self._inst_graph.add_node(func_inst, call_level+1, inst.function)
+                                            self._inst_graph.add_edge(inst, func_inst)
+                                            self._call_graph.add_node(inst.function, call_level)
+                                            self._call_graph.add_node(func, call_level+1)
+                                            self._call_graph.add_edge(inst.function, func)
+                                            self._slice_backwards(func_inst, call_level+1, inst.function)
+                                        # Imported function
+                                        elif symb.type == bn.SymbolType.ImportedFunctionSymbol:
+                                            for par in inst.params:
+                                                par_info = InstructionHelper.get_inst_info(par, False)
+                                                self._log.debug(
+                                                    self._tag,
+                                                    f"Follow parameter '{par_info:s}' of imported function '{func_info:s}'"
+                                                )
+                                                self._inst_graph.add_node(inst, call_level, caller_site)
+                                                self._inst_graph.add_node(par, call_level, caller_site)
+                                                self._inst_graph.add_edge(inst, par)
+                                                self._slice_backwards(par, call_level, caller_site)
+                                        else:
+                                            self._log.warn(self._tag, f"Function '{func_info:s}' has an uexpected type '{str(symb.type):s}'")
                         except:
                             # Function not found within the binary
                             pass
