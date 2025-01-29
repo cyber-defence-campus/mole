@@ -40,7 +40,7 @@ class TestCase(unittest.TestCase):
 
 class TestVarious(TestCase):
     
-    def test_01(
+    def test_gets_01(
             self,
             filenames: List[str] = ["gets-01"]
         ) -> None:
@@ -51,7 +51,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) == 1, "== 1 paths identified")
+            self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
             self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
             self.assertTrue(
@@ -87,7 +87,7 @@ class TestVarious(TestCase):
         return
     
     @unittest.expectedFailure
-    def test_02(
+    def test_gets_02(
         self,
         filenames: List[str] = ["gets-02"]
         ) -> None:
@@ -98,7 +98,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) == 2, "== 2 paths identified")
+            self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
                 self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
@@ -134,7 +134,7 @@ class TestVarious(TestCase):
             bv.file.close()
         return
     
-    def test_03(
+    def test_sscanf_01(
             self,
             filenames: List[str] = ["sscanf-01"]
         ) -> None:
@@ -179,11 +179,334 @@ class TestVarious(TestCase):
             # Close test binary
             bv.file.close()
         return
+    
+    def test_memcpy_01(self) -> None:
+        for file in load_files("memcpy-01"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 1, "1 path identified")
+            path = paths[0]
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
+            self.assertTrue(
+                (
+                    isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                    isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
+            self.assertEqual(path.snk_par_idx, 2, "arg3")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
+            calls = [path.snk_sym_name]
+            for inst in path.insts:
+                call = inst.function.source_function.name
+                if calls[-1] != call:
+                    calls.append(call)
+            calls.append(path.src_sym_name)
+            self.assertEqual(
+                calls,
+                ["memcpy", "main", "getenv"],
+                "call paths"
+            )
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_memcpy_02(self) -> None:
+        for file in load_files("memcpy-02"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 2, "2 paths identified")
+            for path in paths:
+                self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+                self.assertTrue(
+                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                    "source is a MLIL instruction"
+                )
+                self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
+                self.assertTrue(
+                    (
+                        isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                        isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "sink is a MLIL call instruction"
+                )
+                self.assertTrue(path.snk_par_idx in [1, 2], "arg2 or arg3")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "argument is a MLIL variable"
+                )
+                calls = [path.snk_sym_name]
+                for inst in path.insts:
+                    call = inst.function.source_function.name
+                    if calls[-1] != call:
+                        calls.append(call)
+                calls.append(path.src_sym_name)
+                self.assertEqual(
+                    calls,
+                    ["memcpy", "main", "getenv"],
+                    "call paths"
+                )
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_memcpy_03(self) -> None:
+        for file in load_files("memcpy-03"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 1, "1 path identified")
+            path = paths[0]
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
+            self.assertTrue(
+                (
+                    isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                    isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
+            self.assertEqual(path.snk_par_idx, 0, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
+            calls = [path.snk_sym_name]
+            for inst in path.insts:
+                call = inst.function.source_function.name
+                if calls[-1] != call:
+                    calls.append(call)
+            calls.append(path.src_sym_name)
+            self.assertEqual(
+                calls,
+                ["memcpy", "main", "getenv"],
+                "call paths"
+            )
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_memcpy_04(self) -> None:
+        for file in load_files("memcpy-04"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 1, "1 path identified")
+            path = paths[0]
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
+            self.assertTrue(
+                (
+                    isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                    isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
+            self.assertEqual(path.snk_par_idx, 2, "arg3")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
+            calls = [path.snk_sym_name]
+            for inst in path.insts:
+                call = inst.function.source_function.name
+                if calls[-1] != call:
+                    calls.append(call)
+            calls.append(path.src_sym_name)
+            self.assertEqual(
+                calls,
+                ["memcpy", "main", "my_getenv", "getenv"],
+                "call paths"
+            )
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_memcpy_05(self) -> None:
+        for file in load_files("memcpy-05"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 2, "2 paths identified")
+            for path in paths:
+                self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+                self.assertTrue(
+                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                    "source is a MLIL instruction"
+                )
+                self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
+                self.assertTrue(
+                    (
+                        isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                        isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "sink is a MLIL call instruction"
+                )
+                self.assertTrue(path.snk_par_idx in [1, 2], "arg2 or arg3")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "argument is a MLIL variable"
+                )
+                calls = [path.snk_sym_name]
+                for inst in path.insts:
+                    call = inst.function.source_function.name
+                    if calls[-1] != call:
+                        calls.append(call)
+                calls.append(path.src_sym_name)
+                self.assertEqual(
+                    calls,
+                    ["memcpy", "main", "my_getenv", "getenv"],
+                    "call paths"
+                )
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_memcpy_06(self) -> None:
+        for file in load_files("memcpy-06"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 0, "path(s) identified")
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_memcpy_07(self) -> None:
+        for file in load_files("memcpy-07"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 2, "2 paths identified")
+            for path in paths:
+                self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+                self.assertTrue(
+                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                    "source is a MLIL instruction"
+                )
+                self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
+                self.assertTrue(
+                    (
+                        isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                        isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "sink is a MLIL call instruction"
+                )
+                self.assertTrue(path.snk_par_idx in [1, 2], "arg2 or arg3")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "argument is a MLIL variable"
+                )
+                calls = [path.snk_sym_name]
+                for inst in path.insts:
+                    call = inst.function.source_function.name
+                    if calls[-1] != call:
+                        calls.append(call)
+                calls.append(path.src_sym_name)
+                self.assertEqual(
+                    calls,
+                    ["memcpy", "main", "getenv"],
+                    "call paths"
+                )
+            # Close test binary
+            bv.file.close()
+        return
+    
+    @unittest.expectedFailure
+    def test_memcpy_08(self) -> None:
+        for file in load_files("memcpy-08"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 0, "0 paths identified")
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_memcpy_09(self) -> None:
+        for file in load_files("memcpy-09"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 0, "0 paths identified")
+            # Close test binary
+            bv.file.close()
+        return
+    
+    @unittest.expectedFailure
+    def test_memcpy_10(self) -> None:
+        for file in load_files("memcpy-10"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 0, "0 paths identified")
+            bv.file.close()
+        return
+    
+    def test_memcpy_11(self) -> None:
+        for file in load_files("memcpy-11"):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 0, "0 paths identified")
+            bv.file.close()
+        return
 
 
 class TestFunctionCalling(TestCase):
     
-    def test_01(
+    def test_function_calling_01(
             self,
             filenames: List[str] = ["function_calling-01"]
         ) -> None:
@@ -226,7 +549,7 @@ class TestFunctionCalling(TestCase):
             bv.file.close()
         return
     
-    def test_02(
+    def test_function_calling_02(
             self,
             filenames: List[str] = ["function_calling-02"]
         ) -> None:
@@ -281,21 +604,21 @@ class TestFunctionCalling(TestCase):
             bv.file.close()
         return
     
-    def test_03(
+    def test_function_calling_03(
             self,
             filenames: List[str] = ["function_calling-03"]
         ) -> None:
-        self.test_01(filenames)
+        self.test_function_calling_01(filenames)
         return
     
-    def test_04(
+    def test_function_calling_04(
             self,
             filenames: List[str] = ["function_calling-04"]
         ) -> None:
-        self.test_02(filenames)
+        self.test_function_calling_02(filenames)
         return
     
-    def test_05(
+    def test_function_calling_05(
             self,
             filenames: List[str] = ["function_calling-05"]
         ) -> None:
@@ -340,14 +663,14 @@ class TestFunctionCalling(TestCase):
             bv.file.close()
         return
     
-    def test_06(
+    def test_function_calling_06(
             self,
             filenames: List[str] = ["function_calling-06"]
         ) -> None:
-        self.test_05(filenames)
+        self.test_function_calling_05(filenames)
         return
     
-    def test_07(
+    def test_function_calling_07(
             self,
             filenames: List[str] = ["function_calling-07"]
         ) -> None:
@@ -363,18 +686,18 @@ class TestFunctionCalling(TestCase):
             bv.file.close()
         return
     
-    def test_08(
+    def test_function_calling_08(
             self,
             filenames: List[str] = ["function_calling-08"]
         ) -> None:
-        self.test_07(filenames)
+        self.test_function_calling_07(filenames)
         return
 
 
 class TestPointerAnalysis(TestCase):
     
     @unittest.expectedFailure
-    def test_01(
+    def test_pointer_analysis_01(
             self,
             filenames: List[str] = ["pointer_analysis-01"]
         ) -> None:
@@ -385,7 +708,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 paths identified")
+            self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
@@ -419,7 +742,7 @@ class TestPointerAnalysis(TestCase):
 
 class TestSimpleServer(TestCase):
     
-    def test_01(
+    def test_simple_http_server_01(
             self,
             filenames: List[str] = ["simple_http_server-01"]
         ) -> None:
@@ -430,7 +753,7 @@ class TestSimpleServer(TestCase):
             # Analyze test binary
             paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) == 2, "== 2 paths identified")
+            self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
@@ -478,7 +801,7 @@ class TestSimpleServer(TestCase):
             bv.file.close()
         return
     
-    def test_02(
+    def test_simple_http_server_02(
             self,
             filenames: List[str] = ["simple_http_server-02"]
         ) -> None:
@@ -489,7 +812,7 @@ class TestSimpleServer(TestCase):
             # Analyze test binary
             paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) == 2, "== 2 paths identified")
+            self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")

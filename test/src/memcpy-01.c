@@ -2,9 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+Testcase Description:
+- controllable size
+*/
+
 int main(int argc, char *argv[]) {
     char dest[16];
-    char src[] = "01-memcpy";
+    char src[] = "memcpy-01";
 
     char* env_size = getenv("MEMCPY_SIZE");
     if(env_size == NULL) {
