@@ -50,23 +50,6 @@ The entry indicates that a potential path exists between source function `getenv
 At log level *DEBUG*, we get a list of all the instructions in the identified path (starting at the sink - *backward slicing*):
 ```
 [...]
---- Backward Slice ---
-- FUN: 'main', BB: 0x4d4
-0x4e8 mem#5 = 0x430(r0#5, r1#1, r2#1) @ mem#4 (MediumLevelILCallSsa)
-0x4e8 r2#1 (MediumLevelILVarSsa)
-0x4e0 r2#1 = n#4 (MediumLevelILSetVarSsa)
-0x4e0 n#4 (MediumLevelILVarSsa)
-0x4d4 n#4, mem#4 = 0x478(str#1) @ mem#2 (MediumLevelILCallSsa)
-- FUN: 'atoi', BB: 0x480
-0x480 return atoi(str#0) __tailcall (MediumLevelILTailcallSsa)
-0x480 atoi (MediumLevelILImport)
-0x480 str#0 (MediumLevelILVarSsa)
-- FUN: 'main', BB: 0x4d4
-0x4d4 str#1 (MediumLevelILVarSsa)
-- FUN: 'main', BB: 0x4b4
-0x4c4 str#1, mem#2 = 0x424("MEMCPY_SIZE") @ mem#1 (MediumLevelILCallSsa)
-----------------------
-
 --- Backward Slice  ---
 - FUN: 'main', BB: 0x4d4
 0x4e8 mem#5 = 0x430(r0#5, r1#1, r2#1) @ mem#4 (MediumLevelILCallSsa)
@@ -85,4 +68,4 @@ Note also that the output groups the instructions by basic blocks (*BB*). For ex
 
 In addition to the previously mentioned log entries, *Mole* summarizes the identified paths in its *Run* tab (when used within the *Binary Ninja UI*). Right-clicking a path opens a context menu with various actions, such as displaying path details or highlighting a path's instructions. Alternatively, double-clicking a path highlights its instructions, while a second double-click removes the highlights. This visualization helps users better understand and verify paths.
 
-![Mole UI Interesting Paths](https://github.com/user-attachments/assets/e466d5b0-f36e-4032-ba4e-97bd431ff46f)
+![Mole UI Interesting Paths](https://github.com/user-attachments/assets/dcc97248-af2e-46d9-9d46-f3e257434882)
