@@ -162,8 +162,8 @@ class MediumLevelILBackwardSlicer:
         `inst.function`. If it is found, slicing proceeds at the identified defining instruction. If
         no defining instruction is found, the method distinguishes whether we went up
         (caller_level <= call_level) or down (caller_level > call_level) the call stack. If we went
-        up, we know from which caller we came from and can proceed there. If we went down, we don't
-        know this and need to follow all caller sites.
+        up, we know from which caller we came from and can proceed only this single caller site. If
+        we went down, we don't know this and need to follow all caller sites.
         """
         # Try finding the definition withing the current function
         inst_def = inst.function.get_ssa_var_definition(ssa_var)
@@ -310,6 +310,7 @@ class MediumLevelILBackwardSlicer:
                           bn.MediumLevelILImport(constant=func_addr)):
                         try:
                             func = self._bv.get_function_at(func_addr).mlil.ssa_form
+                            func_info = FunctionHelper.get_func_info(func, False)
                             symb = func.source_function.symbol
                             for func_inst in func.instructions:
                                 # TODO: Support all return instructions
@@ -323,12 +324,12 @@ class MediumLevelILBackwardSlicer:
                                                 self._max_call_level != 0
                                             )
                                         ):
+                                            # Function
                                             if symb.type == bn.SymbolType.FunctionSymbol:
                                                 ret_info = InstructionHelper.get_inst_info(func_inst, False)
-                                                fun_info = FunctionHelper.get_func_info(func, False)
                                                 self._log.debug(
                                                     self._tag,
-                                                    f"Follow return instruction '{ret_info:s}' of function '{fun_info:s}'"
+                                                    f"Follow return instruction '{ret_info:s}' of function '{func_info:s}'"
                                                 )
                                                 self._inst_graph.add_node(inst, call_level, caller_site)
                                                 self._inst_graph.add_node(func_inst, call_level+1, inst.function)
@@ -337,18 +338,20 @@ class MediumLevelILBackwardSlicer:
                                                 self._call_graph.add_node(func, call_level+1)
                                                 self._call_graph.add_edge(inst.function, func)
                                                 self._slice_backwards(func_inst, call_level+1, inst.function)
+                                            # Imported function
                                             elif symb.type == bn.SymbolType.ImportedFunctionSymbol:
                                                 for par in inst.params:
                                                     par_info = InstructionHelper.get_inst_info(par, False)
-                                                    fun_info = FunctionHelper.get_func_info(func, False)
                                                     self._log.debug(
                                                         self._tag,
-                                                        f"Follow parameter '{par_info:s}' of imported function '{fun_info:s}'"
+                                                        f"Follow parameter '{par_info:s}' of imported function '{func_info:s}'"
                                                     )
                                                     self._inst_graph.add_node(inst, call_level, caller_site)
                                                     self._inst_graph.add_node(par, call_level, caller_site)
                                                     self._inst_graph.add_edge(inst, par)
                                                     self._slice_backwards(par, call_level, caller_site)
+                                            else:
+                                                self._log.warn(self._tag, f"Function '{func_info:s}' has an uexpected type '{str(symb.type):s}'")
                                         else:
                                             self._log.debug(
                                                 self._tag,
