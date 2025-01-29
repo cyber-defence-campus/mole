@@ -424,6 +424,26 @@ class Controller:
         bn.execute_on_main_thread(update_paths_widget)
         return
     
+    def show_context_menu(self, tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
+        """
+        This method shows a custom context menu.
+        """
+        if tbl is None: return
+        row = tbl.indexAt(pos).row()
+        col = tbl.indexAt(pos).column()
+        if row < 0 or col < 0: return
+
+        menu = qtw.QMenu(tbl)
+        menu_action_details = menu.addAction("Log path details")
+        menu_action_highlight = menu.addAction("Highlight path")
+        menu_action = menu.exec(tbl.mapToGlobal(pos))
+
+        if menu_action == menu_action_details:
+            self.select_path(tbl, row, col)
+        elif menu_action == menu_action_highlight:
+            self.highlight_path(tbl, row, col)
+        return
+    
     def select_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
         """
         This method logs information about a path.

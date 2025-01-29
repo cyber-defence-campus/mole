@@ -270,12 +270,13 @@ class SidebarWidget(bnui.SidebarWidget):
             return
 
         res_tbl = qtw.QTableWidget()
+        res_tbl.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
+        res_tbl.customContextMenuRequested.connect(
+            lambda pos: self._ctr.show_context_menu(res_tbl, pos)
+        )
         res_tbl.setColumnCount(9)
         res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Lines", "Phis", "Branches", "Tag"])
         res_tbl.setSortingEnabled(True)
-        res_tbl.cellClicked.connect(
-            lambda row, col: self._ctr.select_path(res_tbl, row, col)
-        )
         res_tbl.cellClicked.connect(
             lambda row, col: _navigate(self._bv, res_tbl, row, col)
         )
