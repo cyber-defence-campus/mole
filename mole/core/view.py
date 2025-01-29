@@ -270,8 +270,8 @@ class SidebarWidget(bnui.SidebarWidget):
             return
 
         res_tbl = qtw.QTableWidget()
-        res_tbl.setColumnCount(6)
-        res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Tag"])
+        res_tbl.setColumnCount(9)
+        res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Lines", "Phis", "Branches", "Tag"])
         res_tbl.setSortingEnabled(True)
         res_tbl.cellClicked.connect(
             lambda row, col: self._ctr.select_path(res_tbl, row, col)
