@@ -408,8 +408,17 @@ class Controller:
             snk_parm = qtw.QTableWidgetItem(f"arg#{path.snk_par_idx+1:d}:{str(path.snk_par_var):s}")
             snk_parm.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
             self._paths_widget.setItem(row, 4, snk_parm)
+            lines = qtw.QTableWidgetItem(f"{len(path.insts):d}")
+            lines.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 5, lines)
+            phiis = qtw.QTableWidgetItem(f"{len(path.phiis):d}")
+            phiis.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 6, phiis)
+            bdeps = qtw.QTableWidgetItem(f"{len(path.bdeps):d}")
+            bdeps.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 7, bdeps)
             tag = qtw.QTableWidgetItem("")
-            self._paths_widget.setItem(row, 5, tag)
+            self._paths_widget.setItem(row, 8, tag)
             self._paths_widget.setSortingEnabled(True)
         
         bn.execute_on_main_thread(update_paths_widget)
@@ -419,11 +428,11 @@ class Controller:
         """
         This method logs information about a path.
         """
-        if not tbl or col > 4: return
+        if not tbl or col > 7: return
         path = self._paths[row]
         if not path: return
         msg = f"Path: {str(path):s}"
-        msg = f"{msg:s} [L:{len(path.insts):d},B:{len(path.bdeps):d}]!"
+        msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         self._log.info(self._tag, msg)
         self._log.debug(self._tag, "--- Backward Slice ---")
         basic_block = None
@@ -442,7 +451,7 @@ class Controller:
         """
         This method highlights all instructions in a path.
         """
-        if not tbl or col > 4: return
+        if not tbl or col > 7: return
         path = self._paths[row]
         if not path: return
         highlighted_path, insts_colors = self._paths_highlight
