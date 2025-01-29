@@ -312,9 +312,12 @@ class SinkFunction(Function):
                                     for insts, call_graph in slicer.find_paths(par_var, src_inst):
                                         # Prepend sink instruction
                                         insts.insert(0, snk_inst)
-                                        # Calculate branch dependencies
+                                        # Calculate metrics (phi-instructions and branch dependencies)
+                                        phiis = []
                                         bdeps = {}
                                         for inst in insts:
+                                            if isinstance(inst, bn.MediumLevelILVarPhi):
+                                                phiis.append(inst)
                                             for bch_idx, bch_dep in inst.branch_dependence.items():
                                                 bdeps.setdefault(bch_idx, bch_dep)
                                         # Find split between sink and source originating instructions
@@ -340,6 +343,7 @@ class SinkFunction(Function):
                                             snk_par_var=par_var,
                                             src_inst_idx=src_inst_idx,
                                             insts=insts,
+                                            phiis=phiis,
                                             bdeps=bdeps,
                                             call_graph=call_graph
                                         )
@@ -350,7 +354,7 @@ class SinkFunction(Function):
                                         found_path(path)
                                         # Log path
                                         t_log = f"Interesting path: {str(path):s}"
-                                        t_log = f"{t_log:s} [L:{len(insts):d},B:{len(bdeps):d}]!"
+                                        t_log = f"{t_log:s} [L:{len(insts):d},P:{len(phiis):d},B:{len(bdeps):d}]!"
                                         log.info(tag, t_log)
                                         log.debug(tag, "--- Backward Slice  ---")
                                         basic_block = None
@@ -394,6 +398,7 @@ class Path:
     snk_par_var: bn.MediumLevelILVarSsa
     src_inst_idx: int
     insts: List[bn.MediumLevelILInstruction] = field(default_factory=list)
+    phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
 
