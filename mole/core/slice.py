@@ -311,13 +311,14 @@ class MediumLevelILBackwardSlicer:
                     self._slice_ssa_var_definition(var, inst, call_level, caller_site)
             case (bn.MediumLevelILCallSsa(dest=dest_inst) |
                   bn.MediumLevelILTailcallSsa(dest=dest_inst)):
+                call_info = InstructionHelper.get_inst_info(inst, False)
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
                 match dest_inst:
+                    # Direct function calls
                     case (bn.MediumLevelILConstPtr(constant=func_addr) |
                           bn.MediumLevelILImport(constant=func_addr)):
                         try:
                             func = self._bv.get_function_at(func_addr).mlil.ssa_form
-                            func_info = FunctionHelper.get_func_info(func, False)
                             symb = func.source_function.symbol
                             for func_inst in func.instructions:
                                 # TODO: Support all return instructions
@@ -329,7 +330,7 @@ class MediumLevelILBackwardSlicer:
                                             ret_info = InstructionHelper.get_inst_info(func_inst, False)
                                             self._log.debug(
                                                 self._tag,
-                                                f"Follow return instruction '{ret_info:s}' of function '{func_info:s}'"
+                                                f"Follow return instruction '{ret_info:s}' of function '{call_info:s}'"
                                             )
                                             self._inst_graph.add_node(inst, call_level, caller_site)
                                             self._inst_graph.add_node(func_inst, call_level+1, inst.function)
@@ -344,17 +345,29 @@ class MediumLevelILBackwardSlicer:
                                                 par_info = InstructionHelper.get_inst_info(par, False)
                                                 self._log.debug(
                                                     self._tag,
-                                                    f"Follow parameter '{par_info:s}' of imported function '{func_info:s}'"
+                                                    f"Follow parameter '{par_info:s}' of imported function '{call_info:s}'"
                                                 )
                                                 self._inst_graph.add_node(inst, call_level, caller_site)
                                                 self._inst_graph.add_node(par, call_level, caller_site)
                                                 self._inst_graph.add_edge(inst, par)
                                                 self._slice_backwards(par, call_level, caller_site)
                                         else:
-                                            self._log.warn(self._tag, f"Function '{func_info:s}' has an uexpected type '{str(symb.type):s}'")
+                                            self._log.warn(self._tag, f"Function '{call_info:s}' has an unexpected type '{str(symb.type):s}'")
                         except:
                             # Function not found within the binary
                             pass
+                    # Indirect function calls
+                    case (bn.MediumLevelILVarSsa()):
+                        for par in inst.params:
+                            par_info = InstructionHelper.get_inst_info(par, False)
+                            self._log.debug(
+                                self._tag,
+                                f"Follow parameter '{par_info:s}' of indirect function call '{call_info:s}'"
+                            )
+                            self._inst_graph.add_node(inst, call_level, caller_site)
+                            self._inst_graph.add_node(par, call_level, caller_site)
+                            self._inst_graph.add_edge(inst, par)
+                            self._slice_backwards(par, call_level, caller_site)
                     case _:
                         self._log.warn(self._tag, f"[{call_level:+d}] {dest_info:s}: Missing handler")
             case (bn.MediumLevelILSyscallSsa()):
