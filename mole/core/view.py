@@ -186,19 +186,19 @@ class SidebarWidget(bnui.SidebarWidget):
         settings = self._ctr.get_settings()
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
-        mfd_name = "max_call_level"
-        mfd = settings.get(mfd_name, None)
-        if mfd:
-            mfd.widget = qtw.QSpinBox()
-            mfd.widget.setRange(mfd.min_value, mfd.max_value)
-            mfd.widget.setValue(mfd.value)
-            mfd.widget.setToolTip(mfd.help)
-            mfd.widget.valueChanged.connect(
-                lambda value, setting=mfd: self._ctr.spinbox_change_value(setting, value)
+        mcl_name = "max_call_level"
+        mcl = settings.get(mcl_name, None)
+        if mcl:
+            mcl.widget = qtw.QSpinBox()
+            mcl.widget.setRange(mcl.min_value, mcl.max_value)
+            mcl.widget.setValue(mcl.value)
+            mcl.widget.setToolTip(mcl.help)
+            mcl.widget.valueChanged.connect(
+                lambda value, setting=mcl: self._ctr.spinbox_change_value(setting, value)
             )
-            mfd_lbl = qtw.QLabel(f"{mfd_name:s}:")
-            mfd_lbl.setToolTip(mfd.help)
-            com_lay.addRow(mfd_lbl, mfd.widget)
+            mcl_lbl = qtw.QLabel(f"{mcl_name:s}:")
+            mcl_lbl.setToolTip(mcl.help)
+            com_lay.addRow(mcl_lbl, mcl.widget)
         com_wid.setLayout(com_lay)
         com_box_lay = qtw.QVBoxLayout()
         com_box_lay.addWidget(com_wid)
