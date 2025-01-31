@@ -537,6 +537,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         This method tries to identify intersting code paths using static backward slicing.
         """
         self._paths: List[Path] = []
+        self._log.info(self._tag, "Starting analysis")
 
         # Source functions
         src_funs = self._ctr.get_functions("Sources", not self._enable_all_funs)
@@ -572,6 +573,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                     log=self._log
                 )
                 self._paths.extend(paths)
+        self._log.info(self._tag, "Analysis finished")
         return
     
     def get_paths(self) -> List[Path]:
