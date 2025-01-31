@@ -192,7 +192,7 @@ sources:
         functions:
           scanf:
             name: scanf
-            symbols: [scanf, __builtin_scanf, __isoc99_scanf]
+            symbols: [scanf, __builtin_scanf, __isoc99_scanf, __isoc23_scanf]
             synopsis: int scanf(const char* format, ...)
             enabled: true
             par_cnt: i >= 1
@@ -200,7 +200,7 @@ sources:
             par_slice: i >= 1
           wscanf:
             name: wscanf
-            symbols: [wscanf, __builtin_wscanf, __isoc99_wscanf]
+            symbols: [wscanf, __builtin_wscanf, __isoc99_wscanf, __isoc23_wscanf]
             synopsis: int wscanf(const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 1
@@ -208,7 +208,7 @@ sources:
             par_slice: i >= 1
           fscanf:
             name: fscanf
-            symbols: [fscanf, __builtin_fscanf, __isoc99_fscanf]
+            symbols: [fscanf, __builtin_fscanf, __isoc99_fscanf, __isoc23_fscanf]
             synopsis: int fscanf(FILE* stream, const char* format, ...)
             enabled: true
             par_cnt: i >= 2
@@ -224,7 +224,7 @@ sources:
             par_slice: i >= 2
           vscanf:
             name: vscanf
-            symbols: [vscanf, __builtin_vscanf, __isoc99_vscanf]
+            symbols: [vscanf, __builtin_vscanf, __isoc99_vscanf, __isoc23_vscanf]
             synopsis: int vscanf(const char* format, va_list ap)
             enabled: true
             par_cnt: i == 2
@@ -232,7 +232,7 @@ sources:
             par_slice: i > 0
           vfscanf:
             name: vfscanf
-            symbols: [vfscanf, __builtin_vfscanf, __isoc99_vfscanf]
+            symbols: [vfscanf, __builtin_vfscanf, __isoc99_vfscanf, __isoc23_vfscanf]
             synopsis: int vfscanf(FILE* stream, const char* format, va_list ap)
             enabled: true
             par_cnt: i == 3
@@ -422,7 +422,7 @@ sinks:
         functions:
           sscanf:
             name: sscanf
-            symbols: [sscanf, __builtin_sscanf, __isoc99_sscanf]
+            symbols: [sscanf, __builtin_sscanf, __isoc99_sscanf, __isoc23_sscanf]
             synopsis: int sscanf(const char* str, const char* format, ...)
             enabled: true
             par_cnt: i >= 2
@@ -430,7 +430,7 @@ sinks:
             par_slice: 'True'
           swscanf:
             name: swscanf
-            symbols: [swscanf, __builtin_swscanf, __isoc99_swscanf]
+            symbols: [swscanf, __builtin_swscanf, __isoc99_swscanf, __isoc223_swscanf]
             synopsis: int sscanf(const wchar_t* ws, const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 2
@@ -438,7 +438,7 @@ sinks:
             par_slice: 'True'
           vsscanf:
             name: vsscanf
-            symbols: [vsscanf, __builtin_vsscanf, __isoc99_vsscanf]
+            symbols: [vsscanf, __builtin_vsscanf, __isoc99_vsscanf, __isoc23_vsscanf]
             synopsis: int vsscanf(const char* s, const char* format, va_list arg)
             enabled: true
             par_cnt: i == 3
