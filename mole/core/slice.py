@@ -306,6 +306,9 @@ class MediumLevelILBackwardSlicer:
                 self._inst_graph.add_node(inst.src, call_level, caller_site)
                 self._inst_graph.add_edge(inst, inst.src)
                 self._slice_backwards(inst.src, call_level, caller_site)
+            case (bn.MediumLevelILVarSplitSsa()):
+                self._slice_ssa_var_definition(inst.high, inst, call_level, caller_site)
+                self._slice_ssa_var_definition(inst.low, inst, call_level, caller_site)
             case (bn.MediumLevelILVarPhi()):
                 for var in inst.src:
                     self._slice_ssa_var_definition(var, inst, call_level, caller_site)
