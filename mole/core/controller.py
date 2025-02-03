@@ -434,14 +434,21 @@ class Controller:
         if row < 0 or col < 0: return
 
         menu = qtw.QMenu(tbl)
-        menu_action_details = menu.addAction("Log path details")
+        menu_action_details = menu.addAction("Log path")
         menu_action_highlight = menu.addAction("Highlight path")
+        menu.addSeparator()
+        menu_action_remove_selected = menu.addAction("Remove selected path")
+        menu_action_remove_all = menu.addAction("Remove all paths")
         menu_action = menu.exec(tbl.mapToGlobal(pos))
 
         if menu_action == menu_action_details:
             self.select_path(tbl, row, col)
         elif menu_action == menu_action_highlight:
             self.highlight_path(tbl, row, col)
+        elif menu_action == menu_action_remove_selected:
+            self.remove_selected_path(tbl, row)
+        elif menu_action == menu_action_remove_all:
+            self.remove_all_paths(tbl)
         return
     
     def select_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
@@ -501,6 +508,24 @@ class Controller:
                     insts_colors[addr] = (inst, func.get_instr_highlight(addr))
                 func.set_auto_instr_highlight(addr, color)
         self._paths_highlight = (highlighted_path, insts_colors)
+        return
+    
+    def remove_selected_path(self, tbl: qtw.QTableWidget, row: int) -> None:
+        """
+        This method removes the path at row `row` from the table `tbl`.
+        """
+        if not tbl: return
+        del self._paths[row]
+        tbl.removeRow(row)
+        return
+    
+    def remove_all_paths(self, tbl: qtw.QTableWidget) -> None:
+        """
+        This method removes all paths from the table `tbl`.
+        """
+        if not tbl: return
+        self._paths.clear()
+        tbl.setRowCount(0)
         return
 
 
