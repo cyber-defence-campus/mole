@@ -327,10 +327,8 @@ class SinkFunction(Function):
                                                 break
                                         src_inst_idx += 1
                                         # Add additional attributes to call graph
-                                        # NOTE: This only serves as an example, maybe becoming handy
-                                        # for creating the graph view. Can be removed if not needed.
                                         if snk_inst.function in call_graph:
-                                            call_graph.nodes[snk_inst.function]["snk"] = snk_name
+                                            call_graph.nodes[snk_inst.function]["snk"] = f"{snk_name} | {par_var}"
                                         if src_inst.function in call_graph:
                                             call_graph.nodes[src_inst.function]["src"] = src_sym_name
                                         # Store path

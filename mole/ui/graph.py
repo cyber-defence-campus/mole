@@ -255,14 +255,17 @@ class GraphView(QGraphicsView):
         self._graph = None
 
         # Used to add space between nodes
+        # TODO: maybe should be based on average box size of nodes?
         self._graph_scale = 200
 
         # Map node name to Node object {str=>Node}
         self._nodes_map = {}
 
+        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+
     def center_view(self):
         """Center the view on the scene"""
-        self.centerOn(self.sceneRect().center())
+        self.centerOn(self.scene().itemsBoundingRect().center())
 
     def zoom_in(self):
         """Zoom in the view"""
@@ -272,9 +275,25 @@ class GraphView(QGraphicsView):
         """Zoom out the view"""
         self.scale(1 / 1.2, 1 / 1.2)
 
+    def wheelEvent(self, event):
+        """Override from QGraphicsView
+
+        Handle mouse wheel event to zoom in and out
+
+        Args:
+            event (QWheelEvent)
+        """
+        zoom_in_factor = 1.2
+        zoom_out_factor = 1 / zoom_in_factor
+
+        if event.angleDelta().y() > 0:
+            self.scale(zoom_in_factor, zoom_in_factor)
+        else:
+            self.scale(zoom_out_factor, zoom_out_factor)
+
     def fit_to_window(self):
-        """Fit the view to the scene"""
-        self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        """Fit the view to the bounding rectangle of all items"""
+        self.fitInView(self.scene().itemsBoundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def get_node_color(self, src_node: bn.MediumLevelILFunction, dest_node: bn.MediumLevelILFunction) -> QColor:
         # warm, golden yellow is the default
@@ -381,8 +400,6 @@ class GraphWidget(QWidget):
         reset_action = QAction("Reset", self)
         reset_action.triggered.connect(self.view.layout)
         self.toolbar.addAction(reset_action)
-
-
 
     def load_path(self, path: Path):
         """Load a new graph into the view
