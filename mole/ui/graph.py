@@ -9,12 +9,14 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QGraphicsItem,
                                QStyleOptionGraphicsItem, QVBoxLayout, QWidget)
 
 import networkx as nx
+import binaryninja as bn
+from ..core.data import Path
 
 
 class Node(QGraphicsObject):
     """A QGraphicsItem representing node in a graph"""
 
-    def __init__(self, node, on_node_click: callable, node_to_str: callable, get_node_color: callable, parent=None):
+    def __init__(self, node: bn.MediumLevelILFunction, on_click_callback: callable, get_node_color: callable, parent=None):
         """Node constructor
 
         Args:
@@ -22,10 +24,9 @@ class Node(QGraphicsObject):
         """
         super().__init__(parent)
         self._node_backing = node
-        self._name = node_to_str(self)
-        self._on_click = on_node_click
+        self._name = f"0x{node.source_function.start:08x}\n{node.source_function.name}"
+        self._on_click = on_click_callback
         self._get_node_color = get_node_color
-
         self._edges = []
         self._padding = 10
 
@@ -59,7 +60,7 @@ class Node(QGraphicsObject):
             painter (QPainter)
             option (QStyleOptionGraphicsItem)
         """
-        node_color = self._get_node_color(self, self)
+        node_color = self._get_node_color(self._node_backing, self._node_backing)
         painter.setRenderHints(QPainter.RenderHint.Antialiasing)
         painter.setPen(
             QPen(
@@ -123,7 +124,7 @@ class Edge(QGraphicsItem):
         self._source = source
         self._dest = dest
         self._get_node_color = get_node_color
-
+        
         self._tickness = 2
         self._arrow_size = 20
 
@@ -171,7 +172,7 @@ class Edge(QGraphicsItem):
             end (QPointF): end position
         """
         # get edge color based on destination node
-        painter.setBrush(QBrush(self._get_node_color(self._source, self._dest)))
+        painter.setBrush(QBrush(self._get_node_color(self._source._node_backing, self._dest._node_backing)))
 
         line = QLineF(end, start)
 
@@ -226,7 +227,7 @@ class Edge(QGraphicsItem):
 
             painter.setPen(
                 QPen(
-                    QColor(self._get_node_color(self._source, self._dest)),
+                    QColor(self._get_node_color(self._source._node_backing, self._dest._node_backing)),
                     self._tickness,
                     Qt.PenStyle.SolidLine,
                     Qt.PenCapStyle.RoundCap,
@@ -239,7 +240,7 @@ class Edge(QGraphicsItem):
 
 
 class GraphView(QGraphicsView):
-    def __init__(self, on_click_callback: callable, node_to_str: callable, get_node_color: callable, parent=None):
+    def __init__(self, parent=None):
         """GraphView constructor
 
         This widget can display a directed graph
@@ -251,9 +252,7 @@ class GraphView(QGraphicsView):
         self._scene = QGraphicsScene()
         self.setScene(self._scene)
 
-        self._on_click_callback = on_click_callback
-        self._node_to_str = node_to_str
-        self._get_node_color = get_node_color
+        self._graph = None
 
         # Used to add space between nodes
         self._graph_scale = 200
@@ -262,19 +261,30 @@ class GraphView(QGraphicsView):
         self._nodes_map = {}
 
 
-    def load_graph(self, graph: nx.DiGraph):
-        """Set a new graph and update the view
+    def get_node_color(self, src_node: bn.MediumLevelILFunction, dest_node: bn.MediumLevelILFunction) -> QColor:
+        if self._graph.nodes[src_node]["in_path"] and self._graph.nodes[dest_node]["in_path"]:
+            # warm, golden yellow
+            return QColor("#FFD166")
+        else:
+            # lava gray
+            return QColor("#808588")
+    
+    def on_click_callback(self, node: Node):
+        if self._bv:
+            self._bv.navigate(self._bv.view, node.source_function.start)
+        else:
+            bn.log_error("No BinaryView set")
 
-        Args:
-            graph (nx.DiGraph): a networkx directed graph
-        """
-        self._graph = graph
+    def load_graph(self, path: Path):
+        self._bv = path.bv
+        self._graph = path.call_graph
+
         self.scene().clear()
         self._nodes_map.clear()
 
         # Add nodes
         for node in self._graph:
-            item = Node(node, self._on_click_callback, self._node_to_str, self._get_node_color)
+            item = Node(node, self.on_click_callback, self.get_node_color)
             self.scene().addItem(item)
             self._nodes_map[node] = item
 
@@ -282,7 +292,7 @@ class GraphView(QGraphicsView):
         for a, b in self._graph.edges:
             source = self._nodes_map[a]
             dest = self._nodes_map[b]
-            self.scene().addItem(Edge(source, dest, self._get_node_color))
+            self.scene().addItem(Edge(source, dest, self.get_node_color))
 
         # layout this bad boy
         positions = nx.multipartite_layout(self._graph, subset_key="call_level", align="horizontal")
@@ -304,44 +314,19 @@ class GraphView(QGraphicsView):
         self.animations.start()
 
 
-# Only this widget needs to know the details to correctly
-# render the node name and navigate to the corresponding function
-# This way the whole graph logic is agnostic to the binary ninja API  
-import binaryninja as bn
-from ..core.data import Path
-
 class GraphWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__()
         self._bv = None
         self._graph = None
-        self.view = GraphView(self.on_click_callback, self.node_to_str, self.get_node_color)
+        self.view = GraphView()
         v_layout = QVBoxLayout(self)
         v_layout.addWidget(self.view)
 
-    def node_to_str(self, graph_node: Node) -> str:
-        node: bn.MediumLevelILFunction = graph_node._node_backing
-        return f"0x{node.source_function.start:08x} | {self._graph.nodes[node]['call_level']:d}\n{node.source_function.name}"
-    
-    def on_click_callback(self, node: Node):
-        if self._bv:
-            self._bv.navigate(self._bv.view, node._node_backing.source_function.start)
-        else:
-            bn.log_error("No BinaryView set")
-
-    def get_node_color(self, src_node: Node, dest_node: Node) -> QColor:
-        if self._graph.nodes[src_node._node_backing]["in_path"] and self._graph.nodes[dest_node._node_backing]["in_path"]:
-            # warm, golden yellow
-            return QColor("#FFD166")
-        else:
-            # lava gray
-            return QColor("#808588")
 
     def load_path(self, path: Path):
         """Load a new graph into the view
         Args:
             path (Path): A Path object
         """
-        self._bv = path.bv
-        self._graph = path.call_graph
-        self.view.load_graph(self._graph)
+        self.view.load_graph(path)
