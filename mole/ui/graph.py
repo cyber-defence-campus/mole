@@ -342,6 +342,8 @@ class GraphView(QGraphicsView):
 
         # layout this bad boy
         self.layout()
+        # fit the view to the graph once animation is over
+        self.animations.finished.connect(self.fit_to_window)
 
     def layout(self):
         positions = nx.multipartite_layout(self._graph, subset_key="call_level", align="horizontal")
