@@ -22,7 +22,7 @@ class Node(QGraphicsObject):
         """
         super().__init__(parent)
         self._node_backing = node
-        self._name = node_to_str(node)
+        self._name = node_to_str(self)
         self._on_click = on_node_click
         self._get_node_color = get_node_color
 
@@ -261,68 +261,14 @@ class GraphView(QGraphicsView):
         # Map node name to Node object {str=>Node}
         self._nodes_map = {}
 
-        # List of networkx layout function
-        self._nx_layout = {
-            "shell_layout": nx.shell_layout,
-            "circular": nx.circular_layout,
-            "planar": nx.planar_layout,
-            "random": nx.random_layout,
-            "spring_layout": nx.spring_layout,
-            "spiral_layout": nx.spiral_layout,
-        }
 
-    def get_nx_layouts(self) -> list:
-        """Return all layout names
-
-        Returns:
-            list: layout name (str)
-        """
-        return self._nx_layout.keys()
-
-    def set_nx_layout(self, name: str):
-        """Set networkx layout and start animation
-
-        Args:
-            name (str): Layout name
-        """
-        if name in self._nx_layout:
-            self._nx_layout_function = self._nx_layout[name]
-
-            # Compute node position from layout function
-            positions = self._nx_layout_function(self._graph)
-
-            #positions = nx.nx_agraph.graphviz_layout(self._graph, prog="dot")
-
-            # Change position of all nodes using an animation
-            self.animations = QParallelAnimationGroup()
-            for node, pos in positions.items():
-                x, y = pos
-                x *= self._graph_scale
-                y *= self._graph_scale
-                item = self._nodes_map[node]
-
-                animation = QPropertyAnimation(item, b"pos")
-                animation.setDuration(1000)
-                animation.setEndValue(QPointF(x, y))
-                animation.setEasingCurve(QEasingCurve.Type.OutExpo)
-                self.animations.addAnimation(animation)
-
-            self.animations.start()
-
-    def set_graph(self, graph: nx.DiGraph, layout: str):
+    def load_graph(self, graph: nx.DiGraph):
         """Set a new graph and update the view
 
         Args:
             graph (nx.DiGraph): a networkx directed graph
-            layout (str): layout name
         """
         self._graph = graph
-        self._load_graph()
-        self.set_nx_layout(layout)
-
-    def _load_graph(self):
-        """Load graph into QGraphicsScene using Node class and Edge class"""
-
         self.scene().clear()
         self._nodes_map.clear()
 
@@ -338,6 +284,24 @@ class GraphView(QGraphicsView):
             dest = self._nodes_map[b]
             self.scene().addItem(Edge(source, dest, self._get_node_color))
 
+        # layout this bad boy
+        positions = nx.multipartite_layout(self._graph, subset_key="call_level", align="horizontal")
+
+        # Change position of all nodes using an animation
+        self.animations = QParallelAnimationGroup()
+        for node, pos in positions.items():
+            x, y = pos
+            x *= self._graph_scale
+            y *= self._graph_scale
+            item = self._nodes_map[node]
+
+            animation = QPropertyAnimation(item, b"pos")
+            animation.setDuration(1000)
+            animation.setEndValue(QPointF(x, y))
+            animation.setEasingCurve(QEasingCurve.Type.OutExpo)
+            self.animations.addAnimation(animation)
+
+        self.animations.start()
 
 
 # Only this widget needs to know the details to correctly
@@ -352,15 +316,12 @@ class GraphWidget(QWidget):
         self._bv = None
         self._graph = None
         self.view = GraphView(self.on_click_callback, self.node_to_str, self.get_node_color)
-        self.layout_combo = QComboBox()
-        self.layout_combo.addItems(self.view.get_nx_layouts())
         v_layout = QVBoxLayout(self)
-        v_layout.addWidget(self.layout_combo)
         v_layout.addWidget(self.view)
-        self.layout_combo.currentTextChanged.connect(self.view.set_nx_layout)
 
-    def node_to_str(self, node: bn.MediumLevelILFunction) -> str:
-        return f"0x{node.source_function.start:x}\n{node.source_function.name}"
+    def node_to_str(self, graph_node: Node) -> str:
+        node: bn.MediumLevelILFunction = graph_node._node_backing
+        return f"0x{node.source_function.start:08x} | {self._graph.nodes[node]['call_level']:d}\n{node.source_function.name}"
     
     def on_click_callback(self, node: Node):
         if self._bv:
@@ -383,4 +344,4 @@ class GraphWidget(QWidget):
         """
         self._bv = path.bv
         self._graph = path.call_graph
-        self.view.set_graph(self._graph, self.layout_combo.currentText())
+        self.view.load_graph(self._graph)
