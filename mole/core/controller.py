@@ -497,8 +497,7 @@ class Controller:
             insts_colors = {}
             try:
                 model = self._model.get()
-                widget = model.settings.get("highlight_color").widget
-                color_name = widget.currentText().capitalize()
+                color_name = model.settings.get("highlight_color").widget.currentText().capitalize()
                 color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
             except:
                 color = bn.HighlightStandardColor.RedHighlightColor

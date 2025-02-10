@@ -14,7 +14,7 @@ import networkx as nx
 class Node(QGraphicsObject):
     """A QGraphicsItem representing node in a graph"""
 
-    def __init__(self, node, on_node_click: callable, node_to_str: callable, parent=None):
+    def __init__(self, node, on_node_click: callable, node_to_str: callable, get_node_color: callable, parent=None):
         """Node constructor
 
         Args:
@@ -24,9 +24,9 @@ class Node(QGraphicsObject):
         self._node_backing = node
         self._name = node_to_str(node)
         self._on_click = on_node_click
+        self._get_node_color = get_node_color
 
         self._edges = []
-        self._color = "#5AD469"
         self._padding = 10
 
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
@@ -59,19 +59,20 @@ class Node(QGraphicsObject):
             painter (QPainter)
             option (QStyleOptionGraphicsItem)
         """
+        node_color = self._get_node_color(self, self)
         painter.setRenderHints(QPainter.RenderHint.Antialiasing)
         painter.setPen(
             QPen(
-                QColor(self._color).darker(),
+                node_color.darker(),
                 2,
                 Qt.PenStyle.SolidLine,
                 Qt.PenCapStyle.RoundCap,
                 Qt.PenJoinStyle.RoundJoin,
             )
         )
-        painter.setBrush(QBrush(QColor(self._color)))
+        painter.setBrush(QBrush(node_color))
         painter.drawRect(self.boundingRect())
-        painter.setPen(QPen(QColor("white")))
+        painter.setPen(QPen(QColor("#222222")))
         painter.drawText(self.boundingRect(), Qt.AlignmentFlag.AlignCenter, self._name)
 
     def add_edge(self, edge):
@@ -111,7 +112,7 @@ class Node(QGraphicsObject):
 
 
 class Edge(QGraphicsItem):
-    def __init__(self, source: Node, dest: Node, parent: QGraphicsItem = None):
+    def __init__(self, source: Node, dest: Node, get_node_color: callable, parent: QGraphicsItem = None):
         """Edge constructor
 
         Args:
@@ -121,9 +122,9 @@ class Edge(QGraphicsItem):
         super().__init__(parent)
         self._source = source
         self._dest = dest
+        self._get_node_color = get_node_color
 
         self._tickness = 2
-        self._color = "#2BB53C"
         self._arrow_size = 20
 
         self._source.add_edge(self)
@@ -169,7 +170,8 @@ class Edge(QGraphicsItem):
             start (QPointF): start position
             end (QPointF): end position
         """
-        painter.setBrush(QBrush(self._color))
+        # get edge color based on destination node
+        painter.setBrush(QBrush(self._get_node_color(self._source, self._dest)))
 
         line = QLineF(end, start)
 
@@ -224,7 +226,7 @@ class Edge(QGraphicsItem):
 
             painter.setPen(
                 QPen(
-                    QColor(self._color),
+                    QColor(self._get_node_color(self._source, self._dest)),
                     self._tickness,
                     Qt.PenStyle.SolidLine,
                     Qt.PenCapStyle.RoundCap,
@@ -237,7 +239,7 @@ class Edge(QGraphicsItem):
 
 
 class GraphView(QGraphicsView):
-    def __init__(self, on_click_callback: callable, node_to_str: callable, parent=None):
+    def __init__(self, on_click_callback: callable, node_to_str: callable, get_node_color: callable, parent=None):
         """GraphView constructor
 
         This widget can display a directed graph
@@ -251,6 +253,7 @@ class GraphView(QGraphicsView):
 
         self._on_click_callback = on_click_callback
         self._node_to_str = node_to_str
+        self._get_node_color = get_node_color
 
         # Used to add space between nodes
         self._graph_scale = 200
@@ -260,10 +263,10 @@ class GraphView(QGraphicsView):
 
         # List of networkx layout function
         self._nx_layout = {
+            "shell_layout": nx.shell_layout,
             "circular": nx.circular_layout,
             "planar": nx.planar_layout,
             "random": nx.random_layout,
-            "shell_layout": nx.shell_layout,
             "spring_layout": nx.spring_layout,
             "spiral_layout": nx.spiral_layout,
         }
@@ -287,6 +290,8 @@ class GraphView(QGraphicsView):
 
             # Compute node position from layout function
             positions = self._nx_layout_function(self._graph)
+
+            #positions = nx.nx_agraph.graphviz_layout(self._graph, prog="dot")
 
             # Change position of all nodes using an animation
             self.animations = QParallelAnimationGroup()
@@ -323,7 +328,7 @@ class GraphView(QGraphicsView):
 
         # Add nodes
         for node in self._graph:
-            item = Node(node, self._on_click_callback, self._node_to_str)
+            item = Node(node, self._on_click_callback, self._node_to_str, self._get_node_color)
             self.scene().addItem(item)
             self._nodes_map[node] = item
 
@@ -331,7 +336,7 @@ class GraphView(QGraphicsView):
         for a, b in self._graph.edges:
             source = self._nodes_map[a]
             dest = self._nodes_map[b]
-            self.scene().addItem(Edge(source, dest))
+            self.scene().addItem(Edge(source, dest, self._get_node_color))
 
 
 
@@ -345,13 +350,14 @@ class GraphWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__()
         self._bv = None
-        self.view = GraphView(self.on_click_callback, self.node_to_str)
-        self.choice_combo = QComboBox()
-        self.choice_combo.addItems(self.view.get_nx_layouts())
+        self._graph = None
+        self.view = GraphView(self.on_click_callback, self.node_to_str, self.get_node_color)
+        self.layout_combo = QComboBox()
+        self.layout_combo.addItems(self.view.get_nx_layouts())
         v_layout = QVBoxLayout(self)
-        v_layout.addWidget(self.choice_combo)
+        v_layout.addWidget(self.layout_combo)
         v_layout.addWidget(self.view)
-        self.choice_combo.currentTextChanged.connect(self.view.set_nx_layout)
+        self.layout_combo.currentTextChanged.connect(self.view.set_nx_layout)
 
     def node_to_str(self, node: bn.MediumLevelILFunction) -> str:
         return f"0x{node.source_function.start:x}\n{node.source_function.name}"
@@ -362,10 +368,19 @@ class GraphWidget(QWidget):
         else:
             bn.log_error("No BinaryView set")
 
+    def get_node_color(self, src_node: Node, dest_node: Node) -> QColor:
+        if self._graph.nodes[src_node._node_backing]["in_path"] and self._graph.nodes[dest_node._node_backing]["in_path"]:
+            # warm, golden yellow
+            return QColor("#FFD166")
+        else:
+            # lava gray
+            return QColor("#808588")
+
     def load_path(self, path: Path):
         """Load a new graph into the view
         Args:
             path (Path): A Path object
         """
         self._bv = path.bv
-        self.view.set_graph(path.call_graph, self.choice_combo.currentText())
+        self._graph = path.call_graph
+        self.view.set_graph(self._graph, self.layout_combo.currentText())
