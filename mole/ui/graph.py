@@ -348,19 +348,28 @@ class GraphView(QGraphicsView):
     def layout(self):
         positions = nx.multipartite_layout(self._graph, subset_key="call_level", align="horizontal")
 
-        max_width = max(item.boundingRect().width() for item in self._nodes_map.values())
-        max_height = max(item.boundingRect().height() for item in self._nodes_map.values())
+        levels_nodes = {}
+        new_x_positions = {}
+        for node, (x, y) in positions.items():
+            level = self._graph.nodes[node]["call_level"]
+            levels_nodes.setdefault(level, []).append(node)
 
-        horizontal_padding = max_width * 0.5
-        vertical_padding = max_height * 3.0
+        for level, nodes in levels_nodes.items():
+            x_offset = 0
+            spacing = 20.0
+            for node in nodes:
+                w = self._nodes_map[node].boundingRect().width()
+                new_x_positions[node] = x_offset
+                x_offset += w + spacing
 
         # Change position of all nodes using an animation
         self.animations = QParallelAnimationGroup()
         for node, pos in positions.items():
-            x, y = pos
-            x *= (max_width + horizontal_padding)
-            y *= (max_height + vertical_padding)
-        
+            ox, oy = pos
+            x = new_x_positions[node]
+            y = oy * 200.0
+
+            print(f"Moving from {ox}, {oy} to {x}, {y}")
             item = self._nodes_map[node]
 
             animation = QPropertyAnimation(item, b"pos")
