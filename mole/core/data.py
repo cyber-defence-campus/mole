@@ -330,9 +330,9 @@ class SinkFunction(Function):
                                         # NOTE: This only serves as an example, maybe becoming handy
                                         # for creating the graph view. Can be removed if not needed.
                                         if snk_inst.function in call_graph:
-                                            call_graph.nodes[snk_inst.function]["snk"] = f"0x{snk_inst.address:x} {snk_name}"
+                                            call_graph.nodes[snk_inst.function]["snk"] = snk_name
                                         if src_inst.function in call_graph:
-                                            call_graph.nodes[src_inst.function]["src"] = f"0x{src_inst.address:x} {src_sym_name}"
+                                            call_graph.nodes[src_inst.function]["src"] = src_sym_name
                                         # Store path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,

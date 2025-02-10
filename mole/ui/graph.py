@@ -16,7 +16,7 @@ from ..core.data import Path
 class Node(QGraphicsObject):
     """A QGraphicsItem representing node in a graph"""
 
-    def __init__(self, node: bn.MediumLevelILFunction, on_click_callback: callable, get_node_color: callable, parent=None):
+    def __init__(self, node: bn.MediumLevelILFunction, get_node_text: callable, on_click_callback: callable, get_node_color: callable, parent=None):
         """Node constructor
 
         Args:
@@ -24,11 +24,11 @@ class Node(QGraphicsObject):
         """
         super().__init__(parent)
         self._node_backing = node
-        self._name = f"0x{node.source_function.start:08x}\n{node.source_function.name}"
+        self._name = get_node_text(node)
         self._on_click = on_click_callback
         self._get_node_color = get_node_color
         self._edges = []
-        self._padding = 10
+        self._padding = 5
 
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
@@ -40,7 +40,7 @@ class Node(QGraphicsObject):
         """Update the bounding rectangle to fit the text"""
         font_metrics = QFontMetrics(QFont())
         text_width = font_metrics.horizontalAdvance(self._name)
-        text_height = font_metrics.height()
+        text_height = font_metrics.height() * (self._name.count('\n') + 1)
         self._rect = QRectF(0, 0, text_width + 2 * self._padding, text_height + 2 * self._padding)
 
     def boundingRect(self) -> QRectF:
@@ -108,7 +108,7 @@ class Node(QGraphicsObject):
         Args:
             event (QGraphicsSceneMouseEvent)
         """
-        self._on_click(self)
+        self._on_click(self._node_backing)
         super().mousePressEvent(event)
 
 
@@ -262,9 +262,17 @@ class GraphView(QGraphicsView):
 
 
     def get_node_color(self, src_node: bn.MediumLevelILFunction, dest_node: bn.MediumLevelILFunction) -> QColor:
+        # warm, golden yellow is the default
+        highlight_color = QColor("#FFD166") 
+        if "snk" in self._graph.nodes[src_node] or "snk" in self._graph.nodes[dest_node]:
+            # muted, earthy red
+            highlight_color = QColor("#D65A5A")
+        if "src" in self._graph.nodes[dest_node] or "src" in self._graph.nodes[dest_node]:
+            # soft, warm red
+            highlight_color = QColor("#FF9999")
+
         if self._graph.nodes[src_node]["in_path"] and self._graph.nodes[dest_node]["in_path"]:
-            # warm, golden yellow
-            return QColor("#FFD166")
+            return highlight_color
         else:
             # lava gray
             return QColor("#808588")
@@ -275,6 +283,14 @@ class GraphView(QGraphicsView):
         else:
             bn.log_error("No BinaryView set")
 
+    def get_node_text(self, node: bn.MediumLevelILFunction) -> str:
+        node_text = f"0x{node.source_function.start:08x}\n{node.source_function.name}"
+        if "snk" in self._graph.nodes[node]:
+            node_text += f"\n{self._graph.nodes[node]['snk']}"
+        if "src" in self._graph.nodes[node]:
+            node_text += f"\n{self._graph.nodes[node]['src']}"
+        return node_text
+
     def load_graph(self, path: Path):
         self._bv = path.bv
         self._graph = path.call_graph
@@ -284,7 +300,7 @@ class GraphView(QGraphicsView):
 
         # Add nodes
         for node in self._graph:
-            item = Node(node, self.on_click_callback, self.get_node_color)
+            item = Node(node, self.get_node_text, self.on_click_callback, self.get_node_color)
             self.scene().addItem(item)
             self._nodes_map[node] = item
 
