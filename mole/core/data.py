@@ -345,7 +345,8 @@ class SinkFunction(Function):
                                             insts=insts,
                                             phiis=phiis,
                                             bdeps=bdeps,
-                                            call_graph=call_graph
+                                            call_graph=call_graph,
+                                            bv=bv
                                         )
                                         # Found the same path before
                                         if path in paths:
@@ -401,6 +402,7 @@ class Path:
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
+    bv: bn.BinaryView = None
 
     def __eq__(self, other: Path) -> bool:
         if not isinstance(other, Path):

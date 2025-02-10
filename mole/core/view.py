@@ -1,6 +1,7 @@
 from __future__   import annotations
 from ..common.log import Logger
 from ..main       import Controller
+from ..ui.graph   import GraphWidget
 from typing       import Any, Literal, Tuple
 import binaryninja       as bn
 import binaryninjaui     as bnui
@@ -96,17 +97,36 @@ class SidebarWidget(bnui.SidebarWidget):
         self._tag: str = tag
         self._log: Logger = log
         self._bv: bn.BinaryView = None
+        self._main_tab_wid: qtw.QTabWidget = None
+        self._graph_view: GraphWidget = None
         return
     
     def init(self) -> SidebarWidget:
         """
         This method initiliazes the main widget.
         """
-        tab = qtw.QTabWidget()
-        tab.addTab(*self._init_cnf_tab())
-        tab.addTab(*self._init_run_tab())
+        self._main_tab_wid = qtw.QTabWidget()
+        self._main_tab_wid.addTab(*self._init_run_tab())
+        self._graph_view, tab_name = self._init_graph_tab()
+        self._main_tab_wid.addTab(*self._init_cnf_tab())
+        self._main_tab_wid.addTab(self._graph_view, tab_name)
+        
+        #import networkx as nx
+        #graph = nx.DiGraph()
+        #graph.add_edges_from(
+        #    [
+        #        ("1", "2"),
+        #        ("2", "3"),
+        #        ("3", "4"),
+        #        ("1", "5"),
+        #        ("1", "6"),
+        #        ("1", "7"),
+        #    ]
+        #)
+        #self._graph_view.load_path(graph)
+
         lay = qtw.QVBoxLayout()
-        lay.addWidget(tab)
+        lay.addWidget(self._main_tab_wid)
         self.setLayout(lay)
         return self
     
@@ -281,6 +301,12 @@ class SidebarWidget(bnui.SidebarWidget):
             lambda row, col: _navigate(self._bv, res_tbl, row, col)
         )
         res_tbl.cellDoubleClicked.connect(
+            lambda row, col: self._ctr.highlight_graph(res_tbl, row, col, self._graph_view)
+        )
+        res_tbl.cellDoubleClicked.connect(
+            lambda row, col: self._main_tab_wid.setCurrentIndex(2)
+        )
+        res_tbl.cellDoubleClicked.connect(
             lambda row, col: self._ctr.highlight_path(res_tbl, row, col)
         )
         res_tbl.cellDoubleClicked.connect(
@@ -294,12 +320,17 @@ class SidebarWidget(bnui.SidebarWidget):
         run_but.clicked.connect(
             lambda but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but, widget=res_tbl)
         )
+
         lay = qtw.QVBoxLayout()
         lay.addWidget(res_wid)
         lay.addWidget(run_but)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid, "Run"
+    
+
+    def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
+        return GraphWidget(), "Graph"
     
     def notifyViewChanged(self, vf: bnui.ViewFrame) -> None:
         """

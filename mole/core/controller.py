@@ -1,6 +1,7 @@
 from __future__        import annotations
 from ..common.parse    import LogicalExpressionParser
 from ..common.log      import Logger
+from ..ui.graph        import GraphWidget
 from .data             import *
 from typing            import Dict, List, Literal
 import binaryninja       as bn
@@ -510,6 +511,16 @@ class Controller:
         self._paths_highlight = (highlighted_path, insts_colors)
         return
     
+    def highlight_graph(self, tbl: qtw.QTableWidget, row: int, col: int, graphView: GraphWidget) -> None:
+        """
+        This method render the graph of a path.
+        """
+        if not tbl or col > 7: return
+        path = self._paths[row]
+        if not path: return
+        self._log.info(self._tag, f"Loading call graph with {len(path.call_graph.nodes):d} nodes...")
+        graphView.load_path(path)
+
     def remove_selected_path(self, tbl: qtw.QTableWidget, row: int) -> None:
         """
         This method removes the path at row `row` from the table `tbl`.
