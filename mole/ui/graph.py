@@ -3,8 +3,8 @@ import math
 from PySide6.QtCore import (QEasingCurve, QLineF,
                             QParallelAnimationGroup, QPointF,
                             QPropertyAnimation, QRectF, Qt)
-from PySide6.QtGui import QBrush, QColor, QPainter, QPen, QPolygonF, QFont, QFontMetrics
-from PySide6.QtWidgets import (QApplication, QComboBox, QGraphicsItem,
+from PySide6.QtGui import QAction, QBrush, QColor, QPainter, QPen, QPolygonF, QFont, QFontMetrics
+from PySide6.QtWidgets import (QToolBar, QComboBox, QGraphicsItem,
                                QGraphicsObject, QGraphicsScene, QGraphicsView,
                                QStyleOptionGraphicsItem, QVBoxLayout, QWidget)
 
@@ -260,6 +260,21 @@ class GraphView(QGraphicsView):
         # Map node name to Node object {str=>Node}
         self._nodes_map = {}
 
+    def center_view(self):
+        """Center the view on the scene"""
+        self.centerOn(self.sceneRect().center())
+
+    def zoom_in(self):
+        """Zoom in the view"""
+        self.scale(1.2, 1.2)
+
+    def zoom_out(self):
+        """Zoom out the view"""
+        self.scale(1 / 1.2, 1 / 1.2)
+
+    def fit_to_window(self):
+        """Fit the view to the scene"""
+        self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def get_node_color(self, src_node: bn.MediumLevelILFunction, dest_node: bn.MediumLevelILFunction) -> QColor:
         # warm, golden yellow is the default
@@ -311,6 +326,9 @@ class GraphView(QGraphicsView):
             self.scene().addItem(Edge(source, dest, self.get_node_color))
 
         # layout this bad boy
+        self.layout()
+
+    def layout(self):
         positions = nx.multipartite_layout(self._graph, subset_key="call_level", align="horizontal")
 
         # Change position of all nodes using an animation
@@ -329,15 +347,41 @@ class GraphView(QGraphicsView):
 
         self.animations.start()
 
-
 class GraphWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__()
         self._bv = None
         self._graph = None
-        self.view = GraphView()
+        self.view = GraphView()        
         v_layout = QVBoxLayout(self)
         v_layout.addWidget(self.view)
+
+        self.toolbar = QToolBar("Graph Toolbar")
+        self.addToolBarActions()
+        v_layout.addWidget(self.toolbar)
+
+    def addToolBarActions(self):
+        """Add actions to the toolbar"""
+        center_action = QAction("Center", self)
+        center_action.triggered.connect(self.view.center_view)
+        self.toolbar.addAction(center_action)
+
+        zoom_in_action = QAction("Zoom In", self)
+        zoom_in_action.triggered.connect(self.view.zoom_in)
+        self.toolbar.addAction(zoom_in_action)
+
+        zoom_out_action = QAction("Zoom Out", self)
+        zoom_out_action.triggered.connect(self.view.zoom_out)
+        self.toolbar.addAction(zoom_out_action)
+
+        fit_action = QAction("Fit", self)
+        fit_action.triggered.connect(self.view.fit_to_window)
+        self.toolbar.addAction(fit_action)
+
+        reset_action = QAction("Reset", self)
+        reset_action.triggered.connect(self.view.layout)
+        self.toolbar.addAction(reset_action)
+
 
 
     def load_path(self, path: Path):
