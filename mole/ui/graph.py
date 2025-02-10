@@ -4,7 +4,7 @@ from PySide6.QtCore import (QEasingCurve, QLineF,
                             QParallelAnimationGroup, QPointF,
                             QPropertyAnimation, QRectF, Qt)
 from PySide6.QtGui import QAction, QBrush, QColor, QPainter, QPen, QPolygonF, QFont, QFontMetrics
-from PySide6.QtWidgets import (QToolBar, QComboBox, QGraphicsItem,
+from PySide6.QtWidgets import (QToolBar, QGraphicsItem,
                                QGraphicsObject, QGraphicsScene, QGraphicsView,
                                QStyleOptionGraphicsItem, QVBoxLayout, QWidget)
 
