@@ -254,10 +254,6 @@ class GraphView(QGraphicsView):
 
         self._graph = None
 
-        # Used to add space between nodes
-        # TODO: maybe should be based on average box size of nodes?
-        self._graph_scale = 200
-
         # Map node name to Node object {str=>Node}
         self._nodes_map = {}
 
@@ -350,12 +346,19 @@ class GraphView(QGraphicsView):
     def layout(self):
         positions = nx.multipartite_layout(self._graph, subset_key="call_level", align="horizontal")
 
+        max_width = max(item.boundingRect().width() for item in self._nodes_map.values())
+        max_height = max(item.boundingRect().height() for item in self._nodes_map.values())
+
+        horizontal_padding = max_width * 0.5
+        vertical_padding = max_height * 3.0
+
         # Change position of all nodes using an animation
         self.animations = QParallelAnimationGroup()
         for node, pos in positions.items():
             x, y = pos
-            x *= self._graph_scale
-            y *= self._graph_scale
+            x *= (max_width + horizontal_padding)
+            y *= (max_height + vertical_padding)
+        
             item = self._nodes_map[node]
 
             animation = QPropertyAnimation(item, b"pos")
