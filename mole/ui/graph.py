@@ -347,34 +347,37 @@ class GraphView(QGraphicsView):
 
     def layout(self):
         positions = nx.multipartite_layout(self._graph, subset_key="call_level", align="horizontal")
-
+        
         levels_nodes = {}
-        new_x_positions = {}
-        for node, (x, y) in positions.items():
+        # collect nodes by level
+        for node in positions:
             level = self._graph.nodes[node]["call_level"]
             levels_nodes.setdefault(level, []).append(node)
 
+        # calculate the widest level
+        max_width = max(sum(self._nodes_map[node].boundingRect().width() for node in nodes) + (len(nodes) - 1) * 20.0 for nodes in levels_nodes.values())
+
+        new_x_positions = {}
         for level, nodes in levels_nodes.items():
-            x_offset = 0
-            spacing = 20.0
+            node_count = len(nodes)
+            # we use up all the available space
+            total_width = sum(self._nodes_map[node].boundingRect().width() for node in nodes)
+            # no need to space out the nodes if there is only one node in the level
+            spacing = (max_width - total_width) / (node_count - 1) if node_count > 1 else 0
+            # if there is only one node in the level, center it
+            x_offset = 0 if node_count > 1 else (max_width - total_width) / 2
+
             for node in nodes:
-                w = self._nodes_map[node].boundingRect().width()
                 new_x_positions[node] = x_offset
-                x_offset += w + spacing
+                x_offset += self._nodes_map[node].boundingRect().width() + spacing
 
-        # Change position of all nodes using an animation
+        vertical_spacing = 200.0
         self.animations = QParallelAnimationGroup()
-        for node, pos in positions.items():
-            ox, oy = pos
-            x = new_x_positions[node]
-            y = oy * 200.0
-
-            print(f"Moving from {ox}, {oy} to {x}, {y}")
+        for node, (ox, oy) in positions.items():
             item = self._nodes_map[node]
-
             animation = QPropertyAnimation(item, b"pos")
             animation.setDuration(1000)
-            animation.setEndValue(QPointF(x, y))
+            animation.setEndValue(QPointF(new_x_positions[node], oy * vertical_spacing))
             animation.setEasingCurve(QEasingCurve.Type.OutExpo)
             self.animations.addAnimation(animation)
 
