@@ -316,11 +316,12 @@ class MediumLevelILBackwardSlicer:
                         self._inst_graph.add_node(instr, call_level, caller_site)
                         self._inst_graph.add_edge(inst, instr)
                         for var_usage in instr.dest.use_sites:
-                            self._inst_graph.add_node(instr, call_level, caller_site)
-                            self._inst_graph.add_node(var_usage, call_level, caller_site)
-                            self._inst_graph.add_edge(instr, var_usage)
-                            self._log.debug(f"0x{var_usage.address:08x}  {var_usage}")
-                            self._slice_backwards(var_usage, call_level, caller_site)
+                            if var_usage.address >= instr.address and var_usage.address <= inst.address:
+                                self._inst_graph.add_node(instr, call_level, caller_site)
+                                self._inst_graph.add_node(var_usage, call_level, caller_site)
+                                self._inst_graph.add_edge(instr, var_usage)
+                                self._log.debug(f"0x{var_usage.address:08x}  {var_usage}")
+                                self._slice_backwards(var_usage, call_level, caller_site)
                         #self._slice_backwards(instr.src, call_level, caller_site)
                 # Backward slice at all possible variable definitions
                 #for ssa_var in inst.function.ssa_vars:
