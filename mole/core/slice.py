@@ -1,6 +1,7 @@
 from __future__      import annotations
 from ..common.help   import FunctionHelper, InstructionHelper
 from ..common.log    import Logger
+from .pointers       import get_instructions_for_pointer_alias
 from typing          import Any, Dict, Generator, List, Set, Tuple
 import binaryninja as bn
 import networkx    as nx
@@ -305,10 +306,26 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILImport()):
                 pass
             case (bn.MediumLevelILAddressOf()):
+                self._log.debug(f"Pointer `{inst}` aliases found in assignments:")
+                for instr in get_instructions_for_pointer_alias(inst.function, inst):
+                    self._log.debug(f"0x{instr.address:08x}  {instr}")
+                    if isinstance(instr, bn.MediumLevelILSetVarSsa):
+                        # we need to forward slice variable usage
+                        self._log.debug(f"Forward {instr.dest} slicing from 0x{instr.address:x} to 0x{inst.address:x}")
+                        self._inst_graph.add_node(inst, call_level, caller_site)
+                        self._inst_graph.add_node(instr, call_level, caller_site)
+                        self._inst_graph.add_edge(inst, instr)
+                        for var_usage in instr.dest.use_sites:
+                            self._inst_graph.add_node(instr, call_level, caller_site)
+                            self._inst_graph.add_node(var_usage, call_level, caller_site)
+                            self._inst_graph.add_edge(instr, var_usage)
+                            self._log.debug(f"0x{var_usage.address:08x}  {var_usage}")
+                            self._slice_backwards(var_usage, call_level, caller_site)
+                        #self._slice_backwards(instr.src, call_level, caller_site)
                 # Backward slice at all possible variable definitions
-                for ssa_var in inst.function.ssa_vars:
-                    if ssa_var.var == inst.src:
-                        self._slice_ssa_var_definition(ssa_var, inst, call_level, caller_site)
+                #for ssa_var in inst.function.ssa_vars:
+                #    if ssa_var.var == inst.src:
+                #        self._slice_ssa_var_definition(ssa_var, inst, call_level, caller_site)
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILVarAliasedField() |
