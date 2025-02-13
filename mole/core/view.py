@@ -97,23 +97,110 @@ class SidebarWidget(bnui.SidebarWidget):
         self._tag: str = tag
         self._log: Logger = log
         self._bv: bn.BinaryView = None
-        self._main_tab_wid: qtw.QTabWidget = None
-        self._graph_view: GraphWidget = None
+        self._wid: qtw.QTabWidget = None
         return
     
     def init(self) -> SidebarWidget:
         """
         This method initializes the main widget.
         """
-        self._main_tab_wid = qtw.QTabWidget()
-        self._main_tab_wid.addTab(*self._init_run_tab())
-        self._graph_view, tab_name = self._init_graph_tab()
-        self._main_tab_wid.addTab(self._graph_view, tab_name)
-        self._main_tab_wid.addTab(*self._init_cnf_tab())
+        self._wid = qtw.QTabWidget()
+        self._wid.addTab(*self._init_run_tab())
+        self._wid.addTab(*self._init_graph_tab())
+        self._wid.addTab(*self._init_cnf_tab())
         lay = qtw.QVBoxLayout()
-        lay.addWidget(self._main_tab_wid)
+        lay.addWidget(self._wid)
         self.setLayout(lay)
         return self
+    
+    def _init_run_tab(self) -> Tuple[qtw.QWidget, str]:
+        """
+        This method initializes the tab `Run`.
+        """
+
+        def _navigate(bv: bn.BinaryView, tbl: qtw.QTableWidget, row: int, col: int) -> None:
+            """
+            This method navigate in the view frame.
+            """
+            ctx = bnui.UIContext.activeContext()
+            if not ctx: return
+            vf = ctx.getCurrentViewFrame()
+            if not vf: return
+            if not tbl: return
+            if col in [0, 1]:
+                vf.navigate(bv, int(tbl.item(row, 0).text(), 16))
+            elif col in [2, 3, 4]:
+                vf.navigate(bv, int(tbl.item(row, 2).text(), 16))            
+            return
+        
+        def _show_context_menu(tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
+            """
+            This method shows a custom context menu.
+            """
+            if tbl is None: return
+            row = tbl.indexAt(pos).row()
+            col = tbl.indexAt(pos).column()
+            if row < 0 or col < 0: return
+
+            menu = qtw.QMenu(tbl)
+            menu_action_details = menu.addAction("Log Instructions")
+            menu_action_highlight = menu.addAction("Un-/Highlight Instructions")
+            menu_action_graph = menu.addAction("Show Call Graph")
+            menu.addSeparator()
+            menu_action_remove_selected = menu.addAction("Remove selected path")
+            menu_action_remove_all = menu.addAction("Remove all paths")
+            menu_action = menu.exec(tbl.mapToGlobal(pos))
+
+            if menu_action == menu_action_details:
+                self._ctr.select_path(tbl, row, col)
+            elif menu_action == menu_action_highlight:
+                self._ctr.highlight_path(tbl, row, col)
+            elif menu_action == menu_action_graph:
+                self._ctr.show_graph(self._bv, tbl, row, col, self._wid)
+            elif menu_action == menu_action_remove_selected:
+                self._ctr.remove_selected_path(tbl, row)
+            elif menu_action == menu_action_remove_all:
+                self._ctr.remove_all_paths(tbl)
+            return
+
+        res_tbl = qtw.QTableWidget()
+        res_tbl.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
+        res_tbl.customContextMenuRequested.connect(
+            lambda pos: _show_context_menu(res_tbl, pos)
+        )
+        res_tbl.setColumnCount(9)
+        res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Lines", "Phis", "Branches", "Tag"])
+        res_tbl.setSortingEnabled(True)
+        res_tbl.cellClicked.connect(
+            lambda row, col: _navigate(self._bv, res_tbl, row, col)
+        )
+        res_tbl.cellDoubleClicked.connect(
+            lambda row, col: self._ctr.highlight_path(res_tbl, row, col)
+        )
+        res_tbl.cellDoubleClicked.connect(
+            lambda row, col: _navigate(self._bv, res_tbl, row, col)
+        )
+        res_tbl.cellDoubleClicked.connect(
+            lambda row, col: self._ctr.show_graph(self._bv, res_tbl, row, col, self._wid)
+        )
+        res_lay = qtw.QVBoxLayout()
+        res_lay.addWidget(res_tbl)
+        res_wid = qtw.QGroupBox("Path Identification:")
+        res_wid.setLayout(res_lay)
+        run_but = qtw.QPushButton("Analyze Binary")
+        run_but.clicked.connect(
+            lambda but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but, widget=res_tbl)
+        )
+
+        lay = qtw.QVBoxLayout()
+        lay.addWidget(res_wid)
+        lay.addWidget(run_but)
+        wid = qtw.QWidget()
+        wid.setLayout(lay)
+        return wid, "Run"
+    
+    def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
+        return GraphWidget(), "Graph"
     
     def _init_cnf_tab(self) -> Tuple[qtw.QWidget, str]:
         """
@@ -256,66 +343,6 @@ class SidebarWidget(bnui.SidebarWidget):
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid
-    
-    def _init_run_tab(self) -> Tuple[qtw.QWidget, str]:
-        """
-        This method initializes the tab `Run`.
-        """
-
-        def _navigate(bv: bn.BinaryView, tbl: qtw.QTableWidget, row: int, col: int) -> None:
-            ctx = bnui.UIContext.activeContext()
-            if not ctx: return
-            vf = ctx.getCurrentViewFrame()
-            if not vf: return
-            if not tbl: return
-            if col in [0, 1]:
-                vf.navigate(bv, int(tbl.item(row, 0).text(), 16))
-            elif col in [2, 3, 4]:
-                vf.navigate(bv, int(tbl.item(row, 2).text(), 16))
-            return
-
-        res_tbl = qtw.QTableWidget()
-        res_tbl.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
-        res_tbl.customContextMenuRequested.connect(
-            lambda pos: self._ctr.show_context_menu(res_tbl, pos)
-        )
-        res_tbl.setColumnCount(9)
-        res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Lines", "Phis", "Branches", "Tag"])
-        res_tbl.setSortingEnabled(True)
-        res_tbl.cellClicked.connect(
-            lambda row, col: _navigate(self._bv, res_tbl, row, col)
-        )
-        res_tbl.cellDoubleClicked.connect(
-            lambda row, col: self._ctr.highlight_graph(res_tbl, row, col, self._graph_view)
-        )
-        res_tbl.cellDoubleClicked.connect(
-            lambda row, col: self._main_tab_wid.setCurrentIndex(1)
-        )
-        res_tbl.cellDoubleClicked.connect(
-            lambda row, col: self._ctr.highlight_path(res_tbl, row, col)
-        )
-        res_tbl.cellDoubleClicked.connect(
-            lambda row, col: _navigate(self._bv, res_tbl, row, col)
-        )
-        res_lay = qtw.QVBoxLayout()
-        res_lay.addWidget(res_tbl)
-        res_wid = qtw.QGroupBox("Path Identification:")
-        res_wid.setLayout(res_lay)
-        run_but = qtw.QPushButton("Analyze Binary")
-        run_but.clicked.connect(
-            lambda but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but, widget=res_tbl)
-        )
-
-        lay = qtw.QVBoxLayout()
-        lay.addWidget(res_wid)
-        lay.addWidget(run_but)
-        wid = qtw.QWidget()
-        wid.setLayout(lay)
-        return wid, "Run"
-    
-
-    def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
-        return GraphWidget(), "Graph"
     
     def notifyViewChanged(self, vf: bnui.ViewFrame) -> None:
         """

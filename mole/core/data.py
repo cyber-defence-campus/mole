@@ -343,8 +343,7 @@ class SinkFunction(Function):
                                             insts=insts,
                                             phiis=phiis,
                                             bdeps=bdeps,
-                                            call_graph=call_graph,
-                                            bv=bv
+                                            call_graph=call_graph
                                         )
                                         # Found the same path before
                                         if path in paths:
@@ -367,20 +366,6 @@ class SinkFunction(Function):
                                                 log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
                                             log.debug(tag, InstructionHelper.get_inst_info(inst))
                                         log.debug(tag, "-----------------------")
-
-                                        # # TODO: Visualization Test for the Graph View
-                                        # import matplotlib.pyplot as plt
-                                        # import networkx as nx
-                                        # from ..common.help import FunctionHelper
-                                        # def plot_call_graph(g: MediumLevelILFunctionGraph) -> None:
-                                        #     plt.figure()
-                                        #     pos = nx.nx_agraph.graphviz_layout(g, prog="dot")
-                                        #     node_color = ["red" if g.nodes[node]["in_path"] else "blue" for node in g.nodes]
-                                        #     edge_color = ["red" if g.edges[edge]["in_path"] else "blue" for edge in g.edges]
-                                        #     labels = {node:  FunctionHelper.get_func_info(node, False) for node in g.nodes}
-                                        #     nx.draw(g, pos, node_color=node_color, edge_color=edge_color, labels=labels)
-                                        #     plt.show()
-                                        # bn.execute_on_main_thread(lambda g=call_graph: plot_call_graph(g))
         return paths
 
 
@@ -400,7 +385,6 @@ class Path:
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
-    bv: bn.BinaryView = None
 
     def __eq__(self, other: Path) -> bool:
         if not isinstance(other, Path):
