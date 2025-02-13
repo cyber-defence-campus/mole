@@ -1,4 +1,5 @@
 from ..core.data import Path
+from typing      import Any
 import binaryninja       as bn
 import math
 import networkx          as nx
@@ -10,7 +11,14 @@ import PySide6.QtWidgets as qtw
 class Node(qtw.QGraphicsObject):
     """A qtw.QGraphicsItem representing node in a graph"""
 
-    def __init__(self, node: bn.MediumLevelILFunction, get_node_text: callable, on_click_callback: callable, get_node_color: callable, parent=None):
+    def __init__(
+            self,
+            node: bn.MediumLevelILFunction,
+            get_node_text: callable,
+            on_click_callback: callable,
+            get_node_color: callable,
+            parent=None
+        ) -> None:
         """Node constructor
 
         Args:
@@ -29,13 +37,15 @@ class Node(qtw.QGraphicsObject):
         self.setCacheMode(qtw.QGraphicsItem.CacheMode.DeviceCoordinateCache)
 
         self._update_rect()
+        return
 
-    def _update_rect(self):
+    def _update_rect(self) -> None:
         """Update the bounding rectangle to fit the text"""
         font_metrics = qtui.QFontMetrics(qtui.QFont())
         text_width = font_metrics.horizontalAdvance(self._name)
         text_height = font_metrics.height() * (self._name.count('\n') + 1)
         self._rect = qtc.QRectF(0, 0, text_width + 2 * self._padding, text_height + 2 * self._padding)
+        return
 
     def boundingRect(self) -> qtc.QRectF:
         """Override from qtw.QGraphicsItem
@@ -45,7 +55,12 @@ class Node(qtw.QGraphicsObject):
         """
         return self._rect
 
-    def paint(self, painter: qtui.QPainter, option: qtw.QStyleOptionGraphicsItem, widget: qtw.QWidget = None):
+    def paint(
+            self,
+            painter: qtui.QPainter,
+            option: qtw.QStyleOptionGraphicsItem,
+            widget: qtw.QWidget = None
+        ) -> None:
         """Override from qtw.QGraphicsItem
 
         Draw node
@@ -69,16 +84,18 @@ class Node(qtw.QGraphicsObject):
         painter.drawRect(self.boundingRect())
         painter.setPen(qtui.QPen(qtui.QColor("#222222")))
         painter.drawText(self.boundingRect(), qtc.Qt.AlignmentFlag.AlignCenter, self._name)
+        return
 
-    def add_edge(self, edge):
+    def add_edge(self, edge) -> None:
         """Add an edge to this node
 
         Args:
             edge (Edge)
         """
         self._edges.append(edge)
+        return
 
-    def itemChange(self, change: qtw.QGraphicsItem.GraphicsItemChange, value):
+    def itemChange(self, change: qtw.QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         """Override from qtw.QGraphicsItem
 
         Args:
@@ -94,7 +111,7 @@ class Node(qtw.QGraphicsObject):
 
         return super().itemChange(change, value)
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: qtw.QGraphicsSceneMouseEvent) -> None:
         """Override from qtw.QGraphicsItem
 
         Handle mouse press event
@@ -104,10 +121,18 @@ class Node(qtw.QGraphicsObject):
         """
         self._on_click(self._node_backing)
         super().mousePressEvent(event)
+        return
 
 
 class Edge(qtw.QGraphicsItem):
-    def __init__(self, source: Node, dest: Node, get_node_color: callable, parent: qtw.QGraphicsItem = None):
+
+    def __init__(
+            self,
+            source: Node,
+            dest: Node,
+            get_node_color: callable,
+            parent: qtw.QGraphicsItem = None
+        ) -> None:
         """Edge constructor
 
         Args:
@@ -128,6 +153,7 @@ class Edge(qtw.QGraphicsItem):
         self._line = qtc.QLineF()
         self.setZValue(-1)
         self.adjust()
+        return
 
     def boundingRect(self) -> qtc.QRectF:
         """Override from qtw.QGraphicsItem
@@ -146,7 +172,7 @@ class Edge(qtw.QGraphicsItem):
             )
         )
 
-    def adjust(self):
+    def adjust(self) -> None:
         """
         Update edge position from source and destination node.
         This method is called from Node::itemChange
@@ -156,8 +182,9 @@ class Edge(qtw.QGraphicsItem):
             self._source.pos() + self._source.boundingRect().center(),
             self._dest.pos() + self._dest.boundingRect().center(),
         )
+        return
 
-    def _draw_arrow(self, painter: qtui.QPainter, start: qtc.QPointF, end: qtc.QPointF):
+    def _draw_arrow(self, painter: qtui.QPainter, start: qtc.QPointF, end: qtc.QPointF) -> None:
         """Draw arrow from start point to end point.
 
         Args:
@@ -187,6 +214,7 @@ class Edge(qtw.QGraphicsItem):
         arrow_head.append(arrow_p2)
         painter.drawLine(line)
         painter.drawPolygon(arrow_head)
+        return
 
     def _arrow_target(self) -> qtc.QPointF:
         """Calculate the position of the arrow taking into account the size of the destination node
@@ -203,10 +231,14 @@ class Edge(qtw.QGraphicsItem):
             return target
         normal = vector / length
         target = qtc.QPointF(center.x() + (normal.x() * rect.width() / 2), center.y() + (normal.y() * rect.height() / 2))
-
         return target
 
-    def paint(self, painter: qtui.QPainter, option: qtw.QStyleOptionGraphicsItem, widget=None):
+    def paint(
+            self,
+            painter: qtui.QPainter,
+            option: qtw.QStyleOptionGraphicsItem,
+            widget=None
+        ) -> None:
         """Override from qtw.QGraphicsItem
 
         Draw Edge. This method is called from Edge.adjust()
@@ -231,10 +263,12 @@ class Edge(qtw.QGraphicsItem):
             arrow_target = self._arrow_target()
             painter.drawLine(self._line.p1(), arrow_target)
             self._draw_arrow(painter, self._line.p1(), arrow_target)
+        return
 
 
 class GraphView(qtw.QGraphicsView):
-    def __init__(self, parent=None):
+
+    def __init__(self, parent=None) -> None:
         """GraphView constructor
 
         This widget can display a directed graph
@@ -252,20 +286,24 @@ class GraphView(qtw.QGraphicsView):
         self._nodes_map = {}
 
         self.setDragMode(qtw.QGraphicsView.DragMode.ScrollHandDrag)
+        return
 
-    def center_view(self):
+    def center_view(self) -> None:
         """Center the view on the scene"""
         self.centerOn(self.scene().itemsBoundingRect().center())
+        return
 
-    def zoom_in(self):
+    def zoom_in(self) -> None:
         """Zoom in the view"""
         self.scale(1.2, 1.2)
+        return
 
-    def zoom_out(self):
+    def zoom_out(self) -> None:
         """Zoom out the view"""
         self.scale(1 / 1.2, 1 / 1.2)
+        return
 
-    def wheelEvent(self, event):
+    def wheelEvent(self, event) -> None:
         """Override from qtw.QGraphicsView
 
         Handle mouse wheel event to zoom in and out
@@ -280,12 +318,18 @@ class GraphView(qtw.QGraphicsView):
             self.scale(zoom_in_factor, zoom_in_factor)
         else:
             self.scale(zoom_out_factor, zoom_out_factor)
+        return
 
-    def fit_to_window(self):
+    def fit_to_window(self) -> None:
         """Fit the view to the bounding rectangle of all items"""
         self.fitInView(self.scene().itemsBoundingRect(), qtc.Qt.AspectRatioMode.KeepAspectRatio)
+        return
 
-    def get_node_color(self, src_node: bn.MediumLevelILFunction, dest_node: bn.MediumLevelILFunction) -> qtui.QColor:
+    def get_node_color(
+            self,
+            src_node: bn.MediumLevelILFunction,
+            dest_node: bn.MediumLevelILFunction
+        ) -> qtui.QColor:
         # warm, golden yellow is the default
         highlight_color = qtui.QColor("#FFD166") 
         if "snk" in self._graph.nodes[src_node] or "snk" in self._graph.nodes[dest_node]:
@@ -297,15 +341,15 @@ class GraphView(qtw.QGraphicsView):
 
         if self._graph.nodes[src_node]["in_path"] and self._graph.nodes[dest_node]["in_path"]:
             return highlight_color
-        else:
-            # lava gray
-            return qtui.QColor("#808588")
+        # lava gray
+        return qtui.QColor("#808588")
     
-    def on_click_callback(self, node: Node):
+    def on_click_callback(self, node: Node) -> None:
         if self._bv:
             self._bv.navigate(self._bv.view, node.source_function.start)
         else:
             bn.log_error("No BinaryView set")
+        return
 
     def get_node_text(self, node: bn.MediumLevelILFunction) -> str:
         node_text = f"0x{node.source_function.start:08x}\n{node.source_function.name}"
@@ -315,7 +359,7 @@ class GraphView(qtw.QGraphicsView):
             node_text += f"\n{self._graph.nodes[node]['src']}"
         return node_text
 
-    def load_graph(self, bv: bn.BinaryView, path: Path):
+    def load_graph(self, bv: bn.BinaryView, path: Path) -> None:
         self._bv = bv
         self._graph = path.call_graph
 
@@ -338,8 +382,9 @@ class GraphView(qtw.QGraphicsView):
         self.layout()
         # fit the view to the graph once animation is over
         self.animations.finished.connect(self.fit_to_window)
+        return
 
-    def layout(self):
+    def layout(self) -> None:
         positions = nx.multipartite_layout(self._graph, subset_key="call_level", align="horizontal")
         
         levels_nodes = {}
@@ -376,10 +421,12 @@ class GraphView(qtw.QGraphicsView):
             self.animations.addAnimation(animation)
 
         self.animations.start()
+        return
 
 
 class GraphWidget(qtw.QWidget):
-    def __init__(self, parent=None):
+
+    def __init__(self, parent=None) -> None:
         super().__init__()
         self._bv = None
         self._graph = None
@@ -390,8 +437,9 @@ class GraphWidget(qtw.QWidget):
         self.toolbar = qtw.QToolBar("Graph Toolbar")
         self.addToolBarActions()
         v_layout.addWidget(self.toolbar)
+        return
 
-    def addToolBarActions(self):
+    def addToolBarActions(self) -> None:
         """Add actions to the toolbar"""
         center_action = qtui.QAction("Center", self)
         center_action.triggered.connect(self.view.center_view)
@@ -412,11 +460,13 @@ class GraphWidget(qtw.QWidget):
         reset_action = qtui.QAction("Reset", self)
         reset_action.triggered.connect(self.view.layout)
         self.toolbar.addAction(reset_action)
+        return
 
-    def load_path(self, bv: bn.BinaryView, path: Path):
+    def load_path(self, bv: bn.BinaryView, path: Path) -> None:
         """Load a new graph into the view
         Args:
             bv (bn.BinaryView): The BinaryView object
             path (Path): A Path object
         """
         self.view.load_graph(bv, path)
+        return
