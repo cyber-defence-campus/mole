@@ -103,28 +103,13 @@ class SidebarWidget(bnui.SidebarWidget):
     
     def init(self) -> SidebarWidget:
         """
-        This method initiliazes the main widget.
+        This method initializes the main widget.
         """
         self._main_tab_wid = qtw.QTabWidget()
         self._main_tab_wid.addTab(*self._init_run_tab())
         self._graph_view, tab_name = self._init_graph_tab()
-        self._main_tab_wid.addTab(*self._init_cnf_tab())
         self._main_tab_wid.addTab(self._graph_view, tab_name)
-        
-        #import networkx as nx
-        #graph = nx.DiGraph()
-        #graph.add_edges_from(
-        #    [
-        #        ("1", "2"),
-        #        ("2", "3"),
-        #        ("3", "4"),
-        #        ("1", "5"),
-        #        ("1", "6"),
-        #        ("1", "7"),
-        #    ]
-        #)
-        #self._graph_view.load_path(graph)
-
+        self._main_tab_wid.addTab(*self._init_cnf_tab())
         lay = qtw.QVBoxLayout()
         lay.addWidget(self._main_tab_wid)
         self.setLayout(lay)
@@ -304,7 +289,7 @@ class SidebarWidget(bnui.SidebarWidget):
             lambda row, col: self._ctr.highlight_graph(res_tbl, row, col, self._graph_view)
         )
         res_tbl.cellDoubleClicked.connect(
-            lambda row, col: self._main_tab_wid.setCurrentIndex(2)
+            lambda row, col: self._main_tab_wid.setCurrentIndex(1)
         )
         res_tbl.cellDoubleClicked.connect(
             lambda row, col: self._ctr.highlight_path(res_tbl, row, col)
