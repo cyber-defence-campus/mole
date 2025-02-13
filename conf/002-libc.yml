@@ -487,6 +487,14 @@ sinks:
             par_cnt: i == 1
             par_dataflow: 'False'
             par_slice: 'True'
+          popen:
+            name: popen
+            symbols: [popen]
+            synopsis: FILE *popen(const char *command, const char *type)
+            enabled: true
+            par_cnt: i == 2
+            par_dataflow: 'False'
+            par_slice: i == 0
           system:
             name: system
             symbols: [system, __builtin_system]
