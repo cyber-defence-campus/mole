@@ -1,6 +1,7 @@
 from __future__        import annotations
 from ..common.parse    import LogicalExpressionParser
 from ..common.log      import Logger
+from ..ui.graph        import GraphWidget
 from .data             import *
 from typing            import Dict, List, Literal
 import binaryninja       as bn
@@ -424,33 +425,6 @@ class Controller:
         bn.execute_on_main_thread(update_paths_widget)
         return
     
-    def show_context_menu(self, tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
-        """
-        This method shows a custom context menu.
-        """
-        if tbl is None: return
-        row = tbl.indexAt(pos).row()
-        col = tbl.indexAt(pos).column()
-        if row < 0 or col < 0: return
-
-        menu = qtw.QMenu(tbl)
-        menu_action_details = menu.addAction("Log path")
-        menu_action_highlight = menu.addAction("Highlight path")
-        menu.addSeparator()
-        menu_action_remove_selected = menu.addAction("Remove selected path")
-        menu_action_remove_all = menu.addAction("Remove all paths")
-        menu_action = menu.exec(tbl.mapToGlobal(pos))
-
-        if menu_action == menu_action_details:
-            self.select_path(tbl, row, col)
-        elif menu_action == menu_action_highlight:
-            self.highlight_path(tbl, row, col)
-        elif menu_action == menu_action_remove_selected:
-            self.remove_selected_path(tbl, row)
-        elif menu_action == menu_action_remove_all:
-            self.remove_all_paths(tbl)
-        return
-    
     def select_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
         """
         This method logs information about a path.
@@ -496,8 +470,7 @@ class Controller:
             insts_colors = {}
             try:
                 model = self._model.get()
-                widget = model.settings.get("highlight_color").widget
-                color_name = widget.currentText().capitalize()
+                color_name = model.settings.get("highlight_color").widget.currentText().capitalize()
                 color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
             except:
                 color = bn.HighlightStandardColor.RedHighlightColor
@@ -510,6 +483,28 @@ class Controller:
         self._paths_highlight = (highlighted_path, insts_colors)
         return
     
+    def show_graph(
+            self,
+            bv: bn.BinaryView,
+            tbl: qtw.QTableWidget,
+            row: int,
+            col: int,
+            wid: qtw.QTabWidget
+        ) -> None:
+        """
+        This method shows the graph of a path.
+        """
+        if not tbl or col > 7: return
+        path = self._paths[row]
+        if not path: return
+        for idx in range(wid.count()):
+            if wid.tabText(idx) == "Graph":
+                graph_widget: GraphWidget = wid.widget(idx)
+                graph_widget.load_path(bv, path)
+                wid.setCurrentWidget(graph_widget)
+                return
+        return
+
     def remove_selected_path(self, tbl: qtw.QTableWidget, row: int) -> None:
         """
         This method removes the path at row `row` from the table `tbl`.

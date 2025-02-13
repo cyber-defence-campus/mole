@@ -327,12 +327,10 @@ class SinkFunction(Function):
                                                 break
                                         src_inst_idx += 1
                                         # Add additional attributes to call graph
-                                        # NOTE: This only serves as an example, maybe becoming handy
-                                        # for creating the graph view. Can be removed if not needed.
                                         if snk_inst.function in call_graph:
-                                            call_graph.nodes[snk_inst.function]["snk"] = f"0x{snk_inst.address:x} {snk_name}"
+                                            call_graph.nodes[snk_inst.function]["snk"] = f"snk: {snk_name:s} | {str(par_var):s}"
                                         if src_inst.function in call_graph:
-                                            call_graph.nodes[src_inst.function]["src"] = f"0x{src_inst.address:x} {src_sym_name}"
+                                            call_graph.nodes[src_inst.function]["src"] = f"src: {src_sym_name:s}"
                                         # Store path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,
@@ -368,20 +366,6 @@ class SinkFunction(Function):
                                                 log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
                                             log.debug(tag, InstructionHelper.get_inst_info(inst))
                                         log.debug(tag, "-----------------------")
-
-                                        # # TODO: Visualization Test for the Graph View
-                                        # import matplotlib.pyplot as plt
-                                        # import networkx as nx
-                                        # from ..common.help import FunctionHelper
-                                        # def plot_call_graph(g: MediumLevelILFunctionGraph) -> None:
-                                        #     plt.figure()
-                                        #     pos = nx.nx_agraph.graphviz_layout(g, prog="dot")
-                                        #     node_color = ["red" if g.nodes[node]["in_path"] else "blue" for node in g.nodes]
-                                        #     edge_color = ["red" if g.edges[edge]["in_path"] else "blue" for edge in g.edges]
-                                        #     labels = {node:  FunctionHelper.get_func_info(node, False) for node in g.nodes}
-                                        #     nx.draw(g, pos, node_color=node_color, edge_color=edge_color, labels=labels)
-                                        #     plt.show()
-                                        # bn.execute_on_main_thread(lambda g=call_graph: plot_call_graph(g))
         return paths
 
 
