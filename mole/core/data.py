@@ -328,9 +328,9 @@ class SinkFunction(Function):
                                         src_inst_idx += 1
                                         # Add additional attributes to call graph
                                         if snk_inst.function in call_graph:
-                                            call_graph.nodes[snk_inst.function]["snk"] = f"{snk_name} | {par_var}"
+                                            call_graph.nodes[snk_inst.function]["snk"] = f"snk: {snk_name:s} | {str(par_var):s}"
                                         if src_inst.function in call_graph:
-                                            call_graph.nodes[src_inst.function]["src"] = src_sym_name
+                                            call_graph.nodes[src_inst.function]["src"] = f"src: {src_sym_name:s}"
                                         # Store path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,
