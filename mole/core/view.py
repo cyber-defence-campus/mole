@@ -148,6 +148,7 @@ class SidebarWidget(bnui.SidebarWidget):
             menu_action_log_path = None
             menu_action_highlight_path = None
             menu_action_show_call_graph = None
+            menu_action_show_inst_graph = None
             menu_action_remove_selected_path = None
             menu_action_remove_all_paths = None
 
@@ -155,6 +156,7 @@ class SidebarWidget(bnui.SidebarWidget):
                 menu_action_log_path = menu.addAction("Log instructions")
                 menu_action_highlight_path = menu.addAction("Un-/highlight instructions")
                 menu_action_show_call_graph = menu.addAction("Show call graph")
+                menu_action_show_inst_graph = menu.addAction("Show instruction graph")
                 menu.addSeparator()
             menu_action_import_paths = menu.addAction("Import from file")
             if tbl.rowCount() > 0:
@@ -177,6 +179,8 @@ class SidebarWidget(bnui.SidebarWidget):
                 self._ctr.highlight_path(self._bv, tbl, row, col)
             elif menu_action == menu_action_show_call_graph:
                 self._ctr.show_call_graph(self._bv, tbl, row, col, self._wid)
+            elif menu_action == menu_action_show_inst_graph:
+                self._ctr.show_inst_graph(self._bv, row)
             elif menu_action == menu_action_remove_selected_path:
                 self._ctr.remove_selected_paths(tbl, rows)
             elif menu_action == menu_action_remove_all_paths:

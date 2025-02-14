@@ -315,13 +315,18 @@ class MediumLevelILBackwardSlicer:
                         self._inst_graph.add_node(inst, call_level, caller_site)
                         self._inst_graph.add_node(instr, call_level, caller_site)
                         self._inst_graph.add_edge(inst, instr)
+                        prev_var_usage = None
                         for var_usage in instr.dest.use_sites:
-                            if var_usage.address > instr.address and var_usage.address < inst.address:
-                                self._inst_graph.add_node(instr, call_level, caller_site)
+                            if var_usage.address < inst.address:
                                 self._inst_graph.add_node(var_usage, call_level, caller_site)
-                                self._inst_graph.add_edge(instr, var_usage)
+                                if prev_var_usage:
+                                    self._inst_graph.add_edge(prev_var_usage, var_usage)
+                                else:
+                                    self._inst_graph.add_edge(instr, var_usage)
+
                                 self._log.debug(f"0x{var_usage.address:08x}  {var_usage}")
                                 self._slice_backwards(var_usage, call_level, caller_site)
+                                prev_var_usage = var_usage
                         #self._slice_backwards(instr.src, call_level, caller_site)
                 # Backward slice at all possible variable definitions
                 #for ssa_var in inst.function.ssa_vars:
@@ -492,7 +497,7 @@ class MediumLevelILBackwardSlicer:
         following is returned: First, a list of instructions belonging to the path. And second, a
         function call graph, where nodes and edges belonging to the path, have an attribute
         `in_path` set to `True`.
-        """
+        """  
         paths = []
         # Find all simple paths
         try:
@@ -501,6 +506,7 @@ class MediumLevelILBackwardSlicer:
             )
         except (nx.NodeNotFound, nx.NetworkXNoPath):
             return paths
+
         # Process all simple paths
         for simple_path in simple_paths:
             # Copy the call graph

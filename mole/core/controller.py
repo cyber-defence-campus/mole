@@ -1,7 +1,7 @@
 from __future__        import annotations
 from ..common.parse    import LogicalExpressionParser
 from ..common.log      import Logger
-from ..ui.graph        import GraphWidget
+from ..ui.graph        import GraphWidget, plot_inst_graph
 from ..ui.utils        import NumericTableWidgetItem
 from .data             import *
 from typing            import Dict, List, Literal, Set
@@ -669,7 +669,7 @@ class Controller:
             wid: qtw.QTabWidget
         ) -> None:
         """
-        This method shows the graph of a path.
+        This method shows the call graph of a path.
         """
         if not tbl: return
         if row < 0 or col < 0: return
@@ -682,6 +682,17 @@ class Controller:
                 wid.setCurrentWidget(graph_widget)
                 return
         self._log.info(self._tag, f"Showing call graph of path {row:d}")
+        return
+    
+    def show_inst_graph(
+            self,
+            bv: bn.BinaryView,
+            row: int
+        ) -> None:
+        """
+        This method shows the instruction graph of a path.
+        """
+        plot_inst_graph(bv, self._paths[row].inst_graph)
         return
 
     def remove_selected_paths(
@@ -712,7 +723,7 @@ class Controller:
         tbl.setRowCount(0)
         self._log.info(self._tag, "Removed all path(s)")
         return
-
+        
 
 class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
     """
