@@ -50,7 +50,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -98,7 +98,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
@@ -146,7 +146,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             for path in paths:
@@ -190,7 +190,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -234,7 +234,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
@@ -278,7 +278,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -322,7 +322,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -366,7 +366,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
@@ -410,7 +410,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "path(s) identified")
             # Close test binary
@@ -423,7 +423,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
@@ -468,7 +468,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             # Close test binary
@@ -481,7 +481,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             # Close test binary
@@ -495,7 +495,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             bv.file.close()
@@ -507,7 +507,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             bv.file.close()
@@ -525,7 +525,7 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
@@ -569,7 +569,7 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
@@ -639,7 +639,7 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -692,7 +692,7 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             # Close test binary
@@ -719,7 +719,7 @@ class TestPointerAnalysis(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -765,7 +765,7 @@ class TestSimpleServer(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
@@ -825,7 +825,7 @@ class TestSimpleServer(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []

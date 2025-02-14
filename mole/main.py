@@ -49,7 +49,7 @@ def main() -> None:
         bv = bn.load(args.file)
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
-        paths = ctr.analyze_binary(bv, args.max_call_level)
+        paths = ctr.find_paths(bv, args.max_call_level)
         # Export identified paths
         if args.export_paths_to_yml_file or args.export_paths_to_json_file:
             s_paths = [path.to_dict() for path in paths]

@@ -335,7 +335,7 @@ class Controller:
         setting.value = value
         return
 
-    def analyze_binary(
+    def find_paths(
             self,
             bv: bn.BinaryView,
             max_call_level: int = None,
@@ -379,6 +379,29 @@ class Controller:
         if self._runs_headless:
             return self._thread.get_paths()
         return None
+    
+    def load_paths(self, bv: bn.BinaryView,) -> None:
+        """
+        TODO: This method loads paths from the user metadata.
+        """
+        try:
+            s_paths: List[Dict] = bv.query_metadata("mole_paths")
+            paths = [Path.from_dict(bv, s_path) for s_path in s_paths]
+        except Exception as e:
+            self._log.error(self._tag, f"Failed to load paths: '{str(e):s}'")
+        return
+    
+    def save_paths(self, bv: bn.BinaryView,) -> None:
+        """
+        This method stores the paths to the user metadata.
+        """
+        try:
+            s_paths: List[Dict] = [path.to_dict() for path in self._paths]
+            bv.store_metadata("mole_paths", s_paths)
+            self._log.info(self._tag, f"Saved '{len(s_paths):d}' paths")
+        except Exception as e:
+            self._log.error(self._tag, f"Failed to save paths: '{str(e):s}'")
+        return
     
     def add_path_to_view(
             self,

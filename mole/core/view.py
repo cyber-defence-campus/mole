@@ -187,14 +187,27 @@ class SidebarWidget(bnui.SidebarWidget):
         res_lay.addWidget(res_tbl)
         res_wid = qtw.QGroupBox("Path Identification:")
         res_wid.setLayout(res_lay)
-        run_but = qtw.QPushButton("Analyze Binary")
+        run_but = qtw.QPushButton("Find")
         run_but.clicked.connect(
-            lambda but=run_but: self._ctr.analyze_binary(bv=self._bv, button=but, widget=res_tbl)
+            lambda but=run_but: self._ctr.find_paths(bv=self._bv, button=but, widget=res_tbl)
         )
-
+        lod_but = qtw.QPushButton("Load")
+        lod_but.clicked.connect(
+            lambda: self._ctr.load_paths(bv=self._bv)
+        )
+        sav_but = qtw.QPushButton("Save")
+        sav_but.clicked.connect(
+            lambda: self._ctr.save_paths(bv=self._bv)
+        )
+        but_lay = qtw.QHBoxLayout()
+        but_lay.addWidget(run_but)
+        but_lay.addWidget(lod_but)
+        but_lay.addWidget(sav_but)
+        but_wid = qtw.QWidget()
+        but_wid.setLayout(but_lay)
         lay = qtw.QVBoxLayout()
         lay.addWidget(res_wid)
-        lay.addWidget(run_but)
+        lay.addWidget(but_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid, "Run"
