@@ -359,9 +359,10 @@ class GraphView(qtw.QGraphicsView):
             node_text += f"\n{self._graph.nodes[node]['src']}"
         return node_text
 
-    def load_graph(self, bv: bn.BinaryView, path: Path) -> None:
+    def load_graph(self, bv: bn.BinaryView, path: Path, path_id: int) -> None:
         self._bv = bv
         self._graph = path.call_graph
+        self.setToolTip(f"Path {path_id:d}")
 
         self.scene().clear()
         self._nodes_map.clear()
@@ -462,11 +463,12 @@ class GraphWidget(qtw.QWidget):
         self.toolbar.addAction(reset_action)
         return
 
-    def load_path(self, bv: bn.BinaryView, path: Path) -> None:
+    def load_path(self, bv: bn.BinaryView, path: Path, path_id: int) -> None:
         """Load a new graph into the view
         Args:
             bv (bn.BinaryView): The BinaryView object
             path (Path): A Path object
+            path_id (int): The path's row in the table
         """
-        self.view.load_graph(bv, path)
+        self.view.load_graph(bv, path, path_id)
         return
