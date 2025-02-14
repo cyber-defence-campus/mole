@@ -1,6 +1,7 @@
 from __future__           import annotations
 from mole.common.log      import Logger
 from mole.core.controller import Controller
+from mole.core.data       import Path
 from typing               import List
 import binaryninja as bn
 import os
@@ -53,6 +54,7 @@ class TestVarious(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -101,6 +103,7 @@ class TestVarious(TestCase):
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -147,6 +150,7 @@ class TestVarious(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -190,6 +194,7 @@ class TestVarious(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -233,6 +238,7 @@ class TestVarious(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -276,6 +282,7 @@ class TestVarious(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -319,6 +326,7 @@ class TestVarious(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -362,6 +370,7 @@ class TestVarious(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -418,6 +427,7 @@ class TestVarious(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -519,6 +529,7 @@ class TestFunctionCalling(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -563,6 +574,7 @@ class TestFunctionCalling(TestCase):
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -631,6 +643,7 @@ class TestFunctionCalling(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -710,6 +723,7 @@ class TestPointerAnalysis(TestCase):
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -756,6 +770,7 @@ class TestSimpleServer(TestCase):
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -815,6 +830,7 @@ class TestSimpleServer(TestCase):
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
