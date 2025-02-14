@@ -500,7 +500,7 @@ class Controller:
         for idx in range(wid.count()):
             if wid.tabText(idx) == "Graph":
                 graph_widget: GraphWidget = wid.widget(idx)
-                graph_widget.load_path(bv, path)
+                graph_widget.load_path(bv, path, row)
                 wid.setCurrentWidget(graph_widget)
                 return
         return
