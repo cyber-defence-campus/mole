@@ -149,7 +149,10 @@ class SidebarWidget(bnui.SidebarWidget):
             menu.addSeparator()
             menu_action_remove_selected = menu.addAction("Remove selected path")
             menu_action_remove_all = menu.addAction("Remove all paths")
+            menu.addSeparator()
+            menu_action_plot_instructions = menu.addAction("Plot Instructions Graph")
             menu_action = menu.exec(tbl.mapToGlobal(pos))
+
 
             if menu_action == menu_action_details:
                 self._ctr.select_path(tbl, row, col)
@@ -161,6 +164,8 @@ class SidebarWidget(bnui.SidebarWidget):
                 self._ctr.remove_selected_path(tbl, row)
             elif menu_action == menu_action_remove_all:
                 self._ctr.remove_all_paths(tbl)
+            elif menu_action == menu_action_plot_instructions:
+                self._ctr.plot_instructions_graph(self._bv, tbl, row, col)
             return
 
         res_tbl = qtw.QTableWidget()

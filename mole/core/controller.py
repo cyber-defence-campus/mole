@@ -1,7 +1,7 @@
 from __future__        import annotations
 from ..common.parse    import LogicalExpressionParser
 from ..common.log      import Logger
-from ..ui.graph        import GraphWidget
+from ..ui.graph        import GraphWidget, plot_inst_graph
 from .data             import *
 from typing            import Dict, List, Literal
 import binaryninja       as bn
@@ -523,6 +523,9 @@ class Controller:
         tbl.setRowCount(0)
         return
 
+    def plot_instructions_graph(self, bv: bn.BinaryView, tbl: qtw.QTableWidget, row: int, col: int) -> None:
+        plot_inst_graph(bv, self._paths[row].inst_graph)
+        
 
 class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
     """
