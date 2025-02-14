@@ -241,32 +241,39 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILImport()):
                 pass
             case (bn.MediumLevelILAddressOf()):
-                self._log.debug(f"Pointer `{inst}` aliases found in assignments:")
-                for instr in get_instructions_for_pointer_alias(inst.function, inst):
-                    self._log.debug(f"0x{instr.address:08x}  {instr}")
-                    if isinstance(instr, bn.MediumLevelILSetVarSsa):
+                ptr_instructions = get_instructions_for_pointer_alias(inst.function, inst)
+                self._log.debug(f"Pointer `{inst}` aliases found {len(ptr_instructions)} related instructions")
+                # we only pick the closest instruction coming before the current one
+                closest_instr = min(
+                    (instr for instr in ptr_instructions if instr.address < inst.address),
+                    key=lambda instr: inst.address - instr.address,
+                    default=None
+                )
+                if closest_instr:
+                    self._log.debug(f"closest to 0x{inst.address:x}: 0x{closest_instr.address:08x}  {closest_instr}")
+                    if isinstance(closest_instr, bn.MediumLevelILSetVarSsa):
                         # we need to forward slice variable usage
-                        self._log.debug(f"Forward {instr.dest} slicing from 0x{instr.address:x} to 0x{inst.address:x}")
+                        self._log.debug(f"Forward {closest_instr.dest} slicing from 0x{closest_instr.address:x} to 0x{inst.address:x}")
                         self._inst_graph.add_node(inst, call_level, caller_site)
-                        self._inst_graph.add_node(instr, call_level, caller_site)
-                        self._inst_graph.add_edge(inst, instr)
+                        self._inst_graph.add_node(closest_instr, call_level, caller_site)
+                        self._inst_graph.add_edge(inst, closest_instr)
                         prev_var_usage = None
-                        for var_usage in instr.dest.use_sites:
+                        for var_usage in closest_instr.dest.use_sites:
+                            # only evaluate variable usage before the current instruction
+                            # this likely introduces false positive since the variable 
+                            # might be used for different purposes (e.g. buffer reuse for different purposes)
                             if var_usage.address < inst.address:
                                 self._inst_graph.add_node(var_usage, call_level, caller_site)
                                 if prev_var_usage:
                                     self._inst_graph.add_edge(prev_var_usage, var_usage)
                                 else:
-                                    self._inst_graph.add_edge(instr, var_usage)
+                                    self._inst_graph.add_edge(closest_instr, var_usage)
 
                                 self._log.debug(f"0x{var_usage.address:08x}  {var_usage}")
                                 self._slice_backwards(var_usage, call_level, caller_site)
                                 prev_var_usage = var_usage
-                        #self._slice_backwards(instr.src, call_level, caller_site)
-                # Backward slice at all possible variable definitions
-                #for ssa_var in inst.function.ssa_vars:
-                #    if ssa_var.var == inst.src:
-                #        self._slice_ssa_var_definition(ssa_var, inst, call_level, caller_site)
+                else:
+                    self._log.warn(f"No closest instruction found for pointer alias `{inst}`")   
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILVarAliasedField() |

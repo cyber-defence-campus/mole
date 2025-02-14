@@ -19,6 +19,6 @@ int main(int argc, char *argv[]) {
     }
     snprintf(cmd, CMD_LEN, "%s", env_cmd);
     snprintf(cmd, CMD_LEN, "%d", 1337);
-    snprintf(cmd, CMD_LEN, "%d", 31337);
+    snprintf(cmd, CMD_LEN, "%s %d", cmd, 31337);
     return system(cmd);
 }
