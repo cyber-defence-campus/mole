@@ -323,7 +323,7 @@ class SinkFunction(Function):
                                             call_graph.nodes[snk_inst.function]["snk"] = f"snk: {snk_name:s} | {str(par_var):s}"
                                         if src_inst.function in call_graph:
                                             call_graph.nodes[src_inst.function]["src"] = f"src: {src_sym_name:s}"
-                                        # Store path
+                                        # Create path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,
                                             src_sym_name=src_sym_name,
@@ -338,6 +338,7 @@ class SinkFunction(Function):
                                         # Found the same path before
                                         if path in paths:
                                             continue
+                                        # Store path
                                         paths.append(path)
                                         found_path(path)
                                         # Log path
@@ -436,11 +437,11 @@ class Path:
         # Serialize instructions
         insts: List[Tuple[int, int]] = []
         for inst in self.insts:
-            insts.append((inst.function.source_function.start, inst.expr_index))
+            insts.append((hex(inst.function.source_function.start), inst.expr_index))
         return {
-            "src_sym_addr": self.src_sym_addr,
+            "src_sym_addr": hex(self.src_sym_addr),
             "src_sym_name": self.src_sym_name,
-            "snk_sym_addr": self.snk_sym_addr,
+            "snk_sym_addr": hex(self.snk_sym_addr),
             "snk_sym_name": self.snk_sym_name,
             "snk_par_idx" : self.snk_par_idx,
             "src_inst_idx": self.src_inst_idx,
@@ -449,26 +450,32 @@ class Path:
         }
     
     @classmethod
-    def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Path:
-        # Deserialize instructions
-        insts: List[bn.MediumLevelILInstruction] = []
-        for func_addr, expr_idx in d["insts"]:
-            func = bv.get_function_at(func_addr)
-            insts.append(func.mlil.ssa_form.get_expr(expr_idx))
-        # Deserialize sink parameter variable
-        snk_par_idx = d["snk_par_idx"]
-        snk_par_var = insts[0].params[snk_par_idx]
-        return cls(
-            src_sym_addr = d["src_sym_addr"],
-            src_sym_name = d["src_sym_name"],
-            snk_sym_addr = d["snk_sym_addr"],
-            snk_sym_name = d["snk_sym_name"],
-            snk_par_idx  = snk_par_idx,
-            snk_par_var  = snk_par_var,
-            src_inst_idx = d["src_inst_idx"],
-            insts        = insts,
-            call_graph   = MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"])
-        )
+    def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Path | None:
+        try:
+            # Deserialize instructions
+            insts: List[bn.MediumLevelILInstruction] = []
+            for func_addr, expr_idx in d["insts"]:
+                func = bv.get_function_at(int(func_addr, 0))
+                insts.append(func.mlil.ssa_form.get_expr(expr_idx))
+            # Deserialize sink parameter variable
+            snk_par_idx = d["snk_par_idx"]
+            snk_par_var = insts[0].params[snk_par_idx]
+            path = cls(
+                src_sym_addr = int(d["src_sym_addr"], 0),
+                src_sym_name = d["src_sym_name"],
+                snk_sym_addr = int(d["snk_sym_addr"], 0),
+                snk_sym_name = d["snk_sym_name"],
+                snk_par_idx  = snk_par_idx,
+                snk_par_var  = snk_par_var,
+                src_inst_idx = d["src_inst_idx"],
+                insts        = insts,
+                call_graph   = MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"])
+            )
+        except:
+            path = None
+        return path
+
+
 
 
 @dataclass

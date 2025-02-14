@@ -145,16 +145,20 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         This method serializes the graph to a dictionary.
         """
         # Serialize nodes
-        nodes: Dict[int, Any] = {}
-        for node, attrs in self.nodes(data=True):
-            addr = node.source_function.start
-            nodes[addr] = attrs
+        nodes: List[Dict[str, Any]] = []
+        for node, atts in self.nodes(data=True):
+            nodes.append({
+                "adr": hex(node.source_function.start),
+                "att": atts
+            })
         # Serialize edges
-        edges: Dict[Tuple[int, int], Any] = {}
-        for src_node, tgt_node, attrs in self.edges(data=True):
-            src_addr = src_node.source_function.start
-            tgt_addr = tgt_node.source_function.start
-            edges[(src_addr, tgt_addr)] = attrs
+        edges: List[Dict[str, Any]] = []
+        for src_node, tgt_node, atts in self.edges(data=True):
+            edges.append({
+                "src": hex(src_node.source_function.start),
+                "snk": hex(tgt_node.source_function.start),
+                "att": atts
+            })
         return {
             "tag": self._tag,
             "log_level": self._log.get_level(),
@@ -167,19 +171,27 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         """
         This method deserializes a dictionary to a graph.
         """
-        tag = d.get("tag", "FunctionGraph")
-        log = Logger(d.get("log_level", "info"))
-        call_graph: MediumLevelILFunctionGraph = cls(tag, log)
-        # Deserialize nodes
-        for addr, attrs in d.get("nodes", {}).items():
-            func = bv.get_function_at(addr)
-            call_graph.add_node(func.mlil.ssa_form, **attrs)
-        # Deserialize edges
-        for (src_addr, tgt_addr), attrs in d.get("edges", {}).items():
-            src_func = bv.get_function_at(src_addr)
-            tgt_func = bv.get_function_at(tgt_addr)
-            call_graph.add_edge(src_func.mlil.ssa_form, tgt_func.mlil.ssa_form, **attrs)
-        return
+        try:
+            tag = d["tag"]
+            log = Logger(d["log_level"])
+            call_graph: MediumLevelILFunctionGraph = cls(tag, log)
+            # Deserialize nodes
+            for node in d["nodes"]:
+                addr = int(node["adr"], 0)
+                func = bv.get_function_at(addr)
+                atts = node["att"]
+                call_graph.add_node(func.mlil.ssa_form, **atts)
+            # Deserialize edges
+            for edge in d["edges"]:
+                src_addr = int(edge["src"], 0)
+                src_func = bv.get_function_at(src_addr)
+                tgt_addr = int(edge["snk"], 0)
+                tgt_func = bv.get_function_at(tgt_addr)
+                atts = edge["att"]
+                call_graph.add_edge(src_func.mlil.ssa_form, tgt_func.mlil.ssa_form, **atts)
+        except:
+            call_graph = None
+        return call_graph
     
 
 class MediumLevelILBackwardSlicer:

@@ -3,6 +3,8 @@ from .common.log      import Logger
 from .core.controller import Controller
 import argparse    as ap
 import binaryninja as bn
+import json
+import yaml
 
 
 def main() -> None:
@@ -29,6 +31,14 @@ def main() -> None:
         type=int, default=None,
         help="backward slicing visits called functions up to the given level"
     )
+    parser.add_argument(
+        "--export_paths_to_yml_file",
+        help="export identified paths in YAML format"
+    )
+    parser.add_argument(
+        "--export_paths_to_json_file",
+        help="export identified paths in JSON format"
+    )
     args = parser.parse_args()
 
     # Initialize logger and controller to operate in headless mode
@@ -39,7 +49,27 @@ def main() -> None:
         bv = bn.load(args.file)
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
-        ctr.analyze_binary(bv, args.max_call_level)
+        paths = ctr.analyze_binary(bv, args.max_call_level)
+        # Export identified paths
+        if args.export_paths_to_yml_file or args.export_paths_to_json_file:
+            s_paths = [path.to_dict() for path in paths]
+            if args.export_paths_to_yml_file:
+                with open(args.export_paths_to_yml_file, "w") as f:
+                    yaml.safe_dump(
+                        s_paths,
+                        f,
+                        sort_keys=False,
+                        default_style=None,
+                        default_flow_style=False,
+                        encoding="utf-8"
+                    )
+            if args.export_paths_to_json_file:
+                with open(args.export_paths_to_json_file, "w") as f:
+                    json.dump(
+                        s_paths,
+                        f,
+                        indent=2
+                    )
         # Close binary
         bv.file.close()
     except KeyboardInterrupt:
