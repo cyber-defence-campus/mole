@@ -451,28 +451,25 @@ class Path:
     
     @classmethod
     def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Path | None:
-        try:
-            # Deserialize instructions
-            insts: List[bn.MediumLevelILInstruction] = []
-            for func_addr, expr_idx in d["insts"]:
-                func = bv.get_function_at(int(func_addr, 0))
-                insts.append(func.mlil.ssa_form.get_expr(expr_idx))
-            # Deserialize sink parameter variable
-            snk_par_idx = d["snk_par_idx"]
-            snk_par_var = insts[0].params[snk_par_idx]
-            path = cls(
-                src_sym_addr = int(d["src_sym_addr"], 0),
-                src_sym_name = d["src_sym_name"],
-                snk_sym_addr = int(d["snk_sym_addr"], 0),
-                snk_sym_name = d["snk_sym_name"],
-                snk_par_idx  = snk_par_idx,
-                snk_par_var  = snk_par_var,
-                src_inst_idx = d["src_inst_idx"],
-                insts        = insts,
-                call_graph   = MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"])
-            )
-        except:
-            path = None
+        # Deserialize instructions
+        insts: List[bn.MediumLevelILInstruction] = []
+        for func_addr, expr_idx in d["insts"]:
+            func = bv.get_function_at(int(func_addr, 0))
+            insts.append(func.mlil.ssa_form.get_expr(expr_idx))
+        # Deserialize sink parameter variable
+        snk_par_idx = d["snk_par_idx"]
+        snk_par_var = insts[0].params[snk_par_idx]
+        path = cls(
+            src_sym_addr = int(d["src_sym_addr"], 0),
+            src_sym_name = d["src_sym_name"],
+            snk_sym_addr = int(d["snk_sym_addr"], 0),
+            snk_sym_name = d["snk_sym_name"],
+            snk_par_idx  = snk_par_idx,
+            snk_par_var  = snk_par_var,
+            src_inst_idx = d["src_inst_idx"],
+            insts        = insts,
+            call_graph   = MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"])
+        )
         return path
 
 

@@ -171,26 +171,23 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         """
         This method deserializes a dictionary to a graph.
         """
-        try:
-            tag = d["tag"]
-            log = Logger(d["log_level"])
-            call_graph: MediumLevelILFunctionGraph = cls(tag, log)
-            # Deserialize nodes
-            for node in d["nodes"]:
-                addr = int(node["adr"], 0)
-                func = bv.get_function_at(addr)
-                atts = node["att"]
-                call_graph.add_node(func.mlil.ssa_form, **atts)
-            # Deserialize edges
-            for edge in d["edges"]:
-                src_addr = int(edge["src"], 0)
-                src_func = bv.get_function_at(src_addr)
-                tgt_addr = int(edge["snk"], 0)
-                tgt_func = bv.get_function_at(tgt_addr)
-                atts = edge["att"]
-                call_graph.add_edge(src_func.mlil.ssa_form, tgt_func.mlil.ssa_form, **atts)
-        except:
-            call_graph = None
+        tag = d["tag"]
+        log = Logger(d["log_level"])
+        call_graph: MediumLevelILFunctionGraph = cls(tag, log)
+        # Deserialize nodes
+        for node in d["nodes"]:
+            addr = int(node["adr"], 0)
+            func = bv.get_function_at(addr)
+            atts = node["att"]
+            call_graph.add_node(func.mlil.ssa_form, **atts)
+        # Deserialize edges
+        for edge in d["edges"]:
+            src_addr = int(edge["src"], 0)
+            src_func = bv.get_function_at(src_addr)
+            tgt_addr = int(edge["snk"], 0)
+            tgt_func = bv.get_function_at(tgt_addr)
+            atts = edge["att"]
+            call_graph.add_edge(src_func.mlil.ssa_form, tgt_func.mlil.ssa_form, **atts)
         return call_graph
     
 
