@@ -251,7 +251,7 @@ class MediumLevelILBackwardSlicer:
                         self._inst_graph.add_node(instr, call_level, caller_site)
                         self._inst_graph.add_edge(inst, instr)
                         for var_usage in instr.dest.use_sites:
-                            if var_usage.address >= instr.address and var_usage.address <= inst.address:
+                            if var_usage.address > instr.address and var_usage.address < inst.address:
                                 self._inst_graph.add_node(instr, call_level, caller_site)
                                 self._inst_graph.add_node(var_usage, call_level, caller_site)
                                 self._inst_graph.add_edge(instr, var_usage)
