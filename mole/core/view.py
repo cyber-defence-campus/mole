@@ -133,7 +133,7 @@ class SidebarWidget(bnui.SidebarWidget):
                 vf.navigate(bv, int(tbl.item(row, 2).text(), 16))            
             return
         
-        def _show_context_menu(bv: bn.BinaryView, tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
+        def _show_context_menu(tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
             """
             This method shows a custom context menu.
             """
@@ -167,7 +167,7 @@ class SidebarWidget(bnui.SidebarWidget):
             if menu_action == menu_action_import_paths:
                 self._ctr.import_paths()
             elif menu_action == menu_action_export_paths:
-                self._ctr.export_paths()
+                self._ctr.export_paths(tbl)
             elif menu_action == menu_action_log_path:
                 self._ctr.log_path(tbl, row, col)
             elif menu_action == menu_action_highlight_path:
@@ -183,22 +183,13 @@ class SidebarWidget(bnui.SidebarWidget):
         res_tbl = qtw.QTableWidget()
         res_tbl.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
         res_tbl.customContextMenuRequested.connect(
-            lambda pos: _show_context_menu(self._bv, res_tbl, pos)
+            lambda pos: _show_context_menu(res_tbl, pos)
         )
         res_tbl.setColumnCount(9)
         res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Lines", "Phis", "Branches", "Tag"])
         res_tbl.setSortingEnabled(True)
-        res_tbl.cellClicked.connect(
-            lambda row, col: _navigate(self._bv, res_tbl, row, col)
-        )
-        res_tbl.cellDoubleClicked.connect(
-            lambda row, col: self._ctr.highlight_path(res_tbl, row, col)
-        )
         res_tbl.cellDoubleClicked.connect(
             lambda row, col: _navigate(self._bv, res_tbl, row, col)
-        )
-        res_tbl.cellDoubleClicked.connect(
-            lambda row, col: self._ctr.show_call_graph(self._bv, res_tbl, row, col, self._wid)
         )
         res_lay = qtw.QVBoxLayout()
         res_lay.addWidget(res_tbl)

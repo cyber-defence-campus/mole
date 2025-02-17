@@ -7,6 +7,7 @@ from typing            import Dict, List, Literal
 import binaryninja       as bn
 import copy              as copy
 import fnmatch           as fn
+import json              as json
 import os                as os
 import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
@@ -408,10 +409,8 @@ class Controller:
             return
         self.__give_feedback(button, "Finding Paths...")
         # Initialize data structures
-        self._paths = []
         if widget:
             self._paths_widget = widget
-            self._paths_widget.setRowCount(0)
         # Run background thread
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
@@ -444,10 +443,12 @@ class Controller:
         # Load paths from database
         try:
             s_paths: List[Dict] = bv.query_metadata("mole_paths")
-            paths = [Path.from_dict(bv, s_path) for s_path in s_paths]
-            for path in paths:
+            for i, s_path in enumerate(s_paths):
+                path = Path.from_dict(bv, s_path)
                 self.add_path_to_view(path)
-            self._log.info(self._tag, f"Loaded {len(paths):d} path(s) from the binary's database")
+                # widget.setItem(i, 8, qtw.QTableWidgetItem(s_path["tag"]))
+                widget.item(i, 8).setText(s_path["tag"])
+            self._log.info(self._tag, f"Loaded {len(s_paths):d} path(s) from the binary's database")
         except KeyError:
             self._log.info(self._tag, "No paths found in the binary's database.")
         except Exception as e:
@@ -471,17 +472,58 @@ class Controller:
         """
         self.__give_feedback(button, "Saving Paths...")
         try:
-            s_paths: List[Dict] = [path.to_dict() for path in self._paths]
+            s_paths: List[Dict] = []
+            for i, path in enumerate(self._paths):
+                s_path = path.to_dict()
+                s_path["tag"] = widget.item(i, 8).text()
+                s_paths.append(s_path)
             bv.store_metadata("mole_paths", s_paths)
             self._log.info(self._tag, f"Saved {len(s_paths):d} path(s) to the binary's database")
         except Exception as e:
             self._log.error(self._tag, f"Failed to save paths to the binary's database: '{str(e):s}'")
         return
     
-    def export_paths(self) -> None:
+    def export_paths(
+            self,
+            tbl: qtw.QTableWidget = None
+        ) -> None:
         """
-        TODO: This method exports path to a file.
+        This method exports path to a file.
         """
+        # Get file path
+        filepath, _ = qtw.QFileDialog.getSaveFileName(
+            None,
+            "Save As",
+            "",
+            "JSON Files (*.json);;YAML Files (*.yml *.yaml)"
+        )
+        if not filepath:
+            self._log.error(self._tag, "Failed to export path(s)")
+            return
+        # Serialize paths
+        s_paths: List[Dict] = []
+        for i, path in enumerate(self._paths):
+            s_path = path.to_dict()
+            s_path["tag"] = tbl.item(i, 8).text()
+            s_paths.append(s_path)
+        with open(filepath, "w") as f:
+            # Export as YAML file
+            if filepath.lower().endswith(".yml") or filepath.lower().endswith(".yaml"):
+                yaml.safe_dump(
+                    s_paths,
+                    f,
+                    sort_keys=False,
+                    default_style=None,
+                    default_flow_style=False,
+                    encoding="utf-8"
+                )
+            # Export as JSON file
+            else:
+                json.dump(
+                    s_paths,
+                    f,
+                    indent=2
+                )
         return
     
     def log_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
@@ -512,7 +554,8 @@ class Controller:
         """
         This method highlights all instructions in a path.
         """
-        if not tbl or col > 7: return
+        if not tbl: return
+        if row < 0 or col < 0: return
         path = self._paths[row]
         if not path: return
         highlighted_path, insts_colors = self._paths_highlight
@@ -554,13 +597,14 @@ class Controller:
         """
         This method shows the graph of a path.
         """
-        if not tbl or col > 7: return
+        if not tbl: return
+        if row < 0 or col < 0: return
         path = self._paths[row]
         if not path: return
         for idx in range(wid.count()):
             if wid.tabText(idx) == "Graph":
                 graph_widget: GraphWidget = wid.widget(idx)
-                graph_widget.load_path(bv, path, row)
+                graph_widget.load_path(bv, path, row+1)
                 wid.setCurrentWidget(graph_widget)
                 return
         return
@@ -569,7 +613,7 @@ class Controller:
         """
         This method removes the path at row `row` from the table `tbl`.
         """
-        if not tbl: return
+        if not tbl or row < 0: return
         del self._paths[row]
         tbl.removeRow(row)
         return

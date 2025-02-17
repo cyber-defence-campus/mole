@@ -32,12 +32,12 @@ def main() -> None:
         help="backward slicing visits called functions up to the given level"
     )
     parser.add_argument(
-        "--export_paths_to_yml_file",
-        help="export identified paths in YAML format"
-    )
-    parser.add_argument(
         "--export_paths_to_json_file",
         help="export identified paths in JSON format"
+    )
+    parser.add_argument(
+        "--export_paths_to_yml_file",
+        help="export identified paths in YAML format"
     )
     args = parser.parse_args()
 
@@ -53,6 +53,13 @@ def main() -> None:
         # Export identified paths
         if args.export_paths_to_yml_file or args.export_paths_to_json_file:
             s_paths = [path.to_dict() for path in paths]
+            if args.export_paths_to_json_file:
+                with open(args.export_paths_to_json_file, "w") as f:
+                    json.dump(
+                        s_paths,
+                        f,
+                        indent=2
+                    )
             if args.export_paths_to_yml_file:
                 with open(args.export_paths_to_yml_file, "w") as f:
                     yaml.safe_dump(
@@ -62,13 +69,6 @@ def main() -> None:
                         default_style=None,
                         default_flow_style=False,
                         encoding="utf-8"
-                    )
-            if args.export_paths_to_json_file:
-                with open(args.export_paths_to_json_file, "w") as f:
-                    json.dump(
-                        s_paths,
-                        f,
-                        indent=2
                     )
         # Close binary
         bv.file.close()
