@@ -242,7 +242,7 @@ class MediumLevelILBackwardSlicer:
                 pass
             case (bn.MediumLevelILAddressOf()):
                 ptr_instructions = get_instructions_for_pointer_alias(inst.function, inst)
-                self._log.warn(f"Pointer `{inst}` aliases found {len(ptr_instructions)} related instructions")
+                self._log.debug(f"Pointer `{inst}` aliases found {len(ptr_instructions)} related instructions")
                 # we only pick the closest instruction coming before the current one
                 closest_instr = min(
                     (instr for instr in ptr_instructions if instr.address < inst.address),
@@ -250,11 +250,8 @@ class MediumLevelILBackwardSlicer:
                     default=None
                 )
                 if closest_instr:
-                    self._log.warn(f"closest to 0x{inst.address:x}: 0x{closest_instr.address:08x}  {closest_instr}")
+                    self._log.debug(f"closest to 0x{inst.address:x}: 0x{closest_instr.address:08x}  {closest_instr}")
                     if isinstance(closest_instr, bn.MediumLevelILSetVarSsa):
-                        # we now remove it from the list of available instructions so it is not picked again
-                        self._log.warn(f"Removing closest instruction from list of pointer alias instructions, size: {len(ptr_instructions)}")
-                        ptr_instructions.remove(closest_instr)
                         # we need to forward slice variable usage
                         self._log.debug(f"Forward {closest_instr.dest} slicing from 0x{closest_instr.address:x} to 0x{inst.address:x}")
                         self._inst_graph.add_node(inst, call_level, caller_site)
@@ -264,7 +261,7 @@ class MediumLevelILBackwardSlicer:
                         for var_usage in closest_instr.dest.use_sites:
                             # only evaluate variable usage before the current instruction
                             # this likely introduces false positive since the variable 
-                            # might be used for different purposes (e.g. buffer reuse for different purposes)
+                            # might be used for different purposes (e.g. buffer reuse)
                             if var_usage.address < inst.address:
                                 self._inst_graph.add_node(var_usage, call_level, caller_site)
                                 if prev_var_usage:
