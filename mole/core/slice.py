@@ -242,7 +242,7 @@ class MediumLevelILBackwardSlicer:
                 pass
             case (bn.MediumLevelILAddressOf()):
                 ptr_instructions = get_instructions_for_pointer_alias(inst.function, inst)
-                self._log.debug(f"Pointer `{inst}` aliases found {len(ptr_instructions)} related instructions")
+                self._log.warn(f"Pointer `{inst}` aliases found {len(ptr_instructions)} related instructions")
                 # we only pick the closest instruction coming before the current one
                 closest_instr = min(
                     (instr for instr in ptr_instructions if instr.address < inst.address),
@@ -250,8 +250,11 @@ class MediumLevelILBackwardSlicer:
                     default=None
                 )
                 if closest_instr:
-                    self._log.debug(f"closest to 0x{inst.address:x}: 0x{closest_instr.address:08x}  {closest_instr}")
+                    self._log.warn(f"closest to 0x{inst.address:x}: 0x{closest_instr.address:08x}  {closest_instr}")
                     if isinstance(closest_instr, bn.MediumLevelILSetVarSsa):
+                        # we now remove it from the list of available instructions so it is not picked again
+                        self._log.warn(f"Removing closest instruction from list of pointer alias instructions, size: {len(ptr_instructions)}")
+                        ptr_instructions.remove(closest_instr)
                         # we need to forward slice variable usage
                         self._log.debug(f"Forward {closest_instr.dest} slicing from 0x{closest_instr.address:x} to 0x{inst.address:x}")
                         self._inst_graph.add_node(inst, call_level, caller_site)
@@ -272,6 +275,8 @@ class MediumLevelILBackwardSlicer:
                                 self._log.debug(f"0x{var_usage.address:08x}  {var_usage}")
                                 self._slice_backwards(var_usage, call_level, caller_site)
                                 prev_var_usage = var_usage
+                    else:
+                        self._log.warn(f"Closest instruction found for pointer alias `{inst}` is not a variable definition")
                 else:
                     self._log.warn(f"No closest instruction found for pointer alias `{inst}`")   
             case (bn.MediumLevelILVarSsa() |
