@@ -18,7 +18,8 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     snprintf(cmd, CMD_LEN, "%s", env_cmd);
-    snprintf(cmd, CMD_LEN, "%d", 1337);
     snprintf(cmd, CMD_LEN, "%s %d", cmd, 31337);
+    snprintf(cmd, CMD_LEN, "%s %s %d", cmd, cmd, 31337);
+    snprintf(cmd, CMD_LEN, "%s %s %d", cmd, cmd, cmd, 31337);
     return system(cmd);
 }

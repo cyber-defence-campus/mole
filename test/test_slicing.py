@@ -1,42 +1,9 @@
 from __future__           import annotations
-from mole.common.log      import Logger
-from mole.core.controller import Controller
 from mole.core.data       import Path
+from utils                import load_files, TestCase
 from typing               import List
 import binaryninja as bn
-import os
 import unittest
-
-
-def load_files(names: List[str]) -> List[str]:
-    """
-    This function returns all files in the `testcases` directory matching `name` but ignoring the
-    file extension.
-    """
-    directory = os.path.join(os.path.dirname(__file__), "bin")
-    files = []
-    for dirpath, _, filenames in os.walk(directory):
-        for filename in filenames:
-            if os.path.splitext(filename)[0] in names:
-                files.append(os.path.join(dirpath, filename))
-    return files
-
-
-class TestCase(unittest.TestCase):
-    """
-    This class implements unit tests to test backward slicing for finding interesting code paths.
-    """
-
-    def setUp(self) -> None:
-        # Initialize controller to operate in headless mode
-        self.ctr = Controller(
-            runs_headless=True,
-            log=Logger(
-                runs_headless=True,
-                level="debug"
-            )
-        ).init()
-        return
 
 
 class TestVarious(TestCase):
