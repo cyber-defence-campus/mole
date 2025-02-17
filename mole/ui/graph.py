@@ -495,7 +495,6 @@ def plot_inst_graph(bv: bn.BinaryView, inst_graph: MediumLevelILInstructionGraph
         if event.inaxes:
             mx, my = event.xdata, event.ydata
             for node, node_pos in pos.items():
-                print(node_pos)
                 node_x, node_y = node_pos
                 # simple distance check
                 if (mx - node_x)**2 + (my - node_y)**2 < 0.01:
