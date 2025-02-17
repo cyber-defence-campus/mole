@@ -133,40 +133,57 @@ class SidebarWidget(bnui.SidebarWidget):
                 vf.navigate(bv, int(tbl.item(row, 2).text(), 16))            
             return
         
-        def _show_context_menu(tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
+        def _show_context_menu(bv: bn.BinaryView, tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
             """
             This method shows a custom context menu.
             """
             if tbl is None: return
             row = tbl.indexAt(pos).row()
             col = tbl.indexAt(pos).column()
-            if row < 0 or col < 0: return
 
             menu = qtw.QMenu(tbl)
-            menu_action_details = menu.addAction("Log Instructions")
-            menu_action_highlight = menu.addAction("Un-/Highlight Instructions")
-            menu_action_graph = menu.addAction("Show Call Graph")
-            menu.addSeparator()
-            menu_action_remove_selected = menu.addAction("Remove selected path")
-            menu_action_remove_all = menu.addAction("Remove all paths")
-            menu_action = menu.exec(tbl.mapToGlobal(pos))
+            menu_action_import_paths = menu.addAction("Import from file")
+            menu_action_export_paths = None
+            menu_action_log_path = None
+            menu_action_highlight_path = None
+            menu_action_show_call_graph = None
+            menu_action_remove_selected_path = None
+            menu_action_remove_all_paths = None
 
-            if menu_action == menu_action_details:
-                self._ctr.select_path(tbl, row, col)
-            elif menu_action == menu_action_highlight:
+            if tbl.rowCount() > 0:
+                menu_action_export_paths = menu.addAction("Export to file")
+            menu.addSeparator()
+            if row >= 0 and col >= 0:
+                menu_action_log_path = menu.addAction("Log instructions")
+                menu_action_highlight_path = menu.addAction("Un-/highlight instructions")
+                menu_action_show_call_graph = menu.addAction("Show call graph")
+                menu.addSeparator()
+                menu_action_remove_selected_path = menu.addAction("Remove selected")
+            if tbl.rowCount() > 0:
+                menu_action_remove_all_paths = menu.addAction("Remove all")
+
+            menu_action = menu.exec(tbl.mapToGlobal(pos))
+            if not menu_action: return
+            if menu_action == menu_action_import_paths:
+                self._ctr.import_paths()
+            elif menu_action == menu_action_export_paths:
+                self._ctr.export_paths()
+            elif menu_action == menu_action_log_path:
+                self._ctr.log_path(tbl, row, col)
+            elif menu_action == menu_action_highlight_path:
                 self._ctr.highlight_path(tbl, row, col)
-            elif menu_action == menu_action_graph:
-                self._ctr.show_graph(self._bv, tbl, row, col, self._wid)
-            elif menu_action == menu_action_remove_selected:
+            elif menu_action == menu_action_show_call_graph:
+                self._ctr.show_call_graph(self._bv, tbl, row, col, self._wid)
+            elif menu_action == menu_action_remove_selected_path:
                 self._ctr.remove_selected_path(tbl, row)
-            elif menu_action == menu_action_remove_all:
+            elif menu_action == menu_action_remove_all_paths:
                 self._ctr.remove_all_paths(tbl)
             return
 
         res_tbl = qtw.QTableWidget()
         res_tbl.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
         res_tbl.customContextMenuRequested.connect(
-            lambda pos: _show_context_menu(res_tbl, pos)
+            lambda pos: _show_context_menu(self._bv, res_tbl, pos)
         )
         res_tbl.setColumnCount(9)
         res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Lines", "Phis", "Branches", "Tag"])
@@ -181,23 +198,23 @@ class SidebarWidget(bnui.SidebarWidget):
             lambda row, col: _navigate(self._bv, res_tbl, row, col)
         )
         res_tbl.cellDoubleClicked.connect(
-            lambda row, col: self._ctr.show_graph(self._bv, res_tbl, row, col, self._wid)
+            lambda row, col: self._ctr.show_call_graph(self._bv, res_tbl, row, col, self._wid)
         )
         res_lay = qtw.QVBoxLayout()
         res_lay.addWidget(res_tbl)
-        res_wid = qtw.QGroupBox("Path Identification:")
+        res_wid = qtw.QGroupBox("Interesting Paths:")
         res_wid.setLayout(res_lay)
         run_but = qtw.QPushButton("Find")
         run_but.clicked.connect(
-            lambda but=run_but: self._ctr.find_paths(bv=self._bv, button=but, widget=res_tbl)
+            lambda: self._ctr.find_paths(bv=self._bv, button=run_but, widget=res_tbl)
         )
         lod_but = qtw.QPushButton("Load")
         lod_but.clicked.connect(
-            lambda: self._ctr.load_paths(bv=self._bv)
+            lambda: self._ctr.load_paths(bv=self._bv, button=lod_but, widget=res_tbl)
         )
         sav_but = qtw.QPushButton("Save")
         sav_but.clicked.connect(
-            lambda: self._ctr.save_paths(bv=self._bv)
+            lambda: self._ctr.save_paths(bv=self._bv, button=sav_but, widget=res_tbl)
         )
         but_lay = qtw.QHBoxLayout()
         but_lay.addWidget(run_but)

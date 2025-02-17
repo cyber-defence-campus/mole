@@ -334,74 +334,6 @@ class Controller:
         """
         setting.value = value
         return
-
-    def find_paths(
-            self,
-            bv: bn.BinaryView,
-            max_call_level: int = None,
-            enable_all_funs: bool = False,
-            button: qtw.QPushButton = None,
-            widget: qtw.QTableWidget = None
-        ) -> None | List[Path]:
-        """
-        This method analyzes the entire binary for interesting looking code paths.
-        """
-        # Require a binary to be loaded
-        if not bv:
-            self._log.warn(self._tag, "No binary loaded.")
-            self.__give_feedback(button, "No Binary Loaded...")
-            return
-        # Require the binary to be in mapped view
-        if bv.view_type == "Raw":
-            self._log.warn(self._tag, "Binary in 'Raw' view.")
-            self.__give_feedback(button, "Binary in 'Raw' View...")
-            return
-        # Require previous analyses to complete
-        if self._thread and not self._thread.finished:
-            self._log.warn(self._tag, "Analysis already running.")
-            self.__give_feedback(button, "Analysis Already Running...")
-            return
-        # Initialize data structures
-        self._paths = []
-        if widget:
-            self._paths_widget = widget
-            self._paths_widget.setRowCount(0)
-        # Run background thread
-        self._thread = MediumLevelILBackwardSlicerThread(
-            bv=bv,
-            ctr=self,
-            runs_headless=self._runs_headless,
-            max_call_level=max_call_level,
-            enable_all_funs=enable_all_funs,
-            log=self._log
-        )
-        self._thread.start()
-        if self._runs_headless:
-            return self._thread.get_paths()
-        return None
-    
-    def load_paths(self, bv: bn.BinaryView,) -> None:
-        """
-        TODO: This method loads paths from the user metadata.
-        """
-        try:
-            s_paths: List[Dict] = bv.query_metadata("mole_paths")
-            paths = [Path.from_dict(bv, s_path) for s_path in s_paths]
-        except Exception as e:
-            self._log.error(self._tag, f"Failed to load paths: '{str(e):s}'")
-        return
-    
-    def save_paths(self, bv: bn.BinaryView,) -> None:
-        """
-        This method stores the paths to the user metadata.
-        """
-        try:
-            s_paths: List[Dict] = [path.to_dict() for path in self._paths]
-            bv.store_metadata("mole_paths", s_paths)
-            self._log.info(self._tag, f"Saved '{len(s_paths):d}' paths")
-        except Exception as e:
-            self._log.error(self._tag, f"Failed to save paths: '{str(e):s}'")
-        return
     
     def add_path_to_view(
             self,
@@ -447,12 +379,117 @@ class Controller:
         
         bn.execute_on_main_thread(update_paths_widget)
         return
+
+    def find_paths(
+            self,
+            bv: bn.BinaryView,
+            max_call_level: int = None,
+            enable_all_funs: bool = False,
+            button: qtw.QPushButton = None,
+            widget: qtw.QTableWidget = None
+        ) -> None | List[Path]:
+        """
+        This method analyzes the entire binary for interesting looking code paths.
+        """
+        # Require a binary to be loaded
+        if not bv:
+            self._log.warn(self._tag, "No binary loaded.")
+            self.__give_feedback(button, "No Binary Loaded...")
+            return
+        # Require the binary to be in mapped view
+        if bv.view_type == "Raw":
+            self._log.warn(self._tag, "Binary is in Raw view.")
+            self.__give_feedback(button, "Binary is in Raw View...")
+            return
+        # Require previous analyses to complete
+        if self._thread and not self._thread.finished:
+            self._log.warn(self._tag, "Analysis already running.")
+            self.__give_feedback(button, "Analysis Already Running...")
+            return
+        self.__give_feedback(button, "Finding Paths...")
+        # Initialize data structures
+        self._paths = []
+        if widget:
+            self._paths_widget = widget
+            self._paths_widget.setRowCount(0)
+        # Run background thread
+        self._thread = MediumLevelILBackwardSlicerThread(
+            bv=bv,
+            ctr=self,
+            runs_headless=self._runs_headless,
+            max_call_level=max_call_level,
+            enable_all_funs=enable_all_funs,
+            log=self._log
+        )
+        self._thread.start()
+        if self._runs_headless:
+            return self._thread.get_paths()
+        return None
     
-    def select_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
+    def load_paths(
+            self,
+            bv: bn.BinaryView,
+            button: qtw.QPushButton = None,
+            widget: qtw.QTableWidget = None
+        ) -> None:
+        """
+        This method loads paths from the binary's database.
+        """
+        self.__give_feedback(button, "Loading Paths...")
+        # Initialize data structures
+        self._paths = []
+        if widget:
+            self._paths_widget = widget
+            self._paths_widget.setRowCount(0)
+        # Load paths from database
+        try:
+            s_paths: List[Dict] = bv.query_metadata("mole_paths")
+            paths = [Path.from_dict(bv, s_path) for s_path in s_paths]
+            for path in paths:
+                self.add_path_to_view(path)
+            self._log.info(self._tag, f"Loaded {len(paths):d} path(s) from the binary's database")
+        except KeyError:
+            self._log.info(self._tag, "No paths found in the binary's database.")
+        except Exception as e:
+            self._log.error(self._tag, f"Failed to load paths from the binary's database: '{str(e):s}'")
+        return
+    
+    def import_paths(self) -> None:
+        """
+        TODO: This method imports paths from a file.
+        """
+        return
+    
+    def save_paths(
+            self,
+            bv: bn.BinaryView,
+            button: qtw.QPushButton = None,
+            widget: qtw.QTableWidget = None
+        ) -> None:
+        """
+        This method stores paths to the binary's database.
+        """
+        self.__give_feedback(button, "Saving Paths...")
+        try:
+            s_paths: List[Dict] = [path.to_dict() for path in self._paths]
+            bv.store_metadata("mole_paths", s_paths)
+            self._log.info(self._tag, f"Saved {len(s_paths):d} path(s) to the binary's database")
+        except Exception as e:
+            self._log.error(self._tag, f"Failed to save paths to the binary's database: '{str(e):s}'")
+        return
+    
+    def export_paths(self) -> None:
+        """
+        TODO: This method exports path to a file.
+        """
+        return
+    
+    def log_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
         """
         This method logs information about a path.
         """
-        if not tbl or col > 7: return
+        if not tbl: return
+        if row < 0 or col < 0 or col > 7: return
         path = self._paths[row]
         if not path: return
         msg = f"Path: {str(path):s}"
@@ -506,7 +543,7 @@ class Controller:
         self._paths_highlight = (highlighted_path, insts_colors)
         return
     
-    def show_graph(
+    def show_call_graph(
             self,
             bv: bn.BinaryView,
             tbl: qtw.QTableWidget,
