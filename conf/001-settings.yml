@@ -4,7 +4,7 @@ settings:
     help: backward slicing visits called functions up to the given level
     value: 3
     min_value: -1
-    max_value: 10
+    max_value: 99
   highlight_color:
     name: highlight_color
     help: color used to highlight paths

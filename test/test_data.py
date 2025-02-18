@@ -62,7 +62,7 @@ class TestData(unittest.TestCase):
                     name="max_call_level",
                     value=3,
                     min_value=-1,
-                    max_value=10,
+                    max_value=99,
                     help="backward slicing visits called functions up to the given level"
                 ),
                 "highlight_color": ComboboxSetting(
