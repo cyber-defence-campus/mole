@@ -1,8 +1,10 @@
 from __future__       import annotations
 from .common.log      import Logger
 from .core.controller import Controller
+from typing           import Dict, List
 import argparse    as ap
 import binaryninja as bn
+import hashlib
 import json
 import yaml
 
@@ -52,7 +54,16 @@ def main() -> None:
         paths = ctr.find_paths(bv, args.max_call_level)
         # Export identified paths
         if args.export_paths_to_yml_file or args.export_paths_to_json_file:
-            s_paths = [path.to_dict() for path in paths]
+            # Calculate SHA1 hash of binary
+            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            # Serialize paths
+            s_paths: List[Dict] = []
+            for path in paths:
+                s_path = path.to_dict()
+                s_path["comment"] = ""
+                s_path["sha1"] = sha1_hash
+                s_paths.append(s_path)
+            # Write JSON data (default)
             if args.export_paths_to_json_file:
                 with open(args.export_paths_to_json_file, "w") as f:
                     json.dump(
@@ -60,6 +71,7 @@ def main() -> None:
                         f,
                         indent=2
                     )
+            # Write YAML data
             if args.export_paths_to_yml_file:
                 with open(args.export_paths_to_yml_file, "w") as f:
                     yaml.safe_dump(
