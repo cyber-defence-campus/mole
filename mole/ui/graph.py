@@ -111,16 +111,16 @@ class Node(qtw.QGraphicsObject):
 
         return super().itemChange(change, value)
 
-    def mousePressEvent(self, event: qtw.QGraphicsSceneMouseEvent) -> None:
+    def mouseDoubleClickEvent(self, event: qtw.QGraphicsSceneMouseEvent) -> None:
         """Override from qtw.QGraphicsItem
 
-        Handle mouse press event
+        Handle mouse double click event
 
         Args:
             event (qtw.QGraphicsSceneMouseEvent)
         """
         self._on_click(self._node_backing)
-        super().mousePressEvent(event)
+        super().mouseDoubleClickEvent(event)
         return
 
 

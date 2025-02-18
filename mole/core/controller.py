@@ -2,11 +2,14 @@ from __future__        import annotations
 from ..common.parse    import LogicalExpressionParser
 from ..common.log      import Logger
 from ..ui.graph        import GraphWidget
+from ..ui.utils        import NumericTableWidgetItem
 from .data             import *
-from typing            import Dict, List, Literal
+from typing            import Dict, List, Literal, Set
 import binaryninja       as bn
 import copy              as copy
 import fnmatch           as fn
+import hashlib           as hashlib
+import json              as json
 import os                as os
 import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
@@ -334,14 +337,62 @@ class Controller:
         """
         setting.value = value
         return
+    
+    def add_path_to_view(
+            self,
+            path: Path
+        ) -> int:
+        """
+        This method updates the UI with a newly identified path.
+        """
+        def update_paths_widget() -> None:
+            if not self._paths_widget:
+                return
+            self._paths.append(path)
+            row = self._paths_widget.rowCount()
+            self._paths_widget.setSortingEnabled(False)
+            self._paths_widget.insertRow(row)
+            src_addr = NumericTableWidgetItem(f"0x{path.src_sym_addr:x}")
+            src_addr.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 0, src_addr)
+            src_name = qtw.QTableWidgetItem(path.src_sym_name)
+            src_name.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 1, src_name)
+            snk_addr = NumericTableWidgetItem(f"0x{path.snk_sym_addr:x}")
+            snk_addr.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 2, snk_addr)
+            snk_name = qtw.QTableWidgetItem(path.snk_sym_name)
+            snk_name.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 3, snk_name)
+            snk_parm = qtw.QTableWidgetItem(f"arg#{path.snk_par_idx+1:d}:{str(path.snk_par_var):s}")
+            snk_parm.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 4, snk_parm)
+            lines = NumericTableWidgetItem(f"{len(path.insts):d}")
+            lines.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 5, lines)
+            phiis = NumericTableWidgetItem(f"{len(path.phiis):d}")
+            phiis.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 6, phiis)
+            bdeps = NumericTableWidgetItem(f"{len(path.bdeps):d}")
+            bdeps.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 7, bdeps)
+            tag = qtw.QTableWidgetItem("")
+            self._paths_widget.setItem(row, 8, tag)
+            self._paths_widget.setSortingEnabled(True)
+            return
+        
+        bn.execute_on_main_thread(update_paths_widget)
+        if not self._paths_widget:
+            return -1
+        return self._paths_widget.rowCount()-1
 
-    def analyze_binary(
+    def find_paths(
             self,
             bv: bn.BinaryView,
             max_call_level: int = None,
             enable_all_funs: bool = False,
-            button: qtw.QPushButton = None,
-            widget: qtw.QTableWidget = None
+            but: qtw.QPushButton = None,
+            tbl: qtw.QTableWidget = None
         ) -> None | List[Path]:
         """
         This method analyzes the entire binary for interesting looking code paths.
@@ -349,23 +400,22 @@ class Controller:
         # Require a binary to be loaded
         if not bv:
             self._log.warn(self._tag, "No binary loaded.")
-            self.__give_feedback(button, "No Binary Loaded...")
+            self.__give_feedback(but, "No Binary Loaded...")
             return
         # Require the binary to be in mapped view
         if bv.view_type == "Raw":
-            self._log.warn(self._tag, "Binary in 'Raw' view.")
-            self.__give_feedback(button, "Binary in 'Raw' View...")
+            self._log.warn(self._tag, "Binary is in Raw view.")
+            self.__give_feedback(but, "Binary is in Raw View...")
             return
         # Require previous analyses to complete
         if self._thread and not self._thread.finished:
             self._log.warn(self._tag, "Analysis already running.")
-            self.__give_feedback(button, "Analysis Already Running...")
+            self.__give_feedback(but, "Analysis Already Running...")
             return
+        self.__give_feedback(but, "Finding Paths...")
         # Initialize data structures
-        self._paths = []
-        if widget:
-            self._paths_widget = widget
-            self._paths_widget.setRowCount(0)
+        if tbl:
+            self._paths_widget = tbl
         # Run background thread
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
@@ -380,56 +430,172 @@ class Controller:
             return self._thread.get_paths()
         return None
     
-    def add_path_to_view(
+    def load_paths(
             self,
-            path: Path
+            bv: bn.BinaryView,
+            but: qtw.QPushButton,
+            tbl: qtw.QTableWidget
         ) -> None:
         """
-        This method updates the UI with a newly identified path.
+        This method loads paths from the binary's database.
         """
-        def update_paths_widget() -> None:
-            if not self._paths_widget:
-                return
-            self._paths.append(path)
-            row = self._paths_widget.rowCount()
-            self._paths_widget.setSortingEnabled(False)
-            self._paths_widget.insertRow(row)
-            src_addr = qtw.QTableWidgetItem(f"0x{path.src_sym_addr:x}")
-            src_addr.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 0, src_addr)
-            src_name = qtw.QTableWidgetItem(path.src_sym_name)
-            src_name.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 1, src_name)
-            snk_addr = qtw.QTableWidgetItem(f"0x{path.snk_sym_addr:x}")
-            snk_addr.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 2, snk_addr)
-            snk_name = qtw.QTableWidgetItem(path.snk_sym_name)
-            snk_name.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 3, snk_name)
-            snk_parm = qtw.QTableWidgetItem(f"arg#{path.snk_par_idx+1:d}:{str(path.snk_par_var):s}")
-            snk_parm.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 4, snk_parm)
-            lines = qtw.QTableWidgetItem(f"{len(path.insts):d}")
-            lines.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 5, lines)
-            phiis = qtw.QTableWidgetItem(f"{len(path.phiis):d}")
-            phiis.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 6, phiis)
-            bdeps = qtw.QTableWidgetItem(f"{len(path.bdeps):d}")
-            bdeps.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 7, bdeps)
-            tag = qtw.QTableWidgetItem("")
-            self._paths_widget.setItem(row, 8, tag)
-            self._paths_widget.setSortingEnabled(True)
-        
-        bn.execute_on_main_thread(update_paths_widget)
+        if not tbl: return
+        self.__give_feedback(but, "Loading Paths...")
+        # Clear paths
+        self._paths = []
+        self._paths_widget = tbl
+        self._paths_widget.setRowCount(0)
+        # Load paths from database
+        try:
+            # Calculate SHA1 hash
+            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            # Deserialize paths
+            s_paths: List[Dict] = bv.query_metadata("mole_paths")
+            for s_path in s_paths:
+                if s_path["sha1"] != sha1_hash:
+                    self._log.warn(self._tag, f"Loaded path seems to origin from another binary")
+                path = Path.from_dict(bv, s_path)
+                row = self.add_path_to_view(path)
+                self._paths_widget.item(row, 8).setText(s_path["comment"])
+            self._log.info(self._tag, f"Loaded {len(s_paths):d} path(s)")
+        except KeyError:
+            self._log.info(self._tag, "No paths found")
+        except Exception as e:
+            self._log.error(self._tag, f"Failed to load paths: {str(e):s}")
         return
     
-    def select_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
+    def import_paths(
+            self,
+            bv: bn.BinaryView,
+            tbl: qtw.QTableWidget
+        ) -> None:
+        """
+        This method imports paths from a file.
+        """
+        if not tbl: return
+        # Select file
+        filepath, _ = qtw.QFileDialog.getOpenFileName(
+            None,
+            "Open File",
+            "",
+            "JSON Files (*.json);;YAML Files (*.yml *.yaml)"
+        )
+        if not filepath:
+            self._log.info(self._tag, "No paths imported")
+            return
+        # Open file
+        try:
+            # Load YAML or JSON data
+            with open(filepath, "r") as f:
+                if filepath.lower().endswith(".yml") or filepath.lower().endswith(".yaml"):
+                    s_paths = yaml.safe_load(f)
+                else:
+                    s_paths = json.load(f)
+            # Append paths
+            self._paths_widget = tbl
+            # Calculate SHA1 hash
+            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            # Deserialize paths
+            for s_path in s_paths:
+                if s_path["sha1"] != sha1_hash:
+                    self._log.warn(self._tag, f"Loaded path seems to origin from another binary")
+                path = Path.from_dict(bv, s_path)
+                row = self.add_path_to_view(path)
+                self._paths_widget.item(row, 8).setText(s_path["comment"])
+            self._log.info(self._tag, f"Imported {len(s_paths):d} path(s)")
+        except Exception as e:
+            self._log.error(self._tag, f"Failed to import paths: {str(e):s}")
+        return
+    
+    def save_paths(
+            self,
+            bv: bn.BinaryView,
+            but: qtw.QPushButton,
+            tbl: qtw.QTableWidget
+        ) -> None:
+        """
+        This method stores paths to the binary's database.
+        """
+        if not tbl: return
+        self.__give_feedback(but, "Saving Paths...")
+        try:
+            # Calculate SHA1 hash of binary
+            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            # Serialize paths
+            s_paths: List[Dict] = []
+            for idx, path in enumerate(self._paths):
+                s_path = path.to_dict()
+                s_path["comment"] = tbl.item(idx, 8).text()
+                s_path["sha1"] = sha1_hash
+                s_paths.append(s_path)
+            bv.store_metadata("mole_paths", s_paths)
+            self._log.info(self._tag, f"Saved {len(s_paths):d} path(s)")
+        except Exception as e:
+            self._log.error(self._tag, f"Failed to save paths: {str(e):s}")
+        return
+    
+    def export_paths(
+            self,
+            bv: bn.BinaryView,
+            tbl: qtw.QTableWidget,
+            rows: Set[int]
+        ) -> None:
+        """
+        This method exports paths to a file.
+        """
+        if not tbl: return
+        # Select file
+        filepath, _ = qtw.QFileDialog.getSaveFileName(
+            None,
+            "Save As",
+            "",
+            "JSON Files (*.json);;YAML Files (*.yml *.yaml)"
+        )
+        if not filepath:
+            self._log.error(self._tag, "No paths exported")
+            return
+        # Calculate SHA1 hash of binary
+        sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+        # Serialize paths
+        s_paths: List[Dict] = []
+        for row in (sorted(rows) if rows else range(len(self._paths))):
+            s_path = self._paths[row].to_dict()
+            s_path["comment"] = tbl.item(row, 8).text()
+            s_path["sha1"] = sha1_hash
+            s_paths.append(s_path)
+        # Open file
+        with open(filepath, "w") as f:
+            # Write YAML data
+            if filepath.lower().endswith(".yml") or filepath.lower().endswith(".yaml"):
+                yaml.safe_dump(
+                    s_paths,
+                    f,
+                    sort_keys=False,
+                    default_style=None,
+                    default_flow_style=False,
+                    encoding="utf-8"
+                )
+            # Write JSON data (default)
+            else:
+                json.dump(
+                    s_paths,
+                    f,
+                    indent=2
+                )
+        self._log.info(self._tag, f"Exported {len(s_paths):d} path(s)")
+        return
+    
+    def log_path(
+            self,
+            tbl: qtw.QTableWidget,
+            row: int,
+            col: int
+        ) -> None:
         """
         This method logs information about a path.
         """
-        if not tbl or col > 7: return
+        if not tbl: return
+        if row < 0 or col < 0 or col > 7: return
         path = self._paths[row]
         if not path: return
         msg = f"Path: {str(path):s}"
@@ -448,18 +614,27 @@ class Controller:
         self._log.debug(self._tag, msg)
         return
     
-    def highlight_path(self, tbl: qtw.QTableWidget, row: int, col: int) -> None:
+    def highlight_path(
+            self,
+            bv: bn.BinaryView,
+            tbl: qtw.QTableWidget,
+            row: int,
+            col: int
+        ) -> None:
         """
         This method highlights all instructions in a path.
         """
-        if not tbl or col > 7: return
+        if not tbl: return
+        if row < 0 or col < 0: return
         path = self._paths[row]
         if not path: return
+        undo_action = bv.begin_undo_actions()
         highlighted_path, insts_colors = self._paths_highlight
         # Undo path highlighting
         for addr, (inst, old_color) in insts_colors.items():
             func = inst.function.source_function
-            func.set_auto_instr_highlight(addr, old_color)
+            func.set_user_instr_highlight(addr, old_color)
+        self._log.info(self._tag, "Un-highlighted instructions of all paths")
         # Remove path highlighting
         if path == highlighted_path:
             highlighted_path = None
@@ -479,11 +654,13 @@ class Controller:
                 addr = inst.address
                 if not addr in insts_colors:
                     insts_colors[addr] = (inst, func.get_instr_highlight(addr))
-                func.set_auto_instr_highlight(addr, color)
+                func.set_user_instr_highlight(addr, color)
+            self._log.info(self._tag, f"Highlighted instructions of path {row:d}")
         self._paths_highlight = (highlighted_path, insts_colors)
+        bv.commit_undo_actions(undo_action)
         return
     
-    def show_graph(
+    def show_call_graph(
             self,
             bv: bn.BinaryView,
             tbl: qtw.QTableWidget,
@@ -494,33 +671,46 @@ class Controller:
         """
         This method shows the graph of a path.
         """
-        if not tbl or col > 7: return
+        if not tbl: return
+        if row < 0 or col < 0: return
         path = self._paths[row]
         if not path: return
         for idx in range(wid.count()):
             if wid.tabText(idx) == "Graph":
                 graph_widget: GraphWidget = wid.widget(idx)
-                graph_widget.load_path(bv, path, row)
+                graph_widget.load_path(bv, path, row+1)
                 wid.setCurrentWidget(graph_widget)
                 return
+        self._log.info(self._tag, f"Showing call graph of path {row:d}")
         return
 
-    def remove_selected_path(self, tbl: qtw.QTableWidget, row: int) -> None:
+    def remove_selected_paths(
+            self,
+            tbl: qtw.QTableWidget,
+            rows: Set[int]
+        ) -> None:
         """
-        This method removes the path at row `row` from the table `tbl`.
+        This method removes the paths at rows `rows` from the table `tbl`.
         """
         if not tbl: return
-        del self._paths[row]
-        tbl.removeRow(row)
+        for row in sorted(rows, reverse=True):
+            if row < 0: continue
+            del self._paths[row]
+            tbl.removeRow(row)
+        self._log.info(self._tag, f"Removed {len(rows):d} path(s)")
         return
     
-    def remove_all_paths(self, tbl: qtw.QTableWidget) -> None:
+    def remove_all_paths(
+            self,
+            tbl: qtw.QTableWidget
+        ) -> None:
         """
         This method removes all paths from the table `tbl`.
         """
         if not tbl: return
         self._paths.clear()
         tbl.setRowCount(0)
+        self._log.info(self._tag, "Removed all path(s)")
         return
 
 

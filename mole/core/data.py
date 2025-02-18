@@ -312,14 +312,6 @@ class SinkFunction(Function):
                                     for insts, call_graph in slicer.find_paths(par_var, src_inst):
                                         # Prepend sink instruction
                                         insts.insert(0, snk_inst)
-                                        # Calculate metrics (phi-instructions and branch dependencies)
-                                        phiis = []
-                                        bdeps = {}
-                                        for inst in insts:
-                                            if isinstance(inst, bn.MediumLevelILVarPhi):
-                                                phiis.append(inst)
-                                            for bch_idx, bch_dep in inst.branch_dependence.items():
-                                                bdeps.setdefault(bch_idx, bch_dep)
                                         # Find split between sink and source originating instructions
                                         src_inst_idx = len(insts)
                                         for src_inst_idx in range(src_inst_idx-1, -1, -1):
@@ -331,7 +323,7 @@ class SinkFunction(Function):
                                             call_graph.nodes[snk_inst.function]["snk"] = f"snk: {snk_name:s} | {str(par_var):s}"
                                         if src_inst.function in call_graph:
                                             call_graph.nodes[src_inst.function]["src"] = f"src: {src_sym_name:s}"
-                                        # Store path
+                                        # Create path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,
                                             src_sym_name=src_sym_name,
@@ -341,18 +333,17 @@ class SinkFunction(Function):
                                             snk_par_var=par_var,
                                             src_inst_idx=src_inst_idx,
                                             insts=insts,
-                                            phiis=phiis,
-                                            bdeps=bdeps,
                                             call_graph=call_graph
                                         )
                                         # Found the same path before
                                         if path in paths:
                                             continue
+                                        # Store path
                                         paths.append(path)
                                         found_path(path)
                                         # Log path
                                         t_log = f"Interesting path: {str(path):s}"
-                                        t_log = f"{t_log:s} [L:{len(insts):d},P:{len(phiis):d},B:{len(bdeps):d}]!"
+                                        t_log = f"{t_log:s} [L:{len(insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
                                         log.info(tag, t_log)
                                         log.debug(tag, "--- Backward Slice  ---")
                                         basic_block = None
@@ -386,6 +377,40 @@ class Path:
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
 
+    def __init__(
+            self,
+            src_sym_addr: int,
+            src_sym_name: str,
+            snk_sym_addr: int,
+            snk_sym_name: str,
+            snk_par_idx: int,
+            snk_par_var: bn.MediumLevelILVarSsa,
+            src_inst_idx: int,
+            insts: List[bn.MediumLevelILInstruction] = field(default_factory=list),
+            call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
+        ) -> None:
+        self.src_sym_addr = src_sym_addr
+        self.src_sym_name = src_sym_name
+        self.snk_sym_addr = snk_sym_addr
+        self.snk_sym_name = snk_sym_name
+        self.snk_par_idx = snk_par_idx
+        self.snk_par_var = snk_par_var
+        self.src_inst_idx = src_inst_idx
+        self.insts = insts
+        self.call_graph = call_graph
+        self._init_metrics()
+        return
+    
+    def _init_metrics(self) -> None:
+        self.phiis = []
+        self.bdeps = {}
+        for inst in self.insts:
+            if isinstance(inst, bn.MediumLevelILVarPhi):
+                self.phiis.append(inst)
+            for bch_idx, bch_dep in inst.branch_dependence.items():
+                self.bdeps.setdefault(bch_idx, bch_dep)
+        return
+
     def __eq__(self, other: Path) -> bool:
         if not isinstance(other, Path):
             try:
@@ -407,6 +432,47 @@ class Path:
         snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
         snk = f"{snk:s}(arg#{self.snk_par_idx+1:d}:{str(self.snk_par_var):s})"
         return f"{src:s} --> {snk:s}"
+    
+    def to_dict(self) -> Dict:
+        # Serialize instructions
+        insts: List[Tuple[int, int]] = []
+        for inst in self.insts:
+            insts.append((hex(inst.function.source_function.start), inst.expr_index))
+        return {
+            "src_sym_addr": hex(self.src_sym_addr),
+            "src_sym_name": self.src_sym_name,
+            "snk_sym_addr": hex(self.snk_sym_addr),
+            "snk_sym_name": self.snk_sym_name,
+            "snk_par_idx" : self.snk_par_idx,
+            "src_inst_idx": self.src_inst_idx,
+            "insts"       : insts,
+            "call_graph"  : self.call_graph.to_dict()
+        }
+    
+    @classmethod
+    def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Path | None:
+        # Deserialize instructions
+        insts: List[bn.MediumLevelILInstruction] = []
+        for func_addr, expr_idx in d["insts"]:
+            func = bv.get_function_at(int(func_addr, 0))
+            insts.append(func.mlil.ssa_form.get_expr(expr_idx))
+        # Deserialize sink parameter variable
+        snk_par_idx = d["snk_par_idx"]
+        snk_par_var = insts[0].params[snk_par_idx]
+        path = cls(
+            src_sym_addr = int(d["src_sym_addr"], 0),
+            src_sym_name = d["src_sym_name"],
+            snk_sym_addr = int(d["snk_sym_addr"], 0),
+            snk_sym_name = d["snk_sym_name"],
+            snk_par_idx  = snk_par_idx,
+            snk_par_var  = snk_par_var,
+            src_inst_idx = d["src_inst_idx"],
+            insts        = insts,
+            call_graph   = MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"])
+        )
+        return path
+
+
 
 
 @dataclass
@@ -427,7 +493,7 @@ class WidgetSetting:
                 return False
         return self.name == other.name
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "value": self.value,

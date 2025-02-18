@@ -1,6 +1,7 @@
 from __future__           import annotations
 from mole.common.log      import Logger
 from mole.core.controller import Controller
+from mole.core.data       import Path
 from typing               import List
 import binaryninja as bn
 import os
@@ -49,10 +50,11 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -96,11 +98,12 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -143,10 +146,11 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -186,10 +190,11 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -229,10 +234,11 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -272,10 +278,11 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -315,10 +322,11 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -358,10 +366,11 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -401,7 +410,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "path(s) identified")
             # Close test binary
@@ -414,10 +423,11 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -458,7 +468,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             # Close test binary
@@ -471,7 +481,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             # Close test binary
@@ -485,7 +495,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             bv.file.close()
@@ -497,7 +507,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             bv.file.close()
@@ -515,10 +525,11 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -558,11 +569,12 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -627,10 +639,11 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -679,7 +692,7 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
             # Close test binary
@@ -706,10 +719,11 @@ class TestPointerAnalysis(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
                 isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -751,11 +765,12 @@ class TestSimpleServer(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),
@@ -810,11 +825,12 @@ class TestSimpleServer(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
             for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
                 self.assertTrue(
                     isinstance(path.insts[-1], bn.MediumLevelILInstruction),

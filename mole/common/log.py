@@ -10,6 +10,8 @@ class Logger:
     This class prints messages to the console or Binary Ninja's log.
     """
 
+    _levels = ["debug", "info", "warning", "error"]
+
     def __init__(
             self,
             level: Literal["debug", "info", "warning", "error"] = "info",
@@ -20,29 +22,15 @@ class Logger:
         `stdout`/`stderr`, as well as to Binary Ninja's log in case `runs_headless` is set to
         `False`.
         """
-        self._set_level(level)
+        self._level = self._levels.index(level)
         self._runs_headless: bool = runs_headless
         return
     
-    def _set_level(
-            self,
-            level: Literal["debug", "info", "warning", "error"]
-        ) -> None:
+    def get_level(self) -> str:
         """
-        This method sets the log level to `level`.
+        This method returns the configured log level.
         """
-        level = level.lower()
-        match level:
-            case "debug":
-                self._level = 0
-            case "info":
-                self._level = 1
-            case "warning":
-                self._level = 2
-            case "error":
-                self._level = 3
-            case _:
-                self._level = 4
+        return self._levels[self._level]
 
     def _tag_msg(
             self,

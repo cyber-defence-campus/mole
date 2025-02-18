@@ -1,7 +1,7 @@
 from __future__      import annotations
 from ..common.help   import FunctionHelper, InstructionHelper
 from ..common.log    import Logger
-from typing          import Generator, List, Set, Tuple
+from typing          import Any, Dict, Generator, List, Set, Tuple
 import binaryninja as bn
 import networkx    as nx
 
@@ -27,7 +27,8 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
             self,
             inst: bn.MediumLevelILInstruction,
             call_level: int = None,
-            caller_site: bn.MediumLevelILFunction = None
+            caller_site: bn.MediumLevelILFunction = None,
+            **attr: Any
         ) -> None:
         """
         This method adds a node for the given instruction `inst` with the following node attributes:
@@ -37,14 +38,16 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
         super().add_node(
             inst,
             call_level=call_level,
-            caller_site=caller_site
+            caller_site=caller_site,
+            **attr
         )
         return
     
     def add_edge(
             self,
             from_inst: bn.MediumLevelILInstruction,
-            to_inst:   bn.MediumLevelILInstruction
+            to_inst:   bn.MediumLevelILInstruction,
+            **attr: Any
         ) -> None:
         """
         This method adds an edge from `from_inst` to `to_inst`.
@@ -63,7 +66,7 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
                 f"Edge not added to instruction graph due to an inexisting to node ({info:s})"
             )
             return
-        super().add_edge(from_inst, to_inst)
+        super().add_edge(from_inst, to_inst, **attr)
         return
 
 
@@ -88,7 +91,8 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
     def add_node(
             self,
             call_site: bn.MediumLevelILFunction,
-            call_level: int = None
+            call_level: int = None,
+            **attr: Any
         ) -> None:
         """
         This method adds a node for the given `call_site`, with the following node attribute: The
@@ -96,7 +100,8 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         """
         super().add_node(
             call_site,
-            call_level=call_level
+            call_level=call_level,
+            **attr
         )
         return
     
@@ -104,6 +109,7 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
             self,
             from_call_site: bn.MediumLevelILFunction,
             to_call_site:   bn.MediumLevelILFunction,
+            **attr: Any
         ) -> None:
         """
         This method adds an edge from `from_call_site` to `to_call_site`.
@@ -122,8 +128,67 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
                 f"Edge not added to function graph due to an inexisting to node ({info:s})"
             )
             return
-        super().add_edge(from_call_site, to_call_site)
+        super().add_edge(from_call_site, to_call_site, **attr)
         return
+    
+    def copy(self) -> MediumLevelILFunctionGraph:
+        """
+        This method returns a copy of the graph.
+        """
+        call_graph = super().copy()
+        call_graph._tag = self._tag
+        call_graph._log = self._log
+        return call_graph
+    
+    def to_dict(self) -> Dict:
+        """
+        This method serializes the graph to a dictionary.
+        """
+        # Serialize nodes
+        nodes: List[Dict[str, Any]] = []
+        for node, atts in self.nodes(data=True):
+            nodes.append({
+                "adr": hex(node.source_function.start),
+                "att": atts
+            })
+        # Serialize edges
+        edges: List[Dict[str, Any]] = []
+        for src_node, tgt_node, atts in self.edges(data=True):
+            edges.append({
+                "src": hex(src_node.source_function.start),
+                "snk": hex(tgt_node.source_function.start),
+                "att": atts
+            })
+        return {
+            "tag": self._tag,
+            "log_level": self._log.get_level(),
+            "nodes": nodes,
+            "edges": edges
+        }
+    
+    @classmethod
+    def from_dict(cls: MediumLevelILFunctionGraph, bv: bn.BinaryView, d: Dict) -> MediumLevelILFunctionGraph:
+        """
+        This method deserializes a dictionary to a graph.
+        """
+        tag = d["tag"]
+        log = Logger(d["log_level"])
+        call_graph: MediumLevelILFunctionGraph = cls(tag, log)
+        # Deserialize nodes
+        for node in d["nodes"]:
+            addr = int(node["adr"], 0)
+            func = bv.get_function_at(addr)
+            atts = node["att"]
+            call_graph.add_node(func.mlil.ssa_form, **atts)
+        # Deserialize edges
+        for edge in d["edges"]:
+            src_addr = int(edge["src"], 0)
+            src_func = bv.get_function_at(src_addr)
+            tgt_addr = int(edge["snk"], 0)
+            tgt_func = bv.get_function_at(tgt_addr)
+            atts = edge["att"]
+            call_graph.add_edge(src_func.mlil.ssa_form, tgt_func.mlil.ssa_form, **atts)
+        return call_graph
     
 
 class MediumLevelILBackwardSlicer:
