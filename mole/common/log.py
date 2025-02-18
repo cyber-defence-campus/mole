@@ -65,7 +65,7 @@ class Logger:
             head = f"[{now:s}] [{tag:s}] "
         else:
             head = ""
-        print(colored(f"{head:s}{msg:s}", color=color, on_color=on_color, attrs=attrs), file=file)
+        print(colored(f"{head:s}{msg:s}", color=color, on_color=on_color, attrs=attrs), file=file, flush=True)
         return
     
     def debug(
