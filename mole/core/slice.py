@@ -281,7 +281,7 @@ class MediumLevelILBackwardSlicer:
         info = InstructionHelper.get_inst_info(inst)
         # Maxium call level
         if self._max_call_level >= 0 and abs(call_level) > self._max_call_level:
-            self._log.warn(
+            self._log.debug(
                 self._tag,
                 f"Maximum call level {self._max_call_level:d} reached"
             )
