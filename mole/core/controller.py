@@ -8,6 +8,7 @@ from typing            import Dict, List, Literal, Set
 import binaryninja       as bn
 import copy              as copy
 import fnmatch           as fn
+import hashlib           as hashlib
 import json              as json
 import os                as os
 import PySide6.QtCore    as qtc
@@ -446,9 +447,13 @@ class Controller:
         self._paths_widget.setRowCount(0)
         # Load paths from database
         try:
+            # Calculate SHA1 hash
+            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
             # Deserialize paths
             s_paths: List[Dict] = bv.query_metadata("mole_paths")
             for s_path in s_paths:
+                if s_path["sha1"] != sha1_hash:
+                    self._log.warn(self._tag, f"Loaded path seems to origin from another binary")
                 path = Path.from_dict(bv, s_path)
                 row = self.add_path_to_view(path)
                 self._paths_widget.item(row, 8).setText(s_path["comment"])
@@ -488,8 +493,12 @@ class Controller:
                     s_paths = json.load(f)
             # Append paths
             self._paths_widget = tbl
+            # Calculate SHA1 hash
+            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
             # Deserialize paths
             for s_path in s_paths:
+                if s_path["sha1"] != sha1_hash:
+                    self._log.warn(self._tag, f"Loaded path seems to origin from another binary")
                 path = Path.from_dict(bv, s_path)
                 row = self.add_path_to_view(path)
                 self._paths_widget.item(row, 8).setText(s_path["comment"])
@@ -510,10 +519,14 @@ class Controller:
         if not tbl: return
         self.__give_feedback(but, "Saving Paths...")
         try:
+            # Calculate SHA1 hash of binary
+            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            # Serialize paths
             s_paths: List[Dict] = []
             for idx, path in enumerate(self._paths):
                 s_path = path.to_dict()
                 s_path["comment"] = tbl.item(idx, 8).text()
+                s_path["sha1"] = sha1_hash
                 s_paths.append(s_path)
             bv.store_metadata("mole_paths", s_paths)
             self._log.info(self._tag, f"Saved {len(s_paths):d} path(s)")
@@ -523,6 +536,7 @@ class Controller:
     
     def export_paths(
             self,
+            bv: bn.BinaryView,
             tbl: qtw.QTableWidget,
             rows: Set[int]
         ) -> None:
@@ -540,11 +554,14 @@ class Controller:
         if not filepath:
             self._log.error(self._tag, "No paths exported")
             return
+        # Calculate SHA1 hash of binary
+        sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         # Serialize paths
         s_paths: List[Dict] = []
         for row in (sorted(rows) if rows else range(len(self._paths))):
             s_path = self._paths[row].to_dict()
             s_path["comment"] = tbl.item(row, 8).text()
+            s_path["sha1"] = sha1_hash
             s_paths.append(s_path)
         # Open file
         with open(filepath, "w") as f:

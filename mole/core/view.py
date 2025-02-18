@@ -170,7 +170,7 @@ class SidebarWidget(bnui.SidebarWidget):
             if menu_action == menu_action_import_paths:
                 self._ctr.import_paths(self._bv, tbl)
             elif menu_action == menu_action_export_paths:
-                self._ctr.export_paths(tbl, rows)
+                self._ctr.export_paths(self._bv, tbl, rows)
             elif menu_action == menu_action_log_path:
                 self._ctr.log_path(tbl, row, col)
             elif menu_action == menu_action_highlight_path:
