@@ -1,7 +1,7 @@
 from __future__    import annotations
 from ..common.help import InstructionHelper, SymbolHelper
 from ..common.log  import Logger
-from .slice        import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph
+from .slice        import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
 from dataclasses   import dataclass, field
 from typing        import Callable, Dict, List, Tuple
 import binaryninja       as bn
@@ -376,6 +376,7 @@ class Path:
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
+    inst_graph: MediumLevelILInstructionGraph = field(default_factory=MediumLevelILInstructionGraph)
 
     def __init__(
             self,
