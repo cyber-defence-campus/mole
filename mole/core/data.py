@@ -1,7 +1,7 @@
 from __future__    import annotations
 from ..common.help import InstructionHelper, SymbolHelper
 from ..common.log  import Logger
-from .slice        import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
+from .slice        import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph
 from dataclasses   import dataclass, field
 from typing        import Callable, Dict, List, Tuple
 import binaryninja       as bn
@@ -333,8 +333,7 @@ class SinkFunction(Function):
                                             snk_par_var=par_var,
                                             src_inst_idx=src_inst_idx,
                                             insts=insts,
-                                            call_graph=call_graph,
-                                            inst_graph=slicer._inst_graph
+                                            call_graph=call_graph
                                         )
                                         # Found the same path before
                                         if path in paths:
@@ -377,7 +376,6 @@ class Path:
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
-    inst_graph: MediumLevelILInstructionGraph = field(default_factory=MediumLevelILInstructionGraph)
 
     def __init__(
             self,
@@ -389,8 +387,7 @@ class Path:
             snk_par_var: bn.MediumLevelILVarSsa,
             src_inst_idx: int,
             insts: List[bn.MediumLevelILInstruction] = field(default_factory=list),
-            call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph),
-            inst_graph: MediumLevelILInstructionGraph = field(default_factory=MediumLevelILInstructionGraph)
+            call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
         ) -> None:
         self.src_sym_addr = src_sym_addr
         self.src_sym_name = src_sym_name
@@ -401,7 +398,6 @@ class Path:
         self.src_inst_idx = src_inst_idx
         self.insts = insts
         self.call_graph = call_graph
-        self.inst_graph = inst_graph
         self._init_metrics()
         return
     

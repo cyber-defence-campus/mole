@@ -307,7 +307,10 @@ class MediumLevelILBackwardSlicer:
                 pass
             case (bn.MediumLevelILAddressOf()):
                 ptr_instructions = get_instructions_for_pointer_alias(inst.function, inst)
-                self._log.debug(f"Pointer `{inst}` @ 0x{inst.address:08x} aliases found {len(ptr_instructions)} related instructions")
+                self._log.debug(
+                    self._tag,
+                    f"Pointer `{inst}` @ 0x{inst.address:08x} aliases found {len(ptr_instructions)} related instructions"
+                )
                 # we only pick the closest instruction coming before the current one
                 closest_instr = min(
                     (instr for instr in ptr_instructions if instr.address < inst.address),
@@ -315,10 +318,16 @@ class MediumLevelILBackwardSlicer:
                     default=None
                 )
                 if closest_instr:
-                    self._log.debug(f"closest to 0x{inst.address:08x}: 0x{closest_instr.address:08x}  {closest_instr}")
+                    self._log.debug(
+                        self._tag,
+                        f"closest to 0x{inst.address:08x}: 0x{closest_instr.address:08x}  {closest_instr}"
+                    )
                     if isinstance(closest_instr, bn.MediumLevelILSetVarSsa):
                         # we need to forward slice variable usage
-                        self._log.debug(f"Forward {closest_instr.dest} slicing from 0x{closest_instr.address:x} to 0x{inst.address:x}")
+                        self._log.debug(
+                            self._tag,
+                            f"Forward {closest_instr.dest} slicing from 0x{closest_instr.address:x} to 0x{inst.address:x}"
+                        )
                         self._inst_graph.add_node(inst, call_level, caller_site)
                         self._inst_graph.add_node(closest_instr, call_level, caller_site)
                         self._inst_graph.add_edge(inst, closest_instr)
@@ -329,12 +338,21 @@ class MediumLevelILBackwardSlicer:
                             if var_usage.address < inst.address:
                                 self._inst_graph.add_node(var_usage, call_level, caller_site)
                                 self._inst_graph.add_edge(closest_instr, var_usage)
-                                self._log.debug(f"PTR usage: 0x{var_usage.address:08x}  {var_usage}")
+                                self._log.debug(
+                                    self._tag,
+                                    f"PTR usage: 0x{var_usage.address:08x}  {var_usage}"
+                                )
                                 self._slice_backwards(var_usage, call_level, caller_site)
                     else:
-                        self._log.warn(f"Closest instruction found for pointer alias `{inst}` @ 0x{inst.address:08x} is not a variable definition")
+                        self._log.warn(
+                            self._tag,
+                            f"Closest instruction found for pointer alias `{inst}` @ 0x{inst.address:08x} is not a variable definition"
+                        )
                 else:
-                    self._log.warn(f"No closest instruction found for pointer alias `{inst}` @ 0x{inst.address:08x}")   
+                    self._log.warn(
+                        self._tag,
+                        f"No closest instruction found for pointer alias `{inst}` @ 0x{inst.address:08x}"
+                    )
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILVarAliasedField() |
@@ -463,7 +481,10 @@ class MediumLevelILBackwardSlicer:
                             self._inst_graph.add_edge(inst, par)
                             self._slice_backwards(par, call_level, caller_site)
                     case _:
-                        self._log.warn(self._tag, f"[{call_level:+d}] {dest_info:s}: Missing handler")
+                        self._log.warn(
+                            self._tag,
+                            f"[{call_level:+d}] {dest_info:s}: Missing handler"
+                        )
             case (bn.MediumLevelILSyscallSsa()):
                 for par in inst.params:
                     self._inst_graph.add_node(inst, call_level, caller_site)
