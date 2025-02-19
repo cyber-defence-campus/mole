@@ -306,7 +306,7 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILImport()):
                 pass
             case (bn.MediumLevelILAddressOf()):
-                ptr_instructions = get_instructions_for_pointer_alias(inst.function, inst)
+                ptr_instructions = get_instructions_for_pointer_alias(inst, inst.function)
                 self._log.debug(
                     self._tag,
                     f"Pointer `{inst}` @ 0x{inst.address:08x} aliases found {len(ptr_instructions)} related instructions"

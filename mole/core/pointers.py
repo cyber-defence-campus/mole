@@ -23,8 +23,8 @@ def _get_alias_map_for_function(
     return _build_pointer_alias_map_for_function(func)
 
 def get_instructions_for_pointer_alias(
-        func: bn.MediumLevelILFunction,
-        inst: bn.MediumLevelILAddressOf
+        inst: bn.MediumLevelILAddressOf,
+        func: bn.MediumLevelILFunction
     ) -> List[bn.MediumLevelILSetVarSsa]:
     alias_map = _get_alias_map_for_function(func)
     return alias_map.get(inst.src, [])
