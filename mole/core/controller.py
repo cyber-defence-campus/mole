@@ -657,7 +657,7 @@ class Controller:
                 func.set_user_instr_highlight(addr, color)
             self._log.info(self._tag, f"Highlighted instructions of path {row:d}")
         self._paths_highlight = (highlighted_path, insts_colors)
-        bv.commit_undo_actions(undo_action)
+        bv.forget_undo_actions(undo_action)
         return
     
     def show_call_graph(
