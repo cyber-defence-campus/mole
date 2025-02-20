@@ -51,6 +51,21 @@ class SymbolHelper:
         return mlil_ssa_code_refs
 
 
+class VariableHelper:
+    """
+    This class provides helper functions with respect to variables.
+    """
+
+    @staticmethod
+    def get_var_info(
+            var: bn.SSAVariable
+        ) -> str:
+        """
+        This method returns a string with information about the variable `var`.
+        """
+        return f"{var.name}#{var.version}"
+
+
 class InstructionHelper:
     """
     This class provides helper functions with respect to instructions.
