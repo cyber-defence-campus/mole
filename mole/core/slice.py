@@ -1,5 +1,5 @@
 from __future__      import annotations
-from ..common.help   import FunctionHelper, InstructionHelper
+from ..common.help   import FunctionHelper, InstructionHelper, VariableHelper
 from ..common.log    import Logger
 from .pointers       import get_instructions_for_pointer_alias, get_bb_var_addr_assignments
 from typing          import Any, Dict, Generator, List, Set, Tuple
@@ -306,47 +306,77 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILImport()):
                 pass
             case (bn.MediumLevelILAddressOf()):
-                # TODO: Investigate which one is better to use
-                # ptr_insts = get_instructions_for_pointer_alias(inst, inst.function)
-                ptr_insts = get_bb_var_addr_assignments(inst)
-                self._log.debug(
-                    self._tag,
-                    f"[{call_level:+d}] {info:s}: Found {len(ptr_insts):d} assignment instruction(s) with the same source variable address '&{str(inst.src):s}'"
-                )
-                # Pick the closest instruction before the current one
-                closest_instr = min(
-                    (ptr_inst for ptr_inst in ptr_insts if ptr_inst.address < inst.address),
-                    key=lambda instr: inst.address - instr.address,
-                    default=None
-                )
-                if closest_instr:
-                    closest_info = InstructionHelper.get_inst_info(closest_instr, False)
+                # Find instruction defining the current memory version
+                inst_mem_def = inst.function.get_ssa_memory_definition(inst.ssa_memory_version)
+                if inst_mem_def:
+                    inst_mem_def_into = InstructionHelper.get_inst_info(inst_mem_def, False)
                     self._log.debug(
                         self._tag,
-                        f"[{call_level:+d}] {info:s}: Closest assignment instruction found to be '{closest_info:s}'"
+                        f"[{call_level:+d}] {info:s}: '{inst_mem_def_into:s}' defines current memory 'mem#{inst.ssa_memory_version:d}'"
                     )
-                    # Forward slice variable usage
-                    self._inst_graph.add_node(inst, call_level, caller_site)
-                    self._inst_graph.add_node(closest_instr, call_level, caller_site)
-                    self._inst_graph.add_edge(inst, closest_instr)
-                    for var_usage in closest_instr.dest.use_sites:
-                        # Only evaluate variable usage before the current instruction
-                        # This likely introduces false positive since the variable 
-                        # might be used for different purposes (e.g. buffer reuse)
-                        if var_usage.address < inst.address:
-                            var_usage_info = InstructionHelper.get_inst_info(var_usage)
-                            self._inst_graph.add_node(var_usage, call_level, caller_site)
-                            self._inst_graph.add_edge(closest_instr, var_usage)
+                    # TODO: Rename `get_instructions_for_pointer_alias`
+                    # Find all assignment instructions using the same variable address as source
+                    var_addr_ass_insts = get_instructions_for_pointer_alias(inst, inst.function)
+                    for var_addr_ass_inst in var_addr_ass_insts:
+                        var_addr_ass_inst_info = InstructionHelper.get_inst_info(var_addr_ass_inst, False)
+                        # Memory defining instruction is a use site of a destination variable
+                        if inst_mem_def in var_addr_ass_inst.dest.use_sites:
                             self._log.debug(
                                 self._tag,
-                                f"[{call_level:+d}] {info:s}: Variable '{str(closest_instr.dest.var):s}#{closest_instr.dest.version:d}' used in '{var_usage_info:s}'"
+                                f"[{call_level:+d}] {info:s}: '{inst_mem_def_into:s}' uses '{var_addr_ass_inst_info:s}'"
                             )
-                            self._slice_backwards(var_usage, call_level, caller_site)
-                else:
-                    self._log.debug(
-                        self._tag,
-                        f"[{call_level:+d}] {info:s}: No closest instruction found"
-                    )
+                            self._inst_graph.add_node(inst, call_level, caller_site)
+                            self._inst_graph.add_node(inst_mem_def, call_level, caller_site)
+                            self._inst_graph.add_edge(inst, inst_mem_def)
+                            self._slice_backwards(inst_mem_def, call_level, caller_site)
+
+                # #  Backward slice at all possible variable definitions
+                # for ssa_var in inst.function.ssa_vars:
+                #     if ssa_var.var == inst.src:
+                #         self._slice_ssa_var_definition(ssa_var, inst, call_level, caller_site)
+
+
+                # # TODO: Investigate which one is better to use
+                # # ptr_insts = get_instructions_for_pointer_alias(inst, inst.function)
+                # ptr_insts = get_bb_var_addr_assignments(inst)
+                # self._log.debug(
+                #     self._tag,
+                #     f"[{call_level:+d}] {info:s}: Found {len(ptr_insts):d} assignment instruction(s) with the same source variable address '&{str(inst.src):s}'"
+                # )
+                # # Pick the closest instruction before the current one
+                # closest_instr = min(
+                #     (ptr_inst for ptr_inst in ptr_insts if ptr_inst.address < inst.address),
+                #     key=lambda instr: inst.address - instr.address,
+                #     default=None
+                # )
+                # if closest_instr:
+                #     closest_info = InstructionHelper.get_inst_info(closest_instr, False)
+                #     self._log.debug(
+                #         self._tag,
+                #         f"[{call_level:+d}] {info:s}: Closest assignment instruction found to be '{closest_info:s}'"
+                #     )
+                #     # Forward slice variable usage
+                #     self._inst_graph.add_node(inst, call_level, caller_site)
+                #     self._inst_graph.add_node(closest_instr, call_level, caller_site)
+                #     self._inst_graph.add_edge(inst, closest_instr)
+                #     for var_usage in closest_instr.dest.use_sites:
+                #         # Only evaluate variable usage before the current instruction
+                #         # This likely introduces false positive since the variable 
+                #         # might be used for different purposes (e.g. buffer reuse)
+                #         if var_usage.address < inst.address:
+                #             var_usage_info = InstructionHelper.get_inst_info(var_usage)
+                #             self._inst_graph.add_node(var_usage, call_level, caller_site)
+                #             self._inst_graph.add_edge(closest_instr, var_usage)
+                #             self._log.debug(
+                #                 self._tag,
+                #                 f"[{call_level:+d}] {info:s}: Variable '{str(closest_instr.dest.var):s}#{closest_instr.dest.version:d}' used in '{var_usage_info:s}'"
+                #             )
+                #             self._slice_backwards(var_usage, call_level, caller_site)
+                # else:
+                #     self._log.debug(
+                #         self._tag,
+                #         f"[{call_level:+d}] {info:s}: No closest instruction found"
+                #     )
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILVarAliasedField() |
