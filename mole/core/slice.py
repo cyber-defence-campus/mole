@@ -1,7 +1,7 @@
 from __future__      import annotations
 from ..common.help   import FunctionHelper, InstructionHelper
 from ..common.log    import Logger
-from .pointers       import get_instructions_for_pointer_alias
+from .pointers       import get_instructions_for_pointer_alias, get_bb_var_addr_assignments
 from typing          import Any, Dict, Generator, List, Set, Tuple
 import binaryninja as bn
 import networkx    as nx
@@ -306,7 +306,9 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILImport()):
                 pass
             case (bn.MediumLevelILAddressOf()):
-                ptr_insts = get_instructions_for_pointer_alias(inst, inst.function)
+                # TODO: Investigate which one is better to use
+                # ptr_insts = get_instructions_for_pointer_alias(inst, inst.function)
+                ptr_insts = get_bb_var_addr_assignments(inst)
                 self._log.debug(
                     self._tag,
                     f"[{call_level:+d}] {info:s}: Found {len(ptr_insts):d} assignment instruction(s) with the same source variable address '&{str(inst.src):s}'"
