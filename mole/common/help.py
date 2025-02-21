@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools  import lru_cache
 from typing     import Dict, List, Optional, Set
 import binaryninja as bn
 
@@ -72,6 +73,7 @@ class InstructionHelper:
     """
 
     @staticmethod
+    @lru_cache(maxsize=None)
     def format_inst(
             inst: bn.MediumLevelILInstruction
         ) -> str:
