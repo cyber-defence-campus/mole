@@ -622,21 +622,31 @@ class Controller:
     
     def log_path_diff(
             self,
+            tbl: qtw.QTableWidget,
             rows: Set[int]
         ) -> None:
         """
         TODO: This method logs the difference between two paths.
         """
-        if len(rows) != 2:
-            return
-        path0 = self._paths[rows[0]]
-        path1 = self._paths[rows[1]]
-        pass
+        if not tbl: return
+        if len(rows) != 2: return
 
+        path_id_0 = tbl.item(rows.pop(), 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path_0: Path = self._paths[path_id_0]
+        if not path_0: return
+        path_0_gen = (InstructionHelper.get_inst_info(inst) for inst in path_0.insts)
 
-        # for row in sorted(rows, reverse=True):
-        #     if row < 0: continue
-        #     del self._paths[row]
+        path_id_1 = tbl.item(rows.pop(), 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path_1: Path = self._paths[path_id_1]
+        if not path_1: return
+        path_1_gen = (InstructionHelper.get_inst_info(inst) for inst in path_1.insts)
+
+        diff = difflib.ndiff(list(path_0_gen), list(path_1_gen))
+        for line in diff:
+            self._log.debug(
+                self._tag,
+                line
+            )
 
         # if row < 0 or col < 0 or col > 7: return
         # path = self._paths[row]

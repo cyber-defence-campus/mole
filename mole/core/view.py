@@ -178,7 +178,7 @@ class SidebarWidget(bnui.SidebarWidget):
             elif menu_action == menu_action_log_path:
                 self._ctr.log_path(tbl, row, col)
             elif menu_action == menu_action_log_path_diff:
-                self._ctr.log_path_diff(rows)
+                self._ctr.log_path_diff(tbl, rows)
             elif menu_action == menu_action_highlight_path:
                 self._ctr.highlight_path(self._bv, tbl, row, col)
             elif menu_action == menu_action_show_call_graph:
