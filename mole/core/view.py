@@ -127,10 +127,10 @@ class SidebarWidget(bnui.SidebarWidget):
             vf = ctx.getCurrentViewFrame()
             if not vf: return
             if not tbl: return
-            if col in [0, 1]:
-                vf.navigate(bv, int(tbl.item(row, 0).text(), 16))
-            elif col in [2, 3, 4]:
-                vf.navigate(bv, int(tbl.item(row, 2).text(), 16))            
+            if col in [1, 2]:
+                vf.navigate(bv, int(tbl.item(row, 1).text(), 16))
+            elif col in [3, 4, 5]:
+                vf.navigate(bv, int(tbl.item(row, 3).text(), 16))            
             return
         
         def _show_context_menu(tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
@@ -146,6 +146,7 @@ class SidebarWidget(bnui.SidebarWidget):
             menu_action_import_paths = None
             menu_action_export_paths = None
             menu_action_log_path = None
+            menu_action_log_path_diff = None
             menu_action_highlight_path = None
             menu_action_show_call_graph = None
             menu_action_remove_selected_path = None
@@ -153,6 +154,9 @@ class SidebarWidget(bnui.SidebarWidget):
 
             if len(rows) == 1 and row >= 0 and col >= 0:
                 menu_action_log_path = menu.addAction("Log instructions")
+            if len(rows) == 2:
+                menu_action_log_path_diff = menu.addAction("Log instruction difference")
+            if len(rows) == 1 and row >= 0 and col >= 0:
                 menu_action_highlight_path = menu.addAction("Un-/highlight instructions")
                 menu_action_show_call_graph = menu.addAction("Show call graph")
                 menu.addSeparator()
@@ -173,6 +177,8 @@ class SidebarWidget(bnui.SidebarWidget):
                 self._ctr.export_paths(self._bv, tbl, rows)
             elif menu_action == menu_action_log_path:
                 self._ctr.log_path(tbl, row, col)
+            elif menu_action == menu_action_log_path_diff:
+                self._ctr.log_path_diff(rows)
             elif menu_action == menu_action_highlight_path:
                 self._ctr.highlight_path(self._bv, tbl, row, col)
             elif menu_action == menu_action_show_call_graph:
@@ -186,13 +192,14 @@ class SidebarWidget(bnui.SidebarWidget):
         res_tbl = qtw.QTableWidget()
         res_tbl.setSelectionMode(qtw.QAbstractItemView.SelectionMode.ExtendedSelection)
         res_tbl.setSelectionBehavior(qtw.QAbstractItemView.SelectionBehavior.SelectRows)
+        res_tbl.setSortingEnabled(True)
+        res_tbl.verticalHeader().setVisible(False)
         res_tbl.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
         res_tbl.customContextMenuRequested.connect(
             lambda pos: _show_context_menu(res_tbl, pos)
         )
-        res_tbl.setColumnCount(9)
-        res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Lines", "Phis", "Branches", "Comment"])
-        res_tbl.setSortingEnabled(True)
+        res_tbl.setColumnCount(10)
+        res_tbl.setHorizontalHeaderLabels(["Index", "Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Insts", "Phis", "Branches", "Comment"])
         res_tbl.cellDoubleClicked.connect(
             lambda row, col: _navigate(self._bv, res_tbl, row, col)
         )

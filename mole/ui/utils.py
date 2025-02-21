@@ -1,18 +1,22 @@
 from __future__   import annotations
+import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
 
-
-class NumericTableWidgetItem(qtw.QTableWidgetItem):
+    
+class IntTableWidgetItem(qtw.QTableWidgetItem):
     """
-    This class implements table items that can be sorted numerically.
+    This class implements a custom `qtw.QTableWidgetItem` for sorting integers numerically.
     """
 
-    def __init__(self, value: str) -> None:
-        super().__init__(value)
-        self.int_value = int(value, base=0)
+    def __init__(self, value: int, as_hex=False) -> None:
+        if as_hex:
+            super().__init__(f"0x{value:x}")
+        else:
+            super().__init__(f"{value:d}")
+        self.setData(qtc.Qt.ItemDataRole.UserRole, value)
         return
-
-    def __lt__(self, other: NumericTableWidgetItem) -> bool:
-        if isinstance(other, NumericTableWidgetItem):
-            return other.int_value < self.int_value
+    
+    def __lt__(self, other: IntTableWidgetItem):
+        if isinstance(other, IntTableWidgetItem):
+            return other.data(qtc.Qt.ItemDataRole.UserRole.UserRole) < self.data(qtc.Qt.ItemDataRole.UserRole)
         return super().__lt__(other)
