@@ -252,10 +252,11 @@ class MediumLevelILBackwardSlicer:
                     if not caller_level is None and caller_level <= call_level:
                         if caller_site != cs_inst.function:
                             continue
+                    var_info = VariableHelper.get_var_info(ssa_var)
                     cs_info = InstructionHelper.get_inst_info(cs_inst, False)
                     self._log.debug(
                         self._tag,
-                        f"Follow parameter '{ssa_var.name}#{ssa_var.version}' to caller '{cs_info:s}'"
+                        f"Follow parameter '{var_info:s}' to caller '{cs_info:s}'"
                     )
                     self._inst_graph.add_node(inst, call_level, caller_site)
                     self._inst_graph.add_node(cs_parm, call_level-1, inst.function)
@@ -312,7 +313,7 @@ class MediumLevelILBackwardSlicer:
                     inst_mem_def_into = InstructionHelper.get_inst_info(inst_mem_def, False)
                     self._log.debug(
                         self._tag,
-                        f"[{call_level:+d}] {info:s}: '{inst_mem_def_into:s}' defines current memory 'mem#{inst.ssa_memory_version:d}'"
+                        f"Current memory 'mem#{inst.ssa_memory_version:d}' defined in '{inst_mem_def_into:s}'"
                     )
                     # TODO: Rename `get_instructions_for_pointer_alias`
                     # Find all assignment instructions using the same variable address as source
@@ -323,7 +324,7 @@ class MediumLevelILBackwardSlicer:
                         if inst_mem_def in var_addr_ass_inst.dest.use_sites:
                             self._log.debug(
                                 self._tag,
-                                f"[{call_level:+d}] {info:s}: '{inst_mem_def_into:s}' uses '{var_addr_ass_inst_info:s}'"
+                                f"Follow '{inst_mem_def_into:s}' since it uses '{var_addr_ass_inst_info:s}'"
                             )
                             self._inst_graph.add_node(inst, call_level, caller_site)
                             self._inst_graph.add_node(inst_mem_def, call_level, caller_site)
