@@ -292,7 +292,7 @@ class MediumLevelILBackwardSlicer:
         if inst in self._inst_visited:
             self._log.debug(
                 self._tag,
-                f"[{call_level:+d}] {info:s}: Sliced before"
+                f"Ignore instruction '{info:s}' since sliced before"
             )
             return
         # Slice instruction
