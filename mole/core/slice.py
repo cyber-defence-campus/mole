@@ -330,6 +330,7 @@ class MediumLevelILBackwardSlicer:
                             self._inst_graph.add_node(inst_mem_def, call_level, caller_site)
                             self._inst_graph.add_edge(inst, inst_mem_def)
                             self._slice_backwards(inst_mem_def, call_level, caller_site)
+                            break
 
                 # #  Backward slice at all possible variable definitions
                 # for ssa_var in inst.function.ssa_vars:
