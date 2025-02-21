@@ -7,6 +7,7 @@
 /*
 Testcase Description:
 - pointer analysis
+- system with user-controllabel command
 */
 
 int main(int argc, char *argv[]) {

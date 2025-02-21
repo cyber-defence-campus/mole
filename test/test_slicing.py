@@ -769,7 +769,7 @@ class TestPointerAnalysis(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.analyze_binary(bv, max_call_level=3, enable_all_funs=True)
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertEqual(1, len(paths), "paths number not correctly identified")
             path = paths[0]
