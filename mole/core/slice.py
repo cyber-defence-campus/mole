@@ -316,6 +316,7 @@ class MediumLevelILBackwardSlicer:
                         f"Current memory 'mem#{inst.ssa_memory_version:d}' defined in '{inst_mem_def_into:s}'"
                     )
                     # TODO: Rename `get_instructions_for_pointer_alias`
+                    followed = False
                     # Find all assignment instructions using the same variable address as source
                     var_addr_ass_insts = get_instructions_for_pointer_alias(inst, inst.function)
                     for var_addr_ass_inst in var_addr_ass_insts:
@@ -330,7 +331,13 @@ class MediumLevelILBackwardSlicer:
                             self._inst_graph.add_node(inst_mem_def, call_level, caller_site)
                             self._inst_graph.add_edge(inst, inst_mem_def)
                             self._slice_backwards(inst_mem_def, call_level, caller_site)
+                            followed = True
                             break
+                    if not followed:
+                        self._log.debug(
+                            self._tag,
+                            f"Not following '{inst_mem_def_into:s}' since it seems not to use the current variable"
+                        )
 
                 # #  Backward slice at all possible variable definitions
                 # for ssa_var in inst.function.ssa_vars:
@@ -479,11 +486,11 @@ class MediumLevelILBackwardSlicer:
                                             self._slice_backwards(func_inst, call_level+1, inst.function)
                                         # Imported function
                                         elif symb.type == bn.SymbolType.ImportedFunctionSymbol:
-                                            for par in inst.params:
+                                            for par_idx, par in enumerate(inst.params):
                                                 par_info = InstructionHelper.get_inst_info(par, False)
                                                 self._log.debug(
                                                     self._tag,
-                                                    f"Follow parameter '{par_info:s}' of imported function '{call_info:s}'"
+                                                    f"Follow parameter {par_idx:d} '{par_info:s}' of imported function '{call_info:s}'"
                                                 )
                                                 self._inst_graph.add_node(inst, call_level, caller_site)
                                                 self._inst_graph.add_node(par, call_level, caller_site)
@@ -496,11 +503,11 @@ class MediumLevelILBackwardSlicer:
                             pass
                     # Indirect function calls
                     case (bn.MediumLevelILVarSsa()):
-                        for par in inst.params:
+                        for par_idx, par in enumerate(inst.params):
                             par_info = InstructionHelper.get_inst_info(par, False)
                             self._log.debug(
                                 self._tag,
-                                f"Follow parameter '{par_info:s}' of indirect function call '{call_info:s}'"
+                                f"Follow parameter {par_idx:d} '{par_info:s}' of indirect function call '{call_info:s}'"
                             )
                             self._inst_graph.add_node(inst, call_level, caller_site)
                             self._inst_graph.add_node(par, call_level, caller_site)
