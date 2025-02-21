@@ -72,6 +72,26 @@ class InstructionHelper:
     """
 
     @staticmethod
+    def format_inst(
+            inst: bn.MediumLevelILInstruction
+        ) -> str:
+        """
+        This method replaces function addresses with their names.
+        """
+        formatted_tokens = []
+        for token in inst.tokens:
+            match token.type:
+                case bn.InstructionTextTokenType.PossibleAddressToken:
+                    func = inst.function.view.get_function_at(token.value)
+                    if func:
+                        formatted_tokens.append(func.name)
+                    else:
+                        formatted_tokens.append(token.text)
+                case _:
+                    formatted_tokens.append(token.text)
+        return "".join(formatted_tokens)
+
+    @staticmethod
     def get_inst_info(
             inst: bn.MediumLevelILInstruction,
             with_class_name: bool = True
@@ -79,7 +99,7 @@ class InstructionHelper:
         """
         This method returns a string with information about the instruction `inst`.
         """
-        info = f"0x{inst.instr.address:x} {str(inst):s}"
+        info = f"0x{inst.instr.address:x} {InstructionHelper.format_inst(inst):s}"
         if with_class_name:
             info = f"{info:s} ({inst.__class__.__name__:s})"
         return info
