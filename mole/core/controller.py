@@ -4,7 +4,7 @@ from ..common.log      import Logger
 from ..ui.graph        import GraphWidget
 from ..ui.utils        import IntTableWidgetItem
 from .data             import *
-from typing            import Dict, List, Literal, Set
+from typing            import Dict, List, Literal
 import binaryninja       as bn
 import copy              as copy
 import difflib           as difflib
@@ -541,7 +541,7 @@ class Controller:
             self,
             bv: bn.BinaryView,
             tbl: qtw.QTableWidget,
-            rows: Set[int]
+            rows: List[int]
         ) -> None:
         """
         This method exports paths to a file.
@@ -593,15 +593,14 @@ class Controller:
     def log_path(
             self,
             tbl: qtw.QTableWidget,
-            row: int,
-            col: int
+            rows: List[int]
         ) -> None:
         """
         This method logs information about a path.
         """
         if not tbl: return
-        if row < 0 or col < 0 or col > 8: return
-        path_id = tbl.item(row, 0).data(qtc.Qt.ItemDataRole.UserRole)
+        if len(rows) != 1: return
+        path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path = self._paths[path_id]
         if not path: return
         msg = f"Path: {str(path):s}"
@@ -623,7 +622,7 @@ class Controller:
     def log_path_diff(
             self,
             tbl: qtw.QTableWidget,
-            rows: Set[int]
+            rows: List[int]
         ) -> None:
         """
         TODO: This method logs the difference between two paths.
@@ -631,12 +630,12 @@ class Controller:
         if not tbl: return
         if len(rows) != 2: return
 
-        path_id_0 = tbl.item(rows.pop(), 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path_id_0 = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path_0: Path = self._paths[path_id_0]
         if not path_0: return
         path_0_gen = (InstructionHelper.get_inst_info(inst) for inst in path_0.insts)
 
-        path_id_1 = tbl.item(rows.pop(), 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path_id_1 = tbl.item(rows[1], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path_1: Path = self._paths[path_id_1]
         if not path_1: return
         path_1_gen = (InstructionHelper.get_inst_info(inst) for inst in path_1.insts)
@@ -671,15 +670,14 @@ class Controller:
             self,
             bv: bn.BinaryView,
             tbl: qtw.QTableWidget,
-            row: int,
-            col: int
+            rows: List[int]
         ) -> None:
         """
         This method highlights all instructions in a path.
         """
         if not tbl: return
-        if row < 0 or col < 0: return
-        path_id = tbl.item(row, 0).data(qtc.Qt.ItemDataRole.UserRole)
+        if len(rows) != 1: return
+        path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path = self._paths[path_id]
         if not path: return
         undo_action = bv.begin_undo_actions()
@@ -709,7 +707,7 @@ class Controller:
                 if not addr in insts_colors:
                     insts_colors[addr] = (inst, func.get_instr_highlight(addr))
                 func.set_user_instr_highlight(addr, color)
-            self._log.info(self._tag, f"Highlighted instructions of path {row:d}")
+            self._log.info(self._tag, f"Highlighted instructions of path {rows[0]:d}")
         self._paths_highlight = (highlighted_path, insts_colors)
         bv.forget_undo_actions(undo_action)
         return
@@ -718,31 +716,30 @@ class Controller:
             self,
             bv: bn.BinaryView,
             tbl: qtw.QTableWidget,
-            row: int,
-            col: int,
+            rows: List[int],
             wid: qtw.QTabWidget
         ) -> None:
         """
         This method shows the graph of a path.
         """
         if not tbl: return
-        if row < 0 or col < 0: return
-        path_id = tbl.item(row, 0).data(qtc.Qt.ItemDataRole.UserRole)
+        if len(rows) != 1: return
+        path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path = self._paths[path_id]
         if not path: return
         for idx in range(wid.count()):
             if wid.tabText(idx) == "Graph":
                 graph_widget: GraphWidget = wid.widget(idx)
-                graph_widget.load_path(bv, path, row+1)
+                graph_widget.load_path(bv, path, path_id)
                 wid.setCurrentWidget(graph_widget)
                 return
-        self._log.info(self._tag, f"Showing call graph of path {row:d}")
+        self._log.info(self._tag, f"Showing call graph of path {rows[0]:d}")
         return
 
     def remove_selected_paths(
             self,
             tbl: qtw.QTableWidget,
-            rows: Set[int]
+            rows: List[int]
         ) -> None:
         """
         This method removes the paths at rows `rows` from the table `tbl`.
