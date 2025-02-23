@@ -14,6 +14,7 @@ import json              as json
 import os                as os
 import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
+import shutil            as shu
 import yaml              as yaml
 
 
@@ -625,45 +626,50 @@ class Controller:
             rows: List[int]
         ) -> None:
         """
-        TODO: This method logs the difference between two paths.
+        This method logs the difference between two paths.
         """
         if not tbl: return
         if len(rows) != 2: return
 
-        path_id_0 = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
-        path_0: Path = self._paths[path_id_0]
+        # Get instructions of path 0
+        path_0_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path_0: Path = self._paths[path_0_id]
         if not path_0: return
-        path_0_gen = (InstructionHelper.get_inst_info(inst) for inst in path_0.insts)
+        path_0_insts = [InstructionHelper.get_inst_info(inst, False) for inst in path_0.insts] 
 
-        path_id_1 = tbl.item(rows[1], 0).data(qtc.Qt.ItemDataRole.UserRole)
-        path_1: Path = self._paths[path_id_1]
+        # Get instructions of path 1
+        path_1_id = tbl.item(rows[1], 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path_1: Path = self._paths[path_1_id]
         if not path_1: return
-        path_1_gen = (InstructionHelper.get_inst_info(inst) for inst in path_1.insts)
+        path_1_insts = [InstructionHelper.get_inst_info(inst, False) for inst in path_1.insts]
 
-        diff = difflib.ndiff(list(path_0_gen), list(path_1_gen))
+        # Get terminal width and calculate column width
+        ter_width = shu.get_terminal_size().columns
+        col_width = ter_width // 2 - 2
+
+        # Compare paths
+        lft_col = []
+        rgt_col = []
+        diff = difflib.ndiff(path_0_insts, path_1_insts)
         for line in diff:
+            if line.startswith("- "):
+                lft_col.append(line[2:])
+                rgt_col.append("")
+            elif line.startswith("+ "):
+                lft_col.append("")
+                rgt_col.append(line[2:])
+            elif line.startswith("? "):
+                continue
+            else:
+                lft_col.append(line[2:])
+                rgt_col.append(line[2:])
+
+        # Log differences side by side
+        for lft, rgt in zip(lft_col, rgt_col):
             self._log.debug(
                 self._tag,
-                line
+                f"{lft:<{col_width}} | {rgt:<{col_width}}"
             )
-
-        # if row < 0 or col < 0 or col > 7: return
-        # path = self._paths[row]
-        # if not path: return
-        # msg = f"Path: {str(path):s}"
-        # msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
-        # self._log.info(self._tag, msg)
-        # self._log.debug(self._tag, "--- Backward Slice ---")
-        # basic_block = None
-        # for inst in path.insts:
-        #     if inst.il_basic_block != basic_block:
-        #         basic_block = inst.il_basic_block
-        #         fun_name = basic_block.function.name
-        #         bb_addr = basic_block[0].address
-        #         self._log.debug(self._tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
-        #     self._log.debug(self._tag, InstructionHelper.get_inst_info(inst))
-        # self._log.debug(self._tag, "----------------------")
-        # self._log.debug(self._tag, msg)
         return
     
     def highlight_path(
