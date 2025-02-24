@@ -651,6 +651,14 @@ class Controller:
         lft_col = []
         rgt_col = []
         diff = difflib.ndiff(path_0_insts, path_1_insts)
+        path_0_msg = f"Path: {str(path_0):s}"
+        path_0_msg = f"{path_0_msg:s} [L:{len(path_0.insts):d},P:{len(path_0.phiis):d},B:{len(path_0.bdeps):d}]!"
+        lft_col.append(path_0_msg)
+        lft_col.append("-----")
+        path_1_msg = f"Path: {str(path_1):s}"
+        path_1_msg = f"{path_1_msg:s} [L:{len(path_1.insts):d},P:{len(path_1.phiis):d},B:{len(path_1.bdeps):d}]!"
+        rgt_col.append(path_1_msg)
+        rgt_col.append("-----")
         for line in diff:
             if line.startswith("- "):
                 lft_col.append(line[2:])
