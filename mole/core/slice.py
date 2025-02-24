@@ -1,4 +1,5 @@
 from __future__      import annotations
+from collections import defaultdict
 from ..common.help   import FunctionHelper, InstructionHelper, VariableHelper
 from ..common.log    import Logger
 from .pointers       import get_instructions_for_pointer_alias, get_bb_var_addr_assignments
@@ -212,6 +213,7 @@ class MediumLevelILBackwardSlicer:
         self._tag: str = tag
         self._log: Logger = log
         self._inst_visited: Set[bn.MediumLevelILInstruction] = set()
+        self._processed_aliases: Dict[Tuple[bn.MediumLevelILFunction, int], Set[bn.MediumLevelILAddressOf]] = defaultdict(set)
         self._inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph(tag, log)
         self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph(tag, log)
         return
@@ -307,8 +309,21 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILImport()):
                 pass
             case (bn.MediumLevelILAddressOf()):
+                # Initialize processed version for the current memory version if not already done
+                alias_key = (inst.function, inst.ssa_memory_version)
+                self._processed_aliases.setdefault(alias_key, set())
+                # Skip if this alias has already been traced before
+                # TODO: This alias might be useful for highlighting purposes in the future
+                if inst.src in self._processed_aliases[alias_key]:
+                    self._log.warn(
+                        self._tag,
+                        f"Skipping alias '{str(inst.src):s}' since it was already traced before"
+                    )
+                    return
+
                 # Find instruction defining the current memory version
                 inst_mem_def = inst.function.get_ssa_memory_definition(inst.ssa_memory_version)
+
                 if inst_mem_def:
                     inst_mem_def_into = InstructionHelper.get_inst_info(inst_mem_def, False)
                     self._log.debug(
@@ -319,6 +334,7 @@ class MediumLevelILBackwardSlicer:
                     followed = False
                     # Find all assignment instructions using the same variable address as source
                     var_addr_ass_insts = get_instructions_for_pointer_alias(inst, inst.function)
+
                     for var_addr_ass_inst in var_addr_ass_insts:
                         var_addr_ass_inst_info = InstructionHelper.get_inst_info(var_addr_ass_inst, False)
                         # Memory defining instruction is a use site of a destination variable
@@ -330,6 +346,11 @@ class MediumLevelILBackwardSlicer:
                             self._inst_graph.add_node(inst, call_level, caller_site)
                             self._inst_graph.add_node(inst_mem_def, call_level, caller_site)
                             self._inst_graph.add_edge(inst, inst_mem_def)
+
+                            # Prevent slicing further to avoid duplicates in paths due to pointer aliases
+                            # Ensure we slice the same pointer (same version) only once
+                            self._processed_aliases[alias_key].add(var_addr_ass_inst.src.src)
+
                             self._slice_backwards(inst_mem_def, call_level, caller_site)
                             followed = True
                             break
@@ -338,7 +359,8 @@ class MediumLevelILBackwardSlicer:
                             self._tag,
                             f"Not following '{inst_mem_def_into:s}' since it seems not to use the current variable"
                         )
-
+                else:
+                    self._log.warn(self._tag, f"No SSA memory definition found for {inst}:{inst.ssa_memory_version:d}")
                 # #  Backward slice at all possible variable definitions
                 # for ssa_var in inst.function.ssa_vars:
                 #     if ssa_var.var == inst.src:
