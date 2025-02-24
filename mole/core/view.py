@@ -325,6 +325,19 @@ class SidebarWidget(bnui.SidebarWidget):
             mcl_lbl = qtw.QLabel(f"{mcl_name:s}:")
             mcl_lbl.setToolTip(mcl.help)
             com_lay.addRow(mcl_lbl, mcl.widget)
+        msd_name = "max_slice_depth"
+        msd = settings.get(msd_name, None)
+        if msd:
+            msd.widget = qtw.QSpinBox()
+            msd.widget.setRange(msd.min_value, msd.max_value)
+            msd.widget.setValue(msd.value)
+            msd.widget.setToolTip(msd.help)
+            msd.widget.valueChanged.connect(
+                lambda value, setting=msd: self._ctr.spinbox_change_value(setting, value)
+            )
+            msd_lbl = qtw.QLabel(f"{msd_name:s}:")
+            msd_lbl.setToolTip(msd.help)
+            com_lay.addRow(msd_lbl, msd.widget)
         com_wid.setLayout(com_lay)
         com_box_lay = qtw.QVBoxLayout()
         com_box_lay.addWidget(com_wid)

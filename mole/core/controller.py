@@ -174,6 +174,23 @@ class Controller:
                         max_value=mfd_max_value
                     )
                 })
+            msd_name = "max_slice_depth"
+            msd_settings = settings.get(msd_name, None)
+            if msd_settings:
+                msd_value = int(msd_settings.get("value", None))
+                msd_min_value = int(msd_settings.get("min_value", None))
+                msd_max_value = int(msd_settings.get("max_value", None))
+                msd_value = min(max(msd_value, msd_min_value), msd_max_value)
+                msd_help = msd_settings.get("help", "")
+                parsed_conf["settings"].update({
+                    msd_name: SpinboxSetting(
+                        name=msd_name,
+                        value=msd_value,
+                        help=msd_help,
+                        min_value=msd_min_value,
+                        max_value=msd_max_value
+                    )
+                })
             col_name = "highlight_color"
             col_settings = settings.get(col_name, None)
             if col_settings:
@@ -394,6 +411,7 @@ class Controller:
             self,
             bv: bn.BinaryView,
             max_call_level: int = None,
+            max_slice_depth: int = None,
             enable_all_funs: bool = False,
             but: qtw.QPushButton = None,
             tbl: qtw.QTableWidget = None
@@ -426,6 +444,7 @@ class Controller:
             ctr=self,
             runs_headless=self._runs_headless,
             max_call_level=max_call_level,
+            max_slice_depth=max_slice_depth,
             enable_all_funs=enable_all_funs,
             log=self._log
         )
@@ -794,6 +813,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             ctr: Controller,
             runs_headless: bool = False,
             max_call_level: int = None,
+            max_slice_depth: int = None,
             enable_all_funs: bool = False,
             tag: str = "BackSlicer",
             log: Logger = Logger()
@@ -806,6 +826,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         self._ctr: Controller = ctr
         self._runs_headless: bool = runs_headless
         self._max_call_level: int = max_call_level
+        self._max_slice_depth: int = max_slice_depth
         self._enable_all_funs: bool = enable_all_funs
         self._tag: str = tag
         self._log: Logger = log
@@ -833,11 +854,12 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         if not snk_funs:
             self._log.warn(self._tag, "No sink functions configured")
 
+        # Settings
+        settings = self._ctr.get_settings()
+        max_call_level = self._max_call_level if self._max_call_level is not None else settings.get("max_call_level").value
+        max_slice_depth = self._max_slice_depth if self._max_slice_depth is not None else settings.get("max_slice_depth").value
+        
         # Find paths
-        max_call_level = self._max_call_level
-        if max_call_level is None:
-            settings = self._ctr.get_settings()
-            max_call_level = settings.get("max_call_level").value
         if src_funs and snk_funs:
             for i, snk_fun in enumerate(snk_funs):
                 if self.cancelled: break
@@ -846,6 +868,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                     bv=self._bv,
                     sources=src_funs,
                     max_call_level=max_call_level,
+                    max_slice_depth=max_slice_depth,
                     found_path=self._ctr.add_path_to_view,
                     canceled=lambda:self.cancelled,
                     tag=self._tag,

@@ -569,19 +569,22 @@ class MediumLevelILBackwardSlicer:
     def find_paths(
             self,
             snk_inst: bn.MediumLevelILInstruction,
-            src_inst: bn.MediumLevelILInstruction
+            src_inst: bn.MediumLevelILInstruction,
+            max_slice_depth: int
         ) -> List[Tuple[List[bn.MediumLevelILInstruction], MediumLevelILFunctionGraph]]:
         """
-        This method finds all simple paths from `snk_inst` to `src_inst`. For each found path, the
-        following is returned: First, a list of instructions belonging to the path. And second, a
-        function call graph, where nodes and edges belonging to the path, have an attribute
-        `in_path` set to `True`.
-        """  
+        This method finds all simple paths from `snk_inst` to `src_inst`, with optionally limiting
+        path length by `max_slice_depth`. For each found path, the following is returned: First, a
+        list of instructions belonging to the path. And second, a function call graph, where nodes
+        and edges belonging to the path, have an attribute `in_path` set to `True`.
+        """
         paths = []
         # Find all simple paths
         try:
+            if max_slice_depth is not None and max_slice_depth < 0:
+                max_slice_depth = None
             simple_paths: List[List[bn.MediumLevelILInstruction]] = list(
-                nx.all_simple_paths(self._inst_graph, snk_inst, src_inst)
+                nx.all_simple_paths(self._inst_graph, snk_inst, src_inst, max_slice_depth)
             )
         except (nx.NodeNotFound, nx.NetworkXNoPath):
             return paths

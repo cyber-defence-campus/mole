@@ -34,6 +34,11 @@ def main() -> None:
         help="backward slicing visits called functions up to the given level"
     )
     parser.add_argument(
+        "--max_slice_depth",
+        type=int, default=None,
+        help="maximum slice depth to stop the search"
+    )
+    parser.add_argument(
         "--export_paths_to_json_file",
         help="export identified paths in JSON format"
     )
@@ -51,7 +56,7 @@ def main() -> None:
         bv = bn.load(args.file)
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
-        paths = ctr.find_paths(bv, args.max_call_level)
+        paths = ctr.find_paths(bv, args.max_call_level, args.max_slice_depth)
         # Export identified paths
         if args.export_paths_to_yml_file or args.export_paths_to_json_file:
             # Calculate SHA1 hash of binary
