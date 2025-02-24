@@ -756,10 +756,19 @@ class TestPointerAnalysis(TestCase):
             self,
             filenames: List[str] = ["pointer_analysis-02"]
         ) -> None:
-        self.test_pointer_analysis_01(filenames)
+        for file in load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertEqual(1, len(paths), "paths number not correctly identified")
+            first_path = paths[0]
+            self.assertIn(first_path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+            self.assertIn(first_path.snk_sym_name, ["system"], "sink has symbol 'system'")
         return
     
-    @unittest.expectedFailure
     def test_pointer_analysis_03(
             self,
             filenames: List[str] = ["pointer_analysis-03"]
@@ -799,6 +808,29 @@ class TestPointerAnalysis(TestCase):
                     calls.append(call)
             calls.append(path.src_sym_name)
             self.assertEqual(calls, ["system", "main", "getenv"], "call chain")
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_pointer_analysis_04(
+            self,
+            filenames: List[str] = ["pointer_analysis-04"]
+        ) -> None:
+        for file in load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertEqual(2, len(paths), "paths number not correctly identified")
+            first_path = paths[0]
+            self.assertIn(first_path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+            self.assertIn(first_path.snk_sym_name, ["system"], "sink has symbol 'system'")
+            second_path = paths[1]
+            self.assertIn(second_path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+            self.assertIn(second_path.snk_sym_name, ["system"], "sink has symbol 'system'")
+
             # Close test binary
             bv.file.close()
         return
