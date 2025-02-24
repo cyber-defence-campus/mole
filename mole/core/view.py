@@ -127,10 +127,10 @@ class SidebarWidget(bnui.SidebarWidget):
             vf = ctx.getCurrentViewFrame()
             if not vf: return
             if not tbl: return
-            if col in [0, 1]:
-                vf.navigate(bv, int(tbl.item(row, 0).text(), 16))
-            elif col in [2, 3, 4]:
-                vf.navigate(bv, int(tbl.item(row, 2).text(), 16))            
+            if col in [1, 2]:
+                vf.navigate(bv, int(tbl.item(row, 1).text(), 16))
+            elif col in [3, 4, 5]:
+                vf.navigate(bv, int(tbl.item(row, 3).text(), 16))            
             return
         
         def _show_context_menu(tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
@@ -138,45 +138,50 @@ class SidebarWidget(bnui.SidebarWidget):
             This method shows a custom context menu.
             """
             if tbl is None: return
-            rows = {index.row() for index in tbl.selectionModel().selectedIndexes()}
+            rows = list({index.row() for index in tbl.selectionModel().selectedIndexes()})
             row = tbl.indexAt(pos).row()
             col = tbl.indexAt(pos).column()
 
             menu = qtw.QMenu(tbl)
-            menu_action_import_paths = None
-            menu_action_export_paths = None
-            menu_action_log_path = None
-            menu_action_highlight_path = None
-            menu_action_show_call_graph = None
-            menu_action_remove_selected_path = None
-            menu_action_remove_all_paths = None
-
-            if len(rows) == 1 and row >= 0 and col >= 0:
-                menu_action_log_path = menu.addAction("Log instructions")
-                menu_action_highlight_path = menu.addAction("Un-/highlight instructions")
-                menu_action_show_call_graph = menu.addAction("Show call graph")
-                menu.addSeparator()
-            menu_action_import_paths = menu.addAction("Import from file")
-            if tbl.rowCount() > 0:
-                menu_action_export_paths = menu.addAction("Export to file")
+            menu_action_log_path = menu.addAction("Log instructions")
+            if len(rows) != 1:
+                menu_action_log_path.setEnabled(False)
+            menu_action_log_path_diff = menu.addAction("Log instruction difference")
+            if len(rows) != 2:
+                menu_action_log_path_diff.setEnabled(False)
             menu.addSeparator()
-            if rows and row >= 0 and col >= 0:
-                menu_action_remove_selected_path = menu.addAction("Remove selected")
-            if tbl.rowCount() > 0:
-                menu_action_remove_all_paths = menu.addAction("Remove all")
+            menu_action_highlight_path = menu.addAction("Un-/highlight instructions")
+            menu_action_show_call_graph = menu.addAction("Show call graph")
+            if len(rows) != 1:
+                menu_action_highlight_path.setEnabled(False)
+                menu_action_show_call_graph.setEnabled(False)
+            menu.addSeparator()
+            menu_action_import_paths = menu.addAction("Import from file")
+            menu_action_export_paths = menu.addAction("Export to file")
+            if tbl.rowCount() <= 0:
+                menu_action_export_paths.setEnabled(False)
+            menu.addSeparator()
+            menu_action_remove_selected_path = menu.addAction("Remove selected")
+            if len(rows) <= 0:
+                menu_action_remove_selected_path.setEnabled(False)
+            menu_action_remove_all_paths = menu.addAction("Remove all")
+            if tbl.rowCount() <= 0:
+                menu_action_remove_all_paths.setEnabled(False)
 
             menu_action = menu.exec(tbl.mapToGlobal(pos))
             if not menu_action: return
-            if menu_action == menu_action_import_paths:
+            if menu_action == menu_action_log_path:
+                self._ctr.log_path(tbl, rows)
+            elif menu_action == menu_action_log_path_diff:
+                self._ctr.log_path_diff(tbl, rows)
+            elif menu_action == menu_action_highlight_path:
+                self._ctr.highlight_path(self._bv, tbl, rows)
+            elif menu_action == menu_action_show_call_graph:
+                self._ctr.show_call_graph(self._bv, tbl, rows, self._wid)
+            elif menu_action == menu_action_import_paths:
                 self._ctr.import_paths(self._bv, tbl)
             elif menu_action == menu_action_export_paths:
                 self._ctr.export_paths(self._bv, tbl, rows)
-            elif menu_action == menu_action_log_path:
-                self._ctr.log_path(tbl, row, col)
-            elif menu_action == menu_action_highlight_path:
-                self._ctr.highlight_path(self._bv, tbl, row, col)
-            elif menu_action == menu_action_show_call_graph:
-                self._ctr.show_call_graph(self._bv, tbl, row, col, self._wid)
             elif menu_action == menu_action_remove_selected_path:
                 self._ctr.remove_selected_paths(tbl, rows)
             elif menu_action == menu_action_remove_all_paths:
@@ -188,13 +193,14 @@ class SidebarWidget(bnui.SidebarWidget):
         res_tbl = qtw.QTableWidget()
         res_tbl.setSelectionMode(qtw.QAbstractItemView.SelectionMode.ExtendedSelection)
         res_tbl.setSelectionBehavior(qtw.QAbstractItemView.SelectionBehavior.SelectRows)
+        res_tbl.setSortingEnabled(True)
+        res_tbl.verticalHeader().setVisible(False)
         res_tbl.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
         res_tbl.customContextMenuRequested.connect(
             lambda pos: _show_context_menu(res_tbl, pos)
         )
-        res_tbl.setColumnCount(9)
-        res_tbl.setHorizontalHeaderLabels(["Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Lines", "Phis", "Branches", "Comment"])
-        res_tbl.setSortingEnabled(True)
+        res_tbl.setColumnCount(10)
+        res_tbl.setHorizontalHeaderLabels(["Index", "Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Insts", "Phis", "Branches", "Comment"])
         res_tbl.cellDoubleClicked.connect(
             lambda row, col: _navigate(self._bv, res_tbl, row, col)
         )
