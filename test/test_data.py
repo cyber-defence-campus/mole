@@ -65,6 +65,13 @@ class TestData(unittest.TestCase):
                     max_value=99,
                     help="backward slicing visits called functions up to the given level"
                 ),
+                "max_slice_depth": SpinboxSetting(
+                    name="max_slice_depth",
+                    value=-1,
+                    min_value=-1,
+                    max_value=9999,
+                    help="maximum slice depth to stop the search"
+                ),
                 "highlight_color": ComboboxSetting(
                     name="highlight_color",
                     value="Red",
@@ -176,10 +183,14 @@ class TestData(unittest.TestCase):
         return
     
     def test_serialize_spinbox_settings(self) -> None:
-        setting = self.conf.settings["max_call_level"]
+        settings = {
+            "max_call_level": self.conf.settings["max_call_level"].to_dict(),
+            "max_slice_depth": self.conf.settings["max_slice_depth"].to_dict()
+        }
+
         # Serialize
         yaml.safe_dump(
-            setting.to_dict(),
+            settings,
             self.tf,
             sort_keys=False,
             default_style=None,
@@ -190,7 +201,7 @@ class TestData(unittest.TestCase):
         self.tf.seek(0)
         ydoc = yaml.safe_load(self.tf)
         # Assert
-        self.assertEqual(ydoc, setting, "Serialization error of 'SpinboxSetting'")
+        self.assertEqual(ydoc, settings, "Serialization error of 'SpinboxSetting'")
         return
     
     def test_serialize_combobox_settings(self) -> None:
