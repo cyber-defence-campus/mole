@@ -2,17 +2,19 @@ from __future__        import annotations
 from ..common.parse    import LogicalExpressionParser
 from ..common.log      import Logger
 from ..ui.graph        import GraphWidget
-from ..ui.utils        import NumericTableWidgetItem
+from ..ui.utils        import IntTableWidgetItem
 from .data             import *
-from typing            import Dict, List, Literal, Set
+from typing            import Dict, List, Literal
 import binaryninja       as bn
 import copy              as copy
+import difflib           as difflib
 import fnmatch           as fn
 import hashlib           as hashlib
 import json              as json
 import os                as os
 import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
+import shutil            as shu
 import yaml              as yaml
 
 
@@ -340,8 +342,9 @@ class Controller:
     
     def add_path_to_view(
             self,
-            path: Path
-        ) -> int:
+            path: Path,
+            comment: str = ""
+        ) -> None:
         """
         This method updates the UI with a newly identified path.
         """
@@ -352,39 +355,40 @@ class Controller:
             row = self._paths_widget.rowCount()
             self._paths_widget.setSortingEnabled(False)
             self._paths_widget.insertRow(row)
-            src_addr = NumericTableWidgetItem(f"0x{path.src_sym_addr:x}")
+            path_idx = IntTableWidgetItem(row, as_hex=False)
+            path_idx.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
+            self._paths_widget.setItem(row, 0, path_idx)
+            src_addr = IntTableWidgetItem(path.src_sym_addr, as_hex=True)
             src_addr.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 0, src_addr)
+            self._paths_widget.setItem(row, 1, src_addr)
             src_name = qtw.QTableWidgetItem(path.src_sym_name)
             src_name.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 1, src_name)
-            snk_addr = NumericTableWidgetItem(f"0x{path.snk_sym_addr:x}")
+            self._paths_widget.setItem(row, 2, src_name)
+            snk_addr = IntTableWidgetItem(path.snk_sym_addr, as_hex=True)
             snk_addr.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 2, snk_addr)
+            self._paths_widget.setItem(row, 3, snk_addr)
             snk_name = qtw.QTableWidgetItem(path.snk_sym_name)
             snk_name.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 3, snk_name)
+            self._paths_widget.setItem(row, 4, snk_name)
             snk_parm = qtw.QTableWidgetItem(f"arg#{path.snk_par_idx+1:d}:{str(path.snk_par_var):s}")
             snk_parm.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 4, snk_parm)
-            lines = NumericTableWidgetItem(f"{len(path.insts):d}")
+            self._paths_widget.setItem(row, 5, snk_parm)
+            lines = IntTableWidgetItem(len(path.insts), as_hex=False)
             lines.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 5, lines)
-            phiis = NumericTableWidgetItem(f"{len(path.phiis):d}")
+            self._paths_widget.setItem(row, 6, lines)
+            phiis = IntTableWidgetItem(len(path.phiis), as_hex=False)
             phiis.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 6, phiis)
-            bdeps = NumericTableWidgetItem(f"{len(path.bdeps):d}")
+            self._paths_widget.setItem(row, 7, phiis)
+            bdeps = IntTableWidgetItem(len(path.bdeps), as_hex=False)
             bdeps.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
-            self._paths_widget.setItem(row, 7, bdeps)
-            tag = qtw.QTableWidgetItem("")
-            self._paths_widget.setItem(row, 8, tag)
+            self._paths_widget.setItem(row, 8, bdeps)
+            cmnt = qtw.QTableWidgetItem(comment)
+            self._paths_widget.setItem(row, 9, cmnt)
             self._paths_widget.setSortingEnabled(True)
             return
         
         bn.execute_on_main_thread(update_paths_widget)
-        if not self._paths_widget:
-            return -1
-        return self._paths_widget.rowCount()-1
+        return
 
     def find_paths(
             self,
@@ -455,8 +459,7 @@ class Controller:
                 if s_path["sha1"] != sha1_hash:
                     self._log.warn(self._tag, f"Loaded path seems to origin from another binary")
                 path = Path.from_dict(bv, s_path)
-                row = self.add_path_to_view(path)
-                self._paths_widget.item(row, 8).setText(s_path["comment"])
+                self.add_path_to_view(path, s_path["comment"])
             self._log.info(self._tag, f"Loaded {len(s_paths):d} path(s)")
         except KeyError:
             self._log.info(self._tag, "No paths found")
@@ -500,8 +503,7 @@ class Controller:
                 if s_path["sha1"] != sha1_hash:
                     self._log.warn(self._tag, f"Loaded path seems to origin from another binary")
                 path = Path.from_dict(bv, s_path)
-                row = self.add_path_to_view(path)
-                self._paths_widget.item(row, 8).setText(s_path["comment"])
+                self.add_path_to_view(path, s_path["comment"])
             self._log.info(self._tag, f"Imported {len(s_paths):d} path(s)")
         except Exception as e:
             self._log.error(self._tag, f"Failed to import paths: {str(e):s}")
@@ -523,9 +525,11 @@ class Controller:
             sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
             # Serialize paths
             s_paths: List[Dict] = []
-            for idx, path in enumerate(self._paths):
+            for row in range(tbl.rowCount()):
+                path_id = tbl.item(row, 0).data(qtc.Qt.ItemDataRole.UserRole)
+                path: Path = self._paths[path_id]
                 s_path = path.to_dict()
-                s_path["comment"] = tbl.item(idx, 8).text()
+                s_path["comment"] = tbl.item(row, 9).text()
                 s_path["sha1"] = sha1_hash
                 s_paths.append(s_path)
             bv.store_metadata("mole_paths", s_paths)
@@ -538,7 +542,7 @@ class Controller:
             self,
             bv: bn.BinaryView,
             tbl: qtw.QTableWidget,
-            rows: Set[int]
+            rows: List[int]
         ) -> None:
         """
         This method exports paths to a file.
@@ -558,9 +562,11 @@ class Controller:
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         # Serialize paths
         s_paths: List[Dict] = []
-        for row in (sorted(rows) if rows else range(len(self._paths))):
-            s_path = self._paths[row].to_dict()
-            s_path["comment"] = tbl.item(row, 8).text()
+        for row in (rows if rows else range(tbl.rowCount())):
+            path_id = tbl.item(row, 0).data(qtc.Qt.ItemDataRole.UserRole)
+            path: Path = self._paths[path_id]
+            s_path = path.to_dict()
+            s_path["comment"] = tbl.item(row, 9).text()
             s_path["sha1"] = sha1_hash
             s_paths.append(s_path)
         # Open file
@@ -588,15 +594,15 @@ class Controller:
     def log_path(
             self,
             tbl: qtw.QTableWidget,
-            row: int,
-            col: int
+            rows: List[int]
         ) -> None:
         """
         This method logs information about a path.
         """
         if not tbl: return
-        if row < 0 or col < 0 or col > 7: return
-        path = self._paths[row]
+        if len(rows) != 1: return
+        path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path = self._paths[path_id]
         if not path: return
         msg = f"Path: {str(path):s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
@@ -614,19 +620,79 @@ class Controller:
         self._log.debug(self._tag, msg)
         return
     
+    def log_path_diff(
+            self,
+            tbl: qtw.QTableWidget,
+            rows: List[int]
+        ) -> None:
+        """
+        This method logs the difference between two paths.
+        """
+        if not tbl: return
+        if len(rows) != 2: return
+
+        # Get instructions of path 0
+        path_0_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path_0: Path = self._paths[path_0_id]
+        if not path_0: return
+        path_0_insts = [InstructionHelper.get_inst_info(inst, False) for inst in path_0.insts] 
+
+        # Get instructions of path 1
+        path_1_id = tbl.item(rows[1], 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path_1: Path = self._paths[path_1_id]
+        if not path_1: return
+        path_1_insts = [InstructionHelper.get_inst_info(inst, False) for inst in path_1.insts]
+
+        # Get terminal width and calculate column width
+        ter_width = shu.get_terminal_size().columns
+        col_width = ter_width // 2 - 2
+
+        # Compare paths
+        lft_col = []
+        rgt_col = []
+        diff = difflib.ndiff(path_0_insts, path_1_insts)
+        path_0_msg = f"Path: {str(path_0):s}"
+        path_0_msg = f"{path_0_msg:s} [L:{len(path_0.insts):d},P:{len(path_0.phiis):d},B:{len(path_0.bdeps):d}]!"
+        lft_col.append(path_0_msg)
+        lft_col.append("-----")
+        path_1_msg = f"Path: {str(path_1):s}"
+        path_1_msg = f"{path_1_msg:s} [L:{len(path_1.insts):d},P:{len(path_1.phiis):d},B:{len(path_1.bdeps):d}]!"
+        rgt_col.append(path_1_msg)
+        rgt_col.append("-----")
+        for line in diff:
+            if line.startswith("- "):
+                lft_col.append(line[2:])
+                rgt_col.append("")
+            elif line.startswith("+ "):
+                lft_col.append("")
+                rgt_col.append(line[2:])
+            elif line.startswith("? "):
+                continue
+            else:
+                lft_col.append(line[2:])
+                rgt_col.append(line[2:])
+
+        # Log differences side by side
+        for lft, rgt in zip(lft_col, rgt_col):
+            self._log.debug(
+                self._tag,
+                f"{lft:<{col_width}} | {rgt:<{col_width}}"
+            )
+        return
+    
     def highlight_path(
             self,
             bv: bn.BinaryView,
             tbl: qtw.QTableWidget,
-            row: int,
-            col: int
+            rows: List[int]
         ) -> None:
         """
         This method highlights all instructions in a path.
         """
         if not tbl: return
-        if row < 0 or col < 0: return
-        path = self._paths[row]
+        if len(rows) != 1: return
+        path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path = self._paths[path_id]
         if not path: return
         undo_action = bv.begin_undo_actions()
         highlighted_path, insts_colors = self._paths_highlight
@@ -655,7 +721,7 @@ class Controller:
                 if not addr in insts_colors:
                     insts_colors[addr] = (inst, func.get_instr_highlight(addr))
                 func.set_user_instr_highlight(addr, color)
-            self._log.info(self._tag, f"Highlighted instructions of path {row:d}")
+            self._log.info(self._tag, f"Highlighted instructions of path {rows[0]:d}")
         self._paths_highlight = (highlighted_path, insts_colors)
         bv.forget_undo_actions(undo_action)
         return
@@ -664,39 +730,42 @@ class Controller:
             self,
             bv: bn.BinaryView,
             tbl: qtw.QTableWidget,
-            row: int,
-            col: int,
+            rows: List[int],
             wid: qtw.QTabWidget
         ) -> None:
         """
         This method shows the graph of a path.
         """
         if not tbl: return
-        if row < 0 or col < 0: return
-        path = self._paths[row]
+        if len(rows) != 1: return
+        path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
+        path = self._paths[path_id]
         if not path: return
         for idx in range(wid.count()):
             if wid.tabText(idx) == "Graph":
                 graph_widget: GraphWidget = wid.widget(idx)
-                graph_widget.load_path(bv, path, row+1)
+                graph_widget.load_path(bv, path, path_id)
                 wid.setCurrentWidget(graph_widget)
                 return
-        self._log.info(self._tag, f"Showing call graph of path {row:d}")
+        self._log.info(self._tag, f"Showing call graph of path {rows[0]:d}")
         return
 
     def remove_selected_paths(
             self,
             tbl: qtw.QTableWidget,
-            rows: Set[int]
+            rows: List[int]
         ) -> None:
         """
         This method removes the paths at rows `rows` from the table `tbl`.
         """
         if not tbl: return
-        for row in sorted(rows, reverse=True):
+        for c, row in enumerate(sorted(rows, reverse=True)):
             if row < 0: continue
-            del self._paths[row]
+            path_id = tbl.item(row, 0).data(qtc.Qt.ItemDataRole.UserRole)
+            del self._paths[path_id-c]
             tbl.removeRow(row)
+        for row in range(tbl.rowCount()):
+            tbl.setItem(row, 0, IntTableWidgetItem(row, as_hex=False))
         self._log.info(self._tag, f"Removed {len(rows):d} path(s)")
         return
     
