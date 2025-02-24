@@ -249,6 +249,7 @@ class SinkFunction(Function):
             bv: bn.BinaryView,
             sources: List[SourceFunction],
             max_call_level: int,
+            max_slice_depth: int,
             found_path: Callable[[Path], None],
             canceled: Callable[[], bool],
             tag: str = None,
@@ -309,7 +310,7 @@ class SinkFunction(Function):
                                 for src_inst in src_insts:
                                     if canceled(): break
                                     # Find paths
-                                    for insts, call_graph in slicer.find_paths(par_var, src_inst):
+                                    for insts, call_graph in slicer.find_paths(par_var, src_inst, max_slice_depth):
                                         # Prepend sink instruction
                                         insts.insert(0, snk_inst)
                                         # Find split between sink and source originating instructions

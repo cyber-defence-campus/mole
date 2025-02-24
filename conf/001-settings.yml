@@ -5,6 +5,12 @@ settings:
     value: 3
     min_value: -1
     max_value: 99
+  max_slice_depth:
+    name: max_slice_depth
+    help: maximum slice depth to stop the search
+    value: -1
+    min_value: -1
+    max_value: 9999
   highlight_color:
     name: highlight_color
     help: color used to highlight paths
