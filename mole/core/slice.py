@@ -1,11 +1,11 @@
 from __future__      import annotations
-from collections import defaultdict
 from ..common.help   import FunctionHelper, InstructionHelper, VariableHelper
 from ..common.log    import Logger
-from .pointers       import get_instructions_for_pointer_alias, get_bb_var_addr_assignments
+from collections     import defaultdict
+from functools       import lru_cache
 from typing          import Any, Dict, Generator, List, Set, Tuple
-import binaryninja as bn
-import networkx    as nx
+import binaryninja   as bn
+import networkx      as nx
 
 
 class MediumLevelILInstructionGraph(nx.DiGraph):
@@ -330,10 +330,9 @@ class MediumLevelILBackwardSlicer:
                         self._tag,
                         f"Current memory 'mem#{inst.ssa_memory_version:d}' defined in '{inst_mem_def_into:s}'"
                     )
-                    # TODO: Rename `get_instructions_for_pointer_alias`
                     followed = False
                     # Find all assignment instructions using the same variable address as source
-                    var_addr_ass_insts = get_instructions_for_pointer_alias(inst, inst.function)
+                    var_addr_ass_insts = self.get_var_addr_assignments(inst)
 
                     for var_addr_ass_inst in var_addr_ass_insts:
                         var_addr_ass_inst_info = InstructionHelper.get_inst_info(var_addr_ass_inst, False)
@@ -610,3 +609,28 @@ class MediumLevelILBackwardSlicer:
             # Add path and call graph
             paths.append((simple_path, call_graph))
         return paths
+    
+    @lru_cache(maxsize=None)
+    def _get_var_addr_assignments(
+            self,
+            func: bn.MediumLevelILFunction
+        ) -> Dict[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
+        var_addr_assignments = {}
+        for bb in func.ssa_form:
+            for inst in bb:
+                # Match assignments of variable addresses (e.g. `var_x = &var_y`)
+                match inst:
+                    case (bn.MediumLevelILSetVarSsa(src=bn.MediumLevelILAddressOf())):
+                        var_addr_assignments.setdefault(inst.src.src, []).append(inst)
+        return var_addr_assignments
+
+    def get_var_addr_assignments(
+            self,
+            inst: bn.MediumLevelILAddressOf
+        ) -> List[bn.MediumLevelILSetVarSsa]:
+        """
+        This method returns a list of assignment instructions (`bn.MediumLevelILSetVarSSA`) that have as
+        their source the same variable address as `inst`. Only instructions within the same function as
+        `inst` are considered.
+        """
+        return self._get_var_addr_assignments(inst.function).get(inst.src, [])
