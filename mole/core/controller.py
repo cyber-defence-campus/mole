@@ -623,7 +623,7 @@ class Controller:
         path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path = self._paths[path_id]
         if not path: return
-        msg = f"Path: {str(path):s}"
+        msg = f"Path {path_id:d}: {str(path):s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         self._log.info(self._tag, msg)
         self._log.debug(self._tag, "--- Backward Slice ---")
@@ -670,14 +670,14 @@ class Controller:
         lft_col = []
         rgt_col = []
         diff = difflib.ndiff(path_0_insts, path_1_insts)
-        path_0_msg = f"Path: {str(path_0):s}"
+        path_0_msg = f"Path {path_0_id:d}: {str(path_0):s}"
         path_0_msg = f"{path_0_msg:s} [L:{len(path_0.insts):d},P:{len(path_0.phiis):d},B:{len(path_0.bdeps):d}]!"
         lft_col.append(path_0_msg)
-        lft_col.append("-----")
-        path_1_msg = f"Path: {str(path_1):s}"
+        lft_col.append("----")
+        path_1_msg = f"Path {path_1_id:d}: {str(path_1):s}"
         path_1_msg = f"{path_1_msg:s} [L:{len(path_1.insts):d},P:{len(path_1.phiis):d},B:{len(path_1.bdeps):d}]!"
         rgt_col.append(path_1_msg)
-        rgt_col.append("-----")
+        rgt_col.append("----")
         for line in diff:
             if line.startswith("- "):
                 lft_col.append(line[2:])
