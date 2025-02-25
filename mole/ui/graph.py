@@ -1,8 +1,7 @@
-from ..core.data import Path, MediumLevelILInstructionGraph
+from ..core.data import Path
 from typing      import Any
 import binaryninja       as bn
 import math
-import matplotlib.pyplot as plt
 import networkx          as nx
 import PySide6.QtCore    as qtc
 import PySide6.QtGui     as qtui
@@ -364,7 +363,6 @@ class GraphView(qtw.QGraphicsView):
         self._bv = bv
         self._graph = path.call_graph
         self.setToolTip(f"Path {path_id:d}")
-        self.setToolTip(f"Path {path_id:d}")
 
         self.scene().clear()
         self._nodes_map.clear()
@@ -474,33 +472,3 @@ class GraphWidget(qtw.QWidget):
         """
         self.view.load_graph(bv, path, path_id)
         return
-    
-def plot_inst_graph(bv: bn.BinaryView, inst_graph: MediumLevelILInstructionGraph) -> None:
-    """
-    Plots an instruction graph on a standalone view.
-
-    Args:
-        bv (bn.BinaryView): The BinaryView object representing the binary being analyzed.
-        inst_graph (MediumLevelILInstructionGraph): The instruction graph
-
-    Returns:
-        None
-    """
-    plt.figure(figsize=(16, 14))
-    pos = nx.spring_layout(inst_graph, k=2.1, iterations=50)
-    labels = {node: str(node) for node in inst_graph.nodes}
-    nx.draw(inst_graph, pos, with_labels=True, labels=labels, node_size=6000, node_color="skyblue", font_size=8, font_weight="bold", edge_color="gray")
-    nx.draw_networkx_edge_labels(inst_graph, pos, edge_labels={(u, v): f"{u.address:x}->{v.address:x}" for u, v in inst_graph.edges}, font_size=7)
-
-    def on_click(event):
-        if event.inaxes:
-            mx, my = event.xdata, event.ydata
-            for node, node_pos in pos.items():
-                node_x, node_y = node_pos
-                # simple distance check
-                if (mx - node_x)**2 + (my - node_y)**2 < 0.01:
-                    bv.navigate(bv.view, node.address)
-                    break
-
-    plt.gcf().canvas.mpl_connect('button_press_event', on_click)
-    plt.show()
