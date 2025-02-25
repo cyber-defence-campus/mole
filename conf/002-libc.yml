@@ -490,7 +490,7 @@ sinks:
           popen:
             name: popen
             symbols: [popen]
-            synopsis: FILE *popen(const char *command, const char *type)
+            synopsis: FILE* popen(const char *command, const char *type)
             enabled: true
             par_cnt: i == 2
             par_dataflow: 'False'
