@@ -252,7 +252,7 @@ class MediumLevelILBackwardSlicer:
                     if not caller_level is None and caller_level <= call_level:
                         if caller_site != cs_inst.function:
                             continue
-                    var_info = VariableHelper.get_var_info(ssa_var)
+                    var_info = VariableHelper.get_ssavar_info(ssa_var)
                     cs_info = InstructionHelper.get_inst_info(cs_inst, False)
                     self._log.debug(
                         self._tag,
@@ -306,7 +306,8 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILFloatConst() |
                   bn.MediumLevelILImport()):
                 pass
-            case (bn.MediumLevelILAddressOf()):
+            case (bn.MediumLevelILVarAliased() |
+                  bn.MediumLevelILAddressOf()):
                 # Find instruction defining the current memory version
                 inst_mem_def = inst.function.get_ssa_memory_definition(inst.ssa_memory_version)
                 if inst_mem_def:
@@ -317,8 +318,9 @@ class MediumLevelILBackwardSlicer:
                     )
                     if not inst_mem_def in self._inst_visited:
                         followed = False
-                        # Find all assignment instructions using the same variable address as source
-                        var_addr_ass_insts = self.get_var_addr_assignments(inst)
+                        # Find all assignment instructions using the same variable as a source
+                        var, var_addr_ass_insts = self.get_var_addr_assignments(inst)
+                        var_info = VariableHelper.get_var_info(var)
                         for var_addr_ass_inst in var_addr_ass_insts:
                             var_addr_ass_inst_info = InstructionHelper.get_inst_info(var_addr_ass_inst, False)
                             # Memory defining instruction is a use site of a destination variable
@@ -336,7 +338,7 @@ class MediumLevelILBackwardSlicer:
                         if not followed:
                             self._log.debug(
                                 self._tag,
-                                f"Not following '{inst_mem_def_into:s}' since it seems not to use the current variable"
+                                f"Not following '{inst_mem_def_into:s}' since it seems not to use the current variable '{var_info:s}'"
                             )
                     else:
                         self._log.debug(
@@ -350,7 +352,6 @@ class MediumLevelILBackwardSlicer:
                         f"No instruction found that defines the current memory 'mem#{inst.ssa_memory_version:d}'"
                     )
             case (bn.MediumLevelILVarSsa() |
-                  bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILVarAliasedField() |
                   bn.MediumLevelILVarSsaField()):
                 self._slice_ssa_var_definition(inst.src, inst, call_level, caller_site)
@@ -562,17 +563,23 @@ class MediumLevelILBackwardSlicer:
             for inst in bb:
                 # Match assignments of variable addresses (e.g. `var_x = &var_y`)
                 match inst:
-                    case (bn.MediumLevelILSetVarSsa(src=bn.MediumLevelILAddressOf())):
-                        var_addr_assignments.setdefault(inst.src.src, []).append(inst)
+                    case (bn.MediumLevelILSetVarSsa(src=bn.MediumLevelILAddressOf(src=src))):
+                        var_addr_assignments.setdefault(src, []).append(inst)
         return var_addr_assignments
-
+    
     def get_var_addr_assignments(
             self,
-            inst: bn.MediumLevelILAddressOf
-        ) -> List[bn.MediumLevelILSetVarSsa]:
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
         """
-        This method returns a list of assignment instructions (`bn.MediumLevelILSetVarSSA`) that have as
-        their source the same variable address as `inst`. Only instructions within the same function as
-        `inst` are considered.
+        This method returns a list of assignment instructions (`bn.MediumLevelILSetVarSSA`) that use
+        in their source the same variable as in `inst`. Only instructions within the same function
+        as `inst` are considered.
         """
-        return self._get_var_addr_assignments(inst.function).get(inst.src, [])
+        var_addr_assignments = self._get_var_addr_assignments(inst.function)
+        match inst:
+            case (bn.MediumLevelILAddressOf(src=src)):
+                return src, var_addr_assignments.get(src, [])
+            case (bn.MediumLevelILVarAliased(src=src)):
+                return src.var, var_addr_assignments.get(src.var, [])
+        return []
