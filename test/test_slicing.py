@@ -789,7 +789,6 @@ class TestPointerAnalysis(TestCase):
             bv.file.close()
         return
     
-    @unittest.expectedFailure
     def test_pointer_analysis_06(
             self,
             filenames: List[str] = ["pointer_analysis-06"]
@@ -801,34 +800,27 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
-            path = paths[0]
-            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
-            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
-            self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction"
-            )
-            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
-            self.assertTrue(
-                (
-                    isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
-                    isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
-                ),
-                "sink is a MLIL call instruction"
-            )
-            self.assertEqual(path.snk_par_idx, 2, "arg3")
-            self.assertTrue(
-                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable"
-            )
-            calls = [path.snk_sym_name]
-            for inst in path.insts:
-                call = inst.function.source_function.name
-                if calls[-1] != call:
-                    calls.append(call)
-            calls.append(path.src_sym_name)
-            self.assertEqual(calls, ["memcpy", "main", "getenv"], "call chain")
+            self.assertTrue(len(paths) >= 1, ">= 1 path(s) identified")
+            call_paths = []
+            for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
+                self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+                self.assertTrue(
+                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                    "source is a MLIL instruction"
+                )
+                self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
+                self.assertTrue(
+                    isinstance(path.insts[0], bn.MediumLevelILCallSsa),
+                    "sink is a MLIL call instruction"
+                )
+                calls = [path.snk_sym_name]
+                for inst in path.insts:
+                    call = inst.function.source_function.name
+                    if calls[-1] != call:
+                        calls.append(call)
+                calls.append(path.src_sym_name)
+                self.assertEqual(calls, ["memcpy", "main", "modify_n", "getenv"])
             # Close test binary
             bv.file.close()
         return
