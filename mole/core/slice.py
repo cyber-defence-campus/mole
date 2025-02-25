@@ -1,7 +1,6 @@
 from __future__      import annotations
 from ..common.help   import FunctionHelper, InstructionHelper, VariableHelper
 from ..common.log    import Logger
-from collections     import defaultdict
 from functools       import lru_cache
 from typing          import Any, Dict, Generator, List, Set, Tuple
 import binaryninja   as bn
@@ -213,7 +212,6 @@ class MediumLevelILBackwardSlicer:
         self._tag: str = tag
         self._log: Logger = log
         self._inst_visited: Set[bn.MediumLevelILInstruction] = set()
-        self._processed_aliases: Dict[Tuple[bn.MediumLevelILFunction, int], Set[bn.MediumLevelILAddressOf]] = defaultdict(set)
         self._inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph(tag, log)
         self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph(tag, log)
         return
@@ -309,104 +307,48 @@ class MediumLevelILBackwardSlicer:
                   bn.MediumLevelILImport()):
                 pass
             case (bn.MediumLevelILAddressOf()):
-                # Initialize processed version for the current memory version if not already done
-                alias_key = (inst.function, inst.ssa_memory_version)
-                self._processed_aliases.setdefault(alias_key, set())
-                # Skip if this alias has already been traced before
-                # TODO: This alias might be useful for highlighting purposes in the future
-                if inst.src in self._processed_aliases[alias_key]:
-                    self._log.warn(
-                        self._tag,
-                        f"Skipping alias '{str(inst.src):s}' since it was already traced before"
-                    )
-                    return
-
                 # Find instruction defining the current memory version
                 inst_mem_def = inst.function.get_ssa_memory_definition(inst.ssa_memory_version)
-
                 if inst_mem_def:
                     inst_mem_def_into = InstructionHelper.get_inst_info(inst_mem_def, False)
                     self._log.debug(
                         self._tag,
                         f"Current memory 'mem#{inst.ssa_memory_version:d}' defined in '{inst_mem_def_into:s}'"
                     )
-                    followed = False
-                    # Find all assignment instructions using the same variable address as source
-                    var_addr_ass_insts = self.get_var_addr_assignments(inst)
-
-                    for var_addr_ass_inst in var_addr_ass_insts:
-                        var_addr_ass_inst_info = InstructionHelper.get_inst_info(var_addr_ass_inst, False)
-                        # Memory defining instruction is a use site of a destination variable
-                        if inst_mem_def in var_addr_ass_inst.dest.use_sites:
+                    if not inst_mem_def in self._inst_visited:
+                        followed = False
+                        # Find all assignment instructions using the same variable address as source
+                        var_addr_ass_insts = self.get_var_addr_assignments(inst)
+                        for var_addr_ass_inst in var_addr_ass_insts:
+                            var_addr_ass_inst_info = InstructionHelper.get_inst_info(var_addr_ass_inst, False)
+                            # Memory defining instruction is a use site of a destination variable
+                            if inst_mem_def in var_addr_ass_inst.dest.use_sites:
+                                self._log.debug(
+                                    self._tag,
+                                    f"Follow '{inst_mem_def_into:s}' since it uses '{var_addr_ass_inst_info:s}'"
+                                )
+                                self._inst_graph.add_node(inst, call_level, caller_site)
+                                self._inst_graph.add_node(inst_mem_def, call_level, caller_site)
+                                self._inst_graph.add_edge(inst, inst_mem_def)
+                                self._slice_backwards(inst_mem_def, call_level, caller_site)
+                                followed = True
+                                break
+                        if not followed:
                             self._log.debug(
                                 self._tag,
-                                f"Follow '{inst_mem_def_into:s}' since it uses '{var_addr_ass_inst_info:s}'"
+                                f"Not following '{inst_mem_def_into:s}' since it seems not to use the current variable"
                             )
-                            self._inst_graph.add_node(inst, call_level, caller_site)
-                            self._inst_graph.add_node(inst_mem_def, call_level, caller_site)
-                            self._inst_graph.add_edge(inst, inst_mem_def)
-
-                            # Prevent slicing further to avoid duplicates in paths due to pointer aliases
-                            # Ensure we slice the same pointer (same version) only once
-                            self._processed_aliases[alias_key].add(var_addr_ass_inst.src.src)
-
-                            self._slice_backwards(inst_mem_def, call_level, caller_site)
-                            followed = True
-                            break
-                    if not followed:
+                    else:
                         self._log.debug(
                             self._tag,
-                            f"Not following '{inst_mem_def_into:s}' since it seems not to use the current variable"
+                            f"Ignore instruction '{inst_mem_def_into:s}' since sliced before"
                         )
+                        return
                 else:
-                    self._log.warn(self._tag, f"No SSA memory definition found for {inst}:{inst.ssa_memory_version:d}")
-                # #  Backward slice at all possible variable definitions
-                # for ssa_var in inst.function.ssa_vars:
-                #     if ssa_var.var == inst.src:
-                #         self._slice_ssa_var_definition(ssa_var, inst, call_level, caller_site)
-
-
-                # # TODO: Investigate which one is better to use
-                # # ptr_insts = get_instructions_for_pointer_alias(inst, inst.function)
-                # ptr_insts = get_bb_var_addr_assignments(inst)
-                # self._log.debug(
-                #     self._tag,
-                #     f"[{call_level:+d}] {info:s}: Found {len(ptr_insts):d} assignment instruction(s) with the same source variable address '&{str(inst.src):s}'"
-                # )
-                # # Pick the closest instruction before the current one
-                # closest_instr = min(
-                #     (ptr_inst for ptr_inst in ptr_insts if ptr_inst.address < inst.address),
-                #     key=lambda instr: inst.address - instr.address,
-                #     default=None
-                # )
-                # if closest_instr:
-                #     closest_info = InstructionHelper.get_inst_info(closest_instr, False)
-                #     self._log.debug(
-                #         self._tag,
-                #         f"[{call_level:+d}] {info:s}: Closest assignment instruction found to be '{closest_info:s}'"
-                #     )
-                #     # Forward slice variable usage
-                #     self._inst_graph.add_node(inst, call_level, caller_site)
-                #     self._inst_graph.add_node(closest_instr, call_level, caller_site)
-                #     self._inst_graph.add_edge(inst, closest_instr)
-                #     for var_usage in closest_instr.dest.use_sites:
-                #         # Only evaluate variable usage before the current instruction
-                #         # This likely introduces false positive since the variable 
-                #         # might be used for different purposes (e.g. buffer reuse)
-                #         if var_usage.address < inst.address:
-                #             var_usage_info = InstructionHelper.get_inst_info(var_usage)
-                #             self._inst_graph.add_node(var_usage, call_level, caller_site)
-                #             self._inst_graph.add_edge(closest_instr, var_usage)
-                #             self._log.debug(
-                #                 self._tag,
-                #                 f"[{call_level:+d}] {info:s}: Variable '{str(closest_instr.dest.var):s}#{closest_instr.dest.version:d}' used in '{var_usage_info:s}'"
-                #             )
-                #             self._slice_backwards(var_usage, call_level, caller_site)
-                # else:
-                #     self._log.debug(
-                #         self._tag,
-                #         f"[{call_level:+d}] {info:s}: No closest instruction found"
-                #     )
+                    self._log.warn(
+                        self._tag,
+                        f"No instruction found that defines the current memory 'mem#{inst.ssa_memory_version:d}'"
+                    )
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILVarAliasedField() |
@@ -511,7 +453,7 @@ class MediumLevelILBackwardSlicer:
                                                 par_info = InstructionHelper.get_inst_info(par, False)
                                                 self._log.debug(
                                                     self._tag,
-                                                    f"Follow parameter {par_idx:d} '{par_info:s}' of imported function '{call_info:s}'"
+                                                    f"Follow parameter {par_idx+1:d} '{par_info:s}' of imported function '{call_info:s}'"
                                                 )
                                                 self._inst_graph.add_node(inst, call_level, caller_site)
                                                 self._inst_graph.add_node(par, call_level, caller_site)
@@ -528,7 +470,7 @@ class MediumLevelILBackwardSlicer:
                             par_info = InstructionHelper.get_inst_info(par, False)
                             self._log.debug(
                                 self._tag,
-                                f"Follow parameter {par_idx:d} '{par_info:s}' of indirect function call '{call_info:s}'"
+                                f"Follow parameter {par_idx+1:d} '{par_info:s}' of indirect function call '{call_info:s}'"
                             )
                             self._inst_graph.add_node(inst, call_level, caller_site)
                             self._inst_graph.add_node(par, call_level, caller_site)
