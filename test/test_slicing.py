@@ -412,7 +412,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) == 0, "path(s) identified")
+            self.assertTrue(len(paths) == 0, "0 paths identified")
             # Close test binary
             bv.file.close()
         return
@@ -763,43 +763,7 @@ class TestPointerAnalysis(TestCase):
             self,
             filenames: List[str] = ["pointer_analysis-03"]
         ) -> None:
-        for file in load_files(filenames):
-            # Load and analyze test binary with Binary Ninja
-            bv = bn.load(file)
-            bv.update_analysis_and_wait()
-            # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
-            # Assert results
-            self.assertEqual(1, len(paths), "paths number not correctly identified")
-            path = paths[0]
-            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
-            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
-            self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction"
-            )
-            self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
-            self.assertTrue(
-                (
-                    isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
-                    isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
-                ),
-                "sink is a MLIL call instruction"
-            )
-            self.assertEqual(path.snk_par_idx, 0, "arg1")
-            self.assertTrue(
-                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable"
-            )
-            calls = [path.snk_sym_name]
-            for inst in path.insts:
-                call = inst.function.source_function.name
-                if calls[-1] != call:
-                    calls.append(call)
-            calls.append(path.src_sym_name)
-            self.assertEqual(calls, ["system", "main", "getenv"], "call chain")
-            # Close test binary
-            bv.file.close()
+        self.test_pointer_analysis_01(filenames)
         return
     
     def test_pointer_analysis_04(
@@ -813,14 +777,39 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertEqual(2, len(paths), "paths number not correctly identified")
-            first_path = paths[0]
-            self.assertIn(first_path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
-            self.assertIn(first_path.snk_sym_name, ["system"], "sink has symbol 'system'")
-            second_path = paths[1]
-            self.assertIn(second_path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
-            self.assertIn(second_path.snk_sym_name, ["system"], "sink has symbol 'system'")
-
+            self.assertTrue(len(paths) == 2, "2 paths identified")
+            call_paths = []
+            for path in paths:
+                self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
+                self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+                self.assertTrue(
+                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                    "source is a MLIL instruction"
+                )
+                self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
+                self.assertTrue(
+                    isinstance(path.insts[0], bn.MediumLevelILCallSsa),
+                    "sink is a MLIL call instruction"
+                )
+                calls = [path.snk_sym_name]
+                for inst in path.insts:
+                    call = inst.function.source_function.name
+                    if calls[-1] != call:
+                        calls.append(call)
+                calls.append(path.src_sym_name)
+                call_paths.append(calls)
+            self.assertCountEqual(
+                call_paths,
+                [
+                    [
+                        "system", "main", "getenv"
+                    ],
+                    [
+                        "system", "main", "getenv"
+                    ]
+                ],
+                "call paths"
+            )
             # Close test binary
             bv.file.close()
         return
