@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools  import lru_cache
 from typing     import Dict, List, Optional, Set
 import binaryninja as bn
 
@@ -51,10 +52,46 @@ class SymbolHelper:
         return mlil_ssa_code_refs
 
 
+class VariableHelper:
+    """
+    This class provides helper functions with respect to variables.
+    """
+
+    @staticmethod
+    def get_var_info(
+            var: bn.SSAVariable
+        ) -> str:
+        """
+        This method returns a string with information about the variable `var`.
+        """
+        return f"{var.name}#{var.version}"
+
+
 class InstructionHelper:
     """
     This class provides helper functions with respect to instructions.
     """
+
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def format_inst(
+            inst: bn.MediumLevelILInstruction
+        ) -> str:
+        """
+        This method replaces function addresses with their names.
+        """
+        formatted_tokens = []
+        for token in inst.tokens:
+            match token.type:
+                case bn.InstructionTextTokenType.PossibleAddressToken:
+                    func = inst.function.view.get_function_at(token.value)
+                    if func:
+                        formatted_tokens.append(func.name)
+                    else:
+                        formatted_tokens.append(token.text)
+                case _:
+                    formatted_tokens.append(token.text)
+        return "".join(formatted_tokens)
 
     @staticmethod
     def get_inst_info(
@@ -64,7 +101,7 @@ class InstructionHelper:
         """
         This method returns a string with information about the instruction `inst`.
         """
-        info = f"0x{inst.instr.address:x} {str(inst):s}"
+        info = f"0x{inst.instr.address:x} {InstructionHelper.format_inst(inst):s}"
         if with_class_name:
             info = f"{info:s} ({inst.__class__.__name__:s})"
         return info
