@@ -756,17 +756,7 @@ class TestPointerAnalysis(TestCase):
             self,
             filenames: List[str] = ["pointer_analysis-02"]
         ) -> None:
-        for file in load_files(filenames):
-            # Load and analyze test binary with Binary Ninja
-            bv = bn.load(file)
-            bv.update_analysis_and_wait()
-            # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
-            # Assert results
-            self.assertEqual(1, len(paths), "paths number not correctly identified")
-            first_path = paths[0]
-            self.assertIn(first_path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
-            self.assertIn(first_path.snk_sym_name, ["system"], "sink has symbol 'system'")
+        self.test_pointer_analysis_01(filenames)
         return
     
     def test_pointer_analysis_03(
