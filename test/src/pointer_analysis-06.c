@@ -6,7 +6,7 @@
 
 /*
 Testcase Description:
-- pointer aliasing
+- pointer analysis
 - memcpy size is user-controllable
 */
 
@@ -20,11 +20,12 @@ void modify_n(int *n) {
 
 int main(int argc, char *argv[]) {
     char dest[BUF_LEN], src[] = "pointer_analysis";
-    int n, *n_alias;
+    int n, *n_ptr;
 
     n = BUF_LEN;
-    n_alias = &n;
-    modify_n(n_alias);
+    n_ptr = &n;
+    
+    modify_n(n_ptr);
     memcpy(dest, src, n);
     fprintf(stdout, "n: '%d'\n", n);
 
