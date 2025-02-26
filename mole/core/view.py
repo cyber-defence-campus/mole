@@ -186,8 +186,6 @@ class SidebarWidget(bnui.SidebarWidget):
                 self._ctr.remove_selected_paths(tbl, rows)
             elif menu_action == menu_action_remove_all_paths:
                 self._ctr.remove_all_paths(tbl)
-            elif menu_action == menu_action_plot_instructions:
-                self._ctr.plot_instructions_graph(self._bv, tbl, row, col)
             return
 
         res_tbl = qtw.QTableWidget()
