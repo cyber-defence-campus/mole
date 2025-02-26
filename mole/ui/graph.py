@@ -325,9 +325,38 @@ class GraphView(qtw.QGraphicsView):
         return
 
     def fit_to_window(self) -> None:
-        """Fit the view to the bounding rectangle of all items"""
-        self.fitInView(self.scene().itemsBoundingRect(), qtc.Qt.AspectRatioMode.KeepAspectRatio)
-        return
+        """Fit the view to the bounding rectangle of all items with padding"""
+        rect = self.scene().itemsBoundingRect()
+        
+        # Return early if the scene is empty
+        if rect.isEmpty():
+            return
+        
+        # Add padding (5% on each side)
+        padding = 0.05
+        padding_x = rect.width() * padding
+        padding_y = rect.height() * padding
+        padded_rect = rect.adjusted(-padding_x, -padding_y, padding_x, padding_y)
+        
+        # Set the scene rect to match the padded area
+        self.scene().setSceneRect(padded_rect)
+        
+        # Reset transformation before calculating new scale
+        self.resetTransform()
+        
+        # Lets scale the view to fit the padded rect
+        # Use the smaller scale factor to ensure everything fits
+        view_rect = self.viewport().rect()
+        scale_x = view_rect.width() / padded_rect.width()
+        scale_y = view_rect.height() / padded_rect.height()
+        scale = min(scale_x, scale_y) * 0.95
+        self.scale(scale, scale)
+        
+        # Center the view
+        self.centerOn(padded_rect.center())
+        
+        # Force layout update
+        self.updateGeometry()
 
     def get_node_color(
             self,
