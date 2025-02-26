@@ -520,7 +520,6 @@ class GraphWidget(qtw.QWidget):
         reset_action.triggered.connect(self.view.layout)
         self.toolbar.addAction(reset_action)
 
-        # New checkbox: unchecked means only show nodes with in_path True.
         self._show_in_path_checkbox = qtw.QCheckBox("In-Path Only")
         self._show_in_path_checkbox.setChecked(True)
         self._show_in_path_checkbox.toggled.connect(self.on_checkbox_toggled)
