@@ -60,6 +60,14 @@ class Logger:
         """
         This method prints the message `msg` to the console.
         """
+        if not self._runs_headless:
+            # Check if we're being debugged, in which case we should still print
+            # so that the debug console shows the output.
+            is_debugged = any(mod.startswith('debugpy') for mod in sys.modules)
+            if not is_debugged:
+                # no need to print to stdout if not in headless mode and not being debugged
+                return
+        
         if not print_raw:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             head = f"[{now:s}] [{tag:s}] "
