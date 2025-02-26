@@ -302,10 +302,29 @@ class MediumLevelILBackwardSlicer:
             # TODO: Support all instructions
             case (bn.MediumLevelILConst() |
                   bn.MediumLevelILConstData() |
-                  bn.MediumLevelILConstPtr() |
                   bn.MediumLevelILFloatConst() |
                   bn.MediumLevelILImport()):
                 pass
+            case (bn.MediumLevelILConstPtr()):
+                # Find instruction defining the current memory version
+                inst_mem_def = inst.function.get_ssa_memory_definition(inst.ssa_memory_version)
+                if inst_mem_def:
+                    inst_mem_def_into = InstructionHelper.get_inst_info(inst_mem_def, False)
+                    self._log.debug(
+                        self._tag,
+                        f"Current memory 'mem#{inst.ssa_memory_version:d}' defined in '{inst_mem_def_into:s}'"
+                    )
+                    if not inst_mem_def in self._inst_visited:
+                        followed = False
+                        # Find all assignment instruction using the same constant as source
+                        constant, const_ptr_ass_insts = self.get_const_ptr_assignments(inst)
+                        pass
+                    else:
+                        self._log.debug(
+                            self._tag,
+                            f"Ignore instruction '{inst_mem_def_into:s}' since sliced before"
+                        )
+                        return
             case (bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILAddressOf()):
                 # Find instruction defining the current memory version
@@ -554,6 +573,34 @@ class MediumLevelILBackwardSlicer:
         return paths
     
     @lru_cache(maxsize=None)
+    def _get_const_ptr_assignments(
+            self,
+            func: bn.MediumLevelILFunction
+        ) -> Dict[int, List[bn.MediumLevelILSetVarSsa]]:
+        const_ptr_assignments = {}
+        for bb in func.ssa_form:
+            for inst in bb:
+                match inst:
+                    case (bn.MediumLevelILSetVarSsa(src=bn.MediumLevelILLoadSsa(src=bn.MediumLevelILConstPtr(constant=constant)))):
+                        const_ptr_assignments.setdefault(constant, []).append(inst)
+        return const_ptr_assignments
+    
+    def get_const_ptr_assignments(
+            self,
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[int, List[bn.MediumLevelILSetVarSsa]]:
+        """
+        TODO: This method returns a list of assignment instructions (`bn.MediumLevelILSetVarSSA`) that use
+        in their source the same variable as in `inst`. Only instructions within the same function
+        as `inst` are considered.
+        """
+        const_ptr_assignments = self._get_const_ptr_assignments(inst.function)
+        match inst:
+            case (bn.MediumLevelILConstPtr(constant=constant)):
+                return constant, const_ptr_assignments.get(constant, [])
+        return (None, [])
+    
+    @lru_cache(maxsize=None)
     def _get_var_addr_assignments(
             self,
             func: bn.MediumLevelILFunction
@@ -582,4 +629,4 @@ class MediumLevelILBackwardSlicer:
                 return src, var_addr_assignments.get(src, [])
             case (bn.MediumLevelILVarAliased(src=src)):
                 return src.var, var_addr_assignments.get(src.var, [])
-        return []
+        return (None, [])
