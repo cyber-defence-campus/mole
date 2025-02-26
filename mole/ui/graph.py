@@ -490,7 +490,7 @@ class GraphWidget(qtw.QWidget):
         self._path = None
         self._path_id = None
 
-        self.view = GraphView()        
+        self.view = GraphView(tag, log)
         v_layout = qtw.QVBoxLayout(self)
         v_layout.addWidget(self.view)
 
