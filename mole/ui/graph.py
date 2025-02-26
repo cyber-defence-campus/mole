@@ -1,4 +1,5 @@
 from ..core.data import Path
+from ..common.log import log_warn, log_error
 from typing      import Any
 import binaryninja       as bn
 import math
@@ -348,7 +349,7 @@ class GraphView(qtw.QGraphicsView):
         if self._bv:
             self._bv.navigate(self._bv.view, node.source_function.start)
         else:
-            bn.log_error("No BinaryView set")
+            log_error("No BinaryView set")
         return
 
     def get_node_text(self, node: bn.MediumLevelILFunction) -> str:
@@ -368,7 +369,7 @@ class GraphView(qtw.QGraphicsView):
         self._nodes_map.clear()
 
         if self._graph.number_of_nodes() == 0:
-            bn.log_warn("Empty graph provided")
+            log_warn("Empty graph provided")
             return     
 
         # Add nodes
