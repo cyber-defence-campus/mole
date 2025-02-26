@@ -392,7 +392,7 @@ class GraphView(qtw.QGraphicsView):
             node_text += f"\n{self._graph.nodes[node]['src']}"
         return node_text
 
-    def load_graph(self, bv: bn.BinaryView, path: Path, path_id: int) -> None:
+    def load_graph(self, bv: bn.BinaryView, path: Path, path_id: int, show_all_nodes: bool = False) -> None:
         self._bv = bv
         self._graph = path.call_graph
         self.setToolTip(f"Path {path_id:d}")
@@ -400,19 +400,22 @@ class GraphView(qtw.QGraphicsView):
         self.scene().clear()
         self._nodes_map.clear()
 
-        # Add nodes
+        # Add nodes (filtering based on in_path property if checkbox is unchecked)
         for node in self._graph:
+            if not show_all_nodes and not self._graph.nodes[node]["in_path"]:
+                continue
             item = Node(node, self.get_node_text, self.on_click_callback, self.get_node_color)
             self.scene().addItem(item)
             self._nodes_map[node] = item
 
-        # Add edges
+        # Add edges only if both endpoints are present
         for a, b in self._graph.edges:
-            source = self._nodes_map[a]
-            dest = self._nodes_map[b]
-            self.scene().addItem(Edge(source, dest, self.get_node_color))
+            if a in self._nodes_map and b in self._nodes_map:
+                source = self._nodes_map[a]
+                dest = self._nodes_map[b]
+                self.scene().addItem(Edge(source, dest, self.get_node_color))
 
-        # layout this bad boy
+        # layout the graph
         self.layout()
         # fit the view to the graph once animation is over
         self.animations.finished.connect(self.fit_to_window)
@@ -422,22 +425,22 @@ class GraphView(qtw.QGraphicsView):
         positions = nx.multipartite_layout(self._graph, subset_key="call_level", align="horizontal")
         
         levels_nodes = {}
-        # collect nodes by level
         for node in positions:
+            if node not in self._nodes_map:
+                continue
             level = self._graph.nodes[node]["call_level"]
             levels_nodes.setdefault(level, []).append(node)
 
-        # calculate the widest level
-        max_width = max(sum(self._nodes_map[node].boundingRect().width() for node in nodes) + (len(nodes) - 1) * 20.0 for nodes in levels_nodes.values())
+        max_width = max(
+            sum(self._nodes_map[node].boundingRect().width() for node in nodes) + (len(nodes) - 1) * 20.0
+            for nodes in levels_nodes.values()
+        ) if levels_nodes else 0
 
         new_x_positions = {}
         for level, nodes in levels_nodes.items():
             node_count = len(nodes)
-            # we use up all the available space
             total_width = sum(self._nodes_map[node].boundingRect().width() for node in nodes)
-            # no need to space out the nodes if there is only one node in the level
             spacing = (max_width - total_width) / (node_count - 1) if node_count > 1 else 0
-            # if there is only one node in the level, center it
             x_offset = 0 if node_count > 1 else (max_width - total_width) / 2
 
             for node in nodes:
@@ -447,6 +450,8 @@ class GraphView(qtw.QGraphicsView):
         vertical_spacing = 200.0
         self.animations = qtc.QParallelAnimationGroup()
         for node, (ox, oy) in positions.items():
+            if node not in self._nodes_map:
+                continue
             item = self._nodes_map[node]
             animation = qtc.QPropertyAnimation(item, b"pos")
             animation.setDuration(1000)
@@ -463,7 +468,9 @@ class GraphWidget(qtw.QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__()
         self._bv = None
-        self._graph = None
+        self._path = None
+        self._path_id = None
+
         self.view = GraphView()        
         v_layout = qtw.QVBoxLayout(self)
         v_layout.addWidget(self.view)
@@ -474,7 +481,6 @@ class GraphWidget(qtw.QWidget):
         return
 
     def addToolBarActions(self) -> None:
-        """Add actions to the toolbar"""
         center_action = qtui.QAction("Center", self)
         center_action.triggered.connect(self.view.center_view)
         self.toolbar.addAction(center_action)
@@ -494,6 +500,12 @@ class GraphWidget(qtw.QWidget):
         reset_action = qtui.QAction("Reset", self)
         reset_action.triggered.connect(self.view.layout)
         self.toolbar.addAction(reset_action)
+
+        # New checkbox: unchecked means only show nodes with in_path True.
+        self._show_in_path_checkbox = qtw.QCheckBox("Show in-path nodes only")
+        self._show_in_path_checkbox.setChecked(True)
+        self._show_in_path_checkbox.toggled.connect(self.on_checkbox_toggled)
+        self.toolbar.addWidget(self._show_in_path_checkbox)
         return
 
     def load_path(self, bv: bn.BinaryView, path: Path, path_id: int) -> None:
@@ -503,5 +515,14 @@ class GraphWidget(qtw.QWidget):
             path (Path): A Path object
             path_id (int): The path's row in the table
         """
-        self.view.load_graph(bv, path, path_id)
+        self._bv = bv
+        self._path = path
+        self._path_id = path_id
+        self.view.load_graph(bv, path, path_id, not self._show_in_path_checkbox.isChecked())
+        return
+
+    def on_checkbox_toggled(self, _: bool) -> None:
+        # Reload the graph with the new filter state if a graph was loaded
+        if self._bv and self._path is not None:
+            self.load_path(self._bv, self._path, self._path_id)
         return
