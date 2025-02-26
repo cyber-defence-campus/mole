@@ -1,7 +1,9 @@
-from ..core.data import Path
-from typing      import Any
+from __future__       import annotations
+from ..common.log import Logger
+from ..core.data  import Path
+from typing       import Any
 import binaryninja       as bn
-import math
+import math              as math
 import networkx          as nx
 import PySide6.QtCore    as qtc
 import PySide6.QtGui     as qtui
@@ -272,15 +274,21 @@ class Edge(qtw.QGraphicsItem):
 
 class GraphView(qtw.QGraphicsView):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(
+            self,
+            tag: str = "Graph",
+            log: Logger = Logger()
+        ) -> None:
         """GraphView constructor
 
-        This widget can display a directed graph
+        This widget can display a directed graph.
 
         Args:
             graph (nx.DiGraph): a networkx directed graph
         """
         super().__init__()
+        self._tag = tag
+        self._log = log
         self._scene = qtw.QGraphicsScene()
         self.setScene(self._scene)
 
@@ -357,6 +365,7 @@ class GraphView(qtw.QGraphicsView):
         
         # Force layout update
         self.updateGeometry()
+        return
 
     def get_node_color(
             self,
@@ -381,7 +390,7 @@ class GraphView(qtw.QGraphicsView):
         if self._bv:
             self._bv.navigate(self._bv.view, node.source_function.start)
         else:
-            bn.log_error("No BinaryView set")
+            self._log.error(self._tag, "No binary loaded.")
         return
 
     def get_node_text(self, node: bn.MediumLevelILFunction) -> str:
@@ -400,7 +409,11 @@ class GraphView(qtw.QGraphicsView):
         self.scene().clear()
         self._nodes_map.clear()
 
-        # Add nodes (filtering based on in_path property if checkbox is unchecked)
+        if self._graph.number_of_nodes() == 0:
+            self._log.warn(self._tag, "Graph is empty.")
+            return     
+
+        # Add nodes
         for node in self._graph:
             if not show_all_nodes and not self._graph.nodes[node]["in_path"]:
                 continue
@@ -465,8 +478,14 @@ class GraphView(qtw.QGraphicsView):
 
 class GraphWidget(qtw.QWidget):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(
+            self,
+            tag: str = "Graph",
+            log: Logger = Logger()
+        ) -> None:
         super().__init__()
+        self._tag = tag
+        self._log = log
         self._bv = None
         self._path = None
         self._path_id = None
@@ -502,7 +521,7 @@ class GraphWidget(qtw.QWidget):
         self.toolbar.addAction(reset_action)
 
         # New checkbox: unchecked means only show nodes with in_path True.
-        self._show_in_path_checkbox = qtw.QCheckBox("Show in-path nodes only")
+        self._show_in_path_checkbox = qtw.QCheckBox("In-Path Only")
         self._show_in_path_checkbox.setChecked(True)
         self._show_in_path_checkbox.toggled.connect(self.on_checkbox_toggled)
         self.toolbar.addWidget(self._show_in_path_checkbox)
