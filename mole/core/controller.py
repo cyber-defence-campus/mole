@@ -616,7 +616,8 @@ class Controller:
     def log_path(
             self,
             tbl: qtw.QTableWidget,
-            rows: List[int]
+            rows: List[int],
+            reverse: bool = False
         ) -> None:
         """
         This method logs information about a path.
@@ -631,7 +632,8 @@ class Controller:
         self._log.info(self._tag, msg)
         self._log.debug(self._tag, "--- Backward Slice ---")
         basic_block = None
-        for inst in path.insts:
+        insts = path.insts if not reverse else reversed(path.insts)
+        for inst in insts:
             if inst.il_basic_block != basic_block:
                 basic_block = inst.il_basic_block
                 fun_name = basic_block.function.name
