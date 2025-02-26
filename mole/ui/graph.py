@@ -108,6 +108,10 @@ class Node(qtw.QGraphicsObject):
         if change == qtw.QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             for edge in self._edges:
                 edge.adjust()
+                
+            # Update the scene's rectangle so that all moved items are included
+            if self.scene():
+                self.scene().setSceneRect(self.scene().itemsBoundingRect())
 
         return super().itemChange(change, value)
 
