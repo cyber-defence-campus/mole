@@ -1,7 +1,9 @@
-from ..core.data import Path
-from typing      import Any
+from __future__       import annotations
+from ..common.log import Logger
+from ..core.data  import Path
+from typing       import Any
 import binaryninja       as bn
-import math
+import math              as math
 import networkx          as nx
 import PySide6.QtCore    as qtc
 import PySide6.QtGui     as qtui
@@ -268,15 +270,21 @@ class Edge(qtw.QGraphicsItem):
 
 class GraphView(qtw.QGraphicsView):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(
+            self,
+            tag: str = "Graph",
+            log: Logger = Logger()
+        ) -> None:
         """GraphView constructor
 
-        This widget can display a directed graph
+        This widget can display a directed graph.
 
         Args:
             graph (nx.DiGraph): a networkx directed graph
         """
         super().__init__()
+        self._tag = tag
+        self._log = log
         self._scene = qtw.QGraphicsScene()
         self.setScene(self._scene)
 
@@ -348,7 +356,7 @@ class GraphView(qtw.QGraphicsView):
         if self._bv:
             self._bv.navigate(self._bv.view, node.source_function.start)
         else:
-            bn.log_error("No BinaryView set")
+            self._log.error(self._tag, "No binary loaded.")
         return
 
     def get_node_text(self, node: bn.MediumLevelILFunction) -> str:
@@ -366,6 +374,10 @@ class GraphView(qtw.QGraphicsView):
 
         self.scene().clear()
         self._nodes_map.clear()
+
+        if self._graph.number_of_nodes() == 0:
+            self._log.warn(self._tag, "Graph is empty.")
+            return     
 
         # Add nodes
         for node in self._graph:
@@ -427,11 +439,17 @@ class GraphView(qtw.QGraphicsView):
 
 class GraphWidget(qtw.QWidget):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(
+            self,
+            tag: str = "Graph",
+            log: Logger = Logger()
+        ) -> None:
         super().__init__()
+        self._tag = tag
+        self._log = log
         self._bv = None
         self._graph = None
-        self.view = GraphView()        
+        self.view = GraphView(tag, log)
         v_layout = qtw.QVBoxLayout(self)
         v_layout.addWidget(self.view)
 

@@ -234,7 +234,7 @@ class SidebarWidget(bnui.SidebarWidget):
         return wid, "Run"
     
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
-        return GraphWidget(), "Graph"
+        return GraphWidget(self._tag, self._log), "Graph"
     
     def _init_cnf_tab(self) -> Tuple[qtw.QWidget, str]:
         """
