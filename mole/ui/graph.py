@@ -367,6 +367,10 @@ class GraphView(qtw.QGraphicsView):
         self.scene().clear()
         self._nodes_map.clear()
 
+        if self._graph.number_of_nodes() == 0:
+            bn.log_warn("Empty graph provided")
+            return     
+
         # Add nodes
         for node in self._graph:
             item = Node(node, self.get_node_text, self.on_click_callback, self.get_node_color)
