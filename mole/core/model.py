@@ -12,8 +12,8 @@ class SidebarModel:
     def __init__(
             self,
             ctr: Controller,
-            tag: str = "Sidebar",
-            log: Logger = Logger()
+            tag: str,
+            log: Logger
         ) -> None:
         """
         This method initializes a model (MVC pattern).

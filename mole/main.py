@@ -50,7 +50,7 @@ def main() -> None:
 
     # Initialize logger and controller to operate in headless mode
     log = Logger(level=args.log_level, runs_headless=True)
-    ctr = Controller(runs_headless=True, log=log).init()
+    ctr = Controller(log=log, runs_headless=True).init()
     try:
         # Load and analyze binary with Binary Ninja
         bv = bn.load(args.file)

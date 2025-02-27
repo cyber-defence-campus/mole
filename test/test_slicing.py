@@ -30,11 +30,11 @@ class TestCase(unittest.TestCase):
     def setUp(self) -> None:
         # Initialize controller to operate in headless mode
         self.ctr = Controller(
-            runs_headless=True,
             log=Logger(
                 runs_headless=True,
                 level="debug"
-            )
+            ),
+            runs_headless=True
         ).init()
         return
 

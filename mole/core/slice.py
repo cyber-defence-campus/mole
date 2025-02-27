@@ -14,8 +14,8 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
 
     def __init__(
             self,
-            tag: str = "InstructionGraph",
-            log: Logger = Logger()
+            tag: str,
+            log: Logger
         ) -> None:
         """
         This method initializes an empty graph.
@@ -79,8 +79,8 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
 
     def __init__(
             self,
-            tag: str = "FunctionGraph",
-            log: Logger = Logger()
+            tag: str,
+            log: Logger
         ) -> None:
         """
         This method initializes an empty graph.
@@ -136,9 +136,8 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         """
         This method returns a copy of the graph.
         """
-        call_graph = super().copy()
-        call_graph._tag = self._tag
-        call_graph._log = self._log
+        call_graph = MediumLevelILFunctionGraph(self._tag, self._log)
+        call_graph.update(self)
         return call_graph
     
     def to_dict(self) -> Dict:
@@ -200,17 +199,17 @@ class MediumLevelILBackwardSlicer:
     def __init__(
             self,
             bv: bn.BinaryView,
-            max_call_level: int = -1,
-            tag: str = "BackSlicer",
-            log: Logger = Logger()
+            tag: str,
+            log: Logger,
+            max_call_level: int = -1
         ) -> None:
         """
         This method initializes a backward slicer for for MLIL instructions.
         """
         self._bv: bn.BinaryView = bv
-        self._max_call_level: int = max_call_level
         self._tag: str = tag
         self._log: Logger = log
+        self._max_call_level: int = max_call_level
         self._inst_visited: Set[bn.MediumLevelILInstruction] = set()
         self._inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph(tag, log)
         self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph(tag, log)
