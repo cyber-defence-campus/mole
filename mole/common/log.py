@@ -1,5 +1,6 @@
 from   binaryninja import log_debug, log_info, log_warn, log_error
 from   datetime    import datetime
+from   functools   import lru_cache
 from   termcolor   import colored
 from   typing      import List, Literal
 import sys
@@ -25,6 +26,13 @@ class Logger:
         self._level = self._levels.index(level)
         self._runs_headless: bool = runs_headless
         return
+    
+    @lru_cache(maxsize=None)
+    def _is_debugged(self) -> bool:
+        """
+        This method returns `True` if module `debugpy` is used.
+        """
+        return any(module.startswith("debugpy") for module in sys.modules)
     
     def get_level(self) -> str:
         """
@@ -60,13 +68,6 @@ class Logger:
         """
         This method prints the message `msg` to the console.
         """
-        if not self._runs_headless:
-            # Check if we're being debugged, in which case we should still print
-            # so that the debug console shows the output.
-            is_debugged = any(mod.startswith('debugpy') for mod in sys.modules)
-            if not is_debugged:
-                return
-        
         if not print_raw:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             head = f"[{now:s}] [{tag:s}] "
@@ -89,13 +90,14 @@ class Logger:
         """
         text = self._tag_msg(tag, msg)
         if self._level > 0: return
-        if not self._runs_headless:
+        if not self._runs_headless and not self._is_debugged():
             log_debug(text, "Plugin.Mole")
-        self._print(
-            "DEBG", text,
-            color=color, on_color=on_color, print_raw=print_raw,
-            attrs=attrs, file=sys.stdout
-        )
+        else:
+            self._print(
+                "DEBG", text,
+                color=color, on_color=on_color, print_raw=print_raw,
+                attrs=attrs, file=sys.stdout
+            )
         return
     
     def info(
@@ -112,13 +114,14 @@ class Logger:
         """
         text = self._tag_msg(tag, msg)
         if self._level > 1: return
-        if not self._runs_headless:
+        if not self._runs_headless and not self._is_debugged():
             log_info(text, "Plugin.Mole")
-        self._print(
-            "INFO", text,
-            color=color, on_color=on_color, print_raw=print_raw,
-            attrs=attrs, file=sys.stdout
-        ) 
+        else:
+            self._print(
+                "INFO", text,
+                color=color, on_color=on_color, print_raw=print_raw,
+                attrs=attrs, file=sys.stdout
+            ) 
         return
     
     def warn(
@@ -135,13 +138,14 @@ class Logger:
         """
         text = self._tag_msg(tag, msg)
         if self._level > 2: return
-        if not self._runs_headless:
+        if not self._runs_headless and not self._is_debugged():
             log_warn(text, "Plugin.Mole")
-        self._print(
-            "WARN", text,
-            color=color, on_color=on_color, print_raw=print_raw,
-            attrs=attrs, file=sys.stderr
-        )
+        else:
+            self._print(
+                "WARN", text,
+                color=color, on_color=on_color, print_raw=print_raw,
+                attrs=attrs, file=sys.stderr
+            )
         return
     
     def error(
@@ -158,11 +162,12 @@ class Logger:
         """
         text = self._tag_msg(tag, msg)
         if self._level > 3: return
-        if not self._runs_headless:
+        if not self._runs_headless and not self._is_debugged():
             log_error(text, "Plugin.Mole")
-        self._print(
-            "ERRO", text,
-            color=color, on_color=on_color, print_raw=print_raw,
-            attrs=attrs, file=sys.stderr
-        )   
+        else:
+            self._print(
+                "ERRO", text,
+                color=color, on_color=on_color, print_raw=print_raw,
+                attrs=attrs, file=sys.stderr
+            )   
         return
