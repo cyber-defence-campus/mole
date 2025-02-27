@@ -439,38 +439,33 @@ class TestVarious(TestCase):
             self,
             filenames: List[str] = ["memcpy-07"]
         ) -> None:
-        self.test_memcpy_02(filenames)
-        return
+        return self.test_memcpy_02(filenames)
     
     @unittest.expectedFailure
     def test_memcpy_08(
             self,
             filenames: List[str] = ["memcpy-08"]
         ) -> None:
-        self.test_memcpy_06(filenames)
-        return
+        return self.test_memcpy_06(filenames)
     
     def test_memcpy_09(
             self,
             filenames: List[str] = ["memcpy-09"]
         ) -> None:
-        self.test_memcpy_06(filenames)
-        return
+        return self.test_memcpy_06(filenames)
     
     @unittest.expectedFailure
     def test_memcpy_10(
             self,
             filenames: List[str] = ["memcpy-10"]
         ) -> None:
-        self.test_memcpy_06(filenames)
-        return
+        return self.test_memcpy_06(filenames)
     
     def test_memcpy_11(
             self,
             filenames: List[str] = ["memcpy-11"]
         ) -> None:
-        self.test_memcpy_06(filenames)
-        return
+        return self.test_memcpy_06(filenames)
 
 
 class TestFunctionCalling(TestCase):
@@ -579,15 +574,13 @@ class TestFunctionCalling(TestCase):
             self,
             filenames: List[str] = ["function_calling-03"]
         ) -> None:
-        self.test_function_calling_01(filenames)
-        return
+        return self.test_function_calling_01(filenames)
     
     def test_function_calling_04(
             self,
             filenames: List[str] = ["function_calling-04"]
         ) -> None:
-        self.test_function_calling_02(filenames)
-        return
+        return self.test_function_calling_02(filenames)
     
     def test_function_calling_05(
             self,
@@ -639,8 +632,7 @@ class TestFunctionCalling(TestCase):
             self,
             filenames: List[str] = ["function_calling-06"]
         ) -> None:
-        self.test_function_calling_05(filenames)
-        return
+        return self.test_function_calling_05(filenames)
     
     def test_function_calling_07(
             self,
@@ -662,8 +654,7 @@ class TestFunctionCalling(TestCase):
             self,
             filenames: List[str] = ["function_calling-08"]
         ) -> None:
-        self.test_function_calling_07(filenames)
-        return
+        return self.test_function_calling_07(filenames)
 
 
 class TestPointerAnalysis(TestCase):
@@ -715,15 +706,13 @@ class TestPointerAnalysis(TestCase):
             self,
             filenames: List[str] = ["pointer_analysis-02"]
         ) -> None:
-        self.test_pointer_analysis_01(filenames)
-        return
+        return self.test_pointer_analysis_01(filenames)
     
     def test_pointer_analysis_03(
             self,
             filenames: List[str] = ["pointer_analysis-03"]
         ) -> None:
-        self.test_pointer_analysis_01(filenames)
-        return
+        return self.test_pointer_analysis_01(filenames)
     
     def test_pointer_analysis_04(
             self,
@@ -737,7 +726,6 @@ class TestPointerAnalysis(TestCase):
             paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
-            call_paths = []
             for path in paths:
                 self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
@@ -756,19 +744,7 @@ class TestPointerAnalysis(TestCase):
                     if calls[-1] != call:
                         calls.append(call)
                 calls.append(path.src_sym_name)
-                call_paths.append(calls)
-            self.assertCountEqual(
-                call_paths,
-                [
-                    [
-                        "system", "main", "getenv"
-                    ],
-                    [
-                        "system", "main", "getenv"
-                    ]
-                ],
-                "call paths"
-            )
+                self.assertEqual(calls, ["system", "main", "getenv"])
             # Close test binary
             bv.file.close()
         return
@@ -800,8 +776,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
-            self.assertTrue(len(paths) >= 1, ">= 1 path(s) identified")
-            call_paths = []
+            self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
                 self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
@@ -821,6 +796,49 @@ class TestPointerAnalysis(TestCase):
                         calls.append(call)
                 calls.append(path.src_sym_name)
                 self.assertEqual(calls, ["memcpy", "main", "modify_n", "getenv"])
+            # Close test binary
+            bv.file.close()
+        return
+    
+    def test_pointer_analysis_07(
+            self,
+            filenames: List[str] = ["pointer_analysis-07"]
+        ) -> None:
+        for file in load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
+            # Assert results
+            self.assertTrue(len(paths) == 1, "1 path identified")
+            path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+            self.assertTrue(
+                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
+                "source is a MLIL instruction"
+            )
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'system'")
+            self.assertTrue(
+                (
+                    isinstance(path.insts[0], bn.MediumLevelILCallSsa) or
+                    isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction"
+            )
+            self.assertEqual(path.snk_par_idx, 1, "arg2")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "argument is a MLIL variable"
+            )
+            calls = [path.snk_sym_name]
+            for inst in path.insts:
+                call = inst.function.source_function.name
+                if calls[-1] != call:
+                    calls.append(call)
+            calls.append(path.src_sym_name)
+            self.assertEqual(calls, ["memcpy", "main", "my_getenv", "getenv"], "call chain")
             # Close test binary
             bv.file.close()
         return
