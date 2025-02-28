@@ -172,8 +172,8 @@ class SourceFunction(Function):
             self,
             bv: bn.BinaryView,
             canceled: Callable[[], bool],
-            tag: str = None,
-            log: Logger = Logger()
+            tag: str,
+            log: Logger
         ) -> None:
         """
         This method finds a set of target instructions that a static backward slice should hit on.
@@ -220,7 +220,7 @@ class SourceFunction(Function):
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
-                        slicer = MediumLevelILBackwardSlicer(bv, 0, tag, log)
+                        slicer = MediumLevelILBackwardSlicer(bv, tag, log, 0)
                         slicer.slice_backwards(par_var)
                         # Add sliced instructions to the target instructions
                         l = self.target_insts.setdefault((src_inst.address, src_name), [])
@@ -252,8 +252,8 @@ class SinkFunction(Function):
             max_slice_depth: int,
             found_path: Callable[[Path], None],
             canceled: Callable[[], bool],
-            tag: str = None,
-            log: Logger = Logger()
+            tag: str,
+            log: Logger
         ) -> List[Path]:
         """
         This method tries to find paths, starting from the current sink and ending in one of the
@@ -301,7 +301,7 @@ class SinkFunction(Function):
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
-                        slicer = MediumLevelILBackwardSlicer(bv, max_call_level, tag, log)
+                        slicer = MediumLevelILBackwardSlicer(bv, tag, log, max_call_level)
                         slicer.slice_backwards(par_var)
                         for source in sources:
                             if canceled(): break
