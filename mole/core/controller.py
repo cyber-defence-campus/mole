@@ -25,18 +25,18 @@ class Controller:
 
     def __init__(
             self,
+            tag: str = "Mole",
+            log: Logger = Logger(level="debug"),
             runs_headless: bool = False,
-            tag: str = "Controller",
-            log: Logger = Logger(level="debug")
         ) -> None:
         """
         This method initializes a controller (MVC pattern).
         """
-        self._runs_headless: bool = runs_headless
         self._tag: str = tag
         self._log: Logger = log
+        self._runs_headless: bool = runs_headless
         self._thread: MediumLevelILBackwardSlicerThread = None
-        self._parser: LogicalExpressionParser = LogicalExpressionParser(log=log)
+        self._parser: LogicalExpressionParser = LogicalExpressionParser(self._tag, self._log)
         self._paths: List[Path] = []
         self._paths_widget: qtw.QTableWidget = None
         self._paths_highlight: Tuple[
@@ -434,6 +434,8 @@ class Controller:
             self._log.warn(self._tag, "Analysis already running.")
             self.__give_feedback(but, "Analysis Already Running...")
             return
+        # Initialize new logger to detect newly attached debugger
+        self._log = Logger(self._log.get_level(), self._runs_headless)
         self.__give_feedback(but, "Finding Paths...")
         # Initialize data structures
         if tbl:
@@ -442,11 +444,12 @@ class Controller:
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
             ctr=self,
+            tag=self._tag,
+            log=self._log,
             runs_headless=self._runs_headless,
             max_call_level=max_call_level,
             max_slice_depth=max_slice_depth,
-            enable_all_funs=enable_all_funs,
-            log=self._log
+            enable_all_funs=enable_all_funs
         )
         self._thread.start()
         if self._runs_headless:
@@ -811,12 +814,12 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             self,
             bv: bn.BinaryView,
             ctr: Controller,
+            tag: str,
+            log: Logger,
             runs_headless: bool = False,
             max_call_level: int = None,
             max_slice_depth: int = None,
-            enable_all_funs: bool = False,
-            tag: str = "BackSlicer",
-            log: Logger = Logger()
+            enable_all_funs: bool = False
         ) -> None:
         """
         This method initializes a background task that backward slices MLIL instructions.
@@ -824,12 +827,12 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         super().__init__(initial_progress_text="Start slicing...", can_cancel=True)
         self._bv: bn.BinaryView = bv
         self._ctr: Controller = ctr
+        self._tag: str = tag
+        self._log: Logger = log
         self._runs_headless: bool = runs_headless
         self._max_call_level: int = max_call_level
         self._max_slice_depth: int = max_slice_depth
         self._enable_all_funs: bool = enable_all_funs
-        self._tag: str = tag
-        self._log: Logger = log
         return
     
     def run(self) -> None:

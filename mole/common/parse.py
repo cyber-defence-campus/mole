@@ -38,8 +38,8 @@ class LogicalExpressionParser:
 
     def __init__(
             self,
-            tag: str = "LogicalExpressionParser",
-            log: Logger = Logger()
+            tag: str,
+            log: Logger
         ) -> None:
         """
         This method initializes a parser for logical expressions.

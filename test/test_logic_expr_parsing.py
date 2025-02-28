@@ -10,7 +10,7 @@ class TestLogicalExpressionParser(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self.parser = LogicalExpressionParser(log=Logger(level="debug", runs_headless=True))
+        self.parser = LogicalExpressionParser(tag="Mole", log=Logger(level="debug", runs_headless=True))
         return
     
     def test_true(self) -> None:

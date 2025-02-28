@@ -19,8 +19,8 @@ class SidebarView(bnui.SidebarWidgetType):
     def __init__(
             self,
             ctr: Controller,
-            tag: str = "Sidebar",
-            log: Logger = Logger()
+            tag: str,
+            log: Logger
         ) -> None:
         """
         This method initializes a view (MVC pattern).
@@ -86,8 +86,8 @@ class SidebarWidget(bnui.SidebarWidget):
     def __init__(
             self,
             ctr: Controller,
-            tag: str = "Sidebar",
-            log: Logger = Logger()
+            tag: str,
+            log: Logger
         ) -> None:
         """
         This method initializes a sidebar widget.
@@ -186,8 +186,6 @@ class SidebarWidget(bnui.SidebarWidget):
                 self._ctr.remove_selected_paths(tbl, rows)
             elif menu_action == menu_action_remove_all_paths:
                 self._ctr.remove_all_paths(tbl)
-            elif menu_action == menu_action_plot_instructions:
-                self._ctr.plot_instructions_graph(self._bv, tbl, row, col)
             return
 
         res_tbl = qtw.QTableWidget()
@@ -234,7 +232,7 @@ class SidebarWidget(bnui.SidebarWidget):
         return wid, "Run"
     
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
-        return GraphWidget(), "Graph"
+        return GraphWidget(self._tag, self._log), "Graph"
     
     def _init_cnf_tab(self) -> Tuple[qtw.QWidget, str]:
         """
