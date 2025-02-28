@@ -843,6 +843,12 @@ class TestPointerAnalysis(TestCase):
             bv.file.close()
         return
     
+    def test_pointer_analysis_08(
+            self,
+            filenames: List[str] = ["pointer_analysis-08"]
+        ) -> None:
+        return self.test_pointer_analysis_07(filenames)
+    
     def test_pointer_analysis_09(
             self,
             filenames: List[str] = ["pointer_analysis-09"]
