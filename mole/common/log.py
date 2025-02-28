@@ -1,6 +1,5 @@
 from   binaryninja import log_debug, log_info, log_warn, log_error
 from   datetime    import datetime
-from   functools   import lru_cache
 from   termcolor   import colored
 from   typing      import List, Literal
 import sys
@@ -25,14 +24,8 @@ class Logger:
         """
         self._level = self._levels.index(level)
         self._runs_headless: bool = runs_headless
+        self._runs_debugger: bool = any(module.startswith("debugpy") for module in sys.modules)
         return
-    
-    @lru_cache(maxsize=None)
-    def _is_debugged(self) -> bool:
-        """
-        This method returns `True` if module `debugpy` is used.
-        """
-        return any(module.startswith("debugpy") for module in sys.modules)
     
     def get_level(self) -> str:
         """
@@ -90,7 +83,7 @@ class Logger:
         """
         text = self._tag_msg(tag, msg)
         if self._level > 0: return
-        if not self._runs_headless and not self._is_debugged():
+        if not self._runs_headless and not self._runs_debugger:
             log_debug(text, "Plugin.Mole")
         else:
             self._print(
@@ -114,7 +107,7 @@ class Logger:
         """
         text = self._tag_msg(tag, msg)
         if self._level > 1: return
-        if not self._runs_headless and not self._is_debugged():
+        if not self._runs_headless and not self._runs_debugger:
             log_info(text, "Plugin.Mole")
         else:
             self._print(
@@ -138,7 +131,7 @@ class Logger:
         """
         text = self._tag_msg(tag, msg)
         if self._level > 2: return
-        if not self._runs_headless and not self._is_debugged():
+        if not self._runs_headless and not self._runs_debugger:
             log_warn(text, "Plugin.Mole")
         else:
             self._print(
@@ -162,7 +155,7 @@ class Logger:
         """
         text = self._tag_msg(tag, msg)
         if self._level > 3: return
-        if not self._runs_headless and not self._is_debugged():
+        if not self._runs_headless and not self._runs_debugger:
             log_error(text, "Plugin.Mole")
         else:
             self._print(
