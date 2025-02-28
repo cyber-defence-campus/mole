@@ -842,6 +842,12 @@ class TestPointerAnalysis(TestCase):
             # Close test binary
             bv.file.close()
         return
+    
+    def test_pointer_analysis_09(
+            self,
+            filenames: List[str] = ["pointer_analysis-09"]
+        ) -> None:
+        return self.test_pointer_analysis_01(filenames)
 
 
 class TestSimpleServer(TestCase):
