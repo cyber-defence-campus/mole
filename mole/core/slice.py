@@ -311,7 +311,7 @@ class MediumLevelILBackwardSlicer:
                     if mem_def_inst in self._inst_visited:
                         self._log.debug(
                             self._tag,
-                            f"Ignore instruction '{mem_def_inst_info:s}' since sliced before"
+                            f"Ignore '{mem_def_inst_info:s}' since sliced before"
                         )
                         continue
                     match mem_def_inst:
@@ -323,7 +323,7 @@ class MediumLevelILBackwardSlicer:
                                     case (bn.MediumLevelILConstPtr(constant=constant)) if constant == inst.constant:
                                         self._log.debug(
                                             self._tag,
-                                            f"Follow '{mem_def_inst_info:s}' since it seems to use '0x{inst.constant:x}'"
+                                            f"Follow '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'"
                                         )
                                         self._inst_graph.add_node(inst, call_level, caller_site)
                                         self._inst_graph.add_node(mem_def_inst, call_level, caller_site)
@@ -335,7 +335,7 @@ class MediumLevelILBackwardSlicer:
                             if not followed:
                                 self._log.debug(
                                     self._tag,
-                                    f"Not following '{mem_def_inst_info:s}' since it does not seem to use '0x{inst.constant:x}'"
+                                    f"Don't not follow '{mem_def_inst_info:s}' since it not uses '0x{inst.constant:x}'"
                                 )
             case (bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILAddressOf()):
@@ -343,25 +343,28 @@ class MediumLevelILBackwardSlicer:
                 var, var_addr_ass_insts = self.get_var_addr_assignments(inst)
                 var_info = VariableHelper.get_var_info(var)
                 # Determine all use sites of assignment instructions' destinations
-                var_use_sites: Set[bn.MediumLevelILInstruction] = set()
+                var_use_sites: Dict[bn.MediumLevelILInstruction, bn.MediumLevelILSetVarSsa] = {}
                 for var_addr_ass_inst in var_addr_ass_insts:
-                    var_use_sites.update(var_addr_ass_inst.dest.use_sites)
+                    for var_use_site in var_addr_ass_inst.dest.use_sites:
+                        var_use_sites[var_use_site] = var_addr_ass_inst
                 # Iterate all memory defining instructions
                 for mem_def_inst in self.get_mem_def_insts(inst):
                     mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
                     if mem_def_inst in self._inst_visited:
                         self._log.debug(
                             self._tag,
-                            f"Ignore instruction '{mem_def_inst_info:s}' since sliced before"
+                            f"Ignore '{mem_def_inst_info:s}' since sliced before"
                         )
                         continue
                     match mem_def_inst:
                         # Slice calls having the same variable address as parameter
                         case (bn.MediumLevelILCallSsa()):
-                            if mem_def_inst in var_use_sites:
+                            if mem_def_inst in var_use_sites.keys():
+                                var_addr_ass_inst = var_use_sites[mem_def_inst]
+                                var_addr_ass_inst_info = InstructionHelper.get_inst_info(var_addr_ass_inst, False)
                                 self._log.debug(
                                     self._tag,
-                                    f"Follow '{mem_def_inst_info:s}' since it seems to use '&{var_info:s}'"
+                                    f"Follow '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'"
                                 )
                                 self._inst_graph.add_node(inst, call_level, caller_site)
                                 self._inst_graph.add_node(mem_def_inst, call_level, caller_site)
@@ -370,7 +373,7 @@ class MediumLevelILBackwardSlicer:
                             else:
                                 self._log.debug(
                                     self._tag,
-                                    f"Not following '{mem_def_inst_info:s}' since it does not seem to use '&{var_info:s}'"
+                                    f"Don't follow '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'"
                                 )
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliasedField() |
