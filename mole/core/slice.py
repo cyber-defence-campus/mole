@@ -335,7 +335,7 @@ class MediumLevelILBackwardSlicer:
                             if not followed:
                                 self._log.debug(
                                     self._tag,
-                                    f"Don't not follow '{mem_def_inst_info:s}' since it not uses '0x{inst.constant:x}'"
+                                    f"Do not follow '{mem_def_inst_info:s}' since it not uses '0x{inst.constant:x}'"
                                 )
             case (bn.MediumLevelILVarAliased() |
                   bn.MediumLevelILAddressOf()):
@@ -373,7 +373,7 @@ class MediumLevelILBackwardSlicer:
                             else:
                                 self._log.debug(
                                     self._tag,
-                                    f"Don't follow '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'"
+                                    f"Do not follow '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'"
                                 )
             case (bn.MediumLevelILVarSsa() |
                   bn.MediumLevelILVarAliasedField() |
