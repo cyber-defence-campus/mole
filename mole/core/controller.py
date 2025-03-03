@@ -630,9 +630,13 @@ class Controller:
         msg = f"Path {path_id:d}: {str(path):s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         self._log.info(self._tag, msg)
-        self._log.debug(self._tag, "--- Backward Slice ---")
+        if reverse:
+            self._log.debug(self._tag, "--- Forward  Slice ---")
+            insts = reversed(path.insts)
+        else:
+            self._log.debug(self._tag, "--- Backward Slice ---")
+            insts = path.insts
         basic_block = None
-        insts = path.insts if not reverse else reversed(path.insts)
         for inst in insts:
             if inst.il_basic_block != basic_block:
                 basic_block = inst.il_basic_block
