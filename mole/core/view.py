@@ -174,7 +174,7 @@ class SidebarWidget(bnui.SidebarWidget):
             menu_action = menu.exec(tbl.mapToGlobal(pos))
             if not menu_action: return
             if menu_action == menu_action_log_path:
-                self._ctr.log_path(tbl, rows)
+                self._ctr.log_path(tbl, rows, False)
             elif menu_action == menu_action_log_path_reversed:
                 self._ctr.log_path(tbl, rows, True)
             elif menu_action == menu_action_log_path_diff:
