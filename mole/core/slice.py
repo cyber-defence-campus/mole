@@ -608,42 +608,6 @@ class MediumLevelILBackwardSlicer:
         """
         return MediumLevelILBackwardSlicer._get_mem_definitions(inst)
     
-    def get_mem_def_insts(
-            self,
-            inst: bn.MediumLevelILInstruction
-        ) -> List[bn.MediumLevelILInstruction]:
-        """
-        This method returns a list of relevant instructions defining the memory of `inst`.
-        """
-        mem_def_insts: List[bn.MediumLevelILInstruction] = []
-        # Backward iterate through all memory defining instructions
-        ssa_memory_versions =set([inst.ssa_memory_version])
-        seen_ssa_memory_versions = set()
-        while ssa_memory_versions:
-            # Get next unseen memory version
-            ssa_memory_version = ssa_memory_versions.pop()
-            if ssa_memory_version in seen_ssa_memory_versions:
-                continue
-            seen_ssa_memory_versions.add(ssa_memory_version)
-            # Get instruction defining the memory version
-            mem_def_inst = inst.function.get_ssa_memory_definition(ssa_memory_version)
-            if mem_def_inst is None:
-                self._log.debug(
-                    self._tag,
-                    f"'mem#{ssa_memory_version:d}' no definition found"
-                )
-                continue
-            mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-            self._log.debug(
-                self._tag,
-                f"'mem#{ssa_memory_version:d}' defined in '{mem_def_inst_info:s}'"
-            )
-            # Add memory defining instruction
-            if not mem_def_inst in mem_def_insts:
-                mem_def_insts.append(mem_def_inst)
-                ssa_memory_versions.add(mem_def_inst.ssa_memory_version)
-        return mem_def_insts
-    
     @lru_cache(maxsize=None)
     def _get_var_addr_assignments(
             self,
