@@ -144,8 +144,11 @@ class SidebarWidget(bnui.SidebarWidget):
 
             menu = qtw.QMenu(tbl)
             menu_action_log_path = menu.addAction("Log instructions")
+            menu_action_log_path_reversed = menu.addAction("Log instructions (reversed)")
             if len(rows) != 1:
                 menu_action_log_path.setEnabled(False)
+                menu_action_log_path_reversed.setEnabled(False)
+
             menu_action_log_path_diff = menu.addAction("Log instruction difference")
             if len(rows) != 2:
                 menu_action_log_path_diff.setEnabled(False)
@@ -171,7 +174,9 @@ class SidebarWidget(bnui.SidebarWidget):
             menu_action = menu.exec(tbl.mapToGlobal(pos))
             if not menu_action: return
             if menu_action == menu_action_log_path:
-                self._ctr.log_path(tbl, rows)
+                self._ctr.log_path(tbl, rows, False)
+            elif menu_action == menu_action_log_path_reversed:
+                self._ctr.log_path(tbl, rows, True)
             elif menu_action == menu_action_log_path_diff:
                 self._ctr.log_path_diff(tbl, rows)
             elif menu_action == menu_action_highlight_path:
