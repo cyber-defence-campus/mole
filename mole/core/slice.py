@@ -608,9 +608,9 @@ class MediumLevelILBackwardSlicer:
         """
         return MediumLevelILBackwardSlicer._get_mem_definitions(inst)
     
+    @staticmethod
     @lru_cache(maxsize=None)
     def _get_var_addr_assignments(
-            self,
             func: bn.MediumLevelILFunction
         ) -> Dict[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
         var_addr_assignments = {}
@@ -631,7 +631,7 @@ class MediumLevelILBackwardSlicer:
         in their source the same variable as in `inst`. Only instructions within the same function
         as `inst` are considered.
         """
-        var_addr_assignments = self._get_var_addr_assignments(inst.function)
+        var_addr_assignments = MediumLevelILBackwardSlicer._get_var_addr_assignments(inst.function)
         match inst:
             case (bn.MediumLevelILAddressOf(src=src)):
                 return src, var_addr_assignments.get(src, [])
