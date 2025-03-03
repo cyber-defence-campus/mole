@@ -306,7 +306,7 @@ class MediumLevelILBackwardSlicer:
                 pass
             case (bn.MediumLevelILConstPtr()):
                 # Iterate all memory defining instructions
-                for mem_def_inst in self.get_mem_def_insts(inst):
+                for mem_def_inst in self.get_mem_definitions(inst):
                     mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
                     if mem_def_inst in self._inst_visited:
                         self._log.debug(
@@ -348,7 +348,7 @@ class MediumLevelILBackwardSlicer:
                     for var_use_site in var_addr_ass_inst.dest.use_sites:
                         var_use_sites[var_use_site] = var_addr_ass_inst
                 # Iterate all memory defining instructions
-                for mem_def_inst in self.get_mem_def_insts(inst):
+                for mem_def_inst in self.get_mem_definitions(inst):
                     mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
                     if mem_def_inst in self._inst_visited:
                         self._log.debug(
@@ -576,6 +576,37 @@ class MediumLevelILBackwardSlicer:
             # Add path and call graph
             paths.append((simple_path, call_graph))
         return paths
+    
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def _get_mem_definitions(
+            inst: bn.MediumLevelILInstruction,
+            ssa_memory_versions: frozenset[int] = frozenset()
+        ) -> List[bn.MediumLevelILInstruction]:
+        # Empty instruction or memory version already seen
+        if inst is None or inst.ssa_memory_version in ssa_memory_versions:
+            return []
+        ssa_memory_versions = ssa_memory_versions.union({inst.ssa_memory_version})
+        # Current memory defining instruction
+        mem_def_inst = inst.function.get_ssa_memory_definition(inst.ssa_memory_version)
+        if mem_def_inst is None:
+            return []
+        mem_def_insts: List[bn.MediumLevelILInstruction] = [mem_def_inst]
+        # Recursive memory defining instructions
+        for mem_def_inst in MediumLevelILBackwardSlicer._get_mem_definitions(mem_def_inst, ssa_memory_versions):
+            if not mem_def_inst in mem_def_insts:
+                mem_def_insts.append(mem_def_inst)
+        return mem_def_insts
+    
+    def get_mem_definitions(
+            self,
+            inst: bn.MediumLevelILInstruction,
+        ) -> List[bn.MediumLevelILInstruction]:
+        """
+        This method backtraces all the memory defining instructions of `inst` within its function
+        (i.e. `inst.function`).
+        """
+        return MediumLevelILBackwardSlicer._get_mem_definitions(inst)
     
     def get_mem_def_insts(
             self,
