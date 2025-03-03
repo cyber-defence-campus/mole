@@ -308,9 +308,13 @@ class MediumLevelILBackwardSlicer:
                 # TODO: Merge duplicate code
                 # Backward iterate through all memory defining instructions
                 memory_versions = {inst.ssa_memory_version}
+                seen_memory_versions = set()
                 while memory_versions:
                     # Pop memory version
                     memory_version = memory_versions.pop()
+                    if memory_version in seen_memory_versions:
+                        continue
+                    seen_memory_versions.add(memory_version)
                     # Find instruction defining the memory version
                     inst_mem_def = inst.function.get_ssa_memory_definition(memory_version)
                     if inst_mem_def is None:
@@ -355,17 +359,13 @@ class MediumLevelILBackwardSlicer:
                                     f"Not following '{inst_mem_def_info:s}' since it does not seem to use '0x{inst.constant:x}'"
                                 )
                             # Add next memory version
-                            next_memory_version = inst_mem_def.ssa_memory_version
-                            if next_memory_version != memory_version:
-                                memory_versions.add(next_memory_version)
+                            memory_versions.add(inst_mem_def.ssa_memory_version)
+                        # TODO: Slice assignment instructions having the variable as source
+                        case (bn.MediumLevelILSetVarAliased(src=src)):
+                            memory_versions.update([src.ssa_memory_version])
                         # Process all possible memory versions
                         case (bn.MediumLevelILMemPhi(src_memory=src_memory_versions)):
-                            memory_versions.update(
-                                [
-                                    src_memory_version for src_memory_version in src_memory_versions
-                                    if src_memory_version != memory_version
-                                ]
-                            )
+                            memory_versions.update(src_memory_versions)
                         # Missing handlers
                         case _:
                             self._log.warn(
@@ -384,9 +384,13 @@ class MediumLevelILBackwardSlicer:
                     var_use_sites.update(var_addr_ass_inst.dest.use_sites)
                 # Backward iterate through all memory defining instructions
                 memory_versions = {inst.ssa_memory_version}
+                seen_memory_versions = set()
                 while memory_versions:
                     # Pop memory version
                     memory_version = memory_versions.pop()
+                    if memory_version in seen_memory_versions:
+                        continue
+                    seen_memory_versions.add(memory_version)
                     # Find instruction defining the memory version
                     inst_mem_def = inst.function.get_ssa_memory_definition(memory_version)
                     if inst_mem_def is None:
@@ -427,17 +431,29 @@ class MediumLevelILBackwardSlicer:
                                     f"Not following '{inst_mem_def_info:s}' since it does not seem to use '&{var_info:s}'"
                                 )
                             # Add next memory version
-                            next_memory_version = inst_mem_def.ssa_memory_version
-                            if next_memory_version != memory_version:
-                                memory_versions.add(next_memory_version)
+                            memory_versions.add(inst_mem_def.ssa_memory_version)
+                        # TODO: Slice assignment instructions having the variable as source
+                        case (bn.MediumLevelILSetVarAliased(src=src)):
+                            # src_info = InstructionHelper.get_inst_info(src, False)
+                            # # Source is a use site
+                            # if src in var_use_sites:
+                            #     self._log.debug(
+                            #         self._tag,
+                            #         f"Follow '{src_info:s}' since it seems to use '&{var_info:s}'"
+                            #     )
+                            #     self._inst_graph.add_node(inst, call_level, caller_site)
+                            #     self._inst_graph.add_node(src, call_level, caller_site)
+                            #     self._inst_graph.add_edge(inst, src)
+                            #     self._slice_backwards(src, call_level, caller_site)
+                            # else:
+                            #     self._log.debug(
+                            #         self._tag,
+                            #         f"Not following '{src_info:s}' since it does not seem to use '&{var_info}'"
+                            #     )
+                            memory_versions.update([src.ssa_memory_version])
                         # Process all possible memory versions
                         case (bn.MediumLevelILMemPhi(src_memory=src_memory_versions)):
-                            memory_versions.update(
-                                [
-                                    src_memory_version for src_memory_version in src_memory_versions
-                                    if src_memory_version != memory_version
-                                ]
-                            )
+                            memory_versions.update(src_memory_versions)
                         # Missing handlers
                         case _:
                             self._log.warn(
