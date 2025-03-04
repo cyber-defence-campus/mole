@@ -1,10 +1,11 @@
-from __future__        import annotations
-from ..common.parse    import LogicalExpressionParser
-from ..common.log      import Logger
-from ..ui.graph        import GraphWidget
-from ..ui.utils        import IntTableWidgetItem
-from .data             import *
-from typing            import Dict, List, Literal
+from __future__          import annotations
+from ..common.parse      import LogicalExpressionParser
+from ..common.log        import Logger
+from ..ui.graph          import GraphWidget
+from ..ui.utils          import IntTableWidgetItem
+from .data               import *
+from concurrent          import futures
+from typing              import Dict, List, Literal
 import binaryninja       as bn
 import copy              as copy
 import difflib           as difflib
@@ -28,6 +29,8 @@ class Controller:
             tag: str = "Mole",
             log: Logger = Logger(level="debug"),
             runs_headless: bool = False,
+            # TODO: Allow to be configured
+            max_workers: int | None = None
         ) -> None:
         """
         This method initializes a controller (MVC pattern).
@@ -35,6 +38,7 @@ class Controller:
         self._tag: str = tag
         self._log: Logger = log
         self._runs_headless: bool = runs_headless
+        self._max_workers = max_workers
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(self._tag, self._log)
         self._paths: List[Path] = []
@@ -447,6 +451,7 @@ class Controller:
             tag=self._tag,
             log=self._log,
             runs_headless=self._runs_headless,
+            max_workers=self._max_workers,
             max_call_level=max_call_level,
             max_slice_depth=max_slice_depth,
             enable_all_funs=enable_all_funs
@@ -823,6 +828,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             tag: str,
             log: Logger,
             runs_headless: bool = False,
+            max_workers: int | None = None,
             max_call_level: int = None,
             max_slice_depth: int = None,
             enable_all_funs: bool = False
@@ -836,6 +842,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         self._tag: str = tag
         self._log: Logger = log
         self._runs_headless: bool = runs_headless
+        self._max_workers = max_workers
         self._max_call_level: int = max_call_level
         self._max_slice_depth: int = max_slice_depth
         self._enable_all_funs: bool = enable_all_funs
@@ -847,16 +854,29 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         """
         self._paths: List[Path] = []
         self._log.info(self._tag, "Starting analysis")
-
+        
         # Source functions
         src_funs = self._ctr.get_functions("Sources", not self._enable_all_funs)
-        if not src_funs:
-            self._log.warn(self._tag, "No source functions configured")
+        if src_funs:
+            with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+                    tasks: Dict[futures.Future, Tuple[int, SourceFunction]] = {}
+                    for tid, src_fun in enumerate(src_funs):
+                        tag = f"{self._tag:s}] [TID:{tid:d}"
+                        self._log.debug(tag, f"Start slicing source '{src_fun.name:s}'")
+                        task = executor.submit(
+                            src_fun.find_targets,
+                            self._bv,
+                            lambda: self.cancelled,
+                            tag,
+                            self._log
+                        )
+                        tasks[task] = (tid, src_fun)
+                    for future in futures.as_completed(tasks):
+                        tid, src_fun = tasks[future]
+                        tag = f"{self._tag:s}] [TID:{tid:d}"
+                        self._log.debug(tag, f"Completed slicing source '{src_fun.name:s}'")
         else:
-            for i, src_fun in enumerate(src_funs):
-                if self.cancelled: break
-                self.progress = f"Find targets for source function {i+1:d}/{len(src_funs):d}..."
-                src_fun.find_targets(self._bv, lambda: self.cancelled, self._tag, self._log)
+            self._log.warn(self._tag, "No source functions configured")
 
         # Sink functions
         snk_funs = self._ctr.get_functions("Sinks", not self._enable_all_funs)
