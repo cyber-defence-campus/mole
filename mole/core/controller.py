@@ -66,6 +66,10 @@ class Controller:
         self.load_main_conf_file()
         return self
     
+    @property
+    def paths(self) -> List[Path]:
+        return self._paths
+    
     def __give_feedback(self, button: qtw.QPushButton, text: str, msec: int = 1000) -> None:
         """
         This method provides user feedback using a `QPushButton`'s text.
@@ -859,8 +863,10 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         src_funs = self._ctr.get_functions("Sources", not self._enable_all_funs)
         if src_funs:
             with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+                    # Submit tasks
                     tasks: Dict[futures.Future, Tuple[int, SourceFunction]] = {}
                     for tid, src_fun in enumerate(src_funs):
+                        if self.cancelled: break
                         tag = f"{self._tag:s}] [TID:{tid:d}"
                         self._log.debug(tag, f"Start slicing source '{src_fun.name:s}'")
                         task = executor.submit(
@@ -871,7 +877,10 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                             self._log
                         )
                         tasks[task] = (tid, src_fun)
-                    for future in futures.as_completed(tasks):
+                    # Wait for tasks to complete
+                    for cnt, future in enumerate(futures.as_completed(tasks)):
+                        if self.cancelled: break
+                        self.progress = f"Processing source {cnt:d}/{len(src_funs):d}"
                         tid, src_fun = tasks[future]
                         tag = f"{self._tag:s}] [TID:{tid:d}"
                         self._log.debug(tag, f"Completed slicing source '{src_fun.name:s}'")
@@ -888,23 +897,57 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         max_call_level = self._max_call_level if self._max_call_level is not None else settings.get("max_call_level").value
         max_slice_depth = self._max_slice_depth if self._max_slice_depth is not None else settings.get("max_slice_depth").value
         
+        # # Find paths
+        # if src_funs and snk_funs:
+        #     for i, snk_fun in enumerate(snk_funs):
+        #         if self.cancelled: break
+        #         self.progress = f"Find paths for sink function {i+1:d}/{len(snk_funs):d}..."
+        #         paths = snk_fun.find_paths(
+        #             bv=self._bv,
+        #             sources=src_funs,
+        #             max_call_level=max_call_level,
+        #             max_slice_depth=max_slice_depth,
+        #             found_path=self._ctr.add_path_to_view,
+        #             canceled=lambda:self.cancelled,
+        #             tag=self._tag,
+        #             log=self._log
+        #         )
+        #         self._paths.extend(paths)
+        
+        # TODO: Do we have the same path order in the UI and in self._paths?
+        # TODO: Do the TIDs in the log make sense?
+        # TODO: Test in headless mode
         # Find paths
         if src_funs and snk_funs:
-            for i, snk_fun in enumerate(snk_funs):
-                if self.cancelled: break
-                self.progress = f"Find paths for sink function {i+1:d}/{len(snk_funs):d}..."
-                paths = snk_fun.find_paths(
-                    bv=self._bv,
-                    sources=src_funs,
-                    max_call_level=max_call_level,
-                    max_slice_depth=max_slice_depth,
-                    found_path=self._ctr.add_path_to_view,
-                    canceled=lambda:self.cancelled,
-                    tag=self._tag,
-                    log=self._log
-                )
-                self._paths.extend(paths)
-        self._log.info(self._tag, "Analysis finished")
+            with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+                # Submit tasks
+                tasks: Dict[futures.Future, Tuple[int, SinkFunction]] = {}
+                for tid, snk_fun in enumerate(snk_funs):
+                    if self.cancelled: break
+                    tag = f"{self._tag:s}] [TID:{tid:d}"
+                    self._log.debug(tag, f"Start slicing sink '{snk_fun.name:s}'")
+                    task = executor.submit(
+                        snk_fun.find_paths,
+                        self._bv,
+                        src_funs,
+                        max_call_level,
+                        max_slice_depth,
+                        self._ctr.add_path_to_view,
+                        lambda: self.cancelled,
+                        tag,
+                        self._log
+                    )
+                    tasks[task] = (tid, snk_fun)
+                # Wait for tasks to complete
+                for cnt, future in enumerate(futures.as_completed(tasks)):
+                    if self.cancelled: break
+                    self.progress = f"Processing sink {cnt:d}/{len(snk_funs):d}"
+                    paths = future.result()
+                    self._paths.extend(paths)
+                    tid, snk_fun = tasks[future]
+                    tag = f"{self._tag:s}] [TID:{tid:d}"
+                    self._log.debug(tag, f"Completed slicing sink '{snk_fun.name:s}'")
+        self._log.info(self._tag, f"Analysis finished")
         return
     
     def get_paths(self) -> List[Path]:
