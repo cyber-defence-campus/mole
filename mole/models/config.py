@@ -1,6 +1,5 @@
 from typing import Dict, Any, List
 import os
-import yaml
 from ..core.data import Configuration, Library, Category
 
 class ConfigModel:

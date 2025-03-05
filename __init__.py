@@ -18,6 +18,3 @@ if not runs_headless:
     view.init()
 else:
     log.error("Headless mode not yet implemented.")
-#self.load_custom_conf_files()
-#self.load_main_conf_file()
-#return self
