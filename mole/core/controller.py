@@ -866,7 +866,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                     # Wait for tasks to complete
                     for cnt, future in enumerate(futures.as_completed(tasks)):
                         if self.cancelled: break
-                        self.progress = f"Processing source {cnt:d}/{len(src_funs):d}"
+                        self.progress = f"Mole processes source {cnt:d}/{len(src_funs):d}"
         else:
             self._log.warn(self._tag, "No source functions configured")
 
@@ -897,7 +897,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                 # Wait for tasks to complete
                 for cnt, future in enumerate(futures.as_completed(tasks)):
                     if self.cancelled: break
-                    self.progress = f"Processing sink {cnt:d}/{len(snk_funs):d}"
+                    self.progress = f"Mole processes sink {cnt:d}/{len(snk_funs):d}"
         self._log.info(self._tag, f"Analysis finished")
         return
     
