@@ -1,4 +1,7 @@
 from __future__          import annotations
+
+from mole.core.model import SidebarModel
+from mole.core.view import SidebarView
 from ..common.parse      import LogicalExpressionParser
 from ..common.log        import Logger
 from ..ui.graph          import GraphWidget
@@ -26,6 +29,8 @@ class Controller:
 
     def __init__(
             self,
+            view: SidebarView,
+            model: SidebarModel,
             tag: str = "Mole",
             log: Logger = Logger(level="debug"),
             runs_headless: bool = False
@@ -35,6 +40,8 @@ class Controller:
         """
         self._tag: str = tag
         self._log: Logger = log
+        self._view = view
+        self._model = model
         self._runs_headless: bool = runs_headless
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(self._tag, self._log)
@@ -49,19 +56,6 @@ class Controller:
             "../../conf/"
         )
         return
-    
-    def init(self) -> Controller:
-        """
-        This method initializes the plugin's model and view.
-        """
-        from .model import SidebarModel
-        self._model: SidebarModel = SidebarModel(self, self._tag, self._log).init()
-        if not self._runs_headless:
-            from .view import SidebarView
-            self._view: SidebarView = SidebarView(self, self._tag, self._log).init()
-        self.load_custom_conf_files()
-        self.load_main_conf_file()
-        return self
     
     @property
     def paths(self) -> List[Path]:
@@ -82,49 +76,6 @@ class Controller:
             button.setText(text)
             qtc.QTimer.singleShot(msec, lambda text=old_text: __reset_button(text=text))
         return
-    
-    def load_custom_conf_files(self) -> None:
-        """
-        This method loads the custom configuration files.
-        """
-        for conf_file in sorted(os.listdir(self._conf_path)):
-            if not fn.fnmatch(conf_file, "*.yml") or conf_file == "000-mole.yml": continue
-            # Open configuration file
-            try:
-                with open(os.path.join(self._conf_path, conf_file), "r") as f:
-                    conf = yaml.safe_load(f)
-            except Exception as e:
-                self._log.warn(
-                    self._tag,
-                    f"Failed to open configuration file '{conf_file:s}': '{str(e):s}'"
-                )
-                continue
-            # Parse configuration file
-            conf = self.parse_conf(conf)
-            # Update model
-            self._model.update(conf)
-        return
-    
-    def load_main_conf_file(self) -> None:
-        """
-        This method loads the main configuration file.
-        """
-        # Open configuration file
-        try:
-            with open(os.path.join(self._conf_path, "000-mole.yml")) as f:
-                conf = yaml.safe_load(f)
-        except FileNotFoundError:
-            return
-        except Exception as e:
-            self._log.warn(
-                    self._tag,
-                    f"Failed to open configuration file '000-mole.yml': '{str(e):s}'"
-                )
-            return
-        # Parse configuration file
-        conf = self.parse_conf(conf)
-        # Update model
-        self._model.update(conf)
 
     def parse_conf(self, conf: Dict) -> Configuration:
         """
