@@ -207,17 +207,18 @@ class SourceFunction(Function):
                 # Analyze parameters
                 for par_idx, par_var in enumerate(src_inst.params):
                     if canceled(): break
-                    log.debug(tag, f"Analyze argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
+                    par_idx += 1
+                    log.debug(tag, f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'")
                     # Perform dataflow analysis
                     if self.par_dataflow_fun(par_idx):
                         # Ignore constant parameters
                         if par_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            log.debug(tag, f"0x{src_inst.address:x} Ignore constant argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
+                            log.debug(tag, f"0x{src_inst.address:x} Ignore constant argument 'arg#{par_idx:d}:{str(par_var):s}'")
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
                         possible_sizes = par_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            log.debug(tag, f"0x{src_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
+                            log.debug(tag, f"0x{src_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx:d}:{str(par_var):s}'")
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
@@ -289,17 +290,18 @@ class SinkFunction(Function):
                 # Analyze parameters
                 for par_idx, par_var in enumerate(snk_inst.params):
                     if canceled(): break
-                    log.debug(tag, f"Analyze argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
+                    par_idx += 1
+                    log.debug(tag, f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'")
                     # Perform dataflow analysis
                     if self.par_dataflow_fun(par_idx):
                         # Ignore constant parameters
                         if par_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            log.debug(tag, f"0x{snk_inst.address:x} Ignore constant argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
+                            log.debug(tag, f"0x{snk_inst.address:x} Ignore constant argument 'arg#{par_idx:d}:{str(par_var):s}'")
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
                         possible_sizes = par_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            log.debug(tag, f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx+1:d}:{str(par_var):s}'")
+                            log.debug(tag, f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx:d}:{str(par_var):s}'")
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
@@ -433,7 +435,7 @@ class Path:
     def __str__(self) -> str:
         src = f"0x{self.src_sym_addr:x} {self.src_sym_name:s}"
         snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
-        snk = f"{snk:s}(arg#{self.snk_par_idx+1:d}:{str(self.snk_par_var):s})"
+        snk = f"{snk:s}(arg#{self.snk_par_idx:d}:{str(self.snk_par_var):s})"
         return f"{src:s} --> {snk:s}"
     
     def to_dict(self) -> Dict:
@@ -461,7 +463,7 @@ class Path:
             insts.append(func.mlil.ssa_form.get_expr(expr_idx))
         # Deserialize sink parameter variable
         snk_par_idx = d["snk_par_idx"]
-        snk_par_var = insts[0].params[snk_par_idx]
+        snk_par_var = insts[0].params[snk_par_idx-1]
         path = cls(
             src_sym_addr = int(d["src_sym_addr"], 0),
             src_sym_name = d["src_sym_name"],

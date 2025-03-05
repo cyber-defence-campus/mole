@@ -68,7 +68,7 @@ class TestVarious(TestCase):
                 ),
                 "sink is a MLIL call instruction"
             )
-            self.assertEqual(path.snk_par_idx, 0, "arg1")
+            self.assertEqual(path.snk_par_idx, 1, "arg1")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
@@ -166,7 +166,7 @@ class TestVarious(TestCase):
                     ),
                     "sink is a MLIL call instruction"
                 )
-                self.assertEqual(path.snk_par_idx, 0, "arg1")
+                self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
@@ -214,7 +214,7 @@ class TestVarious(TestCase):
                 ),
                 "sink is a MLIL call instruction"
             )
-            self.assertEqual(path.snk_par_idx, 2, "arg3")
+            self.assertEqual(path.snk_par_idx, 3, "arg3")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
@@ -262,7 +262,7 @@ class TestVarious(TestCase):
                     ),
                     "sink is a MLIL call instruction"
                 )
-                self.assertTrue(path.snk_par_idx in [1, 2], "arg2 or arg3")
+                self.assertTrue(path.snk_par_idx in [2, 3], "arg2 or arg3")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
@@ -310,7 +310,7 @@ class TestVarious(TestCase):
                 ),
                 "sink is a MLIL call instruction"
             )
-            self.assertEqual(path.snk_par_idx, 0, "arg1")
+            self.assertEqual(path.snk_par_idx, 1, "arg1")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
@@ -358,7 +358,7 @@ class TestVarious(TestCase):
                 ),
                 "sink is a MLIL call instruction"
             )
-            self.assertEqual(path.snk_par_idx, 2, "arg3")
+            self.assertEqual(path.snk_par_idx, 3, "arg3")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
@@ -406,7 +406,7 @@ class TestVarious(TestCase):
                     ),
                     "sink is a MLIL call instruction"
                 )
-                self.assertTrue(path.snk_par_idx in [1, 2], "arg2 or arg3")
+                self.assertTrue(path.snk_par_idx in [2, 3], "arg2 or arg3")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
@@ -506,7 +506,7 @@ class TestFunctionCalling(TestCase):
                     ),
                     "sink is a MLIL call instruction"
                 )
-                self.assertEqual(path.snk_par_idx, 0, "arg1")
+                self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
@@ -552,7 +552,7 @@ class TestFunctionCalling(TestCase):
                     ),
                     "sink is a MLIL call instruction"
                 )
-                self.assertEqual(path.snk_par_idx, 0, "arg1")
+                self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
@@ -620,7 +620,7 @@ class TestFunctionCalling(TestCase):
                 ),
                 "sink is a MLIL call instruction"
             )
-            self.assertEqual(path.snk_par_idx, 0, "arg1")
+            self.assertEqual(path.snk_par_idx, 1, "arg1")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
@@ -699,7 +699,7 @@ class TestPointerAnalysis(TestCase):
                 ),
                 "sink is a MLIL call instruction"
             )
-            self.assertEqual(path.snk_par_idx, 0, "arg1")
+            self.assertEqual(path.snk_par_idx, 1, "arg1")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
@@ -844,7 +844,7 @@ class TestPointerAnalysis(TestCase):
                 ),
                 "sink is a MLIL call instruction"
             )
-            self.assertEqual(path.snk_par_idx, 1, "arg2")
+            self.assertEqual(path.snk_par_idx, 2, "arg2")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
@@ -910,7 +910,7 @@ class TestSimpleServer(TestCase):
                     ),
                     "sink is a MLIL call instruction"
                 )
-                self.assertEqual(path.snk_par_idx, 0, "arg1")
+                self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
@@ -971,7 +971,7 @@ class TestSimpleServer(TestCase):
                     ),
                     "sink is a MLIL call instruction"
                 )
-                self.assertEqual(path.snk_par_idx, 0, "arg1")
+                self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
