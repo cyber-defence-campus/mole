@@ -1,0 +1,15 @@
+sources:
+  uhttpd:
+    name: uhttpd
+    categories:
+      Networks:
+        name: Networks
+        functions:
+          uh_tcp_recv:
+              name: uh_tcp_recv
+              symbols: [uh_tcp_recv]
+              synopsis: 'int32_t uh_tcp_recv(struct req_struct* fd, int32_t buf, int32_t count)'
+              enabled: false
+              par_cnt: i == 3
+              par_dataflow: 'False'
+              par_slice: i == 2

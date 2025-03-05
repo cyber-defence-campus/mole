@@ -1,0 +1,16 @@
+sources:
+  libgio:
+    name: libgio
+    categories:
+      Networks:
+        name: Networks
+        functions:
+          g_socket_receive:
+            name: g_socket_receive
+            symbols: [g_socket_receive, __builtin_g_socket_receive]
+            synopsis: gssize g_socket_receive(GSocket* socket, gchar* buffer, gsize
+              size, GCancellable* cancellable, GError** error)
+            enabled: false
+            par_cnt: i == 5
+            par_dataflow: 'False'
+            par_slice: i == 2
