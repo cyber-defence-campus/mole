@@ -1,6 +1,5 @@
 from __future__   import annotations
 from ..common.log import Logger
-from .controller  import Controller
 from .data        import Configuration
 
 
@@ -11,19 +10,17 @@ class SidebarModel:
 
     def __init__(
             self,
-            ctr: Controller,
             tag: str,
             log: Logger
         ) -> None:
         """
         This method initializes a model (MVC pattern).
         """
-        self._ctr: Controller = ctr
         self._tag: str = tag
         self._log: Logger = log
         self._cfg: Configuration = None
         return
-
+    
     def init(self) -> SidebarModel:
         """
         This method initializes the data model.
