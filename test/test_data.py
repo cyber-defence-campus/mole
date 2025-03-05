@@ -58,6 +58,13 @@ class TestData(unittest.TestCase):
                 )
             },
             settings={
+                "max_workers": SpinboxSetting(
+                    name="max_workers",
+                    value=-1,
+                    min_value=-1,
+                    max_value=256,
+                    help="maximum number of worker thread that backward slicing uses"
+                ),
                 "max_call_level": SpinboxSetting(
                     name="max_call_level",
                     value=3,
@@ -184,6 +191,7 @@ class TestData(unittest.TestCase):
     
     def test_serialize_spinbox_settings(self) -> None:
         settings = {
+            "max_workers": self.conf.settings["max_workers"].to_dict(),
             "max_call_level": self.conf.settings["max_call_level"].to_dict(),
             "max_slice_depth": self.conf.settings["max_slice_depth"].to_dict()
         }

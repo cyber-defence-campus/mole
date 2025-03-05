@@ -2,6 +2,7 @@ from __future__   import annotations
 from ..common.log import Logger
 from ..main       import Controller
 from ..ui.graph   import GraphWidget
+from .data        import SpinboxSetting
 from typing       import Any, Literal, Tuple
 import binaryninja       as bn
 import binaryninjaui     as bnui
@@ -312,39 +313,27 @@ class SidebarWidget(bnui.SidebarWidget):
         """
         This method initializes the tab `Settings`.
         """
-        settings = self._ctr.get_settings()
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
-        mcl_name = "max_call_level"
-        mcl = settings.get(mcl_name, None)
-        if mcl:
-            mcl.widget = qtw.QSpinBox()
-            mcl.widget.setRange(mcl.min_value, mcl.max_value)
-            mcl.widget.setValue(mcl.value)
-            mcl.widget.setToolTip(mcl.help)
-            mcl.widget.valueChanged.connect(
-                lambda value, setting=mcl: self._ctr.spinbox_change_value(setting, value)
+        settings = self._ctr.get_settings()
+        for name in ["max_workers", "max_call_level", "max_slice_depth"]:
+            setting: SpinboxSetting = settings.get(name, None)
+            if not setting:
+                continue
+            setting.widget = qtw.QSpinBox()
+            setting.widget.setRange(setting.min_value, setting.max_value)
+            setting.widget.setValue(setting.value)
+            setting.widget.setToolTip(setting.help)
+            setting.widget.valueChanged.connect(
+                lambda value, setting=setting: self._ctr.spinbox_change_value(setting, value)
             )
-            mcl_lbl = qtw.QLabel(f"{mcl_name:s}:")
-            mcl_lbl.setToolTip(mcl.help)
-            com_lay.addRow(mcl_lbl, mcl.widget)
-        msd_name = "max_slice_depth"
-        msd = settings.get(msd_name, None)
-        if msd:
-            msd.widget = qtw.QSpinBox()
-            msd.widget.setRange(msd.min_value, msd.max_value)
-            msd.widget.setValue(msd.value)
-            msd.widget.setToolTip(msd.help)
-            msd.widget.valueChanged.connect(
-                lambda value, setting=msd: self._ctr.spinbox_change_value(setting, value)
-            )
-            msd_lbl = qtw.QLabel(f"{msd_name:s}:")
-            msd_lbl.setToolTip(msd.help)
-            com_lay.addRow(msd_lbl, msd.widget)
+            label = qtw.QLabel(f"{name:s}:")
+            label.setToolTip(setting.help)
+            com_lay.addRow(label, setting.widget)
         com_wid.setLayout(com_lay)
         com_box_lay = qtw.QVBoxLayout()
         com_box_lay.addWidget(com_wid)
-        com_box_wid = qtw.QGroupBox("Common:")
+        com_box_wid = qtw.QGroupBox("Finding Paths:")
         com_box_wid.setLayout(com_box_lay)
         pth_wid = qtw.QWidget()
         pth_lay = qtw.QFormLayout()
@@ -364,7 +353,7 @@ class SidebarWidget(bnui.SidebarWidget):
         pth_wid.setLayout(pth_lay)
         pth_box_lay = qtw.QVBoxLayout()
         pth_box_lay.addWidget(pth_wid)
-        pth_box_wid = qtw.QGroupBox("Path Identification:")
+        pth_box_wid = qtw.QGroupBox("Analyzing Path:")
         pth_box_wid.setLayout(pth_box_lay)
         lay = qtw.QVBoxLayout()
         lay.addWidget(com_box_wid)

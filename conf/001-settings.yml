@@ -1,4 +1,10 @@
 settings:
+  max_workers:
+    name: max_workers
+    help: maximum number of worker threads that backward slicing uses
+    value: -1
+    min_value: -1
+    max_value: 256
   max_call_level:
     name: max_call_level
     help: backward slicing visits called functions up to the given level

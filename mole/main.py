@@ -29,6 +29,11 @@ def main() -> None:
         choices=["error", "warning", "info", "debug"], default="info",
         help="log level")
     parser.add_argument(
+        "--max_workers",
+        type=int, default=None,
+        help="maximum number of worker threads that backward slicing uses"
+    )
+    parser.add_argument(
         "--max_call_level",
         type=int, default=None,
         help="backward slicing visits called functions up to the given level"
@@ -56,7 +61,7 @@ def main() -> None:
         bv = bn.load(args.file)
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
-        paths = ctr.find_paths(bv, args.max_call_level, args.max_slice_depth)
+        paths = ctr.find_paths(bv, args.max_workers, args.max_call_level, args.max_slice_depth)
         # Export identified paths
         if args.export_paths_to_yml_file or args.export_paths_to_json_file:
             # Calculate SHA1 hash of binary
