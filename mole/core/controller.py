@@ -8,11 +8,10 @@ from ..ui.graph          import GraphWidget
 from ..ui.utils          import IntTableWidgetItem
 from .data               import *
 from concurrent          import futures
-from typing              import Dict, List, Literal
+from typing              import Dict, List
 import binaryninja       as bn
 import copy              as copy
 import difflib           as difflib
-import fnmatch           as fn
 import hashlib           as hashlib
 import json              as json
 import os                as os
@@ -77,80 +76,7 @@ class Controller:
             qtc.QTimer.singleShot(msec, lambda text=old_text: __reset_button(text=text))
         return
 
-    def parse_conf(self, conf: Dict) -> Configuration:
-        """
-        This method parse the plain configuration `conf` into a `Configuration` instance.
-        """
-        parsed_conf = {
-            "sources": {},
-            "sinks": {},
-            "settings": {}
-        }
-        if not conf: return Configuration(**parsed_conf)
-        try:
-            # Parse sources and sinks
-            for type in ["sources", "sinks"]:
-                libs = conf.get(type, {})
-                for lib_name, lib in libs.items():
-                    lib_categories = {}
-                    categories = lib.get("categories", {})
-                    for cat_name, cat in categories.items():
-                        cat_functions = {}
-                        functions = cat.get("functions", {})
-                        for fun_name, fun in functions.items():
-                            match type:
-                                case "sources":
-                                    fun = SourceFunction(**fun)
-                                case "sinks":
-                                    fun = SinkFunction(**fun)
-                                case _:
-                                    continue
-                            fun.par_cnt_fun = self._parser.parse(fun.par_cnt)
-                            fun.par_dataflow_fun = self._parser.parse(fun.par_dataflow)
-                            fun.par_slice_fun = self._parser.parse(fun.par_slice)
-                            cat_functions[fun_name] = fun
-                        lib_categories[cat_name] = Category(cat_name, cat_functions)
-                    parsed_conf[type][lib_name] = Library(lib_name, lib_categories)
-            # Parse settings
-            settings: Dict[str, Dict] = conf.get("settings", {})
-            for name in ["max_workers", "max_call_level", "max_slice_depth"]:
-                setting: Dict = settings.get(name, None)
-                if not setting:
-                    continue
-                value = setting.get("value", None)
-                min_value = int(setting.get("min_value", None))
-                max_value = int(setting.get("max_value", None))
-                value = min(max(value, min_value), max_value)
-                help = setting.get("help", "")
-                parsed_conf["settings"].update({
-                    name: SpinboxSetting(
-                        name=name,
-                        value=value,
-                        help=help,
-                        min_value=min_value,
-                        max_value=max_value
-                    )
-                })
-            col_name = "highlight_color"
-            col_settings = settings.get(col_name, None)
-            if col_settings:
-                col_value = col_settings.get("value", "")
-                col_help = col_settings.get("help", "")
-                col_items = col_settings.get("items", [])
-                parsed_conf["settings"].update({
-                    col_name: ComboboxSetting(
-                        name=col_name,
-                        value=col_value,
-                        help=col_help,
-                        items=col_items
-                    )
-                })
-        except Exception as e:
-            self._log.warn(
-                self._tag,
-                f"Failed to parse configuration file: '{str(e):s}'"
-            )
-        return Configuration(**parsed_conf)
+    # Methods removed: parse_conf, get_libraries, get_functions, get_settings
     
     def store_main_conf_file(self, button: qtw.QPushButton = None) -> None:
         """
@@ -222,80 +148,8 @@ class Controller:
         # User feedback
         self.__give_feedback(button, "Resetting...")
         return
-
-    def get_libraries(self, type: Literal["Sources", "Sinks"]) -> Dict[str, Library]:
-        """
-        This method returns all libraries.
-        """
-        model = self._model.get()
-        match type:
-            case "Sources":
-                return model.sources
-            case "Sinks":
-                return model.sinks
-        return {}
     
-    def get_functions(
-            self,
-            type: Literal["Sources", "Sinks"],
-            enabled_only: bool = False
-        ) -> List[SourceFunction] | List[SinkFunction]:
-        """
-        This method returns all (enabled) source or sink functions.
-        """
-        funs = []
-        model = self._model.get()
-        match type:
-            case "Sources":
-                libs = model.sources
-            case "Sinks":
-                libs = model.sinks
-            case _:
-                libs = {}
-        for lib in libs.values():
-            for cat in lib.categories.values():
-                for fun in cat.functions.values():
-                    if not enabled_only or fun.enabled:
-                        funs.append(fun)
-        return funs
-    
-    def get_settings(self) -> Dict[str, WidgetSetting]:
-        """
-        This method returns all settings.
-        """
-        return self._model.get().settings
-    
-    def checkbox_toggle(self, fun: Function) -> None:
-        """
-        This method updates the model to reflect a changing value of the checkbox associated with a
-        given function.
-        """
-        fun.enabled = not fun.enabled
-        return
-    
-    def checkboxes_check(self, cat: Category, checked: bool) -> None:
-        """
-        This method updates the model to reflect a changing value of all checkboxes in a given
-        category.
-        """
-        for fun in cat.functions.values():
-            fun.enabled = checked
-            fun.checkbox.setChecked(checked)
-        return
-    
-    def spinbox_change_value(self, setting: SpinboxSetting, value: int) -> None:
-        """
-        This method updates the model to reflect spinbox value changes.
-        """
-        setting.value = value
-        return
-    
-    def combobox_change_value(self, setting: ComboboxSetting, value: str) -> None:
-        """
-        This method updates the model to reflect combobox value changes.
-        """
-        setting.value = value
-        return
+    # Methods removed: checkbox_toggle, checkboxes_check, spinbox_change_value, combobox_change_value
     
     def add_path_to_view(
             self,
