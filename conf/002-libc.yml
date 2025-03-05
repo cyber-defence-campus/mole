@@ -138,7 +138,7 @@ sources:
             enabled: true
             par_cnt: i == 3
             par_dataflow: 'False'
-            par_slice: i == 0
+            par_slice: i == 1
           getdelim:
             name: getdelim
             symbols: [getdelim, __builtin_getdelim]
@@ -146,7 +146,7 @@ sources:
             enabled: true
             par_cnt: i == 4
             par_dataflow: 'False'
-            par_slice: i == 0
+            par_slice: i == 1
           fgets:
             name: fgets
             symbols: [fgets, __builtin_fgets]
@@ -154,7 +154,7 @@ sources:
             enabled: true
             par_cnt: i == 3
             par_dataflow: 'False'
-            par_slice: i == 0
+            par_slice: i == 1
           fgetws:
             name: fgetws
             symbols: [fgetws, __builtin_fgetws]
@@ -162,7 +162,7 @@ sources:
             enabled: true
             par_cnt: i == 3
             par_dataflow: 'False'
-            par_slice: i == 0
+            par_slice: i == 1
           fgets_unlocked:
             name: fgets_unlocked
             symbols: [fgets_unlocked, __builtin_fgets_unlocked]
@@ -170,7 +170,7 @@ sources:
             enabled: true
             par_cnt: i == 3
             par_dataflow: 'False'
-            par_slice: i == 0
+            par_slice: i == 1
           fgetws_unlocked:
             name: fgetws_unlocked
             symbols: [fgetws_unlocked, __builtin_fgetws_unlocked]
@@ -178,7 +178,7 @@ sources:
             enabled: true
             par_cnt: i == 3
             par_dataflow: 'False'
-            par_slice: i == 0
+            par_slice: i == 1
           gets:
             name: gets
             symbols: [gets, __builtin_gets]
@@ -197,7 +197,7 @@ sources:
             enabled: true
             par_cnt: i >= 1
             par_dataflow: 'False'
-            par_slice: i >= 1
+            par_slice: i >= 2
           wscanf:
             name: wscanf
             symbols: [wscanf, __builtin_wscanf, __isoc99_wscanf, __isoc23_wscanf]
@@ -205,7 +205,7 @@ sources:
             enabled: true
             par_cnt: i >= 1
             par_dataflow: 'False'
-            par_slice: i >= 1
+            par_slice: i >= 2
           fscanf:
             name: fscanf
             symbols: [fscanf, __builtin_fscanf, __isoc99_fscanf, __isoc23_fscanf]
@@ -213,7 +213,7 @@ sources:
             enabled: true
             par_cnt: i >= 2
             par_dataflow: 'False'
-            par_slice: i >= 2
+            par_slice: i >= 3
           fwscanf:
             name: fwscanf
             symbols: [fwscanf, __builtin_fwscanf, __isco99_fwscanf]
@@ -221,7 +221,7 @@ sources:
             enabled: true
             par_cnt: i >= 2
             par_dataflow: 'False'
-            par_slice: i >= 2
+            par_slice: i >= 3
           vscanf:
             name: vscanf
             symbols: [vscanf, __builtin_vscanf, __isoc99_vscanf, __isoc23_vscanf]
@@ -229,7 +229,7 @@ sources:
             enabled: true
             par_cnt: i == 2
             par_dataflow: 'False'
-            par_slice: i > 0
+            par_slice: i > 1
           vfscanf:
             name: vfscanf
             symbols: [vfscanf, __builtin_vfscanf, __isoc99_vfscanf, __isoc23_vfscanf]
@@ -237,7 +237,7 @@ sources:
             enabled: true
             par_cnt: i == 3
             par_dataflow: 'False'
-            par_slice: i > 1
+            par_slice: i > 2
       Files and Directories:
         name: Files and Directories
         functions:
@@ -291,7 +291,7 @@ sources:
             enabled: true
             par_cnt: i == 4
             par_dataflow: 'False'
-            par_slice: i == 1
+            par_slice: i == 2
           recvfrom:
             name: recvfrom
             symbols: [recvfrom, __builtin_recvfrom]
@@ -299,7 +299,7 @@ sources:
             enabled: true
             par_cnt: i == 6
             par_dataflow: 'False'
-            par_slice: i == 1
+            par_slice: i == 2
           recvmsg:
             name: recvmsg
             symbols: [recvmsg, __builtin_recvmsg]
@@ -307,7 +307,7 @@ sources:
             enabled: true
             par_cnt: i == 3
             par_dataflow: 'False'
-            par_slice: i == 1
+            par_slice: i == 2
 sinks:
   libc:
     name: libc
@@ -451,7 +451,7 @@ sinks:
             enabled: true
             par_cnt: i >= 2
             par_dataflow: 'False'
-            par_slice: i >= 1
+            par_slice: i >= 2
           swprintf:
             name: swprintf
             symbols: [swprintf, __builtin_swprintf]
@@ -459,7 +459,7 @@ sinks:
             enabled: true
             par_cnt: i >= 3
             par_dataflow: 'False'
-            par_slice: i >= 1
+            par_slice: i >= 2
           vsprintf:
             name: vsprintf
             symbols: [vsprintf, __builtin_vsprintf]
@@ -467,7 +467,7 @@ sinks:
             enabled: true
             par_cnt: i == 3
             par_dataflow: 'False'
-            par_slice: i >= 1
+            par_slice: i >= 2
           vswprintf:
             name: vswprintf
             symbols: [vswprintf, __builtin_vswprintf]
@@ -475,7 +475,7 @@ sinks:
             enabled: true
             par_cnt: i == 4
             par_dataflow: 'False'
-            par_slice: i >= 1
+            par_slice: i >= 2
       Others:
         name: Others
         functions:
