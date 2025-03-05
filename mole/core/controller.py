@@ -376,7 +376,7 @@ class Controller:
             snk_name = qtw.QTableWidgetItem(path.snk_sym_name)
             snk_name.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
             self._paths_widget.setItem(row, 4, snk_name)
-            snk_parm = qtw.QTableWidgetItem(f"arg#{path.snk_par_idx+1:d}:{str(path.snk_par_var):s}")
+            snk_parm = qtw.QTableWidgetItem(f"arg#{path.snk_par_idx:d}:{str(path.snk_par_var):s}")
             snk_parm.setFlags(qtc.Qt.ItemIsSelectable | qtc.Qt.ItemIsEnabled)
             self._paths_widget.setItem(row, 5, snk_parm)
             lines = IntTableWidgetItem(len(path.insts), as_hex=False)
