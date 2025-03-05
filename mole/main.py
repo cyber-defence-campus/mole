@@ -31,7 +31,7 @@ def main() -> None:
     parser.add_argument(
         "--max_workers",
         type=int, default=None,
-        help="maximum number of worker thread that backward slicing uses"
+        help="maximum number of worker threads that backward slicing uses"
     )
     parser.add_argument(
         "--max_call_level",

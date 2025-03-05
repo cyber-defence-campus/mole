@@ -852,21 +852,22 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         if src_funs:
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     # Submit tasks
-                    tasks: Dict[futures.Future, SourceFunction] = {}
+                    tasks: List[futures.Future] = []
                     for src_fun in src_funs:
                         if self.cancelled: break
-                        task = executor.submit(
-                            src_fun.find_targets,
-                            self._bv,
-                            lambda: self.cancelled,
-                            self._tag,
-                            self._log
+                        tasks.append(
+                            executor.submit(
+                                src_fun.find_targets,
+                                self._bv,
+                                lambda: self.cancelled,
+                                self._tag,
+                                self._log
+                            )
                         )
-                        tasks[task] = src_fun
                     # Wait for tasks to complete
-                    for cnt, future in enumerate(futures.as_completed(tasks)):
+                    for cnt, _ in enumerate(futures.as_completed(tasks)):
                         if self.cancelled: break
-                        self.progress = f"Mole processes source {cnt:d}/{len(src_funs):d}"
+                        self.progress = f"Mole processes source {cnt+1:d}/{len(src_funs):d}"
         else:
             self._log.warn(self._tag, "No source functions configured")
 
@@ -879,25 +880,26 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         if src_funs and snk_funs:
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks
-                tasks: Dict[futures.Future, SinkFunction] = {}
+                tasks: List[futures.Future] = []
                 for snk_fun in snk_funs:
                     if self.cancelled: break
-                    task = executor.submit(
-                        snk_fun.find_paths,
-                        self._bv,
-                        src_funs,
-                        max_call_level,
-                        max_slice_depth,
-                        self._ctr.add_path_to_view,
-                        lambda: self.cancelled,
-                        self._tag,
-                        self._log
+                    tasks.append(
+                        executor.submit(
+                            snk_fun.find_paths,
+                            self._bv,
+                            src_funs,
+                            max_call_level,
+                            max_slice_depth,
+                            self._ctr.add_path_to_view,
+                            lambda: self.cancelled,
+                            self._tag,
+                            self._log
+                        )
                     )
-                    tasks[task] = snk_fun
                 # Wait for tasks to complete
-                for cnt, future in enumerate(futures.as_completed(tasks)):
+                for cnt, _ in enumerate(futures.as_completed(tasks)):
                     if self.cancelled: break
-                    self.progress = f"Mole processes sink {cnt:d}/{len(snk_funs):d}"
+                    self.progress = f"Mole processes sink {cnt+1:d}/{len(snk_funs):d}"
         self._log.info(self._tag, f"Analysis finished")
         return
     

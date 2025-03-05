@@ -1,7 +1,7 @@
 settings:
   max_workers:
     name: max_workers
-    help: maximum number of worker thread that backward slicing uses
+    help: maximum number of worker threads that backward slicing uses
     value: -1
     min_value: -1
     max_value: 256
