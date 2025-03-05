@@ -84,7 +84,8 @@ class TestVarious(TestCase):
                 ["gets", "main", "gets"],
                 "call paths"
             )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -133,7 +134,8 @@ class TestVarious(TestCase):
                 ],
                 "call paths"
             )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -180,7 +182,8 @@ class TestVarious(TestCase):
                     calls == ["__isoc99_sscanf", "main", "getenv"],
                     "call paths"
                 )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -227,7 +230,8 @@ class TestVarious(TestCase):
                 ["memcpy", "main", "getenv"],
                 "call paths"
             )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -274,7 +278,8 @@ class TestVarious(TestCase):
                     ["memcpy", "main", "getenv"],
                     "call paths"
                 )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -321,7 +326,8 @@ class TestVarious(TestCase):
                 ["memcpy", "main", "getenv"],
                 "call paths"
             )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -368,7 +374,8 @@ class TestVarious(TestCase):
                 ["memcpy", "main", "my_getenv", "getenv"],
                 "call paths"
             )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -415,7 +422,8 @@ class TestVarious(TestCase):
                     ["memcpy", "main", "my_getenv", "getenv"],
                     "call paths"
                 )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -431,7 +439,8 @@ class TestVarious(TestCase):
             paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -510,7 +519,8 @@ class TestFunctionCalling(TestCase):
                 calls.append(path.src_sym_name)
                 self.assertTrue("system_1b" not in calls, "system_1b not called")
                 self.assertTrue("getenv_1c" not in calls, "getenv_1c not called")
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -566,7 +576,8 @@ class TestFunctionCalling(TestCase):
                 ],
                 "call paths"
             )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -624,7 +635,8 @@ class TestFunctionCalling(TestCase):
                 calls,
                 ["system", "main", "func", "main", "getenv"]
             )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -646,7 +658,8 @@ class TestFunctionCalling(TestCase):
             paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -698,7 +711,8 @@ class TestPointerAnalysis(TestCase):
                     calls.append(call)
             calls.append(path.src_sym_name)
             self.assertEqual(calls, ["system", "main", "getenv"], "call chain")
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
 
@@ -745,7 +759,8 @@ class TestPointerAnalysis(TestCase):
                         calls.append(call)
                 calls.append(path.src_sym_name)
                 self.assertEqual(calls, ["system", "main", "getenv"])
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -761,7 +776,8 @@ class TestPointerAnalysis(TestCase):
             paths = self.ctr.find_paths(bv, max_call_level=3, enable_all_funs=True)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -796,7 +812,8 @@ class TestPointerAnalysis(TestCase):
                         calls.append(call)
                 calls.append(path.src_sym_name)
                 self.assertEqual(calls, ["memcpy", "main", "modify_n", "getenv"])
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -839,7 +856,8 @@ class TestPointerAnalysis(TestCase):
                     calls.append(call)
             calls.append(path.src_sym_name)
             self.assertEqual(calls, ["memcpy", "main", "my_getenv", "getenv"], "call chain")
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -920,7 +938,8 @@ class TestSimpleServer(TestCase):
                 ],
                 "call paths"
             )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -984,6 +1003,7 @@ class TestSimpleServer(TestCase):
                 ],
                 "call paths"
             )
-            # Close test binary
+            # Remove paths and close binary
+            self.ctr.remove_all_paths()
             bv.file.close()
         return

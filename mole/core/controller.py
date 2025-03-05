@@ -28,9 +28,7 @@ class Controller:
             self,
             tag: str = "Mole",
             log: Logger = Logger(level="debug"),
-            runs_headless: bool = False,
-            # TODO: Allow to be configured
-            max_workers: int | None = None
+            runs_headless: bool = False
         ) -> None:
         """
         This method initializes a controller (MVC pattern).
@@ -38,7 +36,6 @@ class Controller:
         self._tag: str = tag
         self._log: Logger = log
         self._runs_headless: bool = runs_headless
-        self._max_workers = max_workers
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(self._tag, self._log)
         self._paths: List[Path] = []
@@ -164,39 +161,23 @@ class Controller:
                         lib_categories[cat_name] = Category(cat_name, cat_functions)
                     parsed_conf[type][lib_name] = Library(lib_name, lib_categories)
             # Parse settings
-            settings = conf.get("settings", {})
-            mfd_name = "max_call_level"
-            mfd_settings = settings.get(mfd_name, None)
-            if mfd_settings:
-                mfd_value = int(mfd_settings.get("value", None))
-                mfd_min_value = int(mfd_settings.get("min_value", None))
-                mfd_max_value = int(mfd_settings.get("max_value", None))
-                mfd_value = min(max(mfd_value, mfd_min_value), mfd_max_value)
-                mfd_help = mfd_settings.get("help", "")
+            settings: Dict[str, Dict] = conf.get("settings", {})
+            for name in ["max_workers", "max_call_level", "max_slice_depth"]:
+                setting: Dict = settings.get(name, None)
+                if not setting:
+                    continue
+                value = setting.get("value", None)
+                min_value = int(setting.get("min_value", None))
+                max_value = int(setting.get("max_value", None))
+                value = min(max(value, min_value), max_value)
+                help = setting.get("help", "")
                 parsed_conf["settings"].update({
-                    mfd_name: SpinboxSetting(
-                        name=mfd_name,
-                        value=mfd_value,
-                        help=mfd_help,
-                        min_value=mfd_min_value,
-                        max_value=mfd_max_value
-                    )
-                })
-            msd_name = "max_slice_depth"
-            msd_settings = settings.get(msd_name, None)
-            if msd_settings:
-                msd_value = int(msd_settings.get("value", None))
-                msd_min_value = int(msd_settings.get("min_value", None))
-                msd_max_value = int(msd_settings.get("max_value", None))
-                msd_value = min(max(msd_value, msd_min_value), msd_max_value)
-                msd_help = msd_settings.get("help", "")
-                parsed_conf["settings"].update({
-                    msd_name: SpinboxSetting(
-                        name=msd_name,
-                        value=msd_value,
-                        help=msd_help,
-                        min_value=msd_min_value,
-                        max_value=msd_max_value
+                    name: SpinboxSetting(
+                        name=name,
+                        value=value,
+                        help=help,
+                        min_value=min_value,
+                        max_value=max_value
                     )
                 })
             col_name = "highlight_color"
@@ -374,9 +355,9 @@ class Controller:
         This method updates the UI with a newly identified path.
         """
         def update_paths_widget() -> None:
+            self._paths.append(path)
             if not self._paths_widget:
                 return
-            self._paths.append(path)
             row = self._paths_widget.rowCount()
             self._paths_widget.setSortingEnabled(False)
             self._paths_widget.insertRow(row)
@@ -418,6 +399,7 @@ class Controller:
     def find_paths(
             self,
             bv: bn.BinaryView,
+            max_workers: int | None = None,
             max_call_level: int = None,
             max_slice_depth: int = None,
             enable_all_funs: bool = False,
@@ -455,7 +437,7 @@ class Controller:
             tag=self._tag,
             log=self._log,
             runs_headless=self._runs_headless,
-            max_workers=self._max_workers,
+            max_workers=max_workers,
             max_call_level=max_call_level,
             max_slice_depth=max_slice_depth,
             enable_all_funs=enable_all_funs
@@ -808,14 +790,14 @@ class Controller:
     
     def remove_all_paths(
             self,
-            tbl: qtw.QTableWidget
+            tbl: qtw.QTableWidget = None
         ) -> None:
         """
         This method removes all paths from the table `tbl`.
         """
-        if not tbl: return
         self._paths.clear()
-        tbl.setRowCount(0)
+        if tbl:
+            tbl.setRowCount(0)
         self._log.info(self._tag, "Removed all path(s)")
         return
         
@@ -856,76 +838,50 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         """
         This method tries to identify intersting code paths using static backward slicing.
         """
-        self._paths: List[Path] = []
         self._log.info(self._tag, "Starting analysis")
+
+        # Settings
+        settings = self._ctr.get_settings()
+        max_workers = settings.get("max_workers").value if self._max_workers is None else self._max_workers
+        max_workers = None if not max_workers is None and max_workers <= 0 else max_workers
+        max_call_level = settings.get("max_call_level").value if self._max_call_level is None else self._max_call_level
+        max_slice_depth = settings.get("max_slice_depth").value if self._max_slice_depth is None else self._max_slice_depth
         
         # Source functions
-        src_funs = self._ctr.get_functions("Sources", not self._enable_all_funs)
+        src_funs: List[SourceFunction] = self._ctr.get_functions("Sources", not self._enable_all_funs)
         if src_funs:
-            with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     # Submit tasks
-                    tasks: Dict[futures.Future, Tuple[int, SourceFunction]] = {}
-                    for tid, src_fun in enumerate(src_funs):
+                    tasks: Dict[futures.Future, SourceFunction] = {}
+                    for src_fun in src_funs:
                         if self.cancelled: break
-                        tag = f"{self._tag:s}] [TID:{tid:d}"
-                        self._log.debug(tag, f"Start slicing source '{src_fun.name:s}'")
                         task = executor.submit(
                             src_fun.find_targets,
                             self._bv,
                             lambda: self.cancelled,
-                            tag,
+                            self._tag,
                             self._log
                         )
-                        tasks[task] = (tid, src_fun)
+                        tasks[task] = src_fun
                     # Wait for tasks to complete
                     for cnt, future in enumerate(futures.as_completed(tasks)):
                         if self.cancelled: break
                         self.progress = f"Processing source {cnt:d}/{len(src_funs):d}"
-                        tid, src_fun = tasks[future]
-                        tag = f"{self._tag:s}] [TID:{tid:d}"
-                        self._log.debug(tag, f"Completed slicing source '{src_fun.name:s}'")
         else:
             self._log.warn(self._tag, "No source functions configured")
 
         # Sink functions
-        snk_funs = self._ctr.get_functions("Sinks", not self._enable_all_funs)
+        snk_funs: List[SinkFunction] = self._ctr.get_functions("Sinks", not self._enable_all_funs)
         if not snk_funs:
             self._log.warn(self._tag, "No sink functions configured")
-
-        # Settings
-        settings = self._ctr.get_settings()
-        max_call_level = self._max_call_level if self._max_call_level is not None else settings.get("max_call_level").value
-        max_slice_depth = self._max_slice_depth if self._max_slice_depth is not None else settings.get("max_slice_depth").value
         
-        # # Find paths
-        # if src_funs and snk_funs:
-        #     for i, snk_fun in enumerate(snk_funs):
-        #         if self.cancelled: break
-        #         self.progress = f"Find paths for sink function {i+1:d}/{len(snk_funs):d}..."
-        #         paths = snk_fun.find_paths(
-        #             bv=self._bv,
-        #             sources=src_funs,
-        #             max_call_level=max_call_level,
-        #             max_slice_depth=max_slice_depth,
-        #             found_path=self._ctr.add_path_to_view,
-        #             canceled=lambda:self.cancelled,
-        #             tag=self._tag,
-        #             log=self._log
-        #         )
-        #         self._paths.extend(paths)
-        
-        # TODO: Do we have the same path order in the UI and in self._paths?
-        # TODO: Do the TIDs in the log make sense?
-        # TODO: Test in headless mode
         # Find paths
         if src_funs and snk_funs:
-            with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks
-                tasks: Dict[futures.Future, Tuple[int, SinkFunction]] = {}
-                for tid, snk_fun in enumerate(snk_funs):
+                tasks: Dict[futures.Future, SinkFunction] = {}
+                for snk_fun in snk_funs:
                     if self.cancelled: break
-                    tag = f"{self._tag:s}] [TID:{tid:d}"
-                    self._log.debug(tag, f"Start slicing sink '{snk_fun.name:s}'")
                     task = executor.submit(
                         snk_fun.find_paths,
                         self._bv,
@@ -934,19 +890,14 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                         max_slice_depth,
                         self._ctr.add_path_to_view,
                         lambda: self.cancelled,
-                        tag,
+                        self._tag,
                         self._log
                     )
-                    tasks[task] = (tid, snk_fun)
+                    tasks[task] = snk_fun
                 # Wait for tasks to complete
                 for cnt, future in enumerate(futures.as_completed(tasks)):
                     if self.cancelled: break
                     self.progress = f"Processing sink {cnt:d}/{len(snk_funs):d}"
-                    paths = future.result()
-                    self._paths.extend(paths)
-                    tid, snk_fun = tasks[future]
-                    tag = f"{self._tag:s}] [TID:{tid:d}"
-                    self._log.debug(tag, f"Completed slicing sink '{snk_fun.name:s}'")
         self._log.info(self._tag, f"Analysis finished")
         return
     
@@ -956,4 +907,4 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         interesting looking code paths.
         """
         self.join()
-        return self._paths
+        return self._ctr.paths

@@ -1,9 +1,9 @@
-from __future__    import annotations
-from ..common.help import InstructionHelper, SymbolHelper
-from ..common.log  import Logger
-from .slice        import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph
-from dataclasses   import dataclass, field
-from typing        import Callable, Dict, List, Tuple
+from __future__          import annotations
+from ..common.help       import InstructionHelper, SymbolHelper
+from ..common.log        import Logger
+from .slice              import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph
+from dataclasses         import dataclass, field
+from typing              import Callable, Dict, List, Tuple
 import binaryninja       as bn
 import PySide6.QtWidgets as qtw
 
@@ -178,6 +178,7 @@ class SourceFunction(Function):
         """
         This method finds a set of target instructions that a static backward slice should hit on.
         """
+        tag = f"{tag:s}] [{self.name:s}"
         self.target_insts.clear()
         code_refs = SymbolHelper.get_code_refs(
             bv,
@@ -260,6 +261,7 @@ class SinkFunction(Function):
         given `sources` using static backward slicing.
         """
         paths = []
+        tag = f"{tag:s}] [{self.name:s}"
         code_refs = SymbolHelper.get_code_refs(
             bv,
             self.symbols,
