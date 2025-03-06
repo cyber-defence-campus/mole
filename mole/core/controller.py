@@ -10,6 +10,7 @@ from ..views.graph          import GraphWidget
 from ..ui.utils          import IntTableWidgetItem
 from .data               import *
 
+import PySide6.QtCore    as qtc
 from concurrent          import futures
 from typing              import Dict, List
 import binaryninja       as bn
@@ -40,11 +41,11 @@ class Controller:
         """
         This method initializes a controller (MVC pattern).
         """
+        self._model = model
+        self._view = view
+        self._config_model = config_model
         self._tag: str = tag
         self._log: Logger = log
-        self._view = view
-        self._model = model
-        self._config_model = config_model
         self._runs_headless: bool = runs_headless
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(self._tag, self._log)
@@ -63,25 +64,6 @@ class Controller:
     @property
     def paths(self) -> List[Path]:
         return self._paths
-
-    def store_main_conf_file(self, button: qtw.QPushButton = None) -> None:
-        """
-        This method stores the main configuration file.
-        """
-        # Store model
-        model = self._model.get()
-        with open(os.path.join(self._conf_path, "000-mole.yml"), "w") as f:
-            yaml.safe_dump(
-                model.to_dict(),
-                f,
-                sort_keys=False,
-                default_style=None,
-                default_flow_style=False,
-                encoding="utf-8"
-            )
-        # User feedback
-        self.__give_feedback(button, "Saving...")
-        return    
     
     def add_path_to_view(
             self,
@@ -140,7 +122,6 @@ class Controller:
             max_call_level: int = None,
             max_slice_depth: int = None,
             enable_all_funs: bool = False,
-            but: qtw.QPushButton = None,
             tbl: qtw.QTableWidget = None
         ) -> None | List[Path]:
         """
@@ -149,21 +130,21 @@ class Controller:
         # Require a binary to be loaded
         if not bv:
             self._log.warn(self._tag, "No binary loaded.")
-            self.__give_feedback(but, "No Binary Loaded...")
+            self._view.give_feedback("No Binary Loaded...")
             return
         # Require the binary to be in mapped view
         if bv.view_type == "Raw":
             self._log.warn(self._tag, "Binary is in Raw view.")
-            self.__give_feedback(but, "Binary is in Raw View...")
+            self._view.give_feedback("Binary is in Raw View...")
             return
         # Require previous analyses to complete
         if self._thread and not self._thread.finished:
             self._log.warn(self._tag, "Analysis already running.")
-            self.__give_feedback(but, "Analysis Already Running...")
+            self._view.give_feedback("Analysis Already Running...")
             return
         # Initialize new logger to detect newly attached debugger
         self._log = Logger(self._log.get_level(), self._runs_headless)
-        self.__give_feedback(but, "Finding Paths...")
+        self._view.give_feedback("Finding Paths...")
         # Initialize data structures
         if tbl:
             self._paths_widget = tbl
@@ -171,7 +152,7 @@ class Controller:
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
             ctr=self,
-            config_ctr=self._config_ctr,
+            config_model=self._config_model,
             tag=self._tag,
             log=self._log,
             runs_headless=self._runs_headless,
@@ -188,14 +169,13 @@ class Controller:
     def load_paths(
             self,
             bv: bn.BinaryView,
-            but: qtw.QPushButton,
             tbl: qtw.QTableWidget
         ) -> None:
         """
         This method loads paths from the binary's database.
         """
         if not tbl: return
-        self.__give_feedback(but, "Loading Paths...")
+        self._view.give_feedback("Loading Paths...")
         # Clear paths
         self._paths = []
         self._paths_widget = tbl
@@ -263,14 +243,13 @@ class Controller:
     def save_paths(
             self,
             bv: bn.BinaryView,
-            but: qtw.QPushButton,
             tbl: qtw.QTableWidget
         ) -> None:
         """
         This method stores paths to the binary's database.
         """
         if not tbl: return
-        self.__give_feedback(but, "Saving Paths...")
+        self._view.give_feedback("Saving Paths...")
         try:
             # Calculate SHA1 hash of binary
             sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
@@ -549,7 +528,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             self,
             bv: bn.BinaryView,
             ctr: Controller,
-            config_ctr: ConfigController,
+            config_model: ConfigModel,
             tag: str,
             log: Logger,
             runs_headless: bool = False,
@@ -564,7 +543,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         super().__init__(initial_progress_text="Start slicing...", can_cancel=True)
         self._bv: bn.BinaryView = bv
         self._ctr: ConfigModel = ctr
-        self._config_ctr = config_ctr
+        self._config_model = config_model
         self._tag: str = tag
         self._log: Logger = log
         self._runs_headless: bool = runs_headless
@@ -581,14 +560,14 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         self._log.info(self._tag, "Starting analysis")
 
         # Settings
-        settings = self._config_ctr.get_settings()
+        settings = self._config_model.get_settings()
         max_workers = settings.get("max_workers").value if self._max_workers is None else self._max_workers
         max_workers = None if not max_workers is None and max_workers <= 0 else max_workers
         max_call_level = settings.get("max_call_level").value if self._max_call_level is None else self._max_call_level
         max_slice_depth = settings.get("max_slice_depth").value if self._max_slice_depth is None else self._max_slice_depth
         
         # Source functions
-        src_funs: List[SourceFunction] = self._config_ctr.get_functions("Sources", not self._enable_all_funs)
+        src_funs: List[SourceFunction] = self._config_model.get_functions("Sources", not self._enable_all_funs)
         if src_funs:
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     # Submit tasks
@@ -612,7 +591,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             self._log.warn(self._tag, "No source functions configured")
 
         # Sink functions
-        snk_funs: List[SinkFunction] = self._config_ctr.get_functions("Sinks", not self._enable_all_funs)
+        snk_funs: List[SinkFunction] = self._config_model.get_functions("Sinks", not self._enable_all_funs)
         if not snk_funs:
             self._log.warn(self._tag, "No sink functions configured")
         

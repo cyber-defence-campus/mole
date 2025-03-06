@@ -43,19 +43,6 @@ class ConfigController:
         """
         return self._model.get_settings()
     
-    def get_functions(self, type: str, enabled_only: bool = False) -> List[Any]:
-        """
-        This method returns all (enabled) source or sink functions.
-        """
-        funs = []
-        libs = self.get_libraries(type)
-        for lib in libs.values():
-            for cat in lib.categories.values():
-                for fun in cat.functions.values():
-                    if not enabled_only or fun.enabled:
-                        funs.append(fun)
-        return funs
-    
     def load_custom_conf_files(self) -> None:
         """
         This method loads the custom configuration files.

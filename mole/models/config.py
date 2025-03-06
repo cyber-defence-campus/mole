@@ -60,6 +60,20 @@ class ConfigModel:
         """
         return self._configuration
     
+        
+    def get_functions(self, type: str, enabled_only: bool = False) -> List[Any]:
+        """
+        This method returns all (enabled) source or sink functions.
+        """
+        funs = []
+        libs = self.get_libraries(type)
+        for lib in libs.values():
+            for cat in lib.categories.values():
+                for fun in cat.functions.values():
+                    if not enabled_only or fun.enabled:
+                        funs.append(fun)
+        return funs
+    
     def update_configuration(self, new_conf: Configuration) -> None:
         """
         This method updates the configuration with new data.
