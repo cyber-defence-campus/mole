@@ -98,7 +98,6 @@ class ConfigService:
     def _update_configuration(self, target: Configuration, source: Configuration) -> None:
         """
         Update target configuration with data from source configuration.
-        This was previously in ConfigModel but moved here to support configuration loading.
         """
         if not source: return
         
