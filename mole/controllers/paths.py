@@ -179,7 +179,7 @@ class PathsController:
             s_paths: List[Dict] = bv.query_metadata("mole_paths")
             for s_path in s_paths:
                 if s_path["sha1"] != sha1_hash:
-                    self._log.warn(self._tag, f"Loaded path seems to origin from another binary")
+                    self._log.warn(self._tag, "Loaded path seems to origin from another binary")
                 path = Path.from_dict(bv, s_path)
                 self.add_path_to_view(path, s_path["comment"])
             self._log.info(self._tag, f"Loaded {len(s_paths):d} path(s)")
@@ -223,7 +223,7 @@ class PathsController:
             # Deserialize paths
             for s_path in s_paths:
                 if s_path["sha1"] != sha1_hash:
-                    self._log.warn(self._tag, f"Loaded path seems to origin from another binary")
+                    self._log.warn(self._tag, "Loaded path seems to origin from another binary")
                 path = Path.from_dict(bv, s_path)
                 self.add_path_to_view(path, s_path["comment"])
             self._log.info(self._tag, f"Imported {len(s_paths):d} path(s)")
@@ -445,7 +445,7 @@ class PathsController:
             for inst in path.insts:
                 func = inst.function.source_function
                 addr = inst.address
-                if not addr in insts_colors:
+                if addr not in insts_colors:
                     insts_colors[addr] = (inst, func.get_instr_highlight(addr))
                 func.set_user_instr_highlight(addr, color)
             self._log.info(self._tag, f"Highlighted instructions of path {rows[0]:d}")

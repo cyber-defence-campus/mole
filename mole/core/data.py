@@ -25,15 +25,15 @@ class Configuration:
                 return False
         if len(self.sources) != len(other.sources): return False
         for lib_name, lib in self.sources.items():
-            if not lib_name in other.sources: return False
+            if lib_name not in other.sources: return False
             if lib != other.sources[lib_name]: return False
         if len(self.sinks) != len(other.sinks): return False
         for lib_name, lib in self.sinks.items():
-            if not lib_name in other.sinks: return False
+            if lib_name not in other.sinks: return False
             if lib != other.sinks[lib_name]: return False
         if len(self.settings) != len(other.settings): return False
         for setting_name, setting in self.settings.items():
-            if not setting_name in other.settings: return False
+            if setting_name not in other.settings: return False
             if setting != other.settings[setting_name]: return False
         return True
     
@@ -71,7 +71,7 @@ class Library:
         if self.name != other.name: return False
         if len(self.categories) != len(other.categories): return False
         for cat_name, cat in self.categories.items():
-            if not cat_name in other.categories: return False
+            if cat_name not in other.categories: return False
             if cat != other.categories[cat_name]: return False
         return True
     
@@ -102,7 +102,7 @@ class Category:
         if self.name != other.name: return False
         if len(self.functions) != len(other.functions): return False
         for fun_name, fun in self.functions.items():
-            if not fun_name in other.functions: return False
+            if fun_name not in other.functions: return False
             if fun != other.functions[fun_name]: return False
         return True
 
@@ -226,7 +226,7 @@ class SourceFunction(Function):
                         # Add sliced instructions to the target instructions
                         l = self.target_insts.setdefault((src_inst.address, src_name), [])
                         for inst in slicer.get_insts():
-                            if not inst in l:
+                            if inst not in l:
                                 l.append(inst)
         return
 
@@ -318,7 +318,7 @@ class SinkFunction(Function):
                                         # Find split between sink and source originating instructions
                                         src_inst_idx = len(insts)
                                         for src_inst_idx in range(src_inst_idx-1, -1, -1):
-                                            if not insts[src_inst_idx] in src_insts:
+                                            if insts[src_inst_idx] not in src_insts:
                                                 break
                                         src_inst_idx += 1
                                         # Add additional attributes to call graph

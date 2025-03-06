@@ -1,6 +1,6 @@
 from __future__ import annotations
 import PySide6.QtWidgets as qtw
-from typing import TYPE_CHECKING, Literal, Tuple
+from typing import TYPE_CHECKING, Literal
 import PySide6.QtCore    as qtc
 
 from ..common.log import Logger

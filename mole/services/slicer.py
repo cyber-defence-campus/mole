@@ -50,7 +50,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         # Settings
         settings = self._config_model.get_settings()
         max_workers = settings.get("max_workers").value if self._max_workers is None else self._max_workers
-        max_workers = None if not max_workers is None and max_workers <= 0 else max_workers
+        max_workers = None if max_workers is not None and max_workers <= 0 else max_workers
         max_call_level = settings.get("max_call_level").value if self._max_call_level is None else self._max_call_level
         max_slice_depth = settings.get("max_slice_depth").value if self._max_slice_depth is None else self._max_slice_depth
         
@@ -111,7 +111,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                         paths = task.result()
                         if paths:
                             self._paths.extend(paths)
-        self._log.info(self._tag, f"Analysis finished")
+        self._log.info(self._tag, "Analysis finished")
         return
     
     def get_paths(self) -> List[Path]:
