@@ -135,10 +135,13 @@ class SidebarView(bnui.SidebarWidget):
             This method navigate in the view frame.
             """
             ctx = bnui.UIContext.activeContext()
-            if not ctx: return
+            if not ctx: 
+                return
             vf = ctx.getCurrentViewFrame()
-            if not vf: return
-            if not tbl: return
+            if not vf: 
+                return
+            if not tbl: 
+                return
             if col in [1, 2]:
                 vf.navigate(bv, int(tbl.item(row, 1).text(), 16))
             elif col in [3, 4, 5]:
@@ -149,11 +152,9 @@ class SidebarView(bnui.SidebarWidget):
             """
             This method shows a custom context menu.
             """
-            if tbl is None: return
+            if tbl is None: 
+                return
             rows = list({index.row() for index in tbl.selectionModel().selectedIndexes()})
-            row = tbl.indexAt(pos).row()
-            col = tbl.indexAt(pos).column()
-
             menu = qtw.QMenu(tbl)
             menu_action_log_path = menu.addAction("Log instructions")
             menu_action_log_path_reversed = menu.addAction("Log instructions (reversed)")
@@ -184,7 +185,8 @@ class SidebarView(bnui.SidebarWidget):
                 menu_action_remove_all_paths.setEnabled(False)
 
             menu_action = menu.exec(tbl.mapToGlobal(pos))
-            if not menu_action: return
+            if not menu_action: 
+                return
             if menu_action == menu_action_log_path:
                 self._ctr.log_path(tbl, rows, False)
             elif menu_action == menu_action_log_path_reversed:

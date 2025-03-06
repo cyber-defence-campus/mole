@@ -7,10 +7,10 @@ from ..common.log        import Logger
 from ..views.graph          import GraphWidget
 from ..views.utils          import IntTableWidgetItem
 from ..services.slicer   import MediumLevelILBackwardSlicerThread
-from ..core.data               import *
+from ..core.data               import Path, InstructionHelper
 
 import PySide6.QtCore    as qtc
-from typing              import Dict, List
+from typing              import Dict, List, Tuple
 import binaryninja       as bn
 import copy              as copy
 import difflib           as difflib
@@ -165,7 +165,8 @@ class PathsController:
         """
         This method loads paths from the binary's database.
         """
-        if not tbl: return
+        if not tbl: 
+            return
         self._view.give_feedback("Loading Paths...")
         # Clear paths
         self._paths = []
@@ -197,7 +198,8 @@ class PathsController:
         """
         This method imports paths from a file.
         """
-        if not tbl: return
+        if not tbl: 
+            return
         # Select file
         filepath, _ = qtw.QFileDialog.getOpenFileName(
             None,
@@ -239,7 +241,8 @@ class PathsController:
         """
         This method stores paths to the binary's database.
         """
-        if not tbl: return
+        if not tbl: 
+            return
         self._view.give_feedback("Saving Paths...")
         try:
             # Calculate SHA1 hash of binary
@@ -268,7 +271,8 @@ class PathsController:
         """
         This method exports paths to a file.
         """
-        if not tbl: return
+        if not tbl: 
+            return
         # Select file
         filepath, _ = qtw.QFileDialog.getSaveFileName(
             None,
@@ -321,11 +325,14 @@ class PathsController:
         """
         This method logs information about a path.
         """
-        if not tbl: return
-        if len(rows) != 1: return
+        if not tbl: 
+            return
+        if len(rows) != 1: 
+            return
         path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path = self._paths[path_id]
-        if not path: return
+        if not path: 
+            return
         msg = f"Path {path_id:d}: {str(path):s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         self._log.info(self._tag, msg)
@@ -355,19 +362,23 @@ class PathsController:
         """
         This method logs the difference between two paths.
         """
-        if not tbl: return
-        if len(rows) != 2: return
+        if not tbl: 
+            return
+        if len(rows) != 2: 
+            return
 
         # Get instructions of path 0
         path_0_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path_0: Path = self._paths[path_0_id]
-        if not path_0: return
+        if not path_0: 
+            return
         path_0_insts = [InstructionHelper.get_inst_info(inst, False) for inst in path_0.insts] 
 
         # Get instructions of path 1
         path_1_id = tbl.item(rows[1], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path_1: Path = self._paths[path_1_id]
-        if not path_1: return
+        if not path_1: 
+            return
         path_1_insts = [InstructionHelper.get_inst_info(inst, False) for inst in path_1.insts]
 
         # Get terminal width and calculate column width
@@ -416,11 +427,14 @@ class PathsController:
         """
         This method highlights all instructions in a path.
         """
-        if not tbl: return
-        if len(rows) != 1: return
+        if not tbl: 
+            return
+        if len(rows) != 1: 
+            return
         path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path = self._paths[path_id]
-        if not path: return
+        if not path: 
+            return
         undo_action = bv.begin_undo_actions()
         highlighted_path, insts_colors = self._paths_highlight
         # Undo path highlighting
@@ -440,7 +454,7 @@ class PathsController:
                 model = self._config_model.get()
                 color_name = model.settings.get("highlight_color").widget.currentText().capitalize()
                 color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
-            except:
+            except Exception as _:
                 color = bn.HighlightStandardColor.RedHighlightColor
             for inst in path.insts:
                 func = inst.function.source_function
@@ -463,11 +477,14 @@ class PathsController:
         """
         This method shows the call graph of a path.
         """
-        if not tbl: return
-        if len(rows) != 1: return
+        if not tbl: 
+            return
+        if len(rows) != 1: 
+            return
         path_id = tbl.item(rows[0], 0).data(qtc.Qt.ItemDataRole.UserRole)
         path = self._paths[path_id]
-        if not path: return
+        if not path: 
+            return
         for idx in range(wid.count()):
             if wid.tabText(idx) == "Graph":
                 graph_widget: GraphWidget = wid.widget(idx)
@@ -485,9 +502,11 @@ class PathsController:
         """
         This method removes the paths at rows `rows` from the table `tbl`.
         """
-        if not tbl: return
+        if not tbl: 
+            return
         for c, row in enumerate(sorted(rows, reverse=True)):
-            if row < 0: continue
+            if row < 0: 
+                continue
             path_id = tbl.item(row, 0).data(qtc.Qt.ItemDataRole.UserRole)
             del self._paths[path_id-c]
             tbl.removeRow(row)

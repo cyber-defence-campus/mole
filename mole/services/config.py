@@ -42,7 +42,8 @@ class ConfigService:
         """
         configurations = []
         for conf_file in sorted(os.listdir(self._conf_path)):
-            if not fn.fnmatch(conf_file, "*.yml") or conf_file == "000-mole.yml": continue
+            if not fn.fnmatch(conf_file, "*.yml") or conf_file == "000-mole.yml":
+                continue
             # Open configuration file
             try:
                 with open(os.path.join(self._conf_path, conf_file), "r") as f:
@@ -99,7 +100,8 @@ class ConfigService:
         """
         Update target configuration with data from source configuration.
         """
-        if not source: return
+        if not source: 
+            return
         
         # Update sources and sinks
         for type in ["sources", "sinks"]:
@@ -140,7 +142,8 @@ class ConfigService:
             "sinks": {},
             "settings": {}
         }
-        if not conf: return Configuration(**parsed_conf)
+        if not conf: 
+            return Configuration(**parsed_conf)
         try:
             # Parse sources and sinks
             for type in ["sources", "sinks"]:

@@ -61,7 +61,8 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                     # Submit tasks
                     tasks: List[futures.Future] = []
                     for src_fun in src_funs:
-                        if self.cancelled: break
+                        if self.cancelled: 
+                            break
                         tasks.append(
                             executor.submit(
                                 src_fun.find_targets,
@@ -73,7 +74,8 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                         )
                     # Wait for tasks to complete
                     for cnt, _ in enumerate(futures.as_completed(tasks)):
-                        if self.cancelled: break
+                        if self.cancelled: 
+                            break
                         self.progress = f"Mole processes source {cnt+1:d}/{len(src_funs):d}"
         else:
             self._log.warn(self._tag, "No source functions configured")
@@ -88,7 +90,8 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                 # Submit tasks
                 tasks: List[futures.Future] = []
                 for snk_fun in snk_funs:
-                    if self.cancelled: break
+                    if self.cancelled: 
+                        break
                     tasks.append(
                     executor.submit(
                         snk_fun.find_paths,
@@ -104,7 +107,8 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                     )
                 # Wait for tasks to complete and collect paths
                 for cnt, task in enumerate(futures.as_completed(tasks)):
-                    if self.cancelled: break
+                    if self.cancelled: 
+                        break
                     self.progress = f"Mole processes sink {cnt+1:d}/{len(snk_funs):d}"
                     # Collect paths from task results
                     if task.done() and not task.exception():
