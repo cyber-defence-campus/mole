@@ -89,7 +89,7 @@ class ConfigController:
             settings[setting_name] = setting.widget
 
         # Reset model
-        new_config = self.config_service.load_configuration()
+        new_config = self._config_service.load_configuration()
         self._model.set(new_config)
 
         # Restore input elements
