@@ -24,7 +24,8 @@ dependencies = [
 
 [project.optional-dependencies]
 develop = [
-    "debugpy==1.8.1"
+    "debugpy==1.8.1",
+    "ruff==0.9.9"
 ]
 
 [project.scripts]
