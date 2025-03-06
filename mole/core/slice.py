@@ -239,10 +239,12 @@ class MediumLevelILBackwardSlicer:
             self._slice_backwards(inst_def, call_level, caller_site)
             return
         # Try finding the definition in another function
-        if self._max_call_level >= 0 and abs(call_level) > self._max_call_level: return
+        if self._max_call_level >= 0 and abs(call_level) > self._max_call_level: 
+            return
         caller_level = self._call_graph.nodes.get(caller_site, {}).get("call_level", None)
         for parm_idx, parm_var in enumerate(inst.function.source_function.parameter_vars):
-            if parm_var != ssa_var.var: continue
+            if parm_var != ssa_var.var: 
+                continue
             for cs in inst.function.source_function.caller_sites:
                 try:
                     cs_inst = cs.mlil.ssa_form
@@ -264,7 +266,7 @@ class MediumLevelILBackwardSlicer:
                     self._call_graph.add_node(inst.function, call_level)
                     self._call_graph.add_edge(cs_inst.function, inst.function)
                     self._slice_backwards(cs_parm, call_level-1, inst.function)
-                except:
+                except Exception as _:
                     continue
         return
     
@@ -486,7 +488,7 @@ class MediumLevelILBackwardSlicer:
                                                 self._slice_backwards(par, call_level, caller_site)
                                         else:
                                             self._log.warn(self._tag, f"Function '{call_info:s}' has an unexpected type '{str(symb.type):s}'")
-                        except:
+                        except Exception as _:
                             # Function not found within the binary
                             pass
                     # Indirect function calls
@@ -523,7 +525,8 @@ class MediumLevelILBackwardSlicer:
         """
         This method backward slices the instruction `inst`.
         """
-        for _ in inst.ssa_form.traverse(self._slice_backwards): pass
+        for _ in inst.ssa_form.traverse(self._slice_backwards): 
+            pass
         return
     
     def get_insts(self) -> Generator[bn.MediumLevelILInstruction]:

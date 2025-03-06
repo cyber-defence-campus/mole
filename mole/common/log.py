@@ -82,7 +82,8 @@ class Logger:
         This method prints a tagged message of log level debug to the console or Binary Ninja's log.
         """
         text = self._tag_msg(tag, msg)
-        if self._level > 0: return
+        if self._level > 0: 
+            return
         if not self._runs_headless and not self._runs_debugger:
             self._logger.log_debug(text)
         else:
@@ -106,7 +107,8 @@ class Logger:
         This method prints a tagged message of log level info to the console or Binary Ninja's log.
         """
         text = self._tag_msg(tag, msg)
-        if self._level > 1: return
+        if self._level > 1: 
+            return
         if not self._runs_headless and not self._runs_debugger:
             self._logger.log_info(text)
         else:
@@ -130,7 +132,8 @@ class Logger:
         This method prints a tagged message of log level warn to the console or Binary Ninja's log.
         """
         text = self._tag_msg(tag, msg)
-        if self._level > 2: return
+        if self._level > 2: 
+            return
         if not self._runs_headless and not self._runs_debugger:
             self._logger.log_warn(text)
         else:
@@ -154,7 +157,8 @@ class Logger:
         This method prints a tagged message of log level error to the console or Binary Ninja's log.
         """
         text = self._tag_msg(tag, msg)
-        if self._level > 3: return
+        if self._level > 3: 
+            return
         if not self._runs_headless and not self._runs_debugger:
             self._logger.log_error(text)
         else:

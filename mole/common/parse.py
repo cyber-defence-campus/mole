@@ -59,7 +59,8 @@ class LogicalExpressionParser:
         """
         try:
             e = self._parser.parse(expr).children[0]
-            f = lambda i: eval(e)
+            def f(i):
+                return eval(e)
             return f
         except Exception as e:
             self._log.warn(self._tag, f"Failed to parse expression '{expr}': {str(e):s}")
