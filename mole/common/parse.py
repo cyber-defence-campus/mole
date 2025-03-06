@@ -1,6 +1,6 @@
 from .log   import Logger
 from lark   import Lark, Token, Transformer, v_args
-from typing import Callable, Sequence
+from typing import Callable
 
 
 class LogicalExpressionParser:

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Any, TYPE_CHECKING, List, Optional
+from typing import Dict, List, Optional
 import os
 import yaml
 import fnmatch as fn
@@ -114,12 +114,12 @@ class ConfigService:
                     new_libs = {}
                     old_libs = {}
             for new_lib_name, new_lib in new_libs.items():
-                if not new_lib_name in old_libs:
+                if new_lib_name not in old_libs:
                     old_libs[new_lib_name] = new_lib
                     continue
                 old_lib = old_libs[new_lib_name]
                 for new_cat_name, new_cat in new_lib.categories.items():
-                    if not new_cat_name in old_lib.categories:
+                    if new_cat_name not in old_lib.categories:
                         old_lib.categories[new_cat_name] = new_cat
                         continue
                     old_cat = old_lib.categories[new_cat_name]

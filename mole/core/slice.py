@@ -53,14 +53,14 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
         """
         This method adds an edge from `from_inst` to `to_inst`.
         """
-        if not from_inst in self.nodes:
+        if from_inst not in self.nodes:
             info = InstructionHelper.get_inst_info(from_inst)
             self._log.warn(
                 self._tag,
                 f"Edge not added to instruction graph due to an inexisting from node ({info:s})"
             )
             return
-        if not to_inst in self.nodes:
+        if to_inst not in self.nodes:
             info = InstructionHelper.get_inst_info(to_inst)
             self._log.warn(
                 self._tag,
@@ -115,14 +115,14 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         """
         This method adds an edge from `from_call_site` to `to_call_site`.
         """
-        if not from_call_site in self.nodes:
+        if from_call_site not in self.nodes:
             info = FunctionHelper.get_func_info(from_call_site)
             self._log.warn(
                 self._tag,
                 f"Edge not added to function graph due to an inexisting from node ({info:s})"
             )
             return
-        if not to_call_site in self.nodes:
+        if to_call_site not in self.nodes:
             info = FunctionHelper.get_func_info(to_call_site)
             self._log.warn(
                 self._tag,
@@ -248,7 +248,7 @@ class MediumLevelILBackwardSlicer:
                     cs_inst = cs.mlil.ssa_form
                     cs_parm = cs_inst.params[parm_idx]
                     # Visit specific caller site if we go up the call stack (all caller sites otherwise)
-                    if not caller_level is None and caller_level <= call_level:
+                    if caller_level is not None and caller_level <= call_level:
                         if caller_site != cs_inst.function:
                             continue
                     var_info = VariableHelper.get_ssavar_info(ssa_var)
@@ -594,7 +594,7 @@ class MediumLevelILBackwardSlicer:
         mem_def_insts: List[bn.MediumLevelILInstruction] = [mem_def_inst]
         # Recursive memory defining instructions
         for mem_def_inst in MediumLevelILBackwardSlicer._get_mem_definitions(mem_def_inst, ssa_memory_versions):
-            if not mem_def_inst in mem_def_insts:
+            if mem_def_inst not in mem_def_insts:
                 mem_def_insts.append(mem_def_inst)
         return mem_def_insts
     

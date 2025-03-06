@@ -3,8 +3,7 @@ from typing import Dict, Any
 
 from ..models.config import ConfigModel
 from ..common.log import Logger
-from ..common.parse import LogicalExpressionParser
-from ..core.data import Configuration, Function, Category, SpinboxSetting, ComboboxSetting
+from ..core.data import Function, Category, SpinboxSetting, ComboboxSetting
 from ..views.config import ConfigView
 from ..services.config import ConfigService
 
