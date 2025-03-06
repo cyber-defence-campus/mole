@@ -1,5 +1,4 @@
 from __future__           import annotations
-from mole.controllers.paths import PathsController
 from mole.core.data       import *
 import tempfile
 import unittest
@@ -13,7 +12,6 @@ class TestData(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tf = tempfile.NamedTemporaryFile(mode="w+", delete=False)
-        self.ctr = PathsController(runs_headless=True)
         self.conf = Configuration(
             sources={
                 "libc": Library(
