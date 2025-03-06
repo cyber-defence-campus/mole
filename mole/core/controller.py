@@ -1,12 +1,15 @@
 from __future__          import annotations
 
 from mole.core.model import SidebarModel
-from mole.core.view import SidebarView
+from ..views.sidebar import SidebarView
+from ..models.config      import ConfigModel
+from ..controllers.config      import ConfigController
 from ..common.parse      import LogicalExpressionParser
 from ..common.log        import Logger
-from ..ui.graph          import GraphWidget
+from ..views.graph          import GraphWidget
 from ..ui.utils          import IntTableWidgetItem
 from .data               import *
+
 from concurrent          import futures
 from typing              import Dict, List
 import binaryninja       as bn
@@ -15,7 +18,6 @@ import difflib           as difflib
 import hashlib           as hashlib
 import json              as json
 import os                as os
-import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
 import shutil            as shu
 import yaml              as yaml
@@ -28,8 +30,9 @@ class Controller:
 
     def __init__(
             self,
-            view: SidebarView,
             model: SidebarModel,
+            view: SidebarView,
+            config_model: ConfigModel,
             tag: str = "Mole",
             log: Logger = Logger(level="debug"),
             runs_headless: bool = False
@@ -41,6 +44,7 @@ class Controller:
         self._log: Logger = log
         self._view = view
         self._model = model
+        self._config_model = config_model
         self._runs_headless: bool = runs_headless
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(self._tag, self._log)
@@ -59,25 +63,7 @@ class Controller:
     @property
     def paths(self) -> List[Path]:
         return self._paths
-    
-    def __give_feedback(self, button: qtw.QPushButton, text: str, msec: int = 1000) -> None:
-        """
-        This method provides user feedback using a `QPushButton`'s text.
-        """
-        def __reset_button(text: str) -> None:
-            button.setText(text)
-            button.setEnabled(True)
-            return
-        
-        if button:
-            button.setEnabled(False)
-            old_text = button.text()
-            button.setText(text)
-            qtc.QTimer.singleShot(msec, lambda text=old_text: __reset_button(text=text))
-        return
 
-    # Methods removed: parse_conf, get_libraries, get_functions, get_settings
-    
     def store_main_conf_file(self, button: qtw.QPushButton = None) -> None:
         """
         This method stores the main configuration file.
@@ -95,61 +81,7 @@ class Controller:
             )
         # User feedback
         self.__give_feedback(button, "Saving...")
-        return
-    
-    def reset_conf(self, button: qtw.QPushButton = None) -> None:
-        """
-        This method resets the configuration.
-        """
-        # Store input elements
-        old_model = self._model.get()
-        sources_ie = {}
-        for lib_name, lib in old_model.sources.items():
-            sources_ie_lib = sources_ie.setdefault(lib_name, {})
-            for cat_name, cat in lib.categories.items():
-                sources_ie_cat = sources_ie_lib.setdefault(cat_name, {})
-                for fun_name, fun in cat.functions.items():
-                    sources_ie_cat[fun_name] = fun.checkbox
-        sinks_ie = {}
-        for lib_name, lib in old_model.sinks.items():
-            sinks_ie_lib = sinks_ie.setdefault(lib_name, {})
-            for cat_name, cat in lib.categories.items():
-                sinks_ie_cat = sinks_ie_lib.setdefault(cat_name, {})
-                for fun_name, fun in cat.functions.items():
-                    sinks_ie_cat[fun_name] = fun.checkbox
-        settings = {}
-        for setting_name, setting in old_model.settings.items():
-            settings[setting_name] = setting.widget
-        # Reset model
-        self.load_custom_conf_files()
-        new_model = self._model.get()
-        # Restore input elements
-        for lib_name, lib in new_model.sources.items():
-            sources_ie_lib = sources_ie.get(lib_name, {})
-            for cat_name, cat in lib.categories.items():
-                sources_ie_cat = sources_ie_lib.get(cat_name, {})
-                for fun_name, fun in cat.functions.items():
-                    fun.checkbox = sources_ie_cat.get(fun_name, None)
-                    fun.checkbox.setChecked(fun.enabled)
-        for lib_name, lib in new_model.sinks.items():
-            sinks_ie_lib = sinks_ie.get(lib_name, {})
-            for cat_name, cat in lib.categories.items():
-                sinks_ie_cat = sinks_ie_lib.get(cat_name, {})
-                for fun_name, fun in cat.functions.items():
-                    fun.checkbox = sinks_ie_cat.get(fun_name, None)
-                    fun.checkbox.setChecked(fun.enabled)
-        for setting_name, setting in new_model.settings.items():
-            setting.widget = settings.get(setting_name, None)
-            if isinstance(setting, SpinboxSetting):
-                setting.widget.setValue(setting.value)
-            elif isinstance(setting, ComboboxSetting):
-                if setting.value in setting.items:
-                    setting.widget.setCurrentText(setting.value)
-        # User feedback
-        self.__give_feedback(button, "Resetting...")
-        return
-    
-    # Methods removed: checkbox_toggle, checkboxes_check, spinbox_change_value, combobox_change_value
+        return    
     
     def add_path_to_view(
             self,
@@ -239,6 +171,7 @@ class Controller:
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
             ctr=self,
+            config_ctr=self._config_ctr,
             tag=self._tag,
             log=self._log,
             runs_headless=self._runs_headless,
@@ -616,6 +549,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             self,
             bv: bn.BinaryView,
             ctr: Controller,
+            config_ctr: ConfigController,
             tag: str,
             log: Logger,
             runs_headless: bool = False,
@@ -629,7 +563,8 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         """
         super().__init__(initial_progress_text="Start slicing...", can_cancel=True)
         self._bv: bn.BinaryView = bv
-        self._ctr: Controller = ctr
+        self._ctr: ConfigModel = ctr
+        self._config_ctr = config_ctr
         self._tag: str = tag
         self._log: Logger = log
         self._runs_headless: bool = runs_headless
@@ -646,14 +581,14 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         self._log.info(self._tag, "Starting analysis")
 
         # Settings
-        settings = self._ctr.get_settings()
+        settings = self._config_ctr.get_settings()
         max_workers = settings.get("max_workers").value if self._max_workers is None else self._max_workers
         max_workers = None if not max_workers is None and max_workers <= 0 else max_workers
         max_call_level = settings.get("max_call_level").value if self._max_call_level is None else self._max_call_level
         max_slice_depth = settings.get("max_slice_depth").value if self._max_slice_depth is None else self._max_slice_depth
         
         # Source functions
-        src_funs: List[SourceFunction] = self._ctr.get_functions("Sources", not self._enable_all_funs)
+        src_funs: List[SourceFunction] = self._config_ctr.get_functions("Sources", not self._enable_all_funs)
         if src_funs:
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     # Submit tasks
@@ -677,7 +612,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             self._log.warn(self._tag, "No source functions configured")
 
         # Sink functions
-        snk_funs: List[SinkFunction] = self._ctr.get_functions("Sinks", not self._enable_all_funs)
+        snk_funs: List[SinkFunction] = self._config_ctr.get_functions("Sinks", not self._enable_all_funs)
         if not snk_funs:
             self._log.warn(self._tag, "No sink functions configured")
         

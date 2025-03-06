@@ -1,12 +1,14 @@
 from __future__ import annotations
-from ..models.config import ConfigModel
-from ..common.log import Logger
-from ..common.parse import LogicalExpressionParser
-from ..core.data import Configuration, SourceFunction, SinkFunction, Category, Library, SpinboxSetting, ComboboxSetting
 from typing import Dict, Any, TYPE_CHECKING, List
 import os
 import yaml
 import fnmatch as fn
+
+from ..models.config import ConfigModel
+from ..common.log import Logger
+from ..common.parse import LogicalExpressionParser
+from ..core.data import Function, Configuration, SourceFunction, SinkFunction, Category, Library, SpinboxSetting, ComboboxSetting
+from ..views.config import ConfigView
 
 if TYPE_CHECKING:
     import PySide6.QtWidgets as qtw
@@ -16,12 +18,12 @@ class ConfigController:
     This class implements the controller for the configuration.
     """
     
-    def __init__(self, model: ConfigModel, main_controller: Any, log: Logger) -> None:
+    def __init__(self, model: ConfigModel, view: ConfigView, log: Logger) -> None:
         """
         This method initializes the configuration controller.
         """
         self._model = model
-        self._main_controller = main_controller
+        self._view = view
         self._log = log
         self._parser = LogicalExpressionParser(tag="Config", log=log)
         self._conf_path: str = os.path.join(
@@ -172,38 +174,97 @@ class ConfigController:
             )
         return Configuration(**parsed_conf)
     
-    def checkbox_toggle(self, function: Any) -> None:
+    def checkbox_toggle(self, function: Function) -> None:
         """
         This method handles checkbox toggle events.
         """
-        self._main_controller.checkbox_toggle(function)
+        function.enabled = not function.enabled
         
-    def checkboxes_check(self, category: Any, checked: bool) -> None:
+    def checkboxes_check(self, cat: Category, checked: bool) -> None:
         """
         This method handles selecting/deselecting all checkboxes.
         """
-        self._main_controller.checkboxes_check(category, checked)
+        for fun in cat.functions.values():
+            fun.enabled = checked
+            fun.checkbox.setChecked(checked)
         
-    def spinbox_change_value(self, setting: Any, value: int) -> None:
+    def spinbox_change_value(self, setting: SpinboxSetting, value: int) -> None:
         """
-        This method handles spinbox value changes.
+        This method updates the model to reflect spinbox value changes.
         """
-        self._main_controller.spinbox_change_value(setting, value)
+        setting.value = value
         
-    def combobox_change_value(self, setting: Any, value: str) -> None:
+    def combobox_change_value(self, setting: ComboboxSetting, value: str) -> None:
         """
-        This method handles combobox value changes.
+        This method updates the model to reflect combobox value changes.
         """
-        self._main_controller.combobox_change_value(setting, value)
+        setting.value = value
         
-    def store_main_conf_file(self, button: "qtw.QPushButton") -> None:
+    def store_main_conf_file(self) -> None:
         """
-        This method stores the configuration to a file.
+        This method stores the main configuration file.
         """
-        self._main_controller.store_main_conf_file(button)
+        # Store model
+        model = self._model.get()
+        with open(os.path.join(self._conf_path, "000-mole.yml"), "w") as f:
+            yaml.safe_dump(
+                model.to_dict(),
+                f,
+                sort_keys=False,
+                default_style=None,
+                default_flow_style=False,
+                encoding="utf-8"
+            )
+        # User feedback
+        self._view.give_feedback("Saving...")
         
-    def reset_conf(self, button: "qtw.QPushButton") -> None:
+    def reset_conf(self) -> None:
         """
         This method resets the configuration.
         """
-        self._main_controller.reset_conf(button)
+        # Store input elements
+        old_model = self._model.get()
+        sources_ie = {}
+        for lib_name, lib in old_model.sources.items():
+            sources_ie_lib = sources_ie.setdefault(lib_name, {})
+            for cat_name, cat in lib.categories.items():
+                sources_ie_cat = sources_ie_lib.setdefault(cat_name, {})
+                for fun_name, fun in cat.functions.items():
+                    sources_ie_cat[fun_name] = fun.checkbox
+        sinks_ie = {}
+        for lib_name, lib in old_model.sinks.items():
+            sinks_ie_lib = sinks_ie.setdefault(lib_name, {})
+            for cat_name, cat in lib.categories.items():
+                sinks_ie_cat = sinks_ie_lib.setdefault(cat_name, {})
+                for fun_name, fun in cat.functions.items():
+                    sinks_ie_cat[fun_name] = fun.checkbox
+        settings = {}
+        for setting_name, setting in old_model.settings.items():
+            settings[setting_name] = setting.widget
+        # Reset model
+        self.load_custom_conf_files()
+        new_model = self._model.get()
+        # Restore input elements
+        for lib_name, lib in new_model.sources.items():
+            sources_ie_lib = sources_ie.get(lib_name, {})
+            for cat_name, cat in lib.categories.items():
+                sources_ie_cat = sources_ie_lib.get(cat_name, {})
+                for fun_name, fun in cat.functions.items():
+                    fun.checkbox = sources_ie_cat.get(fun_name, None)
+                    fun.checkbox.setChecked(fun.enabled)
+        for lib_name, lib in new_model.sinks.items():
+            sinks_ie_lib = sinks_ie.get(lib_name, {})
+            for cat_name, cat in lib.categories.items():
+                sinks_ie_cat = sinks_ie_lib.get(cat_name, {})
+                for fun_name, fun in cat.functions.items():
+                    fun.checkbox = sinks_ie_cat.get(fun_name, None)
+                    fun.checkbox.setChecked(fun.enabled)
+        for setting_name, setting in new_model.settings.items():
+            setting.widget = settings.get(setting_name, None)
+            if isinstance(setting, SpinboxSetting):
+                setting.widget.setValue(setting.value)
+            elif isinstance(setting, ComboboxSetting):
+                if setting.value in setting.items:
+                    setting.widget.setCurrentText(setting.value)
+        # User feedback
+        self._view.give_feedback("Resetting...")

@@ -17,6 +17,12 @@ class ConfigModel:
             "../../conf/"
         )
     
+    def get(self):
+        """
+        This method returns the configuration.
+        """
+        return self._configuration
+
     def get_libraries(self, type_name: str) -> Dict[str, Any]:
         """
         This method returns the libraries of the given type.

@@ -1,44 +1,60 @@
 from __future__ import annotations
 import PySide6.QtWidgets as qtw
 from typing import TYPE_CHECKING, Literal, Tuple
+import PySide6.QtCore    as qtc
 
 from ..common.log import Logger
 if TYPE_CHECKING:
     from ..controllers.config import ConfigController
 
 
-
-class ConfigView:
+class ConfigView(qtw.QWidget):
     """
     This class implements the view for the plugin's configuration tab.
     """
 
-    def __init__(self, controller: ConfigController, tag: str, log: Logger) -> None:
+    def __init__(self, tag: str, log: Logger) -> None:
         """
         This method initializes the configuration view.
         """
-        self._controller = controller
+        super().__init__()
         self._tag = tag
         self._log = log
-        return
+        self._controller = None
+        self._save_but = None
 
-    def get_tab(self) -> Tuple[qtw.QWidget, str]:
+    def set_controller(self, ctr: ConfigController) -> None:
         """
-        This method returns the configuration tab.
+        This method sets the controller for the model.
         """
+        self._controller = ctr
+    
+    def init(self) -> None:
+        """
+        Initialize the UI components
+        """
+
+        self._controller.load_custom_conf_files()
+        self._controller.load_main_conf_file()
+
         tab = qtw.QTabWidget()
-        tab.addTab(*self._init_cnf_fun_tab("Sources"))
-        tab.addTab(*self._init_cnf_fun_tab("Sinks"))
-        tab.addTab(*self._init_cnf_set_tab())
+        tab.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
+        tab.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
+        tab.addTab(self._init_cnf_set_tab(), "Settings")
         but = self._init_cnf_but()
+        
         lay = qtw.QVBoxLayout()
         lay.addWidget(tab)
         lay.addWidget(but)
-        wid = qtw.QWidget()
-        wid.setLayout(lay)
-        return wid, "Configure"
+        self.setLayout(lay)
+        
+    def tab_title(self) -> str:
+        """
+        Returns the title for this tab
+        """
+        return "Configure"
 
-    def _init_cnf_fun_tab(self, tab_name: Literal["Sources", "Sinks"]) -> Tuple[qtw.QWidget, str]:
+    def _init_cnf_fun_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QWidget:
         """
         This method initializes the tabs `Sources` and `Sinks`.
         """
@@ -89,9 +105,9 @@ class ConfigView:
         lay.addWidget(tab_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
-        return wid, tab_name
+        return wid
     
-    def _init_cnf_set_tab(self) -> Tuple[qtw.QWidget, str]:
+    def _init_cnf_set_tab(self) -> qtw.QWidget:
         """
         This method initializes the tab `Settings`.
         """
@@ -142,25 +158,34 @@ class ConfigView:
         lay.addWidget(pth_box_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
-        return wid, "Settings"
+        return wid
     
     def _init_cnf_but(self) -> qtw.QWidget:
         """
         This method initializes the buttons.
         """
-        sav_but = qtw.QPushButton("Save")
-        sav_but.clicked.connect(
-            lambda _=None,
-            button=sav_but: self._controller.store_main_conf_file(button)
-        )
+        self._save_but = qtw.QPushButton("Save")
+        self._save_but.clicked.connect(self._controller.store_main_conf_file)
         rst_but = qtw.QPushButton("Reset")
-        rst_but.clicked.connect(
-            lambda _=None,
-            button=rst_but: self._controller.reset_conf(button)
-        )
+        rst_but.clicked.connect(self._controller.reset_conf)
         lay = qtw.QHBoxLayout()
-        lay.addWidget(sav_but)
+        lay.addWidget(self._save_but)
         lay.addWidget(rst_but)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid
+
+    def give_feedback(self, text: str, msec: int = 1000) -> None:
+        """
+        This method provides user feedback using a `QPushButton`'s text.
+        """
+        def __reset_button(text: str) -> None:
+            self._save_but.setText(text)
+            self._save_but.setEnabled(True)
+            return
+        
+        if self._save_but:
+            self._save_but.setEnabled(False)
+            old_text = self._save_but.text()
+            self._save_but.setText(text)
+            qtc.QTimer.singleShot(msec, lambda text=old_text: __reset_button(text=text))

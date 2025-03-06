@@ -1,20 +1,18 @@
-from __future__   import annotations
+from __future__ import annotations
 from ..common.log import Logger
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from ..main       import Controller
-from ..ui.graph   import GraphWidget
-from .data        import SpinboxSetting
-from typing       import Any, Literal, Tuple
-import binaryninja       as bn
-import binaryninjaui     as bnui
-import os                as os
-import PySide6.QtCore    as qtc
-import PySide6.QtGui     as qtui
-import PySide6.QtWidgets as qtw
-from ..controllers.config import ConfigController
-from ..models.config import ConfigModel
+    from ..main import Controller
+from ..views.graph import GraphWidget
 from ..views.config import ConfigView
+
+from typing import Any, Tuple
+import binaryninja as bn
+import binaryninjaui as bnui
+import os as os
+import PySide6.QtCore as qtc
+import PySide6.QtGui as qtui
+import PySide6.QtWidgets as qtw
 
 
 class SidebarView(bnui.SidebarWidgetType):
@@ -24,6 +22,7 @@ class SidebarView(bnui.SidebarWidgetType):
 
     def __init__(
             self,
+            config_view: ConfigView,
             tag: str,
             log: Logger
         ) -> None:
@@ -31,17 +30,17 @@ class SidebarView(bnui.SidebarWidgetType):
         This method initializes a view (MVC pattern).
         """
         super().__init__(self._init_icon(), "Mole")
-        self._ctr: Controller = None
+        self._config_view: ConfigView = config_view
         self._tag: str = tag
         self._log: Logger = log
-        return
+
+        self._ctr: Controller = None
     
     def set_controller(self, ctr: Controller) -> None:
         """
         This method sets the controller for the model.
         """
         self._ctr = ctr
-        return
     
     def _init_icon(self) -> qtui.QImage:
         """
@@ -75,7 +74,7 @@ class SidebarView(bnui.SidebarWidgetType):
         """
         This method creates the sidebar's widget.
         """
-        return SidebarWidget(self._ctr, self._tag, self._log).init()
+        return SidebarWidget(self._ctr, self._config_view, self._tag, self._log).init()
     
     def defaultLocation(self) -> bnui.SidebarWidgetLocation:
         """
@@ -98,6 +97,7 @@ class SidebarWidget(bnui.SidebarWidget):
     def __init__(
             self,
             ctr: Controller,
+            config_view: ConfigView,
             tag: str,
             log: Logger
         ) -> None:
@@ -106,28 +106,23 @@ class SidebarWidget(bnui.SidebarWidget):
         """
         super().__init__("Mole")
         self._ctr: Controller = ctr
+        self._config_view: ConfigView = config_view
         self._tag: str = tag
         self._log: Logger = log
         self._bv: bn.BinaryView = None
         self._wid: qtw.QTabWidget = None
         
-        # Initialize config components
-        self._config_model = ConfigModel()
-        self._config_controller = ConfigController(self._config_model, self._ctr, self._log)
-        self._config_view = ConfigView(self._config_controller, self._tag, self._log)
         return
     
     def init(self) -> SidebarWidget:
         """
         This method initializes the main widget.
         """
-        self._config_controller.load_custom_conf_files()
-        self._config_controller.load_main_conf_file()
-
         self._wid = qtw.QTabWidget()
         self._wid.addTab(*self._init_run_tab())
         self._wid.addTab(*self._init_graph_tab())
-        self._wid.addTab(*self._config_view.get_tab())
+        self._wid.addTab(self._config_view, "Configure")
+
         lay = qtw.QVBoxLayout()
         lay.addWidget(self._wid)
         self.setLayout(lay)
