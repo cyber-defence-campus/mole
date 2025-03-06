@@ -2,7 +2,7 @@ from __future__ import annotations
 from ..common.log import Logger
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from ..main import Controller
+    from ..cli.main import Controller
 from ..views.graph import GraphWidget
 from ..views.config import ConfigView
 
