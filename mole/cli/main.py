@@ -1,6 +1,8 @@
 from __future__       import annotations
-from .common.log      import Logger
-from .core.controller import Controller
+
+from mole.models.config import ConfigModel
+from ..common.log      import Logger
+from ..core.controller import MediumLevelILBackwardSlicerThread
 from typing           import Dict, List
 import argparse    as ap
 import binaryninja as bn
@@ -55,13 +57,18 @@ def main() -> None:
 
     # Initialize logger and controller to operate in headless mode
     log = Logger(level=args.log_level, runs_headless=True)
-    ctr = Controller(log=log, runs_headless=True).init()
     try:
         # Load and analyze binary with Binary Ninja
         bv = bn.load(args.file)
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
-        paths = ctr.find_paths(bv, args.max_workers, args.max_call_level, args.max_slice_depth)
+        
+        config_model = ConfigModel()
+        
+
+        slicer_thread = MediumLevelILBackwardSlicerThread(bv, args.max_workers, args.max_call_level, args.max_slice_depth)
+        slicer_thread.get_paths()
+
         # Export identified paths
         if args.export_paths_to_yml_file or args.export_paths_to_json_file:
             # Calculate SHA1 hash of binary

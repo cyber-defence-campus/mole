@@ -7,6 +7,7 @@ from mole.controllers.config import ConfigController
 from mole.models.config import ConfigModel
 from mole.views.sidebar import MoleSidebar, SidebarView
 from mole.views.config import ConfigView
+from mole.services.config import ConfigService
 
 # TODO: handle headless mode here
 runs_headless = False
@@ -18,13 +19,15 @@ tag = "Mole"
 log = Logger(level="debug")
 
 main_model = SidebarModel(tag, log).init()
-config_model = ConfigModel()
+
+config_service = ConfigService(log)
+config_model = ConfigModel(config_service.load_configuration())
 
 config_view = ConfigView(tag, log)
 sidebar_view = SidebarView(config_view, tag, log)
 
-main_controller = Controller(main_model, sidebar_view, config_model, tag, log, runs_headless)
-config_controller = ConfigController(config_model, config_view, log)
+main_controller = Controller(main_model, sidebar_view, config_model, tag, log)
+config_controller = ConfigController(config_model, config_view, config_service, log)
 
 config_view.set_controller(config_controller)
 sidebar_view.set_controller(main_controller)

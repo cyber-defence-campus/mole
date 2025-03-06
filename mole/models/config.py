@@ -7,15 +7,15 @@ class ConfigModel:
     This class implements the model for storing configuration data.
     """
     
-    def __init__(self) -> None:
+    def __init__(self, configuration: Configuration) -> None:
         """
-        This method initializes the configuration model.
+        Initialize the configuration model with optional pre-loaded configuration.
+        
+        Args:
+            configuration: A Configuration object to initialize the model with.
+                          If None, an empty configuration will be created.
         """
-        self._configuration = Configuration()
-        self._conf_path: str = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "../../conf/"
-        )
+        self._configuration = configuration
     
     def get(self):
         """
@@ -23,6 +23,12 @@ class ConfigModel:
         """
         return self._configuration
 
+    def set(self, configuration: Configuration):
+        """
+        This method sets the configuration.
+        """
+        self._configuration = configuration
+        
     def get_libraries(self, type_name: str) -> Dict[str, Any]:
         """
         This method returns the libraries of the given type.

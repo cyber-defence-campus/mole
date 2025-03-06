@@ -33,10 +33,6 @@ class ConfigView(qtw.QWidget):
         """
         Initialize the UI components
         """
-
-        self._controller.load_custom_conf_files()
-        self._controller.load_main_conf_file()
-
         tab = qtw.QTabWidget()
         tab.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
         tab.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
@@ -165,7 +161,7 @@ class ConfigView(qtw.QWidget):
         This method initializes the buttons.
         """
         self._save_but = qtw.QPushButton("Save")
-        self._save_but.clicked.connect(self._controller.store_main_conf_file)
+        self._save_but.clicked.connect(self._controller.store_configuration)
         rst_but = qtw.QPushButton("Reset")
         rst_but.clicked.connect(self._controller.reset_conf)
         lay = qtw.QHBoxLayout()
