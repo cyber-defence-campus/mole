@@ -345,7 +345,8 @@ class SinkFunction(Function):
                                             continue
                                         # Store path
                                         paths.append(path)
-                                        found_path(path)
+                                        if found_path:
+                                            found_path(path)
                                         # Log path
                                         t_log = f"Interesting path: {str(path):s}"
                                         t_log = f"{t_log:s} [L:{len(insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"

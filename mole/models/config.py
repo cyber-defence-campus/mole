@@ -80,39 +80,3 @@ class ConfigModel:
                         funs.append(fun)
         return funs
     
-    def update_configuration(self, new_conf: Configuration) -> None:
-        """
-        This method updates the configuration with new data.
-        """
-        if not new_conf: return
-        old_conf = self._configuration
-        # Update sources and sinks
-        for type in ["sources", "sinks"]:
-            match type:
-                case "sources":
-                    new_libs = new_conf.sources
-                    old_libs = old_conf.sources
-                case "sinks":
-                    new_libs = new_conf.sinks
-                    old_libs = old_conf.sinks
-                case _:
-                    new_libs = {}
-                    old_libs = {}
-            for new_lib_name, new_lib in new_libs.items():
-                if not new_lib_name in old_libs:
-                    old_libs[new_lib_name] = new_lib
-                    continue
-                old_lib = old_libs[new_lib_name]
-                for new_cat_name, new_cat in new_lib.categories.items():
-                    if not new_cat_name in old_lib.categories:
-                        old_lib.categories[new_cat_name] = new_cat
-                        continue
-                    old_cat = old_lib.categories[new_cat_name]
-                    for new_fun_name, new_fun in new_cat.functions.items():
-                        old_cat.functions[new_fun_name] = new_fun
-        # Update settings
-        new_settings = new_conf.settings
-        old_settings = old_conf.settings
-        for new_setting_name, new_setting in new_settings.items():
-            old_settings[new_setting_name] = new_setting
-        return
