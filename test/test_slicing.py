@@ -36,6 +36,9 @@ class TestCase(unittest.TestCase):
 
 
     def get_paths(self, bv:bn.BinaryView, max_workers: int = -1, max_call_level: int = 3, enable_all_funs: bool = True) -> List[Path]:
+        '''
+        Helper method that wraps the MediumLevelILBackwardSlicerThread to get paths from a binary view.
+        '''
         slicer_thread = MediumLevelILBackwardSlicerThread(
                     bv=bv,
                     config_model=self._config_model,

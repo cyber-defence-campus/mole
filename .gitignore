@@ -13,3 +13,4 @@ venv/
 
 # Visual Studio Code
 .vscode
+.ruff_cache
