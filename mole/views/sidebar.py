@@ -15,14 +15,14 @@ import PySide6.QtGui as qtui
 import PySide6.QtWidgets as qtw
 
 
-class SidebarView(bnui.SidebarWidgetType):
+class MoleSidebar(bnui.SidebarWidgetType):
     """
     This class implements the view for the plugin's sidebar.
     """
 
     def __init__(
             self,
-            config_view: ConfigView,
+            sidebar_view: SidebarView,
             tag: str,
             log: Logger
         ) -> None:
@@ -30,17 +30,9 @@ class SidebarView(bnui.SidebarWidgetType):
         This method initializes a view (MVC pattern).
         """
         super().__init__(self._init_icon(), "Mole")
-        self._config_view: ConfigView = config_view
+        self._sidebar_view = sidebar_view
         self._tag: str = tag
         self._log: Logger = log
-
-        self._ctr: Controller = None
-    
-    def set_controller(self, ctr: Controller) -> None:
-        """
-        This method sets the controller for the model.
-        """
-        self._ctr = ctr
     
     def _init_icon(self) -> qtui.QImage:
         """
@@ -74,7 +66,7 @@ class SidebarView(bnui.SidebarWidgetType):
         """
         This method creates the sidebar's widget.
         """
-        return SidebarWidget(self._ctr, self._config_view, self._tag, self._log).init()
+        return self._sidebar_view
     
     def defaultLocation(self) -> bnui.SidebarWidgetLocation:
         """
@@ -89,14 +81,13 @@ class SidebarView(bnui.SidebarWidgetType):
         return bnui.SidebarContextSensitivity.SelfManagedSidebarContext
 
 
-class SidebarWidget(bnui.SidebarWidget):
+class SidebarView(bnui.SidebarWidget):
     """
     This class implements the widget for the plugin's sidebar.
     """
 
     def __init__(
             self,
-            ctr: Controller,
             config_view: ConfigView,
             tag: str,
             log: Logger
@@ -105,16 +96,22 @@ class SidebarWidget(bnui.SidebarWidget):
         This method initializes a sidebar widget.
         """
         super().__init__("Mole")
-        self._ctr: Controller = ctr
         self._config_view: ConfigView = config_view
         self._tag: str = tag
         self._log: Logger = log
         self._bv: bn.BinaryView = None
         self._wid: qtw.QTabWidget = None
+        self._ctr: Controller = None
         
         return
     
-    def init(self) -> SidebarWidget:
+    def set_controller(self, ctr: Controller) -> None:
+        """
+        This method sets the controller for the model.
+        """
+        self._ctr = ctr
+
+    def init(self) -> SidebarView:
         """
         This method initializes the main widget.
         """
@@ -226,20 +223,20 @@ class SidebarWidget(bnui.SidebarWidget):
         res_lay.addWidget(res_tbl)
         res_wid = qtw.QGroupBox("Interesting Paths:")
         res_wid.setLayout(res_lay)
-        run_but = qtw.QPushButton("Find")
-        run_but.clicked.connect(
-            lambda: self._ctr.find_paths(bv=self._bv, but=run_but, tbl=res_tbl)
+        self._run_but = qtw.QPushButton("Find")
+        self._run_but.clicked.connect(
+            lambda: self._ctr.find_paths(bv=self._bv, tbl=res_tbl)
         )
         lod_but = qtw.QPushButton("Load")
         lod_but.clicked.connect(
-            lambda: self._ctr.load_paths(bv=self._bv, but=lod_but, tbl=res_tbl)
+            lambda: self._ctr.load_paths(bv=self._bv, tbl=res_tbl)
         )
         sav_but = qtw.QPushButton("Save")
         sav_but.clicked.connect(
-            lambda: self._ctr.save_paths(bv=self._bv, but=sav_but, tbl=res_tbl)
+            lambda: self._ctr.save_paths(bv=self._bv, tbl=res_tbl)
         )
         but_lay = qtw.QHBoxLayout()
-        but_lay.addWidget(run_but)
+        but_lay.addWidget(self._run_but)
         but_lay.addWidget(lod_but)
         but_lay.addWidget(sav_but)
         but_wid = qtw.QWidget()
@@ -250,6 +247,22 @@ class SidebarWidget(bnui.SidebarWidget):
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid, "Run"
+    
+
+    def give_feedback(self, text: str, msec: int = 1000) -> None:
+        """
+        This method provides user feedback using a `QPushButton`'s text.
+        """
+        def __reset_button(text: str) -> None:
+            self._run_but.setText(text)
+            self._run_but.setEnabled(True)
+            return
+        
+        if self._run_but:
+            self._run_but.setEnabled(False)
+            old_text = self._run_but.text()
+            self._run_but.setText(text)
+            qtc.QTimer.singleShot(msec, lambda text=old_text: __reset_button(text=text))    
     
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
         return GraphWidget(self._tag, self._log), "Graph"

@@ -5,7 +5,7 @@ from mole.common.log            import Logger
 from mole.core.model import SidebarModel
 from mole.controllers.config import ConfigController
 from mole.models.config import ConfigModel
-from mole.views.sidebar import SidebarView
+from mole.views.sidebar import MoleSidebar, SidebarView
 from mole.views.config import ConfigView
 
 # TODO: handle headless mode here
@@ -21,13 +21,17 @@ main_model = SidebarModel(tag, log).init()
 config_model = ConfigModel()
 
 config_view = ConfigView(tag, log)
-main_view = SidebarView(config_view, tag, log)
+sidebar_view = SidebarView(config_view, tag, log)
 
-main_controller = Controller(main_view, main_model, tag, log, runs_headless)
+main_controller = Controller(main_model, sidebar_view, config_model, tag, log, runs_headless)
 config_controller = ConfigController(config_model, config_view, log)
 
 config_view.set_controller(config_controller)
-main_view.set_controller(main_controller)
+sidebar_view.set_controller(main_controller)
 
 config_view.init()
-main_view.init()
+sidebar_view.init()
+
+# lets initialize the actual binary ninja sidebar
+sidebar = MoleSidebar(sidebar_view, tag, log)
+sidebar.init()
