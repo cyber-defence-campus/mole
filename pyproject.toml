@@ -28,4 +28,4 @@ develop = [
 ]
 
 [project.scripts]
-mole = "mole.main:main"
+mole = "mole.cli.main:main"

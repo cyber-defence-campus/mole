@@ -5,9 +5,9 @@ from ..models.config      import ConfigModel
 from ..common.parse      import LogicalExpressionParser
 from ..common.log        import Logger
 from ..views.graph          import GraphWidget
-from ..ui.utils          import IntTableWidgetItem
+from ..views.utils          import IntTableWidgetItem
 from ..services.slicer   import MediumLevelILBackwardSlicerThread
-from .data               import *
+from ..core.data               import *
 
 import PySide6.QtCore    as qtc
 from typing              import Dict, List
@@ -22,7 +22,7 @@ import shutil            as shu
 import yaml              as yaml
 
 
-class Controller:
+class PathsController:
     """
     This class implements the plugin's controller.
     """
