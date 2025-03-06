@@ -1,6 +1,6 @@
 from __future__           import annotations
 from mole.common.log      import Logger
-from mole.core.controller import Controller
+from mole.controllers.paths import PathsController
 from mole.core.data       import Path
 from typing               import List
 import binaryninja as bn
@@ -29,7 +29,7 @@ class TestCase(unittest.TestCase):
 
     def setUp(self) -> None:
         # Initialize controller to operate in headless mode
-        self.ctr = Controller(
+        self.ctr = PathsController(
             log=Logger(
                 runs_headless=True,
                 level="debug"
