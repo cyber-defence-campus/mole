@@ -11,6 +11,8 @@ dist/
 .venv/
 venv/
 
+# Linting / Formatting
+.ruff_cache
+
 # Visual Studio Code
 .vscode
-.ruff_cache

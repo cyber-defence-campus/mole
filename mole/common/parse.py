@@ -44,9 +44,9 @@ class LogicalExpressionParser:
         """
         This method initializes a parser for logical expressions.
         """
-        self._tag: str = tag
-        self._log: Logger = log
-        self._parser: Lark = Lark(
+        self._tag = tag
+        self._log = log
+        self._parser = Lark(
             grammar=self.grammar,
             parser="lalr",
             transformer=LogicalExpressionTransformer()

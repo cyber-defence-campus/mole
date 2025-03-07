@@ -11,7 +11,7 @@ from mole.services.config import ConfigService
 tag = "Mole"
 log = Logger(level="debug")
 
-config_service = ConfigService(log)
+config_service = ConfigService(tag + ".Config", log)
 config_model = ConfigModel(config_service.load_configuration())
 
 config_view = ConfigView(tag, log)
