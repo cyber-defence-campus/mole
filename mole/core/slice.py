@@ -53,14 +53,14 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
         """
         This method adds an edge from `from_inst` to `to_inst`.
         """
-        if not from_inst in self.nodes:
+        if from_inst not in self.nodes:
             info = InstructionHelper.get_inst_info(from_inst)
             self._log.warn(
                 self._tag,
                 f"Edge not added to instruction graph due to an inexisting from node ({info:s})"
             )
             return
-        if not to_inst in self.nodes:
+        if to_inst not in self.nodes:
             info = InstructionHelper.get_inst_info(to_inst)
             self._log.warn(
                 self._tag,
@@ -115,14 +115,14 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         """
         This method adds an edge from `from_call_site` to `to_call_site`.
         """
-        if not from_call_site in self.nodes:
+        if from_call_site not in self.nodes:
             info = FunctionHelper.get_func_info(from_call_site)
             self._log.warn(
                 self._tag,
                 f"Edge not added to function graph due to an inexisting from node ({info:s})"
             )
             return
-        if not to_call_site in self.nodes:
+        if to_call_site not in self.nodes:
             info = FunctionHelper.get_func_info(to_call_site)
             self._log.warn(
                 self._tag,
@@ -239,16 +239,18 @@ class MediumLevelILBackwardSlicer:
             self._slice_backwards(inst_def, call_level, caller_site)
             return
         # Try finding the definition in another function
-        if self._max_call_level >= 0 and abs(call_level) > self._max_call_level: return
+        if self._max_call_level >= 0 and abs(call_level) > self._max_call_level: 
+            return
         caller_level = self._call_graph.nodes.get(caller_site, {}).get("call_level", None)
         for parm_idx, parm_var in enumerate(inst.function.source_function.parameter_vars):
-            if parm_var != ssa_var.var: continue
+            if parm_var != ssa_var.var: 
+                continue
             for cs in inst.function.source_function.caller_sites:
                 try:
                     cs_inst = cs.mlil.ssa_form
                     cs_parm = cs_inst.params[parm_idx]
                     # Visit specific caller site if we go up the call stack (all caller sites otherwise)
-                    if not caller_level is None and caller_level <= call_level:
+                    if caller_level is not None and caller_level <= call_level:
                         if caller_site != cs_inst.function:
                             continue
                     var_info = VariableHelper.get_ssavar_info(ssa_var)
@@ -264,7 +266,7 @@ class MediumLevelILBackwardSlicer:
                     self._call_graph.add_node(inst.function, call_level)
                     self._call_graph.add_edge(cs_inst.function, inst.function)
                     self._slice_backwards(cs_parm, call_level-1, inst.function)
-                except:
+                except Exception as _:
                     continue
         return
     
@@ -486,7 +488,7 @@ class MediumLevelILBackwardSlicer:
                                                 self._slice_backwards(par, call_level, caller_site)
                                         else:
                                             self._log.warn(self._tag, f"Function '{call_info:s}' has an unexpected type '{str(symb.type):s}'")
-                        except:
+                        except Exception as _:
                             # Function not found within the binary
                             pass
                     # Indirect function calls
@@ -523,7 +525,8 @@ class MediumLevelILBackwardSlicer:
         """
         This method backward slices the instruction `inst`.
         """
-        for _ in inst.ssa_form.traverse(self._slice_backwards): pass
+        for _ in inst.ssa_form.traverse(self._slice_backwards): 
+            pass
         return
     
     def get_insts(self) -> Generator[bn.MediumLevelILInstruction]:
@@ -594,7 +597,7 @@ class MediumLevelILBackwardSlicer:
         mem_def_insts: List[bn.MediumLevelILInstruction] = [mem_def_inst]
         # Recursive memory defining instructions
         for mem_def_inst in MediumLevelILBackwardSlicer._get_mem_definitions(mem_def_inst, ssa_memory_versions):
-            if not mem_def_inst in mem_def_insts:
+            if mem_def_inst not in mem_def_insts:
                 mem_def_insts.append(mem_def_inst)
         return mem_def_insts
     

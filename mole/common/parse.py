@@ -1,6 +1,6 @@
 from .log   import Logger
 from lark   import Lark, Token, Transformer, v_args
-from typing import Callable, Sequence
+from typing import Callable
 
 
 class LogicalExpressionParser:
@@ -44,9 +44,9 @@ class LogicalExpressionParser:
         """
         This method initializes a parser for logical expressions.
         """
-        self._tag: str = tag
-        self._log: Logger = log
-        self._parser: Lark = Lark(
+        self._tag = tag
+        self._log = log
+        self._parser = Lark(
             grammar=self.grammar,
             parser="lalr",
             transformer=LogicalExpressionTransformer()
@@ -59,7 +59,8 @@ class LogicalExpressionParser:
         """
         try:
             e = self._parser.parse(expr).children[0]
-            f = lambda i: eval(e)
+            def f(i):
+                return eval(e)
             return f
         except Exception as e:
             self._log.warn(self._tag, f"Failed to parse expression '{expr}': {str(e):s}")

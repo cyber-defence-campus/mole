@@ -21,20 +21,29 @@ class Configuration:
         if not isinstance(other, Configuration):
             try:
                 other = Configuration(**other)
-            except:
+            except Exception as _:
                 return False
-        if len(self.sources) != len(other.sources): return False
+        if len(self.sources) != len(other.sources): 
+            return False
         for lib_name, lib in self.sources.items():
-            if not lib_name in other.sources: return False
-            if lib != other.sources[lib_name]: return False
-        if len(self.sinks) != len(other.sinks): return False
+            if lib_name not in other.sources: 
+                return False
+            if lib != other.sources[lib_name]: 
+                return False
+        if len(self.sinks) != len(other.sinks): 
+            return False
         for lib_name, lib in self.sinks.items():
-            if not lib_name in other.sinks: return False
-            if lib != other.sinks[lib_name]: return False
-        if len(self.settings) != len(other.settings): return False
+            if lib_name not in other.sinks: 
+                return False
+            if lib != other.sinks[lib_name]: 
+                return False
+        if len(self.settings) != len(other.settings): 
+            return False
         for setting_name, setting in self.settings.items():
-            if not setting_name in other.settings: return False
-            if setting != other.settings[setting_name]: return False
+            if setting_name not in other.settings: 
+                return False
+            if setting != other.settings[setting_name]: 
+                return False
         return True
     
     def to_dict(self) -> Dict:
@@ -66,13 +75,17 @@ class Library:
         if not isinstance(other, Library):
             try:
                 other = Library(**other)
-            except:
+            except Exception as _:
                 return False
-        if self.name != other.name: return False
-        if len(self.categories) != len(other.categories): return False
+        if self.name != other.name: 
+            return False
+        if len(self.categories) != len(other.categories): 
+            return False
         for cat_name, cat in self.categories.items():
-            if not cat_name in other.categories: return False
-            if cat != other.categories[cat_name]: return False
+            if cat_name not in other.categories: 
+                return False
+            if cat != other.categories[cat_name]: 
+                return False
         return True
     
     def to_dict(self) -> Dict:
@@ -97,13 +110,17 @@ class Category:
         if not isinstance(other, Category):
             try:
                 other = Category(**other)
-            except:
+            except Exception as _:
                 return False
-        if self.name != other.name: return False
-        if len(self.functions) != len(other.functions): return False
+        if self.name != other.name: 
+            return False
+        if len(self.functions) != len(other.functions): 
+            return False
         for fun_name, fun in self.functions.items():
-            if not fun_name in other.functions: return False
-            if fun != other.functions[fun_name]: return False
+            if fun_name not in other.functions: 
+                return False
+            if fun != other.functions[fun_name]: 
+                return False
         return True
 
     def to_dict(self) -> Dict:
@@ -137,7 +154,7 @@ class Function:
         if not isinstance(other, Function):
             try:
                 other = Function(**other)
-            except:
+            except Exception as _:
                 return False
         return self.name == other.name
     
@@ -164,7 +181,7 @@ class SourceFunction(Function):
         if not isinstance(other, SourceFunction):
             try:
                 other = SourceFunction(**other)
-            except:
+            except Exception as _:
                 return False
         return super().__eq__(other)
     
@@ -189,9 +206,11 @@ class SourceFunction(Function):
             ]
         )
         for src_name, src_insts in code_refs.items():
-            if canceled(): break
+            if canceled(): 
+                break
             for src_inst in src_insts:
-                if canceled(): break
+                if canceled(): 
+                    break
                 log.info(tag, f"Analyze source function '0x{src_inst.address:x} {src_name:s}'")
                 # Ignore everything but call instructions
                 match src_inst:
@@ -206,7 +225,8 @@ class SourceFunction(Function):
                     continue
                 # Analyze parameters
                 for par_idx, par_var in enumerate(src_inst.params):
-                    if canceled(): break
+                    if canceled():
+                        break
                     par_idx += 1
                     log.debug(tag, f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'")
                     # Perform dataflow analysis
@@ -225,10 +245,10 @@ class SourceFunction(Function):
                         slicer = MediumLevelILBackwardSlicer(bv, tag, log, 0)
                         slicer.slice_backwards(par_var)
                         # Add sliced instructions to the target instructions
-                        l = self.target_insts.setdefault((src_inst.address, src_name), [])
+                        addr_src_list = self.target_insts.setdefault((src_inst.address, src_name), [])
                         for inst in slicer.get_insts():
-                            if not inst in l:
-                                l.append(inst)
+                            if inst not in addr_src_list:
+                                addr_src_list.append(inst)
         return
 
 
@@ -242,7 +262,7 @@ class SinkFunction(Function):
         if not isinstance(other, SinkFunction):
             try:
                 other = SinkFunction(**other)
-            except:
+            except Exception as _:
                 return False
         return super().__eq__(other)
     
@@ -272,9 +292,11 @@ class SinkFunction(Function):
             ]
         )
         for snk_name, snk_insts in code_refs.items():
-            if canceled(): break
+            if canceled(): 
+                break
             for snk_inst in snk_insts:
-                if canceled(): break
+                if canceled(): 
+                    break
                 log.info(tag, f"Analyze sink function '0x{snk_inst.address:x} {snk_name:s}'")
                 # Ignore everything but call instructions
                 match snk_inst:
@@ -289,7 +311,8 @@ class SinkFunction(Function):
                     continue
                 # Analyze parameters
                 for par_idx, par_var in enumerate(snk_inst.params):
-                    if canceled(): break
+                    if canceled():
+                        break
                     par_idx += 1
                     log.debug(tag, f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'")
                     # Perform dataflow analysis
@@ -308,11 +331,14 @@ class SinkFunction(Function):
                         slicer = MediumLevelILBackwardSlicer(bv, tag, log, max_call_level)
                         slicer.slice_backwards(par_var)
                         for source in sources:
-                            if canceled(): break
+                            if canceled(): 
+                                break
                             for (src_sym_addr, src_sym_name), src_insts in source.target_insts.items():
-                                if canceled(): break
+                                if canceled(): 
+                                    break
                                 for src_inst in src_insts:
-                                    if canceled(): break
+                                    if canceled(): 
+                                        break
                                     # Find paths
                                     for insts, call_graph in slicer.find_paths(par_var, src_inst, max_slice_depth):
                                         # Prepend sink instruction
@@ -320,7 +346,7 @@ class SinkFunction(Function):
                                         # Find split between sink and source originating instructions
                                         src_inst_idx = len(insts)
                                         for src_inst_idx in range(src_inst_idx-1, -1, -1):
-                                            if not insts[src_inst_idx] in src_insts:
+                                            if insts[src_inst_idx] not in src_insts:
                                                 break
                                         src_inst_idx += 1
                                         # Add additional attributes to call graph
@@ -345,7 +371,8 @@ class SinkFunction(Function):
                                             continue
                                         # Store path
                                         paths.append(path)
-                                        found_path(path)
+                                        if found_path:
+                                            found_path(path)
                                         # Log path
                                         t_log = f"Interesting path: {str(path):s}"
                                         t_log = f"{t_log:s} [L:{len(insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
@@ -420,7 +447,7 @@ class Path:
         if not isinstance(other, Path):
             try:
                 other = Path(**other)
-            except:
+            except Exception as _:
                 return False
         return (
             self.src_sym_addr == other.src_sym_addr and
@@ -494,7 +521,7 @@ class WidgetSetting:
         if not isinstance(other, WidgetSetting):
             try:
                 other = WidgetSetting(**other)
-            except:
+            except Exception as _:
                 return False
         return self.name == other.name
     
@@ -519,7 +546,7 @@ class SpinboxSetting(WidgetSetting):
         if not isinstance(other, SpinboxSetting):
             try:
                 other = SpinboxSetting(**other)
-            except:
+            except Exception as _:
                 return False
         return super().__eq__(other)
     
@@ -544,7 +571,7 @@ class ComboboxSetting(WidgetSetting):
         if not isinstance(other, ComboboxSetting):
             try:
                 other = ComboboxSetting(**other)
-            except:
+            except Exception as _:
                 return False
         return super().__eq__(other)
     

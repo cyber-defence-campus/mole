@@ -1,11 +1,13 @@
 from __future__           import annotations
-from mole.common.log      import Logger
-from mole.core.controller import Controller
 from mole.core.data       import Path
+from mole.common.log      import Logger
+from mole.models.config   import ConfigModel
+from mole.services.config import ConfigService
+from mole.services.slicer import MediumLevelILBackwardSlicerThread
 from typing               import List
 import binaryninja as bn
-import os
-import unittest
+import os          as os
+import unittest    as unittest
 
 
 def load_files(names: List[str]) -> List[str]:
@@ -28,16 +30,27 @@ class TestCase(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        # Initialize controller to operate in headless mode
-        self.ctr = Controller(
-            log=Logger(
-                runs_headless=True,
-                level="debug"
-            ),
-            runs_headless=True
-        ).init()
-        return
+        self._tag = "Mole"
+        self._log = Logger(level="debug", runs_headless=True)
+        config_service = ConfigService(f"{self._tag}.ConfigService", self._log)
+        self._config_model = ConfigModel(config_service.load_configuration())
 
+
+    def get_paths(self, bv:bn.BinaryView, max_workers: int = -1, max_call_level: int = 3, enable_all_funs: bool = True) -> List[Path]:
+        '''
+        Helper method that wraps the MediumLevelILBackwardSlicerThread to get paths from a binary view.
+        '''
+        slicer_thread = MediumLevelILBackwardSlicerThread(
+                    bv=bv,
+                    model=self._config_model,
+                    tag="Headless", 
+                    log=self._log,
+                    max_workers=max_workers,
+                    max_call_level=max_call_level,
+                    enable_all_funs=enable_all_funs
+            )
+        slicer_thread.start()
+        return slicer_thread.get_paths()
 
 class TestVarious(TestCase):
     
@@ -50,7 +63,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -84,8 +97,6 @@ class TestVarious(TestCase):
                 ["gets", "main", "gets"],
                 "call paths"
             )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -99,7 +110,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
@@ -134,8 +145,6 @@ class TestVarious(TestCase):
                 ],
                 "call paths"
             )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -148,7 +157,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             for path in paths:
@@ -182,8 +191,6 @@ class TestVarious(TestCase):
                     calls == ["__isoc99_sscanf", "main", "getenv"],
                     "call paths"
                 )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -196,7 +203,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -230,8 +237,6 @@ class TestVarious(TestCase):
                 ["memcpy", "main", "getenv"],
                 "call paths"
             )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -244,7 +249,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
@@ -278,8 +283,6 @@ class TestVarious(TestCase):
                     ["memcpy", "main", "getenv"],
                     "call paths"
                 )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -292,7 +295,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -326,8 +329,6 @@ class TestVarious(TestCase):
                 ["memcpy", "main", "getenv"],
                 "call paths"
             )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -340,7 +341,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -374,8 +375,6 @@ class TestVarious(TestCase):
                 ["memcpy", "main", "my_getenv", "getenv"],
                 "call paths"
             )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -388,7 +387,7 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
@@ -422,8 +421,6 @@ class TestVarious(TestCase):
                     ["memcpy", "main", "my_getenv", "getenv"],
                     "call paths"
                 )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -436,11 +433,9 @@ class TestVarious(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -488,7 +483,7 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
@@ -519,8 +514,6 @@ class TestFunctionCalling(TestCase):
                 calls.append(path.src_sym_name)
                 self.assertTrue("system_1b" not in calls, "system_1b not called")
                 self.assertTrue("getenv_1c" not in calls, "getenv_1c not called")
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -533,7 +526,7 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
@@ -576,8 +569,6 @@ class TestFunctionCalling(TestCase):
                 ],
                 "call paths"
             )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -602,7 +593,7 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -635,8 +626,6 @@ class TestFunctionCalling(TestCase):
                 calls,
                 ["system", "main", "func", "main", "getenv"]
             )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -655,11 +644,9 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -681,7 +668,7 @@ class TestPointerAnalysis(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -711,8 +698,6 @@ class TestPointerAnalysis(TestCase):
                     calls.append(call)
             calls.append(path.src_sym_name)
             self.assertEqual(calls, ["system", "main", "getenv"], "call chain")
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
 
@@ -737,7 +722,7 @@ class TestPointerAnalysis(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
@@ -759,8 +744,6 @@ class TestPointerAnalysis(TestCase):
                         calls.append(call)
                 calls.append(path.src_sym_name)
                 self.assertEqual(calls, ["system", "main", "getenv"])
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -773,11 +756,9 @@ class TestPointerAnalysis(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 0, "0 paths identified")
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -790,7 +771,7 @@ class TestPointerAnalysis(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             for path in paths:
@@ -812,8 +793,6 @@ class TestPointerAnalysis(TestCase):
                         calls.append(call)
                 calls.append(path.src_sym_name)
                 self.assertEqual(calls, ["memcpy", "main", "modify_n", "getenv"])
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -826,7 +805,7 @@ class TestPointerAnalysis(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 1, "1 path identified")
             path = paths[0]
@@ -856,8 +835,6 @@ class TestPointerAnalysis(TestCase):
                     calls.append(call)
             calls.append(path.src_sym_name)
             self.assertEqual(calls, ["memcpy", "main", "my_getenv", "getenv"], "call chain")
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -891,7 +868,7 @@ class TestSimpleServer(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
@@ -938,8 +915,6 @@ class TestSimpleServer(TestCase):
                 ],
                 "call paths"
             )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
     
@@ -952,7 +927,7 @@ class TestSimpleServer(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.ctr.find_paths(bv, max_workers=-1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []
@@ -1003,8 +978,6 @@ class TestSimpleServer(TestCase):
                 ],
                 "call paths"
             )
-            # Remove paths and close binary
-            self.ctr.remove_all_paths()
             bv.file.close()
         return
 
@@ -1055,11 +1028,10 @@ class TestMultiThreading(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Assert results
-            paths = self.ctr.find_paths(bv, max_workers=1, max_call_level=3, enable_all_funs=True)
+            paths = self.get_paths(bv, max_workers=1, max_call_level=3, enable_all_funs=True)
             for max_workers in [2, 4, 8, -1]:
-                self.ctr.remove_all_paths()
-                paths_mt = self.ctr.find_paths(bv, max_workers, max_call_level=3, enable_all_funs=True)
-                self.assertListEqual(paths, paths_mt, f"{max_workers:d} workers")
+                paths_mt = self.get_paths(bv, max_workers, max_call_level=3, enable_all_funs=True)
+                self.assertCountEqual(paths, paths_mt, f"{max_workers:d} workers")
             # Close binary
             bv.file.close()
         return

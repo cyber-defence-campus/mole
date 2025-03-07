@@ -1,6 +1,7 @@
 from __future__           import annotations
-from mole.core.controller import Controller
-from mole.core.data       import *
+from mole.core.data       import Category, Configuration, Library
+from mole.core.data       import SinkFunction, SourceFunction
+from mole.core.data       import ComboboxSetting, SpinboxSetting
 import tempfile
 import unittest
 import yaml
@@ -13,8 +14,7 @@ class TestData(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tf = tempfile.NamedTemporaryFile(mode="w+", delete=False)
-        self.ctr = Controller(runs_headless=True)
-        self.conf = Configuration(
+        self.config = Configuration(
             sources={
                 "libc": Library(
                     name="libc",
@@ -100,10 +100,10 @@ class TestData(unittest.TestCase):
         return
     
     def test_serialize_configuration(self) -> None:
-        conf = self.conf
+        config = self.config
         # Serialize
         yaml.safe_dump(
-            conf.to_dict(),
+            config.to_dict(),
             self.tf,
             sort_keys=False,
             default_style=None,
@@ -114,11 +114,11 @@ class TestData(unittest.TestCase):
         self.tf.seek(0)
         ydoc = yaml.safe_load(self.tf)
         # Assert
-        self.assertEqual(ydoc, conf, "Serialization error of 'Configuration'")
+        self.assertEqual(ydoc, config, "Serialization error of 'Configuration'")
         return
     
     def test_serialize_library(self) -> None:
-        lib = self.conf.sources["libc"]
+        lib = self.config.sources["libc"]
         # Serialize
         yaml.safe_dump(
             lib.to_dict(),
@@ -136,7 +136,7 @@ class TestData(unittest.TestCase):
         return
     
     def test_serialize_category(self) -> None:
-        category = self.conf.sources["libc"].categories["Environment Accesses"]
+        category = self.config.sources["libc"].categories["Environment Accesses"]
         # Serialize
         yaml.safe_dump(
             category.to_dict(),
@@ -154,7 +154,7 @@ class TestData(unittest.TestCase):
         return
     
     def test_serialize_sources(self) -> None:
-        source = self.conf.sources["libc"].categories["Environment Accesses"].functions["getenv"]
+        source = self.config.sources["libc"].categories["Environment Accesses"].functions["getenv"]
         # Serialize
         yaml.safe_dump(
             source.to_dict(),
@@ -172,7 +172,7 @@ class TestData(unittest.TestCase):
         return
 
     def test_serialize_sinks(self) -> None:
-        sink = self.conf.sinks["libc"].categories["Memory Copy"].functions["memcpy"]
+        sink = self.config.sinks["libc"].categories["Memory Copy"].functions["memcpy"]
         # Serialize
         yaml.safe_dump(
             sink.to_dict(),
@@ -191,9 +191,9 @@ class TestData(unittest.TestCase):
     
     def test_serialize_spinbox_settings(self) -> None:
         settings = {
-            "max_workers": self.conf.settings["max_workers"].to_dict(),
-            "max_call_level": self.conf.settings["max_call_level"].to_dict(),
-            "max_slice_depth": self.conf.settings["max_slice_depth"].to_dict()
+            "max_workers": self.config.settings["max_workers"].to_dict(),
+            "max_call_level": self.config.settings["max_call_level"].to_dict(),
+            "max_slice_depth": self.config.settings["max_slice_depth"].to_dict()
         }
 
         # Serialize
@@ -213,7 +213,7 @@ class TestData(unittest.TestCase):
         return
     
     def test_serialize_combobox_settings(self) -> None:
-        setting = self.conf.settings["highlight_color"]
+        setting = self.config.settings["highlight_color"]
         # Serialize
         yaml.safe_dump(
             setting.to_dict(),

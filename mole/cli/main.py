@@ -1,12 +1,14 @@
-from __future__       import annotations
-from .common.log      import Logger
-from .core.controller import Controller
-from typing           import Dict, List
+from __future__           import annotations
+from mole.common.log      import Logger
+from mole.models.config   import ConfigModel
+from mole.services.config import ConfigService
+from mole.services.slicer import MediumLevelILBackwardSlicerThread
+from typing               import Dict, List
 import argparse    as ap
 import binaryninja as bn
-import hashlib
-import json
-import yaml
+import hashlib     as hl
+import json        as json
+import yaml        as yaml
 
 
 def main() -> None:
@@ -53,19 +55,29 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Initialize logger and controller to operate in headless mode
+    # Initialize logger to operate in headless mode
+    tag = "Mole"
     log = Logger(level=args.log_level, runs_headless=True)
-    ctr = Controller(log=log, runs_headless=True).init()
     try:
         # Load and analyze binary with Binary Ninja
         bv = bn.load(args.file)
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
-        paths = ctr.find_paths(bv, args.max_workers, args.max_call_level, args.max_slice_depth)
+        slicer = MediumLevelILBackwardSlicerThread(
+            bv=bv,
+            model=ConfigModel(ConfigService(f"{tag:s}.ConfigService", log).load_configuration()),
+            tag=f"{tag:s}.Slicer",
+            log=log,
+            max_workers=args.max_workers,
+            max_call_level=args.max_call_level,
+            max_slice_depth=args.max_slice_depth
+        )
+        slicer.start()
+        paths = slicer.get_paths()
         # Export identified paths
         if args.export_paths_to_yml_file or args.export_paths_to_json_file:
             # Calculate SHA1 hash of binary
-            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            sha1_hash = hl.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
             # Serialize paths
             s_paths: List[Dict] = []
             for path in paths:

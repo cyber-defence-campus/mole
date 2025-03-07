@@ -7,10 +7,11 @@ packages = ["mole"]
 
 [project]
 name = "mole"
-version = "0.0.5"
+version = "0.0.6"
 description = "A Binary Ninja plugin for vulneraiblity discovery"
 authors = [
-    {name = "Damian Pfammatter"}
+    {name = "Damian Pfammatter"},
+    {name = "Sergio Paganoni"}
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -24,8 +25,9 @@ dependencies = [
 
 [project.optional-dependencies]
 develop = [
-    "debugpy==1.8.1"
+    "debugpy==1.8.1",
+    "ruff==0.9.9"
 ]
 
 [project.scripts]
-mole = "mole.main:main"
+mole = "mole.cli.main:main"
