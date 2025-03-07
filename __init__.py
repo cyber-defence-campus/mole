@@ -1,12 +1,12 @@
-from __future__                 import annotations
-from mole.controllers.paths     import PathsController
-from mole.common.log            import Logger
-
+from __future__              import annotations
+from mole.common.log         import Logger
 from mole.controllers.config import ConfigController
-from mole.models.config import ConfigModel
-from mole.views.sidebar import MoleSidebar, SidebarView
-from mole.views.config import ConfigView
-from mole.services.config import ConfigService
+from mole.controllers.paths  import PathsController
+from mole.models.config      import ConfigModel
+from mole.services.config    import ConfigService
+from mole.views.config       import ConfigView
+from mole.views.sidebar      import MoleSidebar, SidebarView
+
 
 tag = "Mole"
 log = Logger(level="debug")
