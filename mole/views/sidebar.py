@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 from ..views.graph import GraphWidget
 from ..views.config import ConfigView
 
-from typing import Any, Tuple
+from typing import Any, Literal, Tuple
 import binaryninja as bn
 import binaryninjaui as bnui
 import os as os
@@ -229,18 +229,18 @@ class SidebarView(bnui.SidebarWidget):
         self._run_but.clicked.connect(
             lambda: self._ctr.find_paths(bv=self._bv, tbl=res_tbl)
         )
-        lod_but = qtw.QPushButton("Load")
-        lod_but.clicked.connect(
+        self._load_but = qtw.QPushButton("Load")
+        self._load_but.clicked.connect(
             lambda: self._ctr.load_paths(bv=self._bv, tbl=res_tbl)
         )
-        sav_but = qtw.QPushButton("Save")
-        sav_but.clicked.connect(
+        self._save_but = qtw.QPushButton("Save")
+        self._save_but.clicked.connect(
             lambda: self._ctr.save_paths(bv=self._bv, tbl=res_tbl)
         )
         but_lay = qtw.QHBoxLayout()
         but_lay.addWidget(self._run_but)
-        but_lay.addWidget(lod_but)
-        but_lay.addWidget(sav_but)
+        but_lay.addWidget(self._load_but)
+        but_lay.addWidget(self._save_but)
         but_wid = qtw.QWidget()
         but_wid.setLayout(but_lay)
         lay = qtw.QVBoxLayout()
@@ -250,21 +250,34 @@ class SidebarView(bnui.SidebarWidget):
         wid.setLayout(lay)
         return wid, "Run"
     
+    def give_feedback(
+            self,
+            button_type: Literal["Find", "Load", "Save"],
+            text: str,
+            msec: int = 1000
+        ) -> None:
+        """
+        This method gives user feedback by temporarily changing a button's text.
+        """
+        match button_type:
+            case "Find":
+                button = self._run_but
+            case "Load":
+                button = self._load_but
+            case "Save":
+                button = self._save_but
 
-    def give_feedback(self, text: str, msec: int = 1000) -> None:
-        """
-        This method provides user feedback using a `QPushButton`'s text.
-        """
-        def __reset_button(text: str) -> None:
-            self._run_but.setText(text)
-            self._run_but.setEnabled(True)
+        def restore(text: str) -> None:
+            button.setText(text)
+            button.setEnabled(True)
             return
-        
-        if self._run_but:
-            self._run_but.setEnabled(False)
-            old_text = self._run_but.text()
-            self._run_but.setText(text)
-            qtc.QTimer.singleShot(msec, lambda text=old_text: __reset_button(text=text))    
+
+        if button:
+            button.setEnabled(False)
+            old_text = button.text()
+            button.setText(text)
+            qtc.QTimer.singleShot(msec, lambda text=old_text: restore(text))
+        return 
     
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
         return GraphWidget(self._tag, self._log), "Graph"

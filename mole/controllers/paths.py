@@ -124,21 +124,21 @@ class PathsController:
         # Require a binary to be loaded
         if not bv:
             self._log.warn(self._tag, "No binary loaded.")
-            self._view.give_feedback("No Binary Loaded...")
+            self._view.give_feedback("Find", "No Binary Loaded...")
             return
         # Require the binary to be in mapped view
         if bv.view_type == "Raw":
             self._log.warn(self._tag, "Binary is in Raw view.")
-            self._view.give_feedback("Binary is in Raw View...")
+            self._view.give_feedback("Find", "Binary is in Raw View...")
             return
         # Require previous analyses to complete
         if self._thread and not self._thread.finished:
             self._log.warn(self._tag, "Analysis already running.")
-            self._view.give_feedback("Analysis Already Running...")
+            self._view.give_feedback("Find", "Analysis Already Running...")
             return
         # Initialize new logger to detect newly attached debugger
         self._log = Logger(self._log.get_level(), False)
-        self._view.give_feedback("Finding Paths...")
+        self._view.give_feedback("Find", "Finding Paths...")
         # Initialize data structures
         if tbl:
             self._paths_widget = tbl
@@ -167,7 +167,7 @@ class PathsController:
         """
         if not tbl: 
             return
-        self._view.give_feedback("Loading Paths...")
+        self._view.give_feedback("Load", "Loading Paths...")
         # Clear paths
         self._paths = []
         self._paths_widget = tbl
@@ -243,7 +243,7 @@ class PathsController:
         """
         if not tbl: 
             return
-        self._view.give_feedback("Saving Paths...")
+        self._view.give_feedback("Save", "Saving Paths...")
         try:
             # Calculate SHA1 hash of binary
             sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()

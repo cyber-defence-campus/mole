@@ -30,27 +30,21 @@ class ConfigService:
         """
         This method loads all configuration files and returns a complete `Configuration` object.
         """
-        # Initialize with an empty configuration
+        # Initialize empty configuration
         conf = Configuration()
-
         # Load custom configuration files
-        custom_confs = self._load_custom_conf_files()
-        for custom_conf in custom_confs:
-            self._update_configuration(conf, custom_conf)
-        
+        custom_conf = self.load_custom_configuration()
+        self._update_configuration(conf, custom_conf)
         # Load main configuration file
-        main_conf = self._load_main_conf_file()
-        if main_conf:
-            self._update_configuration(conf, main_conf)
-
+        main_conf = self.load_main_configuration()
+        self._update_configuration(conf, main_conf)
         return conf
     
-    def _load_custom_conf_files(self) -> List[Configuration]:
+    def load_custom_configuration(self) -> Configuration:
         """
-        This method loads all custom configuration files and returns a list of `Configuration`
-        objects.
+        This method loads all custom configuration files.
         """
-        confs = []
+        conf = Configuration()
         for conf_file in sorted(os.listdir(self._conf_path)):
             if (
                 not (fn.fnmatch(conf_file, "*.yml") or fn.fnmatch(conf_file, "*.yaml")) or
@@ -68,13 +62,13 @@ class ConfigService:
                 )
                 continue
             # Parse configuration file
-            confs.append(self._parse_conf(conf_dict))
-        return confs
+            custom_conf = self._parse_conf(conf_dict)
+            self._update_configuration(conf, custom_conf)
+        return conf
     
-    def _load_main_conf_file(self) -> Optional[Configuration]:
+    def load_main_configuration(self) -> Configuration:
         """
-        This method loads the main configuration file and optionally returns a `Configuration`
-        object.
+        This method loads the main configuration file.
         """
         # Open configuration file
         try:

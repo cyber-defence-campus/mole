@@ -1,16 +1,16 @@
-from __future__ import annotations
-import PySide6.QtWidgets as qtw
-from typing import TYPE_CHECKING, Literal
-import PySide6.QtCore    as qtc
-
+from __future__   import annotations
 from ..common.log import Logger
+from typing       import Literal, TYPE_CHECKING
+import PySide6.QtCore    as qtc
+import PySide6.QtWidgets as qtw
+
 if TYPE_CHECKING:
     from ..controllers.config import ConfigController
 
 
 class ConfigView(qtw.QWidget):
     """
-    This class implements the view for the plugin's configuration tab.
+    This class implements a view to handle Mole's configuration.
     """
 
     def __init__(self, tag: str, log: Logger) -> None:
@@ -162,26 +162,38 @@ class ConfigView(qtw.QWidget):
         """
         self._save_but = qtw.QPushButton("Save")
         self._save_but.clicked.connect(self._controller.store_configuration)
-        rst_but = qtw.QPushButton("Reset")
-        rst_but.clicked.connect(self._controller.reset_conf)
+        self._reset_but = qtw.QPushButton("Reset")
+        self._reset_but.clicked.connect(self._controller.reset_conf)
         lay = qtw.QHBoxLayout()
         lay.addWidget(self._save_but)
-        lay.addWidget(rst_but)
+        lay.addWidget(self._reset_but)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid
+    
+    def give_feedback(
+            self,
+            button_type: Literal["Save", "Reset"],
+            text: str,
+            msec: int = 1000
+        ) -> None:
+        """
+        This method gives user feedback by temporarily changing a button's text.
+        """
+        match button_type:
+            case "Save":
+                button = self._save_but
+            case "Reset":
+                button = self._reset_but    
 
-    def give_feedback(self, text: str, msec: int = 1000) -> None:
-        """
-        This method provides user feedback using a `QPushButton`'s text.
-        """
-        def __reset_button(text: str) -> None:
-            self._save_but.setText(text)
-            self._save_but.setEnabled(True)
+        def restore(text: str) -> None:
+            button.setText(text)
+            button.setEnabled(True)
             return
-        
-        if self._save_but:
-            self._save_but.setEnabled(False)
-            old_text = self._save_but.text()
-            self._save_but.setText(text)
-            qtc.QTimer.singleShot(msec, lambda text=old_text: __reset_button(text=text))
+
+        if button:
+            button.setEnabled(False)
+            old_text = button.text()
+            button.setText(text)
+            qtc.QTimer.singleShot(msec, lambda text=old_text: restore(text))
+        return

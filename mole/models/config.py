@@ -1,9 +1,11 @@
-from typing import Dict, Any, List
+from __future__ import annotations
 from ..core.data import Configuration
+from typing      import Dict, Any, List
+
 
 class ConfigModel:
     """
-    This class implements the model for storing configuration data.
+    This class implements a model to handle Mole's configuration.
     """
     
     def __init__(self, configuration: Configuration) -> None:

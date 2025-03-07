@@ -9,7 +9,7 @@ from ..services.config import ConfigService
 
 class ConfigController:
     """
-    This class implements the controller for the configuration.
+    This class implements a controller to handle Mole's configuration.
     """
     
     def __init__(self, model: ConfigModel, view: ConfigView, config_service: ConfigService, log: Logger) -> None:
@@ -60,7 +60,7 @@ class ConfigController:
         setting.value = value
 
     def store_configuration(self) -> None:
-        self._view.give_feedback("Saving...")
+        self._view.give_feedback("Save", "Saving...")
         self._config_service.store_configuration(self._model.get())
 
     def reset_conf(self) -> None:
@@ -86,11 +86,9 @@ class ConfigController:
         settings = {}
         for setting_name, setting in old_model.settings.items():
             settings[setting_name] = setting.widget
-
         # Reset model
-        new_config = self._config_service.load_configuration()
+        new_config = self._config_service.load_custom_configuration()
         self._model.set(new_config)
-
         # Restore input elements
         for lib_name, lib in new_config.sources.items():
             sources_ie_lib = sources_ie.get(lib_name, {})
@@ -114,4 +112,5 @@ class ConfigController:
                 if setting.value in setting.items:
                     setting.widget.setCurrentText(setting.value)
         # User feedback
-        self._view.give_feedback("Resetting...")
+        self._view.give_feedback("Reset", "Resetting...")
+        return
