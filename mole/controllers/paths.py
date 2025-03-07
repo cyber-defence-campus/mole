@@ -22,7 +22,7 @@ import shutil            as shu
 import yaml              as yaml
 
 
-class PathsController:
+class PathController:
     """
     This class implements the plugin's controller.
     """
@@ -31,16 +31,16 @@ class PathsController:
             self,
             view: SidebarView,
             config_model: ConfigModel,
-            tag: str = "Mole",
-            log: Logger = Logger(level="debug")
+            tag: str,
+            log: Logger
         ) -> None:
         """
         This method initializes a controller (MVC pattern).
         """
         self._view = view
         self._config_model = config_model
-        self._tag: str = tag
-        self._log: Logger = log
+        self._tag = tag
+        self._log = log
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(self._tag, self._log)
         self._paths: List[Path] = []
@@ -49,7 +49,7 @@ class PathsController:
             Path,
             Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
-        self._conf_path: str = os.path.join(
+        self._config_path: str = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "../../conf/"
         )

@@ -2,7 +2,7 @@ from __future__ import annotations
 from ..common.log   import Logger
 from ..common.parse import LogicalExpressionParser
 from ..core.data    import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting
-from typing         import Dict, List, Optional
+from typing         import Dict
 import fnmatch as fn
 import os      as os
 import yaml    as yaml
@@ -19,7 +19,7 @@ class ConfigService:
         """
         self._tag = tag
         self._log = log
-        self._conf_path = os.path.join(
+        self._config_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "../../conf/"
         )
@@ -31,40 +31,40 @@ class ConfigService:
         This method loads all configuration files and returns a complete `Configuration` object.
         """
         # Initialize empty configuration
-        conf = Configuration()
+        config = Configuration()
         # Load custom configuration files
-        custom_conf = self.load_custom_configuration()
-        self._update_configuration(conf, custom_conf)
+        custom_config = self.load_custom_configuration()
+        self._update_configuration(config, custom_config)
         # Load main configuration file
-        main_conf = self.load_main_configuration()
-        self._update_configuration(conf, main_conf)
-        return conf
+        main_config = self.load_main_configuration()
+        self._update_configuration(config, main_config)
+        return config
     
     def load_custom_configuration(self) -> Configuration:
         """
         This method loads all custom configuration files.
         """
-        conf = Configuration()
-        for conf_file in sorted(os.listdir(self._conf_path)):
+        config = Configuration()
+        for config_file in sorted(os.listdir(self._config_path)):
             if (
-                not (fn.fnmatch(conf_file, "*.yml") or fn.fnmatch(conf_file, "*.yaml")) or
-                conf_file == "000-mole.yml"
+                not (fn.fnmatch(config_file, "*.yml") or fn.fnmatch(config_file, "*.yaml")) or
+                config_file == "000-mole.yml"
             ):
                 continue
             # Open configuration file
             try:
-                with open(os.path.join(self._conf_path, conf_file), "r") as f:
-                    conf_dict = yaml.safe_load(f)
+                with open(os.path.join(self._config_path, config_file), "r") as f:
+                    config_dict = yaml.safe_load(f)
             except Exception as e:
                 self._log.warn(
                     self._tag,
-                    f"Failed to open configuration file '{conf_file:s}': '{str(e):s}'"
+                    f"Failed to open configuration file '{config_file:s}': '{str(e):s}'"
                 )
                 continue
             # Parse configuration file
-            custom_conf = self._parse_conf(conf_dict)
-            self._update_configuration(conf, custom_conf)
-        return conf
+            custom_config = self._parse_conf(config_dict)
+            self._update_configuration(config, custom_config)
+        return config
     
     def load_main_configuration(self) -> Configuration:
         """
@@ -72,8 +72,8 @@ class ConfigService:
         """
         # Open configuration file
         try:
-            with open(os.path.join(self._conf_path, "000-mole.yml")) as f:
-                conf_dict = yaml.safe_load(f)
+            with open(os.path.join(self._config_path, "000-mole.yml")) as f:
+                config_dict = yaml.safe_load(f)
         except FileNotFoundError:
             return None
         except Exception as e:
@@ -84,14 +84,14 @@ class ConfigService:
                     )
             return None
         # Parse configuration file
-        conf = self._parse_conf(conf_dict)
-        return conf
+        config = self._parse_conf(config_dict)
+        return config
 
     def store_configuration(self, configuration: Configuration) -> None:
         """
         This method stores the main configuration file based on the provided `Configuration` object.
         """
-        with open(os.path.join(self._conf_path, "000-mole.yml"), "w") as f:
+        with open(os.path.join(self._config_path, "000-mole.yml"), "w") as f:
             yaml.safe_dump(
                 configuration.to_dict(),
                 f,
@@ -139,21 +139,21 @@ class ConfigService:
             old_settings[new_setting_name] = new_setting
         return
 
-    def _parse_conf(self, conf: Dict) -> Configuration:
+    def _parse_conf(self, config: Dict) -> Configuration:
         """
         This method parse the plain configuration `conf` into a `Configuration` instance.
         """
-        parsed_conf = {
+        parsed_config = {
             "sources": {},
             "sinks": {},
             "settings": {}
         }
-        if not conf: 
-            return Configuration(**parsed_conf)
+        if not config: 
+            return Configuration(**parsed_config)
         try:
             # Parse sources and sinks
             for type in ["sources", "sinks"]:
-                libs = conf.get(type, {})
+                libs = config.get(type, {})
                 for lib_name, lib in libs.items():
                     lib_categories = {}
                     categories = lib.get("categories", {})
@@ -173,9 +173,9 @@ class ConfigService:
                             fun.par_slice_fun = self._parser.parse(fun.par_slice)
                             cat_functions[fun_name] = fun
                         lib_categories[cat_name] = Category(cat_name, cat_functions)
-                    parsed_conf[type][lib_name] = Library(lib_name, lib_categories)
+                    parsed_config[type][lib_name] = Library(lib_name, lib_categories)
             # Parse settings
-            settings: Dict[str, Dict] = conf.get("settings", {})
+            settings: Dict[str, Dict] = config.get("settings", {})
             for name in ["max_workers", "max_call_level", "max_slice_depth"]:
                 setting: Dict = settings.get(name, None)
                 if not setting:
@@ -185,7 +185,7 @@ class ConfigService:
                 max_value = int(setting.get("max_value", None))
                 value = min(max(value, min_value), max_value)
                 help = setting.get("help", "")
-                parsed_conf["settings"].update({
+                parsed_config["settings"].update({
                     name: SpinboxSetting(
                         name=name,
                         value=value,
@@ -200,7 +200,7 @@ class ConfigService:
                 col_value = col_settings.get("value", "")
                 col_help = col_settings.get("help", "")
                 col_items = col_settings.get("items", [])
-                parsed_conf["settings"].update({
+                parsed_config["settings"].update({
                     col_name: ComboboxSetting(
                         name=col_name,
                         value=col_value,
@@ -213,4 +213,4 @@ class ConfigService:
                 self._tag,
                 f"Failed to parse configuration file: '{str(e):s}'"
             )
-        return Configuration(**parsed_conf)
+        return Configuration(**parsed_config)

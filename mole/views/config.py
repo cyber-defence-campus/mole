@@ -20,15 +20,10 @@ class ConfigView(qtw.QWidget):
         super().__init__()
         self._tag = tag
         self._log = log
-        self._controller = None
+        self._ctr = None
         self._save_but = None
+        self._reset_but = None
 
-    def set_controller(self, ctr: ConfigController) -> None:
-        """
-        This method sets the controller for the model.
-        """
-        self._controller = ctr
-    
     def init(self) -> None:
         """
         Initialize the UI components
@@ -38,11 +33,18 @@ class ConfigView(qtw.QWidget):
         tab.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
         tab.addTab(self._init_cnf_set_tab(), "Settings")
         but = self._init_cnf_but()
-        
         lay = qtw.QVBoxLayout()
         lay.addWidget(tab)
         lay.addWidget(but)
         self.setLayout(lay)
+        return
+
+    def set_controller(self, ctr: ConfigController) -> None:
+        """
+        This method sets the controller for the model.
+        """
+        self._ctr = ctr
+        return
         
     def tab_title(self) -> str:
         """
@@ -55,7 +57,7 @@ class ConfigView(qtw.QWidget):
         This method initializes the tabs `Sources` and `Sinks`.
         """
         tab_wid = qtw.QTabWidget()
-        for lib in self._controller.get_libraries(tab_name).values():
+        for lib in self._ctr.get_libraries(tab_name).values():
             lib_lay = qtw.QVBoxLayout()
             lib_wid = qtw.QWidget()
             lib_wid.setLayout(lib_lay)
@@ -67,7 +69,7 @@ class ConfigView(qtw.QWidget):
                     fun.checkbox.setChecked(fun.enabled)
                     fun.checkbox.setToolTip(fun.synopsis)
                     fun.checkbox.clicked.connect(
-                        lambda _, fun=fun: self._controller.checkbox_toggle(fun)
+                        lambda _, fun=fun: self._ctr.checkbox_toggle(fun)
                     )
                     fun_lay.addRow(fun.checkbox)
                 fun_wid = qtw.QWidget()
@@ -75,11 +77,11 @@ class ConfigView(qtw.QWidget):
                 # Button widget
                 sel_but = qtw.QPushButton("Select All")
                 sel_but.clicked.connect(
-                    lambda _, cat=cat, checked=True: self._controller.checkboxes_check(cat, checked)
+                    lambda _, cat=cat, checked=True: self._ctr.checkboxes_check(cat, checked)
                 )
                 dsl_but = qtw.QPushButton("Deselect All")
                 dsl_but.clicked.connect(
-                    lambda _, cat=cat, checked=False: self._controller.checkboxes_check(cat, checked)
+                    lambda _, cat=cat, checked=False: self._ctr.checkboxes_check(cat, checked)
                 )
                 but_lay = qtw.QHBoxLayout()
                 but_lay.addWidget(sel_but)
@@ -109,7 +111,7 @@ class ConfigView(qtw.QWidget):
         """
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
-        settings = self._controller.get_settings()
+        settings = self._ctr.get_settings()
         for name in ["max_workers", "max_call_level", "max_slice_depth"]:
             setting = settings.get(name, None)
             if not setting:
@@ -119,7 +121,7 @@ class ConfigView(qtw.QWidget):
             setting.widget.setValue(setting.value)
             setting.widget.setToolTip(setting.help)
             setting.widget.valueChanged.connect(
-                lambda value, setting=setting: self._controller.spinbox_change_value(setting, value)
+                lambda value, setting=setting: self._ctr.spinbox_change_value(setting, value)
             )
             label = qtw.QLabel(f"{name:s}:")
             label.setToolTip(setting.help)
@@ -140,7 +142,7 @@ class ConfigView(qtw.QWidget):
                 col.widget.setCurrentText(col.value)
             col.widget.setToolTip(col.help)
             col.widget.currentTextChanged.connect(
-                lambda value, setting=col: self._controller.combobox_change_value(setting, value)
+                lambda value, setting=col: self._ctr.combobox_change_value(setting, value)
             )
             col_lbl = qtw.QLabel(f"{col_name:s}:")
             pth_lay.addRow(col_lbl, col.widget)
@@ -161,9 +163,9 @@ class ConfigView(qtw.QWidget):
         This method initializes the buttons.
         """
         self._save_but = qtw.QPushButton("Save")
-        self._save_but.clicked.connect(self._controller.store_configuration)
+        self._save_but.clicked.connect(self._ctr.store_configuration)
         self._reset_but = qtw.QPushButton("Reset")
-        self._reset_but.clicked.connect(self._controller.reset_conf)
+        self._reset_but.clicked.connect(self._ctr.reset_conf)
         lay = qtw.QHBoxLayout()
         lay.addWidget(self._save_but)
         lay.addWidget(self._reset_but)
@@ -184,7 +186,7 @@ class ConfigView(qtw.QWidget):
             case "Save":
                 button = self._save_but
             case "Reset":
-                button = self._reset_but    
+                button = self._reset_but
 
         def restore(text: str) -> None:
             button.setText(text)

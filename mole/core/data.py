@@ -225,7 +225,8 @@ class SourceFunction(Function):
                     continue
                 # Analyze parameters
                 for par_idx, par_var in enumerate(src_inst.params):
-                    if canceled(): break
+                    if canceled():
+                        break
                     par_idx += 1
                     log.debug(tag, f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'")
                     # Perform dataflow analysis
@@ -310,7 +311,8 @@ class SinkFunction(Function):
                     continue
                 # Analyze parameters
                 for par_idx, par_var in enumerate(snk_inst.params):
-                    if canceled(): break
+                    if canceled():
+                        break
                     par_idx += 1
                     log.debug(tag, f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'")
                     # Perform dataflow analysis

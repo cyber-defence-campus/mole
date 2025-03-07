@@ -2,7 +2,7 @@ from __future__ import annotations
 from ..common.log import Logger
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from ..controllers.paths import PathsController
+    from ..controllers.paths import PathController
 from ..views.graph import GraphWidget
 from ..views.config import ConfigView
 
@@ -101,11 +101,11 @@ class SidebarView(bnui.SidebarWidget):
         self._log: Logger = log
         self._bv: bn.BinaryView = None
         self._wid: qtw.QTabWidget = None
-        self._ctr: PathsController = None
+        self._ctr: PathController = None
         
         return
     
-    def set_controller(self, ctr: PathsController) -> None:
+    def set_controller(self, ctr: PathController) -> None:
         """
         This method sets the controller for the model.
         """

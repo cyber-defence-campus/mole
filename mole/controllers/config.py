@@ -1,33 +1,32 @@
-from __future__ import annotations
-from typing import Dict, Any
-
-from ..models.config import ConfigModel
-from ..common.log import Logger
-from ..core.data import Function, Category, SpinboxSetting, ComboboxSetting
-from ..views.config import ConfigView
+from __future__        import annotations
+from ..core.data       import Category, ComboboxSetting, Function, Library, SpinboxSetting, WidgetSetting
+from ..models.config   import ConfigModel
 from ..services.config import ConfigService
+from ..views.config    import ConfigView
+from typing            import Dict, Literal
+
 
 class ConfigController:
     """
     This class implements a controller to handle Mole's configuration.
     """
     
-    def __init__(self, model: ConfigModel, view: ConfigView, config_service: ConfigService, log: Logger) -> None:
+    def __init__(self, model: ConfigModel, view: ConfigView, service: ConfigService) -> None:
         """
         This method initializes the configuration controller.
         """
         self._model = model
         self._view = view
-        self._config_service = config_service
-        self._log = log
+        self._service = service
+        return
         
-    def get_libraries(self, type_name: str) -> Dict[str, Any]:
+    def get_libraries(self, type_name: Literal["Sources", "Sinks"]) -> Dict[str, Library]:
         """
         This method returns the libraries of the given type.
         """
         return self._model.get_libraries(type_name)
     
-    def get_settings(self) -> Dict[str, Any]:
+    def get_settings(self) -> Dict[str, WidgetSetting]:
         """
         This method returns the settings.
         """
@@ -38,6 +37,7 @@ class ConfigController:
         This method handles checkbox toggle events.
         """
         function.enabled = not function.enabled
+        return
         
     def checkboxes_check(self, cat: Category, checked: bool) -> None:
         """
@@ -46,22 +46,26 @@ class ConfigController:
         for fun in cat.functions.values():
             fun.enabled = checked
             fun.checkbox.setChecked(checked)
+        return
         
     def spinbox_change_value(self, setting: SpinboxSetting, value: int) -> None:
         """
         This method updates the model to reflect spinbox value changes.
         """
         setting.value = value
+        return
         
     def combobox_change_value(self, setting: ComboboxSetting, value: str) -> None:
         """
         This method updates the model to reflect combobox value changes.
         """
         setting.value = value
+        return
 
     def store_configuration(self) -> None:
         self._view.give_feedback("Save", "Saving...")
-        self._config_service.store_configuration(self._model.get())
+        self._service.store_configuration(self._model.get())
+        return
 
     def reset_conf(self) -> None:
         """
@@ -87,7 +91,7 @@ class ConfigController:
         for setting_name, setting in old_model.settings.items():
             settings[setting_name] = setting.widget
         # Reset model
-        new_config = self._config_service.load_custom_configuration()
+        new_config = self._service.load_custom_configuration()
         self._model.set(new_config)
         # Restore input elements
         for lib_name, lib in new_config.sources.items():

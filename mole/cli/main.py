@@ -6,7 +6,7 @@ from mole.services.slicer import MediumLevelILBackwardSlicerThread
 from typing               import Dict, List
 import argparse    as ap
 import binaryninja as bn
-import hashlib     as hashlib
+import hashlib     as hl
 import json        as json
 import yaml        as yaml
 
@@ -77,7 +77,7 @@ def main() -> None:
         # Export identified paths
         if args.export_paths_to_yml_file or args.export_paths_to_json_file:
             # Calculate SHA1 hash of binary
-            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            sha1_hash = hl.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
             # Serialize paths
             s_paths: List[Dict] = []
             for path in paths:

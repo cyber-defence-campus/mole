@@ -32,7 +32,7 @@ class TestCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tag = "Mole"
         self._log = Logger(level="debug", runs_headless=True)
-        config_service = ConfigService(self._tag + ".Config", self._log)
+        config_service = ConfigService(f"{self._tag}.Config", self._log)
         self._config_model = ConfigModel(config_service.load_configuration())
 
 
