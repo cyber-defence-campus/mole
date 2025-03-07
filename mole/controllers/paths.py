@@ -144,7 +144,7 @@ class PathController:
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
             model=self._model,
-            tag=self._tag,
+            tag=f"{self._tag:s}.Slicer",
             log=self._log,
             found_path_callback=self.add_path_to_view,
             max_workers=max_workers,

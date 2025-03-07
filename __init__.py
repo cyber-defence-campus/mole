@@ -20,7 +20,7 @@ config_view = ConfigView(f"{tag:s}.ConfigView", log)
 sidebar_view = SidebarView(config_view, f"{tag:s}.SidebarView", log)
 
 # Controllers
-path_controller = PathController(sidebar_view, config_model, f"{tag:s}.PathController", log)
+path_controller = PathController(sidebar_view, config_model, tag, log)
 config_controller = ConfigController(config_model, config_view, config_service)
 
 # Initialize views
