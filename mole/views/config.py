@@ -163,9 +163,13 @@ class ConfigView(qtw.QWidget):
         This method initializes the buttons.
         """
         self._save_but = qtw.QPushButton("Save")
-        self._save_but.clicked.connect(self._ctr.store_configuration)
+        self._save_but.clicked.connect(
+            lambda _=None: self._ctr.store_configuration()
+        )
         self._reset_but = qtw.QPushButton("Reset")
-        self._reset_but.clicked.connect(self._ctr.reset_conf)
+        self._reset_but.clicked.connect(
+            lambda _=None: self._ctr.reset_conf()
+        )
         lay = qtw.QHBoxLayout()
         lay.addWidget(self._save_but)
         lay.addWidget(self._reset_but)

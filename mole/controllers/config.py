@@ -63,8 +63,8 @@ class ConfigController:
         return
 
     def store_configuration(self) -> None:
-        self._view.give_feedback("Save", "Saving...")
         self._service.store_configuration(self._model.get())
+        self._view.give_feedback("Save", "Saving...")
         return
 
     def reset_conf(self) -> None:
