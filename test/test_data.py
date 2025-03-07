@@ -1,8 +1,7 @@
 from __future__           import annotations
-from mole.core.data       import (
-    Configuration, Library, Category, SourceFunction, 
-    SinkFunction, SpinboxSetting, ComboboxSetting
-)
+from mole.core.data       import Category, Configuration, Library
+from mole.core.data       import SinkFunction, SourceFunction
+from mole.core.data       import ComboboxSetting, SpinboxSetting
 import tempfile
 import unittest
 import yaml

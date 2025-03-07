@@ -1,22 +1,20 @@
 from __future__          import annotations
-
-from ..views.sidebar import SidebarView
-from ..models.config      import ConfigModel
-from ..common.parse      import LogicalExpressionParser
-from ..common.log        import Logger
-from ..views.graph          import GraphWidget
-from ..views.utils          import IntTableWidgetItem
-from ..services.slicer   import MediumLevelILBackwardSlicerThread
-from ..core.data               import Path, InstructionHelper
-
-import PySide6.QtCore    as qtc
-from typing              import Dict, List, Tuple
+from ..common.log      import Logger
+from ..common.parse    import LogicalExpressionParser
+from ..core.data       import Path, InstructionHelper
+from ..models.config   import ConfigModel
+from ..services.slicer import MediumLevelILBackwardSlicerThread
+from ..views.graph     import GraphWidget
+from ..views.sidebar   import SidebarView
+from ..views.utils     import IntTableWidgetItem
+from typing            import Dict, List, Tuple
 import binaryninja       as bn
 import copy              as copy
 import difflib           as difflib
 import hashlib           as hashlib
 import json              as json
 import os                as os
+import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
 import shutil            as shu
 import yaml              as yaml
@@ -24,13 +22,13 @@ import yaml              as yaml
 
 class PathController:
     """
-    This class implements the plugin's controller.
+    This class implements a controller to handle paths.
     """
 
     def __init__(
             self,
             view: SidebarView,
-            config_model: ConfigModel,
+            model: ConfigModel,
             tag: str,
             log: Logger
         ) -> None:
@@ -38,11 +36,11 @@ class PathController:
         This method initializes a controller (MVC pattern).
         """
         self._view = view
-        self._config_model = config_model
+        self._model = model
         self._tag = tag
         self._log = log
         self._thread: MediumLevelILBackwardSlicerThread = None
-        self._parser: LogicalExpressionParser = LogicalExpressionParser(self._tag, self._log)
+        self._parser: LogicalExpressionParser = LogicalExpressionParser(tag, log)
         self._paths: List[Path] = []
         self._paths_widget: qtw.QTableWidget = None
         self._paths_highlight: Tuple[
@@ -145,7 +143,7 @@ class PathController:
         # Run background thread
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
-            config_model=self._config_model,
+            model=self._model,
             tag=self._tag,
             log=self._log,
             found_path_callback=self.add_path_to_view,
@@ -451,7 +449,7 @@ class PathController:
             highlighted_path = path
             insts_colors = {}
             try:
-                model = self._config_model.get()
+                model = self._model.get()
                 color_name = model.settings.get("highlight_color").widget.currentText().capitalize()
                 color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
             except Exception as _:
@@ -527,4 +525,3 @@ class PathController:
             tbl.setRowCount(0)
         self._log.info(self._tag, "Removed all path(s)")
         return
-        

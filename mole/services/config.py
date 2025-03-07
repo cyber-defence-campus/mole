@@ -23,7 +23,7 @@ class ConfigService:
             os.path.dirname(os.path.abspath(__file__)),
             "../../conf/"
         )
-        self._parser = LogicalExpressionParser(tag="Config", log=log)
+        self._parser = LogicalExpressionParser(tag, log)
         return
     
     def load_configuration(self) -> Configuration:

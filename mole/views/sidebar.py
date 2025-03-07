@@ -1,18 +1,18 @@
-from __future__ import annotations
-from ..common.log import Logger
-from typing import TYPE_CHECKING
+from __future__     import annotations
+from ..common.log   import Logger
+from ..views.config import ConfigView
+from ..views.graph  import GraphWidget
+from typing         import Any, Literal, Tuple, TYPE_CHECKING
+
+import binaryninja       as bn
+import binaryninjaui     as bnui
+import os                as os
+import PySide6.QtCore    as qtc
+import PySide6.QtGui     as qtui
+import PySide6.QtWidgets as qtw
+
 if TYPE_CHECKING:
     from ..controllers.paths import PathController
-from ..views.graph import GraphWidget
-from ..views.config import ConfigView
-
-from typing import Any, Literal, Tuple
-import binaryninja as bn
-import binaryninjaui as bnui
-import os as os
-import PySide6.QtCore as qtc
-import PySide6.QtGui as qtui
-import PySide6.QtWidgets as qtw
 
 
 class MoleSidebar(bnui.SidebarWidgetType):
@@ -102,7 +102,6 @@ class SidebarView(bnui.SidebarWidget):
         self._bv: bn.BinaryView = None
         self._wid: qtw.QTabWidget = None
         self._ctr: PathController = None
-        
         return
     
     def set_controller(self, ctr: PathController) -> None:
@@ -110,6 +109,7 @@ class SidebarView(bnui.SidebarWidget):
         This method sets the controller for the model.
         """
         self._ctr = ctr
+        return
 
     def init(self) -> SidebarView:
         """
@@ -119,7 +119,6 @@ class SidebarView(bnui.SidebarWidget):
         self._wid.addTab(*self._init_run_tab())
         self._wid.addTab(*self._init_graph_tab())
         self._wid.addTab(self._config_view, "Configure")
-
         lay = qtw.QVBoxLayout()
         lay.addWidget(self._wid)
         self.setLayout(lay)

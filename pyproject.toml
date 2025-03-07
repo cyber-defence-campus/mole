@@ -10,7 +10,8 @@ name = "mole"
 version = "0.0.5"
 description = "A Binary Ninja plugin for vulneraiblity discovery"
 authors = [
-    {name = "Damian Pfammatter"}
+    {name = "Damian Pfammatter"},
+    {name = "Sergio Paganoni"}
 ]
 requires-python = ">=3.10"
 dependencies = [

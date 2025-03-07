@@ -1,11 +1,11 @@
 
-from concurrent          import futures
-import binaryninja       as bn
-from typing              import List, Callable
-
-from ..models.config     import ConfigModel
-from ..common.log        import Logger
-from ..core.data         import Path, SourceFunction, SinkFunction
+from __future__      import annotations
+from ..common.log    import Logger
+from ..core.data     import Path, SourceFunction, SinkFunction
+from ..models.config import ConfigModel
+from concurrent      import futures
+from typing          import Callable, List
+import binaryninja as bn
 
 
 class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
@@ -15,7 +15,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
     def __init__(
             self,
             bv: bn.BinaryView,
-            config_model: ConfigModel,
+            model: ConfigModel,
             tag: str,
             log: Logger,
             found_path_callback: Callable[[Path], None] = None,
@@ -28,16 +28,15 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         This method initializes a background task that backward slices MLIL instructions.
         """
         super().__init__(initial_progress_text="Start slicing...", can_cancel=True)
-        self._bv: bn.BinaryView = bv
-        self._config_model = config_model
-        self._tag: str = tag
-        self._log: Logger = log
+        self._bv = bv
+        self._model = model
+        self._tag = tag
+        self._log = log
         self._found_path_callback = found_path_callback
         self._max_workers = max_workers
-        self._max_call_level: int = max_call_level
-        self._max_slice_depth: int = max_slice_depth
-        self._enable_all_funs: bool = enable_all_funs
-
+        self._max_call_level = max_call_level
+        self._max_slice_depth = max_slice_depth
+        self._enable_all_funs = enable_all_funs
         self._paths = None
         return
     
@@ -48,14 +47,13 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         self._log.info(self._tag, "Starting analysis")
         self._paths = []
         # Settings
-        settings = self._config_model.get_settings()
+        settings = self._model.get_settings()
         max_workers = settings.get("max_workers").value if self._max_workers is None else self._max_workers
         max_workers = None if max_workers is not None and max_workers <= 0 else max_workers
         max_call_level = settings.get("max_call_level").value if self._max_call_level is None else self._max_call_level
         max_slice_depth = settings.get("max_slice_depth").value if self._max_slice_depth is None else self._max_slice_depth
-        
         # Source functions
-        src_funs: List[SourceFunction] = self._config_model.get_functions("Sources", not self._enable_all_funs)
+        src_funs: List[SourceFunction] = self._model.get_functions("Sources", not self._enable_all_funs)
         if src_funs:
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     # Submit tasks
@@ -79,9 +77,8 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                         self.progress = f"Mole processes source {cnt+1:d}/{len(src_funs):d}"
         else:
             self._log.warn(self._tag, "No source functions configured")
-
         # Sink functions
-        snk_funs: List[SinkFunction] = self._config_model.get_functions("Sinks", not self._enable_all_funs)
+        snk_funs: List[SinkFunction] = self._model.get_functions("Sinks", not self._enable_all_funs)
         if not snk_funs:
             self._log.warn(self._tag, "No sink functions configured")
         # Find paths

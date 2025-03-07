@@ -65,7 +65,7 @@ def main() -> None:
         # Analyze binary with Mole
         slicer = MediumLevelILBackwardSlicerThread(
             bv=bv,
-            config_model=ConfigModel(ConfigService(f"{tag:s}.Config", log).load_configuration()),
+            model=ConfigModel(ConfigService(f"{tag:s}.ConfigService", log).load_configuration()),
             tag=f"{tag:s}.Slicer",
             log=log,
             max_workers=args.max_workers,

@@ -1,13 +1,13 @@
 from __future__           import annotations
-from mole.common.log import Logger
-from mole.models.config import ConfigModel
+from mole.core.data       import Path
+from mole.common.log      import Logger
+from mole.models.config   import ConfigModel
 from mole.services.config import ConfigService
 from mole.services.slicer import MediumLevelILBackwardSlicerThread
-from mole.core.data       import Path
 from typing               import List
 import binaryninja as bn
-import os
-import unittest
+import os          as os
+import unittest    as unittest
 
 
 def load_files(names: List[str]) -> List[str]:
@@ -32,7 +32,7 @@ class TestCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tag = "Mole"
         self._log = Logger(level="debug", runs_headless=True)
-        config_service = ConfigService(f"{self._tag}.Config", self._log)
+        config_service = ConfigService(f"{self._tag}.ConfigService", self._log)
         self._config_model = ConfigModel(config_service.load_configuration())
 
 
@@ -42,7 +42,7 @@ class TestCase(unittest.TestCase):
         '''
         slicer_thread = MediumLevelILBackwardSlicerThread(
                     bv=bv,
-                    config_model=self._config_model,
+                    model=self._config_model,
                     tag="Headless", 
                     log=self._log,
                     max_workers=max_workers,
