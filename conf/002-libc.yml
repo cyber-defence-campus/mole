@@ -494,7 +494,7 @@ sinks:
             enabled: true
             par_cnt: i == 2
             par_dataflow: 'False'
-            par_slice: i == 0
+            par_slice: i == 1
           system:
             name: system
             symbols: [system, __builtin_system]
