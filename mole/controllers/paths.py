@@ -55,7 +55,12 @@ class PathController:
     
     @property
     def paths(self) -> List[Path]:
-        return self._paths if not self._paths_view else self._paths_view.get_all_paths()
+        """
+        Get all paths from either the internal list or the view, if available.
+        """
+        if self._paths_view and self._paths_view.model.rowCount() > 0:
+            return self._paths_view.get_all_paths()
+        return self._paths
     
     def add_path_to_view(
             self,
@@ -171,19 +176,32 @@ class PathController:
         try:
             # Load YAML or JSON data
             with open(filepath, "r") as f:
-                if filepath.lower().endswith(".yml") or filepath.lower().endswith(".yaml"):
+                if filepath.lower().endswith((".yml", ".yaml")):
                     s_paths = yaml.safe_load(f)
                 else:
                     s_paths = json.load(f)
+                    
+            if not isinstance(s_paths, list):
+                self._log.error(self._tag, f"Invalid paths format in {filepath}")
+                return
+                
             # Calculate SHA1 hash
             sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            
             # Deserialize paths
+            imported_count = 0
             for s_path in s_paths:
-                if s_path["sha1"] != sha1_hash:
-                    self._log.warn(self._tag, "Loaded path seems to origin from another binary")
-                path = Path.from_dict(bv, s_path)
-                self.add_path_to_view(path, s_path.get("comment", ""))
-            self._log.info(self._tag, f"Imported {len(s_paths):d} path(s)")
+                try:
+                    if s_path.get("sha1") != sha1_hash:
+                        self._log.warn(self._tag, "Loaded path seems to origin from another binary")
+                    path = Path.from_dict(bv, s_path)
+                    self.add_path_to_view(path, s_path.get("comment", ""))
+                    imported_count += 1
+                except Exception as e:
+                    self._log.warn(self._tag, f"Could not import path: {str(e)}")
+                    
+            self._log.info(self._tag, f"Imported {imported_count:d} path(s)")
+            
         except Exception as e:
             self._log.error(self._tag, f"Failed to import paths: {str(e):s}")
         return

@@ -5,7 +5,10 @@ import binaryninjaui as bnui
 import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
-from ..models.paths import PathsTableModel, PathsSortProxyModel
+from ..models.paths import (
+    PathsTableModel, PathsSortProxyModel,
+    SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL
+)
 from ..core.data import Path
 
 
@@ -207,18 +210,18 @@ class PathsTableView(qtw.QTableView):
             col = source_index.column()
             
             # Navigate based on column
-            if col in [PathsTableModel.SRC_ADDR_COL, PathsTableModel.SRC_FUNC_COL]:
+            if col in [SRC_ADDR_COL, SRC_FUNC_COL]:
                 # Get source address
                 addr = self._model.data(
-                    self._model.index(row, PathsTableModel.SRC_ADDR_COL), 
+                    self._model.index(row, SRC_ADDR_COL), 
                     qtc.Qt.UserRole
                 )
                 if addr:
                     vf.navigate(bv, addr)
-            elif col in [PathsTableModel.SNK_ADDR_COL, PathsTableModel.SNK_FUNC_COL, PathsTableModel.SNK_PARM_COL]:
+            elif col in [SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL]:
                 # Get sink address
                 addr = self._model.data(
-                    self._model.index(row, PathsTableModel.SNK_ADDR_COL), 
+                    self._model.index(row, SNK_ADDR_COL), 
                     qtc.Qt.UserRole
                 )
                 if addr:

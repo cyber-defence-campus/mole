@@ -26,23 +26,25 @@ class PathsSortProxyModel(qtc.QSortFilterProxyModel):
     """
     
     # Define columns that should be sorted numerically
-    NUMERIC_COLUMNS = [INDEX_COL, SRC_ADDR_COL, SNK_ADDR_COL, INSTS_COL, PHIS_COL, BRANCHES_COL]
+    NUMERIC_COLUMNS = [INDEX_COL, INSTS_COL, PHIS_COL, BRANCHES_COL]
     HEX_COLUMNS = [SRC_ADDR_COL, SNK_ADDR_COL]
     
     def lessThan(self, left, right):
         """
         Override the lessThan method to provide proper numeric sorting.
         """
+        column = left.column()
         left_data = self.sourceModel().data(left, qtc.Qt.UserRole)
         right_data = self.sourceModel().data(right, qtc.Qt.UserRole)
         
-        # If both values are valid numbers, compare numerically
-        if left_data is not None and right_data is not None:
-            try:
-                return int(left_data) < int(right_data)
-            except (ValueError, TypeError):
-                pass
-            
+        # Handle numeric columns
+        if column in self.NUMERIC_COLUMNS or column in self.HEX_COLUMNS:
+            if left_data is not None and right_data is not None:
+                try:
+                    return int(left_data) < int(right_data)
+                except (ValueError, TypeError):
+                    pass
+                    
         # Fall back to string comparison for non-numeric data
         return super().lessThan(left, right)
 
