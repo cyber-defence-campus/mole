@@ -2,6 +2,7 @@ from __future__     import annotations
 from ..common.log   import Logger
 from ..views.config import ConfigView
 from ..views.graph  import GraphWidget
+from .paths_table import PathsTableView
 from typing         import Any, Literal, Tuple, TYPE_CHECKING
 
 import binaryninja       as bn
@@ -102,6 +103,7 @@ class SidebarView(bnui.SidebarWidget):
         self._bv: bn.BinaryView = None
         self._wid: qtw.QTabWidget = None
         self._ctr: PathController = None
+        self._paths_table_view: PathsTableView = None
         return
     
     def set_controller(self, ctr: PathController) -> None:
@@ -128,125 +130,44 @@ class SidebarView(bnui.SidebarWidget):
         """
         This method initializes the tab `Run`.
         """
-
-        def _navigate(bv: bn.BinaryView, tbl: qtw.QTableWidget, row: int, col: int) -> None:
-            """
-            This method navigate in the view frame.
-            """
-            ctx = bnui.UIContext.activeContext()
-            if not ctx: 
-                return
-            vf = ctx.getCurrentViewFrame()
-            if not vf: 
-                return
-            if not tbl: 
-                return
-            if col in [1, 2]:
-                vf.navigate(bv, int(tbl.item(row, 1).text(), 16))
-            elif col in [3, 4, 5]:
-                vf.navigate(bv, int(tbl.item(row, 3).text(), 16))            
-            return
+        # Create the path table view
+        self._paths_table_view = PathsTableView()
         
-        def _show_context_menu(tbl: qtw.QTableWidget, pos: qtc.QPoint) -> None:
-            """
-            This method shows a custom context menu.
-            """
-            if tbl is None: 
-                return
-            rows = list({index.row() for index in tbl.selectionModel().selectedIndexes()})
-            menu = qtw.QMenu(tbl)
-            menu_action_log_path = menu.addAction("Log instructions")
-            menu_action_log_path_reversed = menu.addAction("Log instructions (reversed)")
-            if len(rows) != 1:
-                menu_action_log_path.setEnabled(False)
-                menu_action_log_path_reversed.setEnabled(False)
-
-            menu_action_log_path_diff = menu.addAction("Log instruction difference")
-            if len(rows) != 2:
-                menu_action_log_path_diff.setEnabled(False)
-            menu.addSeparator()
-            menu_action_highlight_path = menu.addAction("Un-/highlight instructions")
-            menu_action_show_call_graph = menu.addAction("Show call graph")
-            if len(rows) != 1:
-                menu_action_highlight_path.setEnabled(False)
-                menu_action_show_call_graph.setEnabled(False)
-            menu.addSeparator()
-            menu_action_import_paths = menu.addAction("Import from file")
-            menu_action_export_paths = menu.addAction("Export to file")
-            if tbl.rowCount() <= 0:
-                menu_action_export_paths.setEnabled(False)
-            menu.addSeparator()
-            menu_action_remove_selected_path = menu.addAction("Remove selected")
-            if len(rows) <= 0:
-                menu_action_remove_selected_path.setEnabled(False)
-            menu_action_remove_all_paths = menu.addAction("Remove all")
-            if tbl.rowCount() <= 0:
-                menu_action_remove_all_paths.setEnabled(False)
-
-            menu_action = menu.exec(tbl.mapToGlobal(pos))
-            if not menu_action: 
-                return
-            if menu_action == menu_action_log_path:
-                self._ctr.log_path(tbl, rows, False)
-            elif menu_action == menu_action_log_path_reversed:
-                self._ctr.log_path(tbl, rows, True)
-            elif menu_action == menu_action_log_path_diff:
-                self._ctr.log_path_diff(tbl, rows)
-            elif menu_action == menu_action_highlight_path:
-                self._ctr.highlight_path(self._bv, tbl, rows)
-            elif menu_action == menu_action_show_call_graph:
-                self._ctr.show_call_graph(self._bv, tbl, rows, self._wid)
-            elif menu_action == menu_action_import_paths:
-                self._ctr.import_paths(self._bv, tbl)
-            elif menu_action == menu_action_export_paths:
-                self._ctr.export_paths(self._bv, tbl, rows)
-            elif menu_action == menu_action_remove_selected_path:
-                self._ctr.remove_selected_paths(tbl, rows)
-            elif menu_action == menu_action_remove_all_paths:
-                self._ctr.remove_all_paths(tbl)
-            return
-
-        res_tbl = qtw.QTableWidget()
-        res_tbl.setSelectionMode(qtw.QAbstractItemView.SelectionMode.ExtendedSelection)
-        res_tbl.setSelectionBehavior(qtw.QAbstractItemView.SelectionBehavior.SelectRows)
-        res_tbl.setSortingEnabled(True)
-        res_tbl.verticalHeader().setVisible(False)
-        res_tbl.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
-        res_tbl.customContextMenuRequested.connect(
-            lambda pos: _show_context_menu(res_tbl, pos)
-        )
-        res_tbl.setColumnCount(10)
-        res_tbl.setHorizontalHeaderLabels(["Index", "Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Insts", "Phis", "Branches", "Comment"])
-        res_tbl.cellDoubleClicked.connect(
-            lambda row, col: _navigate(self._bv, res_tbl, row, col)
-        )
+        # Create the layout for the table
         res_lay = qtw.QVBoxLayout()
-        res_lay.addWidget(res_tbl)
+        res_lay.addWidget(self._paths_table_view)
         res_wid = qtw.QGroupBox("Interesting Paths:")
         res_wid.setLayout(res_lay)
+        
+        # Create control buttons
         self._run_but = qtw.QPushButton("Find")
         self._run_but.clicked.connect(
-            lambda: self._ctr.find_paths(bv=self._bv, tbl=res_tbl)
+            lambda: self._ctr.find_paths(self._bv, self._paths_table_view)
         )
         self._load_but = qtw.QPushButton("Load")
         self._load_but.clicked.connect(
-            lambda: self._ctr.load_paths(bv=self._bv, tbl=res_tbl)
+            lambda: self._ctr.load_paths(self._bv, self._paths_table_view)
         )
         self._save_but = qtw.QPushButton("Save")
         self._save_but.clicked.connect(
-            lambda: self._ctr.save_paths(bv=self._bv, tbl=res_tbl)
+            lambda: self._ctr.save_paths(self._bv)
         )
+        
+        # Set up button layout
         but_lay = qtw.QHBoxLayout()
         but_lay.addWidget(self._run_but)
         but_lay.addWidget(self._load_but)
         but_lay.addWidget(self._save_but)
         but_wid = qtw.QWidget()
         but_wid.setLayout(but_lay)
+        
+        # Set up main layout
         lay = qtw.QVBoxLayout()
         lay.addWidget(res_wid)
         lay.addWidget(but_wid)
         wid = qtw.QWidget()
-        wid.setLayout(lay)
+        wid.setLayout(lay)       
+        
         return wid, "Run"
     
     def give_feedback(
@@ -286,7 +207,13 @@ class SidebarView(bnui.SidebarWidget):
         This method is a callback invoked when the active view in the Binary UI changes.
         """
         if vf:
-            self._bv = vf.getCurrentBinaryView()
+            new_bv = vf.getCurrentBinaryView()
+            # Only update if the binary view changed
+            if self._bv != new_bv:
+                self._bv = new_bv
+                # Update the binary view and setup controller for path table
+                if self._paths_table_view and self._ctr:
+                    self._ctr.setup_paths_table(self._bv, self._paths_table_view, self._wid)
         else:
             self._bv = None
         return
