@@ -32,18 +32,31 @@ class PathsSortProxyModel(qtc.QSortFilterProxyModel):
     def lessThan(self, left, right):
         """
         Override the lessThan method to provide proper numeric sorting.
+        
+        Qt models typically display all data as strings in views, which means
+        numbers would be sorted lexicographically by default (e.g., "10" comes before "2").
+        This method ensures proper numeric sorting by converting string representations
+        back to their actual numeric values before comparing them.
         """
         column = left.column()
-        left_data = self.sourceModel().data(left, qtc.Qt.UserRole)
-        right_data = self.sourceModel().data(right, qtc.Qt.UserRole)
         
-        # Handle numeric columns
-        if column in self.NUMERIC_COLUMNS or column in self.HEX_COLUMNS:
+        # Only use UserRole data for hex columns
+        if column in self.HEX_COLUMNS:
+            left_data = self.sourceModel().data(left, qtc.Qt.UserRole)
+            right_data = self.sourceModel().data(right, qtc.Qt.UserRole)
             if left_data is not None and right_data is not None:
                 try:
                     return int(left_data) < int(right_data)
                 except (ValueError, TypeError):
                     pass
+        # For numeric columns, convert display text to int
+        elif column in self.NUMERIC_COLUMNS:
+            try:
+                left_value = int(self.sourceModel().data(left))
+                right_value = int(self.sourceModel().data(right))
+                return left_value < right_value
+            except (ValueError, TypeError):
+                pass
                     
         # Fall back to string comparison for non-numeric data
         return super().lessThan(left, right)
@@ -80,8 +93,8 @@ class PathsTableModel(qtui.QStandardItemModel):
         
         # Create row items
         index_item = qtui.QStandardItem(str(row))
-        index_item.setData(row, qtc.Qt.UserRole)
         
+        # Only store hex values as UserRole data for proper sorting
         src_addr_item = qtui.QStandardItem(f"{path.src_sym_addr:x}")
         src_addr_item.setData(path.src_sym_addr, qtc.Qt.UserRole)
         
@@ -95,13 +108,8 @@ class PathsTableModel(qtui.QStandardItemModel):
         snk_parm_item = qtui.QStandardItem(f"arg#{path.snk_par_idx:d}:{str(path.snk_par_var):s}")
         
         insts_item = qtui.QStandardItem(str(len(path.insts)))
-        insts_item.setData(len(path.insts), qtc.Qt.UserRole)
-        
         phis_item = qtui.QStandardItem(str(len(path.phiis)))
-        phis_item.setData(len(path.phiis), qtc.Qt.UserRole)
-        
         bdeps_item = qtui.QStandardItem(str(len(path.bdeps)))
-        bdeps_item.setData(len(path.bdeps), qtc.Qt.UserRole)
         
         comment_item = qtui.QStandardItem(comment)
 
@@ -123,9 +131,9 @@ class PathsTableModel(qtui.QStandardItemModel):
         # Sort rows in descending order to avoid index shifting issues
         for row in sorted(rows, reverse=True):
             if 0 <= row < self.rowCount():
-                path_id = self.data(self.index(row, 0), qtc.Qt.UserRole)
+                path_id = int(self.data(self.index(row, 0)))  # Use displayed text as ID
                 # Remove path from internal list
-                if path_id is not None and path_id < len(self.paths):
+                if 0 <= path_id < len(self.paths):
                     del self.paths[path_id]
                 # Remove row from model
                 self.removeRow(row)
@@ -133,7 +141,6 @@ class PathsTableModel(qtui.QStandardItemModel):
         # Update indices
         for row in range(self.rowCount()):
             self.setItem(row, 0, qtui.QStandardItem(str(row)))
-            self.item(row, 0).setData(row, qtc.Qt.UserRole)
             self.item(row, 0).setFlags(self.item(row, 0).flags() & ~qtc.Qt.ItemIsEditable)
     
     def path_at_row(self, row: int) -> Optional[Path]:
@@ -141,9 +148,12 @@ class PathsTableModel(qtui.QStandardItemModel):
         Get the path at the specified row.
         """
         if 0 <= row < self.rowCount():
-            path_id = self.data(self.index(row, 0), qtc.Qt.UserRole)
-            if path_id is not None and path_id < len(self.paths):
-                return self.paths[path_id]
+            try:
+                path_id = int(self.data(self.index(row, 0)))  # Use displayed text as ID
+                if 0 <= path_id < len(self.paths):
+                    return self.paths[path_id]
+            except (ValueError, TypeError):
+                pass
         return None
     
     def get_comments(self) -> Dict[int, str]:
@@ -152,8 +162,10 @@ class PathsTableModel(qtui.QStandardItemModel):
         """
         comments = {}
         for row in range(self.rowCount()):
-            path_id = self.data(self.index(row, 0), qtc.Qt.UserRole)
-            if path_id is not None:
+            try:
+                path_id = int(self.data(self.index(row, 0)))  # Use displayed text as ID
                 comment = self.data(self.index(row, COMMENT_COL))
                 comments[path_id] = comment if comment else ""
+            except (ValueError, TypeError):
+                pass
         return comments
