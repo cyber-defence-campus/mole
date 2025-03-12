@@ -216,122 +216,75 @@ class PathsTreeView(qtw.QTreeView):
                            on_export_paths: Callable[[List[int]], None],
                            on_remove_selected: Callable[[List[int]], None],
                            on_remove_all: Callable[[], None],
-                           bv: bn.BinaryView = None,
-                           tab_widget: qtw.QTabWidget = None):
+                           bv: bn.BinaryView = None):
         """
         Set up the context menu for the view.
         """
         
         def show_context_menu(pos: qtc.QPoint) -> None:
-            # Get the index at the clicked position
-            clicked_idx = self.indexAt(pos)
-            clicked_source_idx = self._proxy_model.mapToSource(clicked_idx) if clicked_idx.isValid() else None
-            
+            # Get selected rows and expanded export rows
             rows = self.get_selected_rows()
-            export_rows = rows.copy()
+            export_rows = self._get_expanded_export_rows(pos, rows)
             
-            # Check if the clicked item is a group/header
-            if clicked_source_idx and clicked_source_idx.isValid():
-                item_type = self._model.data(clicked_source_idx, ITEM_TYPE_ROLE)
-                
-                # If clicked on a header item, get all child paths
-                if item_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
-                    child_paths = []
-                    
-                    # Recursively gather all path IDs under this group/header
-                    def collect_child_paths(parent_idx):
-                        for row in range(self._model.rowCount(parent_idx)):
-                            child_idx = self._model.index(row, 0, parent_idx)
-                            child_type = self._model.data(child_idx, ITEM_TYPE_ROLE)
-                            
-                            if child_type == PATH_ITEM:
-                                path_id = self._model.get_path_id_from_index(child_idx)
-                                if path_id is not None and path_id not in child_paths:
-                                    child_paths.append(path_id)
-                            elif child_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
-                                collect_child_paths(child_idx)
-                    
-                    collect_child_paths(clicked_source_idx)
-                    
-                    # Include all child paths for export operations
-                    if child_paths:
-                        export_rows = sorted(set(export_rows + child_paths))
-            
+            # Create context menu
             menu = qtw.QMenu(self)
             
-            # Log instructions options
-            menu_action_log_path = menu.addAction("Log instructions")
-            menu_action_log_path_reversed = menu.addAction("Log instructions (reversed)")
-            if len(rows) != 1:
-                menu_action_log_path.setEnabled(False)
-                menu_action_log_path_reversed.setEnabled(False)
-
-            # Log difference option
-            menu_action_log_path_diff = menu.addAction("Log instruction difference")
-            if len(rows) != 2:
-                menu_action_log_path_diff.setEnabled(False)
-                
+            # Add menu actions with their enabled states
+            actions = {}
+            
+            # Log actions
+            actions["log_path"] = self._add_menu_action(menu, "Log instructions", len(rows) == 1)
+            actions["log_path_reversed"] = self._add_menu_action(menu, "Log instructions (reversed)", len(rows) == 1)
+            actions["log_path_diff"] = self._add_menu_action(menu, "Log instruction difference", len(rows) == 2)
             menu.addSeparator()
             
-            # Highlight and call graph options
-            menu_action_highlight_path = menu.addAction("Un-/highlight instructions")
-            menu_action_show_call_graph = menu.addAction("Show call graph")
-            if len(rows) != 1 or not bv:
-                menu_action_highlight_path.setEnabled(False)
-                menu_action_show_call_graph.setEnabled(False)
-                
+            # Highlight and call graph actions
+            has_single_row_and_bv = len(rows) == 1 and bv is not None
+            actions["highlight_path"] = self._add_menu_action(menu, "Un-/highlight instructions", has_single_row_and_bv)
+            actions["show_call_graph"] = self._add_menu_action(menu, "Show call graph", has_single_row_and_bv)
             menu.addSeparator()
             
             # Tree-specific actions
-            menu_action_expand_all = menu.addAction("Expand all")
-            menu_action_collapse_all = menu.addAction("Collapse all")
-                
+            actions["expand_all"] = menu.addAction("Expand all")
+            actions["collapse_all"] = menu.addAction("Collapse all")
             menu.addSeparator()
             
-            # Import/export options
-            menu_action_import_paths = menu.addAction("Import from file")
-            menu_action_export_paths = menu.addAction("Export to file")
-            if self._model.path_count <= 0:
-                menu_action_export_paths.setEnabled(False)
-                
+            # Import/export actions
+            actions["import_paths"] = menu.addAction("Import from file")
+            actions["export_paths"] = self._add_menu_action(menu, "Export to file", self._model.path_count > 0)
             menu.addSeparator()
             
-            # Remove options
-            menu_action_remove_selected_path = menu.addAction("Remove selected")
-            if len(rows) <= 0:
-                menu_action_remove_selected_path.setEnabled(False)
-            
-            menu_action_remove_all_paths = menu.addAction("Remove all")
-            if self._model.path_count <= 0:
-                menu_action_remove_all_paths.setEnabled(False)
+            # Remove actions
+            actions["remove_selected"] = self._add_menu_action(menu, "Remove selected", len(rows) > 0)
+            actions["remove_all"] = self._add_menu_action(menu, "Remove all", self._model.path_count > 0)
 
-            # Execute menu and handle action
-            menu_action = menu.exec(self.viewport().mapToGlobal(pos))
-            if not menu_action:
+            # Execute menu and handle selected action
+            selected_action = menu.exec(self.viewport().mapToGlobal(pos))
+            if not selected_action:
                 return
             
-            if menu_action == menu_action_log_path:
+            # Handle the selected action
+            if selected_action == actions.get("log_path"):
                 on_log_path(rows, False)
-            elif menu_action == menu_action_log_path_reversed:
+            elif selected_action == actions.get("log_path_reversed"):
                 on_log_path(rows, True)
-            elif menu_action == menu_action_log_path_diff:
+            elif selected_action == actions.get("log_path_diff"):
                 on_log_path_diff(rows)
-            elif menu_action == menu_action_highlight_path:
+            elif selected_action == actions.get("highlight_path"):
                 on_highlight_path(rows)
-            elif menu_action == menu_action_show_call_graph:
+            elif selected_action == actions.get("show_call_graph"):
                 on_show_call_graph(rows)
-            elif menu_action == menu_action_expand_all:
+            elif selected_action == actions.get("expand_all"):
                 self.expandAll()
-            elif menu_action == menu_action_collapse_all:
+            elif selected_action == actions.get("collapse_all"):
                 self.collapseAll()
-            elif menu_action == menu_action_import_paths:
+            elif selected_action == actions.get("import_paths"):
                 on_import_paths()
-            elif menu_action == menu_action_export_paths:
-                # Use the expanded export_rows that include all child paths
+            elif selected_action == actions.get("export_paths"):
                 on_export_paths(export_rows)
-            elif menu_action == menu_action_remove_selected_path:
+            elif selected_action == actions.get("remove_selected"):
                 on_remove_selected(rows)
-            elif menu_action == menu_action_remove_all_paths:  # Fixed variable name here
+            elif selected_action == actions.get("remove_all"):
                 on_remove_all()
         
         # Store the function reference to enable future disconnections if needed
@@ -344,7 +297,58 @@ class PathsTreeView(qtw.QTreeView):
         # Connect the signal and mark as connected
         self.customContextMenuRequested.connect(show_context_menu)
         self._context_menu_connected = True
+    
+    def _add_menu_action(self, menu: qtw.QMenu, text: str, enabled: bool = True) -> qtw.QAction:
+        """
+        Helper method to add a menu action with enabled state.
+        """
+        action = menu.addAction(text)
+        action.setEnabled(enabled)
+        return action
+    
+    def _get_expanded_export_rows(self, pos: qtc.QPoint, selected_rows: List[int]) -> List[int]:
+        """
+        Get expanded list of rows for export, including all child paths if a header is clicked.
+        """
+        export_rows = selected_rows.copy()
         
+        # Get the index at the clicked position
+        clicked_idx = self.indexAt(pos)
+        if not clicked_idx.isValid():
+            return export_rows
+            
+        clicked_source_idx = self._proxy_model.mapToSource(clicked_idx)
+        
+        # Check if the clicked item is a group/header
+        item_type = self._model.data(clicked_source_idx, ITEM_TYPE_ROLE)
+        if item_type not in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+            return export_rows
+        
+        # Recursively gather all path IDs under this group/header
+        child_paths = []
+        self._collect_child_paths(clicked_source_idx, child_paths)
+        
+        # Include all child paths for export operations
+        if child_paths:
+            export_rows = sorted(set(export_rows + child_paths))
+            
+        return export_rows
+    
+    def _collect_child_paths(self, parent_idx, path_list: List[int]):
+        """
+        Recursively collect all path IDs under a parent index.
+        """
+        for row in range(self._model.rowCount(parent_idx)):
+            child_idx = self._model.index(row, 0, parent_idx)
+            child_type = self._model.data(child_idx, ITEM_TYPE_ROLE)
+            
+            if child_type == PATH_ITEM:
+                path_id = self._model.get_path_id_from_index(child_idx)
+                if path_id is not None and path_id not in path_list:
+                    path_list.append(path_id)
+            elif child_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+                self._collect_child_paths(child_idx, path_list)
+    
     def setup_navigation(self, bv: bn.BinaryView = None):
         """
         Set up navigation for the view.

@@ -420,32 +420,39 @@ class PathController:
             
         undo_action = bv.begin_undo_actions()
         highlighted_path, insts_colors = self._paths_highlight
-        # Undo path highlighting
+        
+        # Undo previous path highlighting
         for addr, (inst, old_color) in insts_colors.items():
             func = inst.function.source_function
             func.set_user_instr_highlight(addr, old_color)
-        self._log.info(self._tag, "Un-highlighted instructions of all paths")
-        # Remove path highlighting
+        
+        # Clear the highlight tracking data
+        self._paths_highlight = (None, {})
+        
+        # If the clicked path was already highlighted, just log and return (it's now unhighlighted)
         if path == highlighted_path:
-            highlighted_path = None
-            insts_colors = {}
-        # Add path highlighting
-        else:
-            highlighted_path = path
-            insts_colors = {}
-            try:
-                model = self._model.get()
-                color_name = model.settings.get("highlight_color").widget.currentText().capitalize()
-                color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
-            except Exception as _:
-                color = bn.HighlightStandardColor.RedHighlightColor
-            for inst in path.insts:
-                func = inst.function.source_function
-                addr = inst.address
-                if addr not in insts_colors:
-                    insts_colors[addr] = (inst, func.get_instr_highlight(addr))
-                func.set_user_instr_highlight(addr, color)
-            self._log.info(self._tag, f"Highlighted instructions of path {rows[0]:d}")
+            self._log.info(self._tag, f"Un-highlighted instructions of path {rows[0]:d}")
+            bv.forget_undo_actions(undo_action)
+            return
+        
+        # Add new path highlighting
+        highlighted_path = path
+        insts_colors = {}
+        try:
+            model = self._model.get()
+            color_name = model.settings.get("highlight_color").widget.currentText().capitalize()
+            color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
+        except Exception as _:
+            color = bn.HighlightStandardColor.RedHighlightColor
+            
+        for inst in path.insts:
+            func = inst.function.source_function
+            addr = inst.address
+            if addr not in insts_colors:
+                insts_colors[addr] = (inst, func.get_instr_highlight(addr))
+            func.set_user_instr_highlight(addr, color)
+            
+        self._log.info(self._tag, f"Highlighted instructions of path {rows[0]:d}")
         self._paths_highlight = (highlighted_path, insts_colors)
         bv.forget_undo_actions(undo_action)
         return
@@ -524,8 +531,7 @@ class PathController:
             on_export_paths=lambda rows: self.export_paths(bv, rows),
             on_remove_selected=self.remove_selected_paths,
             on_remove_all=self.remove_all_paths,
-            bv=bv,
-            tab_widget=tab_widget
+            bv=bv
         )
         
         # Set up navigation
