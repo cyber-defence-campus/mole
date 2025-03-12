@@ -433,6 +433,22 @@ class Path:
         self._init_metrics()
         return
     
+    def get_callgraph_signature(self) -> str:
+        """
+        Returns a string representation of the call graph for comparison purposes.
+        """
+        if not self.call_graph or not self.call_graph.nodes:
+            return ""
+            
+        result = []
+        for node in self.call_graph.nodes:
+            if hasattr(node, 'start'):
+                result.append(f"{node.start}")
+            elif hasattr(node, 'name'):
+                result.append(node.name)
+                
+        return "->".join(result)
+    
     def _init_metrics(self) -> None:
         self.phiis = []
         self.bdeps = {}

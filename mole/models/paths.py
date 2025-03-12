@@ -23,6 +23,13 @@ COMMENT_COL = 9
 # Custom roles for tree items
 PATH_ID_ROLE = qtc.Qt.UserRole + 100
 IS_PATH_ITEM_ROLE = qtc.Qt.UserRole + 101
+ITEM_TYPE_ROLE = qtc.Qt.UserRole + 102
+
+# Item type values
+SOURCE_ITEM = 1
+SINK_ITEM = 2
+CALLGRAPH_ITEM = 3
+PATH_ITEM = 4
 
 class PathsSortProxyModel(qtc.QSortFilterProxyModel):
     """
@@ -87,6 +94,7 @@ class PathsTreeModel(qtui.QStandardItemModel):
         self.setHorizontalHeaderLabels(self.COLUMNS)
         self.source_items: Dict[str, qtui.QStandardItem] = {}
         self.sink_items: Dict[Tuple[str, str], qtui.QStandardItem] = {}
+        self.callgraph_items: Dict[Tuple[str, str, str], qtui.QStandardItem] = {}
         
     def clear(self) -> None:
         """
@@ -96,12 +104,52 @@ class PathsTreeModel(qtui.QStandardItemModel):
         self.path_comments.clear()
         self.source_items.clear()
         self.sink_items.clear()
+        self.callgraph_items.clear()
         self.path_count = 0
         self.setRowCount(0)
         
+    def _format_callgraph_name(self, path: Path) -> str:
+        """
+        Format a readable call graph path from the path's call graph.
+        """
+        if not path.call_graph or not path.call_graph.nodes:
+            return "Direct call"
+            
+        # Extract function names from the call graph
+        func_names = []
+        for node in path.call_graph.nodes:
+            if path.call_graph.nodes[node]["in_path"]:
+                func_names.append(node.source_function.name)
+                
+        # Format the call graph path
+        if func_names:
+            return " -> ".join(func_names)
+        return "Unknown call path"
+        
+    def _create_non_path_item_row(self, text: str, item_type: int) -> List[qtui.QStandardItem]:
+        """
+        Create a row of items for non-path items (source, sink, callgraph headers).
+        """
+        # Create main item
+        main_item = qtui.QStandardItem(text)
+        main_item.setData(False, IS_PATH_ITEM_ROLE)
+        main_item.setData(item_type, ITEM_TYPE_ROLE)
+        main_item.setFlags(main_item.flags() & ~qtc.Qt.ItemIsEditable)
+        
+        # Create empty items for other columns
+        row = [main_item]
+        for _ in range(1, len(self.COLUMNS)):
+            col_item = qtui.QStandardItem("")
+            col_item.setData(False, IS_PATH_ITEM_ROLE)
+            col_item.setData(item_type, ITEM_TYPE_ROLE)
+            col_item.setFlags(col_item.flags() & ~qtc.Qt.ItemIsEditable)
+            row.append(col_item)
+            
+        return row
+        
     def add_path(self, path: Path, comment: str = "") -> None:
         """
-        Add a path to the model grouped by source and sink.
+        Add a path to the model grouped by source, sink, and call graph.
         """
         self.paths.append(path)
         path_id = len(self.paths) - 1
@@ -110,25 +158,11 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Get or create source function group
         source_name = path.src_sym_name
         if source_name not in self.source_items:
-            # Create source function group item
-            source_item = qtui.QStandardItem(f"Source: {source_name}")
-            source_item.setData(False, IS_PATH_ITEM_ROLE)
-            
-            # Create empty items for other columns
-            source_row = [source_item]
-            for _ in range(1, len(self.COLUMNS)):
-                col_item = qtui.QStandardItem("")
-                col_item.setData(False, IS_PATH_ITEM_ROLE)
-                col_item.setFlags(col_item.flags() & ~qtc.Qt.ItemIsEditable)
-                source_row.append(col_item)
-                
-            # Add the row to the root
+            # Create source function group row
+            source_row = self._create_non_path_item_row(f"Source: {source_name}", SOURCE_ITEM)
             self.appendRow(source_row)
-            self.source_items[source_name] = source_item
+            self.source_items[source_name] = source_row[0]
             
-            # Set source item as non-editable
-            source_item.setFlags(source_item.flags() & ~qtc.Qt.ItemIsEditable)
-        
         # Get source item
         source_item = self.source_items[source_name]
         
@@ -136,72 +170,82 @@ class PathsTreeModel(qtui.QStandardItemModel):
         sink_name = path.snk_sym_name
         sink_key = (source_name, sink_name)
         if sink_key not in self.sink_items:
-            # Create sink function group item
-            sink_item = qtui.QStandardItem(f"Sink: {sink_name}")
-            sink_item.setData(False, IS_PATH_ITEM_ROLE)
-            sink_item.setFlags(sink_item.flags() & ~qtc.Qt.ItemIsEditable)
-            
-            # Create empty items for other columns
-            sink_row = [sink_item]
-            for _ in range(1, len(self.COLUMNS)):
-                col_item = qtui.QStandardItem("")
-                col_item.setData(False, IS_PATH_ITEM_ROLE)
-                col_item.setFlags(col_item.flags() & ~qtc.Qt.ItemIsEditable)
-                sink_row.append(col_item)
-                
-            # Add the row to the source item
+            # Create sink function group row
+            sink_row = self._create_non_path_item_row(f"Sink: {sink_name}", SINK_ITEM)
             source_item.appendRow(sink_row)
-            self.sink_items[sink_key] = sink_item
+            self.sink_items[sink_key] = sink_row[0]
         
         # Get sink item
         sink_item = self.sink_items[sink_key]
+        
+        # Get or create call graph group under this sink
+        callgraph_name = self._format_callgraph_name(path)
+        callgraph_key = (source_name, sink_name, callgraph_name)
+        if callgraph_key not in self.callgraph_items:
+            # Create call graph group row
+            callgraph_row = self._create_non_path_item_row(f"Path: {callgraph_name}", CALLGRAPH_ITEM)
+            sink_item.appendRow(callgraph_row)
+            self.callgraph_items[callgraph_key] = callgraph_row[0]
+            
+        # Get call graph item
+        callgraph_item = self.callgraph_items[callgraph_key]
         
         # Create path items
         index_item = qtui.QStandardItem(str(path_id))
         index_item.setData(path_id, PATH_ID_ROLE)
         index_item.setData(True, IS_PATH_ITEM_ROLE)
+        index_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         # Only store hex values as UserRole data for proper sorting
         src_addr_item = qtui.QStandardItem(f"{path.src_sym_addr:x}")
         src_addr_item.setData(path.src_sym_addr, qtc.Qt.UserRole)
         src_addr_item.setData(True, IS_PATH_ITEM_ROLE)
+        src_addr_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         src_func_item = qtui.QStandardItem(path.src_sym_name)
         src_func_item.setData(True, IS_PATH_ITEM_ROLE)
+        src_func_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         snk_addr_item = qtui.QStandardItem(f"{path.snk_sym_addr:x}")
         snk_addr_item.setData(path.snk_sym_addr, qtc.Qt.UserRole)
         snk_addr_item.setData(True, IS_PATH_ITEM_ROLE)
+        snk_addr_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         snk_func_item = qtui.QStandardItem(path.snk_sym_name)
         snk_func_item.setData(True, IS_PATH_ITEM_ROLE)
+        snk_func_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         snk_parm_item = qtui.QStandardItem(f"arg#{path.snk_par_idx:d}:{str(path.snk_par_var):s}")
         snk_parm_item.setData(True, IS_PATH_ITEM_ROLE)
+        snk_parm_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         insts_item = qtui.QStandardItem(str(len(path.insts)))
         insts_item.setData(True, IS_PATH_ITEM_ROLE)
+        insts_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         phis_item = qtui.QStandardItem(str(len(path.phiis)))
         phis_item.setData(True, IS_PATH_ITEM_ROLE)
+        phis_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         bdeps_item = qtui.QStandardItem(str(len(path.bdeps)))
         bdeps_item.setData(True, IS_PATH_ITEM_ROLE)
+        bdeps_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         comment_item = qtui.QStandardItem(comment)
         comment_item.setData(True, IS_PATH_ITEM_ROLE)
+        comment_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
 
         # Set items as non-editable (except for comment)
         for item in [index_item, src_addr_item, src_func_item, snk_addr_item, 
                      snk_func_item, snk_parm_item, insts_item, phis_item, bdeps_item]:
             item.setFlags(item.flags() & ~qtc.Qt.ItemIsEditable)
             
-        # Create path row and append to sink item
+        # Create path row and append to call graph item
         path_row = [
             index_item, src_addr_item, src_func_item, snk_addr_item,
             snk_func_item, snk_parm_item, insts_item, phis_item, bdeps_item, comment_item
         ]
-        sink_item.appendRow(path_row)
+        callgraph_item.appendRow(path_row)
         
         self.path_count += 1
 
@@ -216,26 +260,37 @@ class PathsTreeModel(qtui.QStandardItemModel):
                 path = self.paths[row_id]
                 source_name = path.src_sym_name
                 sink_name = path.snk_sym_name
+                callgraph_name = self._format_callgraph_name(path)
                 sink_key = (source_name, sink_name)
+                callgraph_key = (source_name, sink_name, callgraph_name)
                 
                 # Remove path from internal lists
                 self.paths[row_id] = None  # Mark as removed
                 self.path_comments.pop(row_id, None)
                 
                 # Find and remove the path item from the tree
-                if source_name in self.source_items and sink_key in self.sink_items:
+                if (source_name in self.source_items and 
+                    sink_key in self.sink_items and
+                    callgraph_key in self.callgraph_items):
+                    
                     source_item = self.source_items[source_name]
                     sink_item = self.sink_items[sink_key]
+                    callgraph_item = self.callgraph_items[callgraph_key]
                     
-                    # Find the item with matching path_id among sink item's children
-                    for i in range(sink_item.rowCount()):
-                        child = sink_item.child(i, 0)
+                    # Find the item with matching path_id among callgraph item's children
+                    for i in range(callgraph_item.rowCount()):
+                        child = callgraph_item.child(i, 0)
                         if child and child.data(PATH_ID_ROLE) == row_id:
-                            sink_item.removeRow(i)
+                            callgraph_item.removeRow(i)
                             self.path_count -= 1
                             break
                     
-                    # If sink has no more paths, remove it
+                    # If callgraph has no more paths, remove it
+                    if callgraph_item.rowCount() == 0:
+                        sink_item.removeRow(callgraph_item.row())
+                        self.callgraph_items.pop(callgraph_key, None)
+                    
+                    # If sink has no more callgraphs, remove it
                     if sink_item.rowCount() == 0:
                         source_item.removeRow(sink_item.row())
                         self.sink_items.pop(sink_key, None)
@@ -259,21 +314,26 @@ class PathsTreeModel(qtui.QStandardItemModel):
         """
         # Update comments from UI
         for source_name, source_item in self.source_items.items():
-            for i in range(source_item.rowCount()):
-                sink_item = source_item.child(i, 0)
+            for src_i in range(source_item.rowCount()):
+                sink_item = source_item.child(src_i, 0)
                 if not sink_item:
                     continue
                     
-                for j in range(sink_item.rowCount()):
-                    path_item = sink_item.child(j, 0)
-                    if not path_item:
+                for snk_i in range(sink_item.rowCount()):
+                    callgraph_item = sink_item.child(snk_i, 0)
+                    if not callgraph_item:
                         continue
                         
-                    path_id = path_item.data(PATH_ID_ROLE)
-                    if path_id is not None:
-                        comment_item = sink_item.child(j, COMMENT_COL)
-                        if comment_item:
-                            self.path_comments[path_id] = comment_item.text()
+                    for cg_i in range(callgraph_item.rowCount()):
+                        path_item = callgraph_item.child(cg_i, 0)
+                        if not path_item:
+                            continue
+                            
+                        path_id = path_item.data(PATH_ID_ROLE)
+                        if path_id is not None:
+                            comment_item = callgraph_item.child(cg_i, COMMENT_COL)
+                            if comment_item:
+                                self.path_comments[path_id] = comment_item.text()
                             
         return self.path_comments
     
@@ -292,8 +352,11 @@ class PathsTreeModel(qtui.QStandardItemModel):
         if index.column() != 0:
             index = index.sibling(index.row(), 0)
             
-        # If we're dealing with a top-level item or second-level item, it's not a path
-        if not index.parent().isValid() or not index.parent().parent().isValid():
+        # Check if we're dealing with an actual path item (not a header)
+        # With call graph grouping, a path item has 3 levels of parent nodes
+        if (not index.parent().isValid() or 
+            not index.parent().parent().isValid() or
+            not index.parent().parent().parent().isValid()):
             return None
             
         # Return the path ID

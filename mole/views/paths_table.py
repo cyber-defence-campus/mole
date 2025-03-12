@@ -14,7 +14,7 @@ from ..core.data import Path
 
 class PathsTreeView(qtw.QTreeView):
     """
-    This class implements a tree view for displaying paths grouped by source and sink.
+    This class implements a tree view for displaying paths grouped by source, sink, and call graph.
     """
     
     def __init__(self, parent=None):
