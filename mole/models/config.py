@@ -1,6 +1,6 @@
 from __future__  import annotations
-from ..core.data import Configuration, Library, WidgetSetting
-from typing      import Dict, Any, List, Literal
+from ..core.data import Configuration, Function, Library, WidgetSetting
+from typing      import Dict, List, Literal, Optional
 
 
 class ConfigModel:
@@ -32,65 +32,52 @@ class ConfigModel:
         self._config = config
         return
         
-    def get_libraries(self, type_name: Literal["Sources", "Sinks"]) -> Dict[str, Library]:
+    def get_libraries(
+            self,
+            fun_type: Optional[Literal["Sources", "Sinks"]]
+        ) -> Dict[str, Library]:
         """
-        This method returns the libraries of the given type.
+        This method returns all libraries matching the given type.
         """
-        match type_name:
+        match fun_type:
             case "Sources":
                 return self._config.sources
             case "Sinks":
                 return self._config.sinks
         return {}
     
-    def get_settings(self) -> Dict[str, WidgetSetting]:
-        """
-        This method returns the settings.
-        """
-        return self._config.settings
-    
-    def set_settings(self, settings: Dict[str, WidgetSetting]) -> None:
-        """
-        This method sets the settings.
-        """
-        self._config.settings = settings
-        return
-        
-    def set_libraries(
-            self,
-            type_name: Literal["Sources", "Sinks"],
-            libraries: Dict[str, Library]
-        ) -> None:
-        """
-        This method sets the libraries of the given type.
-        """
-        match type_name:
-            case "Sources":
-                self._config.sources = libraries
-            case "Sinks":
-                self._config.sinks = libraries
-        return
-            
-    def get_configuration(self) -> Configuration:
-        """
-        This method returns the current configuration.
-        """
-        return self._config
-    
     def get_functions(
             self,
-            type_name: Literal["Sources", "Sinks"],
-            enabled_only: bool = False
-        ) -> List[Any]:
+            lib_name: str = None,
+            cat_name: str = None,
+            fun_name: str = None,
+            fun_type: Optional[Literal["Sources", "Sinks"]] = None,
+            fun_enabled: bool = None
+        ) -> List[Function]:
         """
-        This method returns all (enabled) source or sink functions.
+        This method returns all functions matching the given attributes. An attribute of `None`
+        indicates that the corresponding attribute is irrelevant.
         """
-        funs = []
-        libs = self.get_libraries(type_name)
-        for lib in libs.values():
-            for cat in lib.categories.values():
-                for fun in cat.functions.values():
-                    if not enabled_only or fun.enabled:
-                        funs.append(fun)
+        funs: List[Function] = []
+        match fun_type:
+            case "Sources":
+                libs = self._config.sources.values()
+            case "Sinks":
+                libs = self._config.sinks.values()
+            case _:
+                libs = self._config.sources.values() + self._config.sinks.values()
+        for lib in libs:
+            if lib_name is None or lib.name == lib_name:
+                for cat in lib.categories.values():
+                    if cat_name is None or cat.name == cat_name:
+                        for fun in cat.functions.values():
+                            if fun_name is None or fun.name == fun_name:
+                                if fun_enabled is None or fun.enabled == fun_enabled:
+                                    funs.append(fun)
         return funs
     
+    def get_setting(self, name: str) -> Optional[WidgetSetting]:
+        """
+        This method returns the setting with name `name`.
+        """
+        return self._config.settings.get(name, None)

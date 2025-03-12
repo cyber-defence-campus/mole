@@ -69,7 +69,8 @@ class ConfigView(qtw.QWidget):
                     fun.checkbox.setChecked(fun.enabled)
                     fun.checkbox.setToolTip(fun.synopsis)
                     fun.checkbox.clicked.connect(
-                        lambda _, fun=fun: self._ctr.checkbox_toggle(fun)
+                        lambda _, lib_name=lib.name, cat_name=cat.name, fun_name=fun.name, fun_type=tab_name:
+                        self._ctr.set_function_checkboxes(lib_name=lib_name, cat_name=cat_name, fun_name=fun_name, fun_type=fun_type)
                     )
                     fun_lay.addRow(fun.checkbox)
                 fun_wid = qtw.QWidget()
@@ -77,11 +78,13 @@ class ConfigView(qtw.QWidget):
                 # Button widget
                 sel_but = qtw.QPushButton("Select All")
                 sel_but.clicked.connect(
-                    lambda _, cat=cat, checked=True: self._ctr.checkboxes_check(cat, checked)
+                    lambda _, cat_name=cat.name, fun_type=tab_name:
+                    self._ctr.set_function_checkboxes(cat_name=cat_name, fun_type=fun_type, fun_enabled=True)
                 )
                 dsl_but = qtw.QPushButton("Deselect All")
                 dsl_but.clicked.connect(
-                    lambda _, cat=cat, checked=False: self._ctr.checkboxes_check(cat, checked)
+                    lambda _, cat_name=cat.name, fun_type=tab_name:
+                    self._ctr.set_function_checkboxes(cat_name=cat_name, fun_type=fun_type, fun_enabled=False)
                 )
                 but_lay = qtw.QHBoxLayout()
                 but_lay.addWidget(sel_but)
@@ -111,9 +114,8 @@ class ConfigView(qtw.QWidget):
         """
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
-        settings = self._ctr.get_settings()
         for name in ["max_workers", "max_call_level", "max_slice_depth"]:
-            setting = settings.get(name, None)
+            setting = self._ctr.get_setting(name)
             if not setting:
                 continue
             setting.widget = qtw.QSpinBox()
@@ -121,7 +123,8 @@ class ConfigView(qtw.QWidget):
             setting.widget.setValue(setting.value)
             setting.widget.setToolTip(setting.help)
             setting.widget.valueChanged.connect(
-                lambda value, setting=setting: self._ctr.spinbox_change_value(setting, value)
+                lambda value, name=name:
+                self._ctr.set_setting_value(name=name, value=value)
             )
             label = qtw.QLabel(f"{name:s}:")
             label.setToolTip(setting.help)
@@ -134,7 +137,7 @@ class ConfigView(qtw.QWidget):
         pth_wid = qtw.QWidget()
         pth_lay = qtw.QFormLayout()
         col_name = "highlight_color"
-        col = settings.get(col_name, None)
+        col = self._ctr.get_setting(col_name)
         if col:
             col.widget = qtw.QComboBox()
             col.widget.addItems(col.items)
@@ -142,7 +145,8 @@ class ConfigView(qtw.QWidget):
                 col.widget.setCurrentText(col.value)
             col.widget.setToolTip(col.help)
             col.widget.currentTextChanged.connect(
-                lambda value, setting=col: self._ctr.combobox_change_value(setting, value)
+                lambda value, name=col_name:
+                self._ctr.set_setting_value(name=name, value=value)
             )
             col_lbl = qtw.QLabel(f"{col_name:s}:")
             pth_lay.addRow(col_lbl, col.widget)

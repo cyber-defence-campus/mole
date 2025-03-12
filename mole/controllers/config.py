@@ -1,9 +1,9 @@
 from __future__        import annotations
-from ..core.data       import Category, ComboboxSetting, Function, Library, SpinboxSetting, WidgetSetting
+from ..core.data       import ComboboxSetting, Function, Library, SpinboxSetting, WidgetSetting
 from ..models.config   import ConfigModel
 from ..services.config import ConfigService
 from ..views.config    import ConfigView
-from typing            import Dict, Literal
+from typing            import Dict, List, Literal, Optional
 
 
 class ConfigController:
@@ -20,46 +20,68 @@ class ConfigController:
         self._service = service
         return
         
-    def get_libraries(self, type_name: Literal["Sources", "Sinks"]) -> Dict[str, Library]:
+    def get_libraries(
+            self,
+            fun_type: Literal["Sources", "Sinks"]
+        ) -> Dict[str, Library]:
         """
-        This method returns the libraries of the given type.
+        This method returns all libraries matching the given type.
         """
-        return self._model.get_libraries(type_name)
+        return self._model.get_libraries(fun_type)
     
-    def get_settings(self) -> Dict[str, WidgetSetting]:
+    def get_functions(
+            self,
+            lib_name: str = None,
+            cat_name: str = None,
+            fun_name: str = None,
+            fun_type: Optional[Literal["Sources", "Sinks"]] = None,
+            fun_enabled: bool = None
+        ) -> List[Function]:
         """
-        This method returns the settings.
+        This method returns all functions matching the given attributes. An attribute of `None`
+        indicates that this attribute is irrelevant and all functions should be included.
         """
-        return self._model.get_settings()
+        return self._model.get_functions(lib_name, cat_name, fun_name, fun_type, fun_enabled)
     
-    def checkbox_toggle(self, function: Function) -> None:
+    def get_setting(self, name: str) -> Optional[WidgetSetting]:
         """
-        This method handles checkbox toggle events.
+        This method returns the setting with name `name`.
         """
-        function.enabled = not function.enabled
+        return self._model.get_setting(name)
+    
+    def set_function_checkboxes(
+            self,
+            lib_name: str = None,
+            cat_name: str = None,
+            fun_name: str = None,
+            fun_type: Optional[Literal["Sources", "Sinks"]] = None,
+            fun_enabled: bool = None
+        ) -> None:
+        """
+        This method sets the enabled attribute of all functions' checkboxes matching the given
+        attributes. An attribute of `None` indicates that the corresponding attribute is irrelevant.
+        In case `fun_enabled` is `None` the checkboxes enabled attribute is toggled, otherwise set
+        to the given value `fun_enabled`.
+        """
+        for fun in self._model.get_functions(lib_name, cat_name, fun_name, fun_type):
+            if fun_enabled is None:
+                fun.enabled = not fun.enabled
+            else:
+                fun.enabled = fun_enabled
+            fun.checkbox.setChecked(fun.enabled)
         return
-        
-    def checkboxes_check(self, cat: Category, checked: bool) -> None:
+    
+    def set_setting_value(
+            self,
+            name: str,
+            value: int | str
+        ) -> None:
         """
-        This method handles selecting/deselecting all checkboxes.
+        This method sets the value of the setting with name `name`.
         """
-        for fun in cat.functions.values():
-            fun.enabled = checked
-            fun.checkbox.setChecked(checked)
-        return
-        
-    def spinbox_change_value(self, setting: SpinboxSetting, value: int) -> None:
-        """
-        This method updates the model to reflect spinbox value changes.
-        """
-        setting.value = value
-        return
-        
-    def combobox_change_value(self, setting: ComboboxSetting, value: str) -> None:
-        """
-        This method updates the model to reflect combobox value changes.
-        """
-        setting.value = value
+        setting = self._model.get_setting(name)
+        if setting:
+            setting.value = value
         return
 
     def store_configuration(self) -> None:
@@ -73,18 +95,18 @@ class ConfigController:
         """
         # Store input elements
         old_model = self._model.get()
-        sources_ie = {}
+        sources_ie: Dict[str, Dict] = {}
         for lib_name, lib in old_model.sources.items():
-            sources_ie_lib = sources_ie.setdefault(lib_name, {})
+            sources_ie_lib: Dict[str, Dict] = sources_ie.setdefault(lib_name, {})
             for cat_name, cat in lib.categories.items():
-                sources_ie_cat = sources_ie_lib.setdefault(cat_name, {})
+                sources_ie_cat: Dict = sources_ie_lib.setdefault(cat_name, {})
                 for fun_name, fun in cat.functions.items():
                     sources_ie_cat[fun_name] = fun.checkbox
-        sinks_ie = {}
+        sinks_ie: Dict[str, Dict] = {}
         for lib_name, lib in old_model.sinks.items():
-            sinks_ie_lib = sinks_ie.setdefault(lib_name, {})
+            sinks_ie_lib: Dict[str, Dict] = sinks_ie.setdefault(lib_name, {})
             for cat_name, cat in lib.categories.items():
-                sinks_ie_cat = sinks_ie_lib.setdefault(cat_name, {})
+                sinks_ie_cat: Dict = sinks_ie_lib.setdefault(cat_name, {})
                 for fun_name, fun in cat.functions.items():
                     sinks_ie_cat[fun_name] = fun.checkbox
         settings = {}
@@ -92,7 +114,6 @@ class ConfigController:
             settings[setting_name] = setting.widget
         # Reset model
         new_config = self._service.load_custom_configuration()
-        self._model.set(new_config)
         # Restore input elements
         for lib_name, lib in new_config.sources.items():
             sources_ie_lib = sources_ie.get(lib_name, {})
@@ -115,6 +136,7 @@ class ConfigController:
             elif isinstance(setting, ComboboxSetting):
                 if setting.value in setting.items:
                     setting.widget.setCurrentText(setting.value)
+        self._model.set(new_config)
         # User feedback
         self._view.give_feedback("Reset", "Resetting...")
         return
