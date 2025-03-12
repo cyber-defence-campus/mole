@@ -67,7 +67,6 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             setting = self._model.get_setting("max_slice_depth")
             if setting:
                 max_slice_depth = setting.value
-        # TODO: self._enable_all_funs
         self._log.debug(self._tag, f"- max_slice_depth: '{max_slice_depth}'")
         src_funs: List[SourceFunction] = self._model.get_functions(fun_type="Sources", fun_enabled=(None if self._enable_all_funs else True))
         self._log.debug(self._tag, f"- number of sources: '{len(src_funs):d}'")
