@@ -223,7 +223,40 @@ class PathsTreeView(qtw.QTreeView):
         """
         
         def show_context_menu(pos: qtc.QPoint) -> None:
+            # Get the index at the clicked position
+            clicked_idx = self.indexAt(pos)
+            clicked_source_idx = self._proxy_model.mapToSource(clicked_idx) if clicked_idx.isValid() else None
+            
             rows = self.get_selected_rows()
+            export_rows = rows.copy()
+            
+            # Check if the clicked item is a group/header
+            if clicked_source_idx and clicked_source_idx.isValid():
+                item_type = self._model.data(clicked_source_idx, ITEM_TYPE_ROLE)
+                
+                # If clicked on a header item, get all child paths
+                if item_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+                    child_paths = []
+                    
+                    # Recursively gather all path IDs under this group/header
+                    def collect_child_paths(parent_idx):
+                        for row in range(self._model.rowCount(parent_idx)):
+                            child_idx = self._model.index(row, 0, parent_idx)
+                            child_type = self._model.data(child_idx, ITEM_TYPE_ROLE)
+                            
+                            if child_type == PATH_ITEM:
+                                path_id = self._model.get_path_id_from_index(child_idx)
+                                if path_id is not None and path_id not in child_paths:
+                                    child_paths.append(path_id)
+                            elif child_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+                                collect_child_paths(child_idx)
+                    
+                    collect_child_paths(clicked_source_idx)
+                    
+                    # Include all child paths for export operations
+                    if child_paths:
+                        export_rows = sorted(set(export_rows + child_paths))
+            
             menu = qtw.QMenu(self)
             
             # Log instructions options
@@ -294,7 +327,8 @@ class PathsTreeView(qtw.QTreeView):
             elif menu_action == menu_action_import_paths:
                 on_import_paths()
             elif menu_action == menu_action_export_paths:
-                on_export_paths(rows)
+                # Use the expanded export_rows that include all child paths
+                on_export_paths(export_rows)
             elif menu_action == menu_action_remove_selected_path:
                 on_remove_selected(rows)
             elif menu_action == menu_action_remove_all_paths:  # Fixed variable name here
