@@ -47,14 +47,37 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         self._log.info(self._tag, "Starting analysis")
         self._paths = []
         # Settings
-        settings = self._model.get_settings()
-        max_workers = settings.get("max_workers").value if self._max_workers is None else self._max_workers
-        max_workers = None if max_workers is not None and max_workers <= 0 else max_workers
-        max_call_level = settings.get("max_call_level").value if self._max_call_level is None else self._max_call_level
-        max_slice_depth = settings.get("max_slice_depth").value if self._max_slice_depth is None else self._max_slice_depth
-        # Source functions
-        src_funs: List[SourceFunction] = self._model.get_functions("Sources", not self._enable_all_funs)
-        if src_funs:
+        self._log.debug(self._tag, "Settings")
+        max_workers = self._max_workers
+        if max_workers is None:
+            setting = self._model.get_setting("max_workers")
+            if setting:
+                max_workers = setting.value
+        if max_workers is not None and max_workers <= 0:
+            max_workers = None
+        self._log.debug(self._tag, f"- max_workers: '{max_workers}'")
+        max_call_level = self._max_call_level
+        if max_call_level is None:
+            setting = self._model.get_setting("max_call_level")
+            if setting:
+                max_call_level = setting.value
+        self._log.debug(self._tag, f"- max_call_level: '{max_call_level}'")
+        max_slice_depth = self._max_slice_depth
+        if max_slice_depth is None:
+            setting = self._model.get_setting("max_slice_depth")
+            if setting:
+                max_slice_depth = setting.value
+        # TODO: self._enable_all_funs
+        self._log.debug(self._tag, f"- max_slice_depth: '{max_slice_depth}'")
+        src_funs: List[SourceFunction] = self._model.get_functions(fun_type="Sources", fun_enabled=(None if self._enable_all_funs else True))
+        self._log.debug(self._tag, f"- number of sources: '{len(src_funs):d}'")
+        snk_funs: List[SinkFunction] = self._model.get_functions(fun_type="Sinks", fun_enabled=(None if self._enable_all_funs else True))
+        self._log.debug(self._tag, f"- number of sinks: '{len(snk_funs):d}'")
+        # Backward slicing
+        if not src_funs or not snk_funs:
+            self._log.warn(self._tag, "No source or sink functions configured")
+        else:
+            # Backward slice source functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     # Submit tasks
                     tasks: List[futures.Future] = []
@@ -75,14 +98,7 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                         if self.cancelled: 
                             break
                         self.progress = f"Mole processes source {cnt+1:d}/{len(src_funs):d}"
-        else:
-            self._log.warn(self._tag, "No source functions configured")
-        # Sink functions
-        snk_funs: List[SinkFunction] = self._model.get_functions("Sinks", not self._enable_all_funs)
-        if not snk_funs:
-            self._log.warn(self._tag, "No sink functions configured")
-        # Find paths
-        if src_funs and snk_funs:
+            # Backward slice sink functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks
                 tasks: List[futures.Future] = []
