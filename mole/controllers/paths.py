@@ -6,7 +6,7 @@ from ..models.config   import ConfigModel
 from ..services.slicer import MediumLevelILBackwardSlicerThread
 from ..views.graph     import GraphWidget
 from ..views.sidebar   import SidebarView
-from ..views.paths_table import PathsTreeView
+from ..views.paths_tree import PathsTreeView
 from typing            import Dict, List, Tuple, Optional
 import binaryninja       as bn
 import copy              as copy

@@ -7,7 +7,8 @@ import PySide6.QtWidgets as qtw
 
 from ..models.paths import (
     PathsTreeModel, PathsSortProxyModel,
-    SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL
+    SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL,
+    ITEM_TYPE_ROLE, SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM, PATH_ITEM
 )
 from ..core.data import Path
 
@@ -45,6 +46,102 @@ class PathsTreeView(qtw.QTreeView):
         self._context_menu_connected = False
         self._navigation_connected = False
         self._context_menu_function = None
+        
+        # Connect to model signals to handle column spanning
+        self._model.rowsInserted.connect(self._handle_rows_inserted)
+        # Also connect to the proxy model's row inserted signal
+        self._proxy_model.rowsInserted.connect(self._handle_proxy_rows_inserted)
+    
+    def _handle_proxy_rows_inserted(self, parent, first, last):
+        """
+        Handle proxy model rows inserted signal to map to source model and apply spanning.
+        """
+        # Map proxy index to source index
+        source_parent = self._proxy_model.mapToSource(parent)
+        for row in range(first, last + 1):
+            proxy_index = self._proxy_model.index(row, 0, parent)
+            source_index = self._proxy_model.mapToSource(proxy_index)
+            item_type = source_index.data(ITEM_TYPE_ROLE)
+            
+            # Set all header items to span all columns
+            if item_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+                self.setFirstColumnSpanned(row, parent, True)
+                # Process children immediately
+                self._process_children_spanning(source_index, proxy_index)
+    
+    def _process_children_spanning(self, source_index, proxy_index):
+        """
+        Process children of an item to ensure they have proper column spanning.
+        """
+        for row in range(self._model.rowCount(source_index)):
+            child_source_index = self._model.index(row, 0, source_index)
+            child_type = self._model.data(child_source_index, ITEM_TYPE_ROLE)
+            
+            if child_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+                # Map source index back to proxy index for setFirstColumnSpanned
+                child_proxy_row = -1
+                for i in range(self._proxy_model.rowCount(proxy_index)):
+                    test_proxy_index = self._proxy_model.index(i, 0, proxy_index)
+                    test_source_index = self._proxy_model.mapToSource(test_proxy_index)
+                    if test_source_index.row() == child_source_index.row() and test_source_index.parent() == child_source_index.parent():
+                        child_proxy_row = i
+                        break
+                
+                if child_proxy_row >= 0:
+                    self.setFirstColumnSpanned(child_proxy_row, proxy_index, True)
+                    # Recursively process this child's children
+                    child_proxy_index = self._proxy_model.index(child_proxy_row, 0, proxy_index)
+                    self._process_children_spanning(child_source_index, child_proxy_index)
+    
+    def _handle_rows_inserted(self, parent, first, last):
+        """
+        Handle rows inserted signal to set column spanning for header items.
+        """
+        # Process the direct items
+        for row in range(first, last + 1):
+            source_index = self._model.index(row, 0, parent)
+            item_type = self._model.data(source_index, ITEM_TYPE_ROLE)
+            
+            # Set all header items to span all columns in both model and view
+            if item_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+                # For the source model rows, we need to map them to proxy rows
+                proxy_parent = self._proxy_model.mapFromSource(parent)
+                
+                # Find the corresponding row in the proxy model
+                proxy_row = -1
+                for i in range(self._proxy_model.rowCount(proxy_parent)):
+                    proxy_index = self._proxy_model.index(i, 0, proxy_parent)
+                    source_idx = self._proxy_model.mapToSource(proxy_index)
+                    if source_idx.row() == row and source_idx.parent() == parent:
+                        proxy_row = i
+                        break
+                
+                if proxy_row >= 0:
+                    # Apply spanning in the view
+                    self.setFirstColumnSpanned(proxy_row, proxy_parent, True)
+    
+    def _handle_spanning_for_all_items(self):
+        """
+        Ensure all header items have column spanning set correctly.
+        Called after items are added to ensure proper spanning.
+        """
+        # Reset all spanning first
+        self._apply_spanning_recursively(qtc.QModelIndex())
+    
+    def _apply_spanning_recursively(self, proxy_parent_index):
+        """
+        Apply spanning to all items recursively.
+        """
+        for row in range(self._proxy_model.rowCount(proxy_parent_index)):
+            proxy_index = self._proxy_model.index(row, 0, proxy_parent_index)
+            source_index = self._proxy_model.mapToSource(proxy_index)
+            item_type = self._model.data(source_index, ITEM_TYPE_ROLE)
+            
+            if item_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+                # Apply spanning to this item
+                self.setFirstColumnSpanned(row, proxy_parent_index, True)
+                # Recursively apply to children
+                self._apply_spanning_recursively(proxy_index)
     
     @property
     def model(self) -> PathsTreeModel:
@@ -69,6 +166,9 @@ class PathsTreeView(qtw.QTreeView):
             self.resizeColumnToContents(col)
         # Expand the parent nodes for better visibility
         self.expandAll()
+        
+        # Make sure all header items span all columns
+        self._handle_spanning_for_all_items()
     
     def get_selected_rows(self) -> List[int]:
         """
@@ -197,7 +297,7 @@ class PathsTreeView(qtw.QTreeView):
                 on_export_paths(rows)
             elif menu_action == menu_action_remove_selected_path:
                 on_remove_selected(rows)
-            elif menu_action == menu_action_remove_all_paths:
+            elif menu_action == menu_action_remove_all:
                 on_remove_all()
         
         # Store the function reference to enable future disconnections if needed

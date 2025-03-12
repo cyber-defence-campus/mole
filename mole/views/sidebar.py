@@ -2,7 +2,7 @@ from __future__     import annotations
 from ..common.log   import Logger
 from ..views.config import ConfigView
 from ..views.graph  import GraphWidget
-from .paths_table import PathsTableView
+from .paths_tree import PathsTableView
 from typing         import Any, Literal, Tuple, TYPE_CHECKING
 
 import binaryninja       as bn

@@ -136,16 +136,8 @@ class PathsTreeModel(qtui.QStandardItemModel):
         main_item.setData(item_type, ITEM_TYPE_ROLE)
         main_item.setFlags(main_item.flags() & ~qtc.Qt.ItemIsEditable)
         
-        # Create empty items for other columns
-        row = [main_item]
-        for _ in range(1, len(self.COLUMNS)):
-            col_item = qtui.QStandardItem("")
-            col_item.setData(False, IS_PATH_ITEM_ROLE)
-            col_item.setData(item_type, ITEM_TYPE_ROLE)
-            col_item.setFlags(col_item.flags() & ~qtc.Qt.ItemIsEditable)
-            row.append(col_item)
-            
-        return row
+        # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
+        return [main_item]
         
     def add_path(self, path: Path, comment: str = "") -> None:
         """
