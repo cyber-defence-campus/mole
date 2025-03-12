@@ -6,23 +6,23 @@ import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
 from ..models.paths import (
-    PathsTableModel, PathsSortProxyModel,
+    PathsTreeModel, PathsSortProxyModel,
     SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL
 )
 from ..core.data import Path
 
 
-class PathsTableView(qtw.QTableView):
+class PathsTreeView(qtw.QTreeView):
     """
-    This class implements a view for displaying paths.
+    This class implements a tree view for displaying paths grouped by source and sink.
     """
     
     def __init__(self, parent=None):
         """
-        Initialize the path table view.
+        Initialize the path tree view.
         """
         super().__init__(parent)
-        self._model = PathsTableModel()
+        self._model = PathsTreeModel()
         self._proxy_model = PathsSortProxyModel()
         self._proxy_model.setSourceModel(self._model)
         self.setModel(self._proxy_model)
@@ -31,10 +31,11 @@ class PathsTableView(qtw.QTableView):
         self.setSelectionMode(qtw.QAbstractItemView.SelectionMode.ExtendedSelection)
         self.setSelectionBehavior(qtw.QAbstractItemView.SelectionBehavior.SelectRows)
         self.setSortingEnabled(True)
-        self.verticalHeader().setVisible(False)
+        self.setUniformRowHeights(True)  # Optimize performance for tree views
+        self.setExpandsOnDoubleClick(False)  # Don't expand on double click since we use it for navigation
         self.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
-        self.horizontalHeader().setSectionResizeMode(qtw.QHeaderView.ResizeMode.Interactive)
-        self.horizontalHeader().setStretchLastSection(True)
+        self.header().setSectionResizeMode(qtw.QHeaderView.ResizeMode.Interactive)
+        self.header().setStretchLastSection(True)
         
         # Ensure the columns are appropriately sized initially
         for col in range(self._model.columnCount()):
@@ -46,7 +47,7 @@ class PathsTableView(qtw.QTableView):
         self._context_menu_function = None
     
     @property
-    def model(self) -> PathsTableModel:
+    def model(self) -> PathsTreeModel:
         """
         Get the underlying model.
         """
@@ -66,14 +67,27 @@ class PathsTableView(qtw.QTableView):
         # Resize columns to fit content
         for col in range(self._model.columnCount()):
             self.resizeColumnToContents(col)
+        # Expand the parent nodes for better visibility
+        self.expandAll()
     
     def get_selected_rows(self) -> List[int]:
         """
-        Get the currently selected rows.
+        Get the currently selected path rows.
         """
-        # Map proxy model indexes to source model rows
-        return sorted(set(self._proxy_model.mapToSource(index).row() 
-                         for index in self.selectionModel().selectedIndexes()))
+        path_rows = []
+        for index in self.selectionModel().selectedIndexes():
+            if index.column() != 0:  # Only process once per row
+                continue
+                
+            # Map proxy index to source model index
+            source_index = self._proxy_model.mapToSource(index)
+            
+            # Check if this is a path item (not a group header)
+            path_id = self._model.get_path_id_from_index(source_index)
+            if path_id is not None:
+                path_rows.append(path_id)
+                
+        return sorted(set(path_rows))
     
     def remove_paths_at_rows(self, rows: List[int]):
         """
@@ -135,10 +149,16 @@ class PathsTableView(qtw.QTableView):
                 
             menu.addSeparator()
             
+            # Tree-specific actions
+            menu_action_expand_all = menu.addAction("Expand all")
+            menu_action_collapse_all = menu.addAction("Collapse all")
+                
+            menu.addSeparator()
+            
             # Import/export options
             menu_action_import_paths = menu.addAction("Import from file")
             menu_action_export_paths = menu.addAction("Export to file")
-            if self._model.rowCount() <= 0:
+            if self._model.path_count <= 0:
                 menu_action_export_paths.setEnabled(False)
                 
             menu.addSeparator()
@@ -149,7 +169,7 @@ class PathsTableView(qtw.QTableView):
                 menu_action_remove_selected_path.setEnabled(False)
             
             menu_action_remove_all_paths = menu.addAction("Remove all")
-            if self._model.rowCount() <= 0:
+            if self._model.path_count <= 0:
                 menu_action_remove_all_paths.setEnabled(False)
 
             # Execute menu and handle action
@@ -167,6 +187,10 @@ class PathsTableView(qtw.QTableView):
                 on_highlight_path(rows)
             elif menu_action == menu_action_show_call_graph:
                 on_show_call_graph(rows)
+            elif menu_action == menu_action_expand_all:
+                self.expandAll()
+            elif menu_action == menu_action_collapse_all:
+                self.collapseAll()
             elif menu_action == menu_action_import_paths:
                 on_import_paths()
             elif menu_action == menu_action_export_paths:
@@ -206,26 +230,28 @@ class PathsTableView(qtw.QTableView):
             
             # Map proxy index to source model index
             source_index = self._proxy_model.mapToSource(index)
-            row = source_index.row()
-            col = source_index.column()
+            
+            # Check if this is a path item (not a group header)
+            path_id = self._model.get_path_id_from_index(source_index)
+            if path_id is None:
+                return
+                
+            col = index.column()
             
             # Navigate based on column
             if col in [SRC_ADDR_COL, SRC_FUNC_COL]:
                 # Get source address
                 addr = self._model.data(
-                    self._model.index(row, SRC_ADDR_COL), 
+                    source_index, 
                     qtc.Qt.UserRole
                 )
                 if addr:
                     vf.navigate(bv, addr)
             elif col in [SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL]:
                 # Get sink address
-                addr = self._model.data(
-                    self._model.index(row, SNK_ADDR_COL), 
-                    qtc.Qt.UserRole
-                )
-                if addr:
-                    vf.navigate(bv, addr)
+                path = self.path_at_row(path_id)
+                if path:
+                    vf.navigate(bv, path.snk_sym_addr)
         
         # Disconnect existing navigation signals to prevent multiple connections
         if self._navigation_connected:
@@ -234,3 +260,7 @@ class PathsTableView(qtw.QTableView):
         # Connect the cell double-clicked signal and mark as connected
         self.doubleClicked.connect(navigate)
         self._navigation_connected = True
+
+
+# For backward compatibility
+PathsTableView = PathsTreeView

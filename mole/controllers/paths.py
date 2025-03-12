@@ -6,7 +6,7 @@ from ..models.config   import ConfigModel
 from ..services.slicer import MediumLevelILBackwardSlicerThread
 from ..views.graph     import GraphWidget
 from ..views.sidebar   import SidebarView
-from ..views.paths_table import PathsTableView
+from ..views.paths_table import PathsTreeView
 from typing            import Dict, List, Tuple, Optional
 import binaryninja       as bn
 import copy              as copy
@@ -42,7 +42,7 @@ class PathController:
         self._thread: MediumLevelILBackwardSlicerThread = None
         self._parser: LogicalExpressionParser = LogicalExpressionParser(tag, log)
         self._paths: List[Path] = []
-        self._paths_view: Optional[PathsTableView] = None
+        self._paths_view: Optional[PathsTreeView] = None
         self._paths_highlight: Tuple[
             Path,
             Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
@@ -58,7 +58,7 @@ class PathController:
         """
         Get all paths from either the internal list or the view, if available.
         """
-        if self._paths_view and self._paths_view.model.rowCount() > 0:
+        if self._paths_view and self._paths_view.model.path_count > 0:
             return self._paths_view.get_all_paths()
         return self._paths
     
@@ -83,7 +83,7 @@ class PathController:
     def find_paths(
             self,
             bv: bn.BinaryView,
-            view: PathsTableView = None
+            view: PathsTreeView = None
         ) -> None | List[Path]:
         """
         This method analyzes the entire binary for interesting looking code paths.
@@ -123,7 +123,7 @@ class PathController:
     def load_paths(
             self,
             bv: bn.BinaryView,
-            view: PathsTableView
+            view: PathsTreeView
         ) -> None:
         """
         This method loads paths from the binary's database.
@@ -504,9 +504,9 @@ class PathController:
         self._log.info(self._tag, "Removed all path(s)")
         return
 
-    def setup_paths_table(self, bv: bn.BinaryView, view: PathsTableView, tab_widget: qtw.QTabWidget = None) -> None:
+    def setup_paths_table(self, bv: bn.BinaryView, view: PathsTreeView, tab_widget: qtw.QTabWidget = None) -> None:
         """
-        This method sets up the path table view with controller callbacks.
+        This method sets up the path tree view with controller callbacks.
         """
         if not view:
             return
@@ -530,5 +530,8 @@ class PathController:
         
         # Set up navigation
         view.setup_navigation(bv)
+        
+        # Expand all nodes by default
+        view.expandAll()
         
         return
