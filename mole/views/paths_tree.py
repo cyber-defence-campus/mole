@@ -297,7 +297,7 @@ class PathsTreeView(qtw.QTreeView):
                 on_export_paths(rows)
             elif menu_action == menu_action_remove_selected_path:
                 on_remove_selected(rows)
-            elif menu_action == menu_action_remove_all:
+            elif menu_action == menu_action_remove_all_paths:  # Fixed variable name here
                 on_remove_all()
         
         # Store the function reference to enable future disconnections if needed
