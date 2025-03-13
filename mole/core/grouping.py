@@ -92,21 +92,23 @@ class SourceSinkPathGrouper(PathGrouper):
         return "Source - Sink"
 
 
-class CallgraphPathGrouper(PathGrouper):
+class CallgraphPathGrouper(SourceSinkPathGrouper):
     """
-    Grouping strategy that groups by source, sink, and call graph.
+    Grouping strategy that groups by source, sink, and same call graph.
     """
     
     def get_group_keys(self, path: Path) -> List[Tuple[str, str, int]]:
         """
         Group paths by source, sink, and call graph.
         """
+        # Get source-sink grouping from parent class
+        keys = super().get_group_keys(path)
+        
+        # Add callgraph grouping
         callgraph_name = self._format_callgraph_name(path)
-        return [
-            (f"Source: {path.src_sym_name}", path.src_sym_name, 0),
-            (f"Sink: {path.snk_sym_name}", f"{path.src_sym_name}:{path.snk_sym_name}", 1),
-            (f"Path: {callgraph_name}", f"{path.src_sym_name}:{path.snk_sym_name}:{callgraph_name}", 2)
-        ]
+        keys.append((f"Path: {callgraph_name}", f"{path.src_sym_name}:{path.snk_sym_name}:{callgraph_name}", 2))
+        
+        return keys
     
     def get_strategy_name(self) -> str:
         return "Same Callgraph"
