@@ -77,7 +77,7 @@ class PathController:
                 return
                 
             # Get current grouping strategy from settings
-            grouping_strategy = PathGrouper.CALLGRAPH  # Default value
+            grouping_strategy = None
             settings = self._model.get().settings
             if "grouping_strategy" in settings:
                 strategy_value = settings["grouping_strategy"].value
@@ -159,7 +159,7 @@ class PathController:
                 path = Path.from_dict(bv, s_path)
                 
                 # Update model directly instead of through the view
-                grouping_strategy = PathGrouper.CALLGRAPH  # Default value
+                grouping_strategy = None
                 settings = self._model.get().settings
                 if "grouping_strategy" in settings:
                     strategy_value = settings["grouping_strategy"].value

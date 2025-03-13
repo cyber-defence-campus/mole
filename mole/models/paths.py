@@ -121,27 +121,30 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
         return [main_item]
         
-    def add_path(self, path: Path, comment: str = "", grouping_strategy: str = PathGrouper.CALLGRAPH) -> None:
+    def add_path(self, path: Path, comment: str = "", grouping_strategy: str = None) -> None:
         """
         Add a path to the model grouped by strategy.
         
         Args:
             path: The path to add
             comment: Comment for the path
-            grouping_strategy: How to group paths - one of the PathGrouper strategies (e.g., PathGrouper.NONE, PathGrouper.CALLGRAPH)
+            grouping_strategy: How to group paths - one of the PathGrouper strategies
         """
         self.paths.append(path)
         path_id = len(self.paths) - 1
         self.path_comments[path_id] = comment
-        
+
         # Get the appropriate grouper for this strategy
         grouper = PathGrouper.create(grouping_strategy)
-        
-        # Get the hierarchy of group keys for this path
-        group_keys = grouper.get_group_keys(path)
-        
-        # Track the parent item as we create or find each group level
-        parent_item = self
+        if grouper is None:
+            parent_item = self
+            group_keys = []  # No grouping hierarchy
+        else:            
+            # Get the hierarchy of group keys for this path
+            group_keys = grouper.get_group_keys(path)
+            
+            # Track the parent item as we create or find each group level
+            parent_item = self
         
         # Create or get group items for each level of the hierarchy
         for display_name, internal_id, level in group_keys:

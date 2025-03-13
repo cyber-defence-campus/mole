@@ -9,10 +9,6 @@ class PathGrouper(ABC):
     Implementations should provide logic for how paths are organized in a tree structure.
     """
     
-    # Define strategy constants to replace the enum
-    NONE = "None"
-    CALLGRAPH = "Callgraph"
-    
     @abstractmethod
     def get_group_keys(self, path: Path) -> List[Tuple[str, str, int]]:
         """
@@ -44,12 +40,12 @@ class PathGrouper(ABC):
         Factory method to create a grouper based on the strategy.
         
         Args:
-            strategy: The strategy name (use PathGrouper.NONE, PathGrouper.CALLGRAPH)
+            strategy: The strategy name
             
         Returns:
-            An instance of the appropriate PathGrouper implementation
+            An instance of the appropriate PathGrouper implementation or None if the strategy is invalid
         """
-        return PathGrouper.get_strategy_map().get(strategy, CallgraphPathGrouper())  # Default to Callgraph
+        return PathGrouper.get_strategy_map().get(strategy, None)  # Default to Callgraph
     
     @staticmethod
     def get_strategy_map() -> Dict[str, PathGrouper]:
@@ -59,9 +55,12 @@ class PathGrouper(ABC):
         Returns:
             Dictionary mapping strategy names to PathGrouper instances
         """
+        ssGrouper = SourceSinkPathGrouper()
+        cgGrouper = CallgraphPathGrouper()
         return {
-            PathGrouper.NONE: FlatPathGrouper(),
-            PathGrouper.CALLGRAPH: CallgraphPathGrouper()
+            "None": None,
+            ssGrouper.get_strategy_name(): ssGrouper,
+            cgGrouper.get_strategy_name(): cgGrouper
         }
     
     @staticmethod
@@ -75,7 +74,7 @@ class PathGrouper(ABC):
         return list(PathGrouper.get_strategy_map().keys())
 
 
-class FlatPathGrouper(PathGrouper):
+class SourceSinkPathGrouper(PathGrouper):
     """
     Grouping strategy that only groups by source and sink, without call graph grouping.
     """
@@ -90,7 +89,7 @@ class FlatPathGrouper(PathGrouper):
         ]
     
     def get_strategy_name(self) -> str:
-        return PathGrouper.NONE
+        return "Source - Sink"
 
 
 class CallgraphPathGrouper(PathGrouper):
@@ -110,7 +109,7 @@ class CallgraphPathGrouper(PathGrouper):
         ]
     
     def get_strategy_name(self) -> str:
-        return PathGrouper.CALLGRAPH
+        return "Same Callgraph"
     
     def _format_callgraph_name(self, path: Path) -> str:
         """
