@@ -1,5 +1,6 @@
 from __future__   import annotations
 from ..common.log import Logger
+from ..core.data  import GroupingStrategy
 from typing       import Literal, TYPE_CHECKING
 import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
@@ -143,6 +144,11 @@ class ConfigView(qtw.QWidget):
             col = self._ctr.get_setting(col_name)
             if col:
                 col.widget = qtw.QComboBox()
+                
+                # If this is the grouping strategy setting, populate with enum values
+                if col_name == "grouping_strategy":
+                    col.items = [strategy.value for strategy in GroupingStrategy]
+                    
                 col.widget.addItems(col.items)
                 if col.value in col.items:
                     col.widget.setCurrentText(col.value)

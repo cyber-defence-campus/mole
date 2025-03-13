@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Any, Tuple
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 
-from ..core.data import Path
+from ..core.data import Path, GroupingStrategy
 
 # Column definitions
 PATH_COLUMNS = ["Id", "Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Insts", "Phis", "Branches", "Comment"]
@@ -139,14 +139,14 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
         return [main_item]
         
-    def add_path(self, path: Path, comment: str = "", grouping_strategy: str = "Callgraph") -> None:
+    def add_path(self, path: Path, comment: str = "", grouping_strategy: GroupingStrategy = GroupingStrategy.CALLGRAPH) -> None:
         """
         Add a path to the model grouped by source and sink, optionally by call graph.
         
         Args:
             path: The path to add
             comment: Comment for the path
-            grouping_strategy: How to group paths - 'None' or 'Callgraph'
+            grouping_strategy: How to group paths - GroupingStrategy.NONE or GroupingStrategy.CALLGRAPH
         """
         self.paths.append(path)
         path_id = len(self.paths) - 1
@@ -179,7 +179,7 @@ class PathsTreeModel(qtui.QStandardItemModel):
         parent_item = sink_item
         
         # Otherwise, group by callgraph if the strategy is Callgraph
-        if grouping_strategy == "Callgraph":
+        if grouping_strategy == GroupingStrategy.CALLGRAPH:
             # Get or create call graph group under this sink
             callgraph_name = self._format_callgraph_name(path)
             callgraph_key = (source_name, sink_name, callgraph_name)

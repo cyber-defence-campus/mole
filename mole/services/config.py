@@ -1,7 +1,7 @@
 from __future__ import annotations
 from ..common.log   import Logger
 from ..common.parse import LogicalExpressionParser
-from ..core.data    import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting
+from ..core.data    import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting, GroupingStrategy
 from typing         import Dict
 import fnmatch as fn
 import os      as os
@@ -200,7 +200,13 @@ class ConfigService:
                 if col_settings:
                     col_value = col_settings.get("value", "")
                     col_help = col_settings.get("help", "")
-                    col_items = col_settings.get("items", [])
+                    
+                    if name == "grouping_strategy":
+                        # Use the enum values as items
+                        col_items = [strategy.value for strategy in GroupingStrategy]
+                    else:
+                        col_items = col_settings.get("items", [])
+                    
                     parsed_config["settings"].update({
                         col_name: ComboboxSetting(
                             name=col_name,

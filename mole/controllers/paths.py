@@ -1,7 +1,7 @@
 from __future__          import annotations
 from ..common.log      import Logger
 from ..common.parse    import LogicalExpressionParser
-from ..core.data       import Path, InstructionHelper
+from ..core.data       import Path, InstructionHelper, GroupingStrategy
 from ..models.config   import ConfigModel
 from ..services.slicer import MediumLevelILBackwardSlicerThread
 from ..views.graph     import GraphWidget
@@ -76,10 +76,11 @@ class PathController:
                 return
                 
             # Get current grouping strategy from settings
-            grouping_strategy = "Callgraph"  # Default value
+            grouping_strategy = GroupingStrategy.CALLGRAPH  # Default value
             settings = self._model.get().settings
             if "grouping_strategy" in settings:
-                grouping_strategy = settings["grouping_strategy"].value
+                strategy_value = settings["grouping_strategy"].value
+                grouping_strategy = GroupingStrategy.from_string(strategy_value)
                 
             self._paths_view.add_path(path, comment, grouping_strategy)
             return
@@ -144,10 +145,11 @@ class PathController:
         self._paths_view.clear()
         
         # Get current grouping strategy from settings
-        grouping_strategy = "Callgraph"  # Default value
+        grouping_strategy = GroupingStrategy.CALLGRAPH  # Default value
         settings = self._model.get().settings
         if "grouping_strategy" in settings:
-            grouping_strategy = settings["grouping_strategy"].value
+            strategy_value = settings["grouping_strategy"].value
+            grouping_strategy = GroupingStrategy.from_string(strategy_value)
             
         # Load paths from database
         try:

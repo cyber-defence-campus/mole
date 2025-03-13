@@ -10,7 +10,7 @@ from ..models.paths import (
     SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL,
     ITEM_TYPE_ROLE, SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM, PATH_ITEM
 )
-from ..core.data import Path, ComboboxSetting
+from ..core.data import Path, ComboboxSetting, GroupingStrategy
 
 
 class PathsTreeView(qtw.QTreeView):
@@ -156,14 +156,14 @@ class PathsTreeView(qtw.QTreeView):
         """
         self._model.clear()
     
-    def add_path(self, path: Path, comment: str = "", grouping_strategy: str = "Callgraph"):
+    def add_path(self, path: Path, comment: str = "", grouping_strategy: GroupingStrategy = GroupingStrategy.CALLGRAPH):
         """
         Add a path to the view.
         
         Args:
             path: The path to add
             comment: Comment for the path
-            grouping_strategy: How to group paths - 'None' or 'Callgraph'
+            grouping_strategy: How to group paths - GroupingStrategy.NONE or GroupingStrategy.CALLGRAPH
         """
         self._model.add_path(path, comment, grouping_strategy)
         # Resize columns to fit content
