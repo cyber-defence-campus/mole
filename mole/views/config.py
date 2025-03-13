@@ -147,7 +147,7 @@ class ConfigView(qtw.QWidget):
                 
                 # If this is the grouping strategy setting, populate with PathGrouper constants
                 if col_name == "grouping_strategy":
-                    col.items = [PathGrouper.NONE, PathGrouper.CALLGRAPH]
+                    col.items = PathGrouper.get_all_strategies()
                     
                 col.widget.addItems(col.items)
                 if col.value in col.items:

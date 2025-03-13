@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from .data import Path
 
 class PathGrouper(ABC):
@@ -36,6 +36,8 @@ class PathGrouper(ABC):
         """
         pass
     
+    # We no longer need the get_item_type_for_level method as we're using levels directly
+    
     @staticmethod
     def create(strategy: str) -> PathGrouper:
         """
@@ -47,11 +49,30 @@ class PathGrouper(ABC):
         Returns:
             An instance of the appropriate PathGrouper implementation
         """
-        strategy_map = {
+        return PathGrouper.get_strategy_map().get(strategy, CallgraphPathGrouper())  # Default to Callgraph
+    
+    @staticmethod
+    def get_strategy_map() -> Dict[str, PathGrouper]:
+        """
+        Returns a mapping of all available strategy names to their implementations.
+        
+        Returns:
+            Dictionary mapping strategy names to PathGrouper instances
+        """
+        return {
             PathGrouper.NONE: FlatPathGrouper(),
             PathGrouper.CALLGRAPH: CallgraphPathGrouper()
         }
-        return strategy_map.get(strategy, CallgraphPathGrouper())  # Default to Callgraph
+    
+    @staticmethod
+    def get_all_strategies() -> List[str]:
+        """
+        Returns a list of all available strategy names.
+        
+        Returns:
+            List of strategy names as strings
+        """
+        return list(PathGrouper.get_strategy_map().keys())
 
 
 class FlatPathGrouper(PathGrouper):

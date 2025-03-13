@@ -203,8 +203,8 @@ class ConfigService:
                     col_help = col_settings.get("help", "")
                     
                     if name == "grouping_strategy":
-                        # Use the PathGrouper constants as items
-                        col_items = [PathGrouper.NONE, PathGrouper.CALLGRAPH]
+                        # Get all available strategies from the PathGrouper class
+                        col_items = PathGrouper.get_all_strategies()
                     else:
                         col_items = col_settings.get("items", [])
                     

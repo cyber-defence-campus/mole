@@ -24,12 +24,9 @@ COMMENT_COL = 9
 # Custom roles for tree items
 PATH_ID_ROLE = qtc.Qt.UserRole + 100
 IS_PATH_ITEM_ROLE = qtc.Qt.UserRole + 101
-ITEM_TYPE_ROLE = qtc.Qt.UserRole + 102
+LEVEL_ROLE = qtc.Qt.UserRole + 103  # Role to store the level of the item
 
-# Item type values
-SOURCE_ITEM = 1
-SINK_ITEM = 2
-CALLGRAPH_ITEM = 3
+# Only keep PATH_ITEM as it's needed to distinguish path items
 PATH_ITEM = 4
 
 class PathsSortProxyModel(qtc.QSortFilterProxyModel):
@@ -107,14 +104,18 @@ class PathsTreeModel(qtui.QStandardItemModel):
         self.path_count = 0
         self.setRowCount(0)
         
-    def _create_non_path_item_row(self, text: str, item_type: int) -> List[qtui.QStandardItem]:
+    def _create_non_path_item_row(self, text: str, level: int) -> List[qtui.QStandardItem]:
         """
-        Create a row of items for non-path items (source, sink, callgraph headers).
+        Create a row of items for non-path items (group headers).
+        
+        Args:
+            text: The display text for the item
+            level: The level in the hierarchy (used for display purposes)
         """
         # Create main item
         main_item = qtui.QStandardItem(text)
         main_item.setData(False, IS_PATH_ITEM_ROLE)
-        main_item.setData(item_type, ITEM_TYPE_ROLE)
+        main_item.setData(level, LEVEL_ROLE)  # Store level information
         main_item.setFlags(main_item.flags() & ~qtc.Qt.ItemIsEditable)
         
         # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
@@ -127,7 +128,7 @@ class PathsTreeModel(qtui.QStandardItemModel):
         Args:
             path: The path to add
             comment: Comment for the path
-            grouping_strategy: How to group paths - PathGrouper.NONE or PathGrouper.CALLGRAPH
+            grouping_strategy: How to group paths - one of the PathGrouper strategies (e.g., PathGrouper.NONE, PathGrouper.CALLGRAPH)
         """
         self.paths.append(path)
         path_id = len(self.paths) - 1
@@ -145,15 +146,8 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Create or get group items for each level of the hierarchy
         for display_name, internal_id, level in group_keys:
             if internal_id not in self.group_items:
-                # Determine the item type based on level
-                item_type = SOURCE_ITEM
-                if level == 1:
-                    item_type = SINK_ITEM
-                elif level == 2:
-                    item_type = CALLGRAPH_ITEM
-                
-                # Create and add the group item
-                group_row = self._create_non_path_item_row(display_name, item_type)
+                # Create and add the group item with level information
+                group_row = self._create_non_path_item_row(display_name, level)
                 
                 if isinstance(parent_item, qtui.QStandardItemModel):
                     parent_item.appendRow(group_row)
@@ -169,46 +163,36 @@ class PathsTreeModel(qtui.QStandardItemModel):
         index_item = qtui.QStandardItem(str(path_id))
         index_item.setData(path_id, PATH_ID_ROLE)
         index_item.setData(True, IS_PATH_ITEM_ROLE)
-        index_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         # Only store hex values as UserRole data for proper sorting
         src_addr_item = qtui.QStandardItem(f"{path.src_sym_addr:x}")
         src_addr_item.setData(path.src_sym_addr, qtc.Qt.UserRole)
         src_addr_item.setData(True, IS_PATH_ITEM_ROLE)
-        src_addr_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         src_func_item = qtui.QStandardItem(path.src_sym_name)
         src_func_item.setData(True, IS_PATH_ITEM_ROLE)
-        src_func_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         snk_addr_item = qtui.QStandardItem(f"{path.snk_sym_addr:x}")
         snk_addr_item.setData(path.snk_sym_addr, qtc.Qt.UserRole)
         snk_addr_item.setData(True, IS_PATH_ITEM_ROLE)
-        snk_addr_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         snk_func_item = qtui.QStandardItem(path.snk_sym_name)
         snk_func_item.setData(True, IS_PATH_ITEM_ROLE)
-        snk_func_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         snk_parm_item = qtui.QStandardItem(f"arg#{path.snk_par_idx:d}:{str(path.snk_par_var):s}")
         snk_parm_item.setData(True, IS_PATH_ITEM_ROLE)
-        snk_parm_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         insts_item = qtui.QStandardItem(str(len(path.insts)))
         insts_item.setData(True, IS_PATH_ITEM_ROLE)
-        insts_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         phis_item = qtui.QStandardItem(str(len(path.phiis)))
         phis_item.setData(True, IS_PATH_ITEM_ROLE)
-        phis_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         bdeps_item = qtui.QStandardItem(str(len(path.bdeps)))
         bdeps_item.setData(True, IS_PATH_ITEM_ROLE)
-        bdeps_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
         
         comment_item = qtui.QStandardItem(comment)
         comment_item.setData(True, IS_PATH_ITEM_ROLE)
-        comment_item.setData(PATH_ITEM, ITEM_TYPE_ROLE)
 
         # Set items as non-editable (except for comment)
         for item in [index_item, src_addr_item, src_func_item, snk_addr_item, 

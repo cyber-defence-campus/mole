@@ -8,7 +8,7 @@ import PySide6.QtWidgets as qtw
 from ..models.paths import (
     PathsTreeModel, PathsSortProxyModel,
     SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL,
-    ITEM_TYPE_ROLE, SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM, PATH_ITEM
+    IS_PATH_ITEM_ROLE
 )
 from ..core.data import Path
 
@@ -95,10 +95,12 @@ class PathsTreeView(qtw.QTreeView):
         for row in range(first, last + 1):
             proxy_index = self._proxy_model.index(row, 0, parent)
             source_index = self._proxy_model.mapToSource(proxy_index)
-            item_type = source_index.data(ITEM_TYPE_ROLE)
+            
+            # Check if this is a path item or a header item
+            is_path_item = source_index.data(IS_PATH_ITEM_ROLE)
             
             # Set all header items to span all columns
-            if item_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+            if not is_path_item:
                 self.setFirstColumnSpanned(row, parent, True)
                 # Process children immediately
                 self._process_children_spanning(source_index, proxy_index)
@@ -109,9 +111,9 @@ class PathsTreeView(qtw.QTreeView):
         """
         for row in range(self._model.rowCount(source_index)):
             child_source_index = self._model.index(row, 0, source_index)
-            child_type = self._model.data(child_source_index, ITEM_TYPE_ROLE)
+            is_path_item = self._model.data(child_source_index, IS_PATH_ITEM_ROLE)
             
-            if child_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+            if not is_path_item:
                 # Map source index back to proxy index for setFirstColumnSpanned
                 child_proxy_row = -1
                 for i in range(self._proxy_model.rowCount(proxy_index)):
@@ -134,10 +136,10 @@ class PathsTreeView(qtw.QTreeView):
         # Process the direct items
         for row in range(first, last + 1):
             source_index = self._model.index(row, 0, parent)
-            item_type = self._model.data(source_index, ITEM_TYPE_ROLE)
+            is_path_item = self._model.data(source_index, IS_PATH_ITEM_ROLE)
             
             # Set all header items to span all columns in both model and view
-            if item_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+            if not is_path_item:
                 # For the source model rows, we need to map them to proxy rows
                 proxy_parent = self._proxy_model.mapFromSource(parent)
                 
@@ -169,9 +171,9 @@ class PathsTreeView(qtw.QTreeView):
         for row in range(self._proxy_model.rowCount(proxy_parent_index)):
             proxy_index = self._proxy_model.index(row, 0, proxy_parent_index)
             source_index = self._proxy_model.mapToSource(proxy_index)
-            item_type = self._model.data(source_index, ITEM_TYPE_ROLE)
+            is_path_item = self._model.data(source_index, IS_PATH_ITEM_ROLE)
             
-            if item_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+            if not is_path_item:
                 # Apply spanning to this item
                 self.setFirstColumnSpanned(row, proxy_parent_index, True)
                 # Recursively apply to children
@@ -339,9 +341,9 @@ class PathsTreeView(qtw.QTreeView):
             
         clicked_source_idx = self._proxy_model.mapToSource(clicked_idx)
         
-        # Check if the clicked item is a group/header
-        item_type = self._model.data(clicked_source_idx, ITEM_TYPE_ROLE)
-        if item_type not in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+        # Check if the clicked item is a group/header (not a path item)
+        is_path_item = self._model.data(clicked_source_idx, IS_PATH_ITEM_ROLE)
+        if is_path_item:
             return export_rows
         
         # Recursively gather all path IDs under this group/header
@@ -360,13 +362,14 @@ class PathsTreeView(qtw.QTreeView):
         """
         for row in range(self._model.rowCount(parent_idx)):
             child_idx = self._model.index(row, 0, parent_idx)
-            child_type = self._model.data(child_idx, ITEM_TYPE_ROLE)
+            is_path_item = self._model.data(child_idx, IS_PATH_ITEM_ROLE)
             
-            if child_type == PATH_ITEM:
+            if is_path_item:
                 path_id = self._model.get_path_id_from_index(child_idx)
                 if path_id is not None and path_id not in path_list:
                     path_list.append(path_id)
-            elif child_type in [SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM]:
+            else:
+                # This is a header item, so recurse into it
                 self._collect_child_paths(child_idx, path_list)
     
     def setup_navigation(self, bv: bn.BinaryView = None):
