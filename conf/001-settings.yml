@@ -31,3 +31,11 @@ settings:
     - Orange
     - White
     - Black
+  grouping_strategy:
+    name: grouping_strategy
+    help: Strategy used to group paths
+    value: Callgraph
+    items:
+    - None
+    - Callgraph
+    

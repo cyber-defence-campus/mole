@@ -134,22 +134,26 @@ class ConfigView(qtw.QWidget):
         com_box_lay.addWidget(com_wid)
         com_box_wid = qtw.QGroupBox("Finding Paths:")
         com_box_wid.setLayout(com_box_lay)
+        
         pth_wid = qtw.QWidget()
         pth_lay = qtw.QFormLayout()
-        col_name = "highlight_color"
-        col = self._ctr.get_setting(col_name)
-        if col:
-            col.widget = qtw.QComboBox()
-            col.widget.addItems(col.items)
-            if col.value in col.items:
-                col.widget.setCurrentText(col.value)
-            col.widget.setToolTip(col.help)
-            col.widget.currentTextChanged.connect(
-                lambda value, name=col_name:
-                self._ctr.set_setting_value(name=name, value=value)
-            )
-            col_lbl = qtw.QLabel(f"{col_name:s}:")
-            pth_lay.addRow(col_lbl, col.widget)
+        
+        cols_name = ["highlight_color", "grouping_strategy"]
+        for col_name in cols_name:
+            col = self._ctr.get_setting(col_name)
+            if col:
+                col.widget = qtw.QComboBox()
+                col.widget.addItems(col.items)
+                if col.value in col.items:
+                    col.widget.setCurrentText(col.value)
+                col.widget.setToolTip(col.help)
+                col.widget.currentTextChanged.connect(
+                    lambda value, name=col_name:
+                    self._ctr.set_setting_value(name=name, value=value)
+                )
+                col_lbl = qtw.QLabel(f"{col_name:s}:")
+                pth_lay.addRow(col_lbl, col.widget)
+            
         pth_wid.setLayout(pth_lay)
         pth_box_lay = qtw.QVBoxLayout()
         pth_box_lay.addWidget(pth_wid)

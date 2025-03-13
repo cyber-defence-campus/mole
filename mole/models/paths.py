@@ -139,9 +139,14 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
         return [main_item]
         
-    def add_path(self, path: Path, comment: str = "") -> None:
+    def add_path(self, path: Path, comment: str = "", grouping_strategy: str = "Callgraph") -> None:
         """
-        Add a path to the model grouped by source, sink, and call graph.
+        Add a path to the model grouped by source and sink, optionally by call graph.
+        
+        Args:
+            path: The path to add
+            comment: Comment for the path
+            grouping_strategy: How to group paths - 'None' or 'Callgraph'
         """
         self.paths.append(path)
         path_id = len(self.paths) - 1
@@ -170,17 +175,22 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Get sink item
         sink_item = self.sink_items[sink_key]
         
-        # Get or create call graph group under this sink
-        callgraph_name = self._format_callgraph_name(path)
-        callgraph_key = (source_name, sink_name, callgraph_name)
-        if callgraph_key not in self.callgraph_items:
-            # Create call graph group row
-            callgraph_row = self._create_non_path_item_row(f"Path: {callgraph_name}", CALLGRAPH_ITEM)
-            sink_item.appendRow(callgraph_row)
-            self.callgraph_items[callgraph_key] = callgraph_row[0]
-            
-        # Get call graph item
-        callgraph_item = self.callgraph_items[callgraph_key]
+        # Add path directly under sink if grouping strategy is None
+        parent_item = sink_item
+        
+        # Otherwise, group by callgraph if the strategy is Callgraph
+        if grouping_strategy == "Callgraph":
+            # Get or create call graph group under this sink
+            callgraph_name = self._format_callgraph_name(path)
+            callgraph_key = (source_name, sink_name, callgraph_name)
+            if callgraph_key not in self.callgraph_items:
+                # Create call graph group row
+                callgraph_row = self._create_non_path_item_row(f"Path: {callgraph_name}", CALLGRAPH_ITEM)
+                sink_item.appendRow(callgraph_row)
+                self.callgraph_items[callgraph_key] = callgraph_row[0]
+                
+            # Get call graph item as parent for path items
+            parent_item = self.callgraph_items[callgraph_key]
         
         # Create path items
         index_item = qtui.QStandardItem(str(path_id))
@@ -232,12 +242,12 @@ class PathsTreeModel(qtui.QStandardItemModel):
                      snk_func_item, snk_parm_item, insts_item, phis_item, bdeps_item]:
             item.setFlags(item.flags() & ~qtc.Qt.ItemIsEditable)
             
-        # Create path row and append to call graph item
+        # Create path row and append to parent item (sink or callgraph)
         path_row = [
             index_item, src_addr_item, src_func_item, snk_addr_item,
             snk_func_item, snk_parm_item, insts_item, phis_item, bdeps_item, comment_item
         ]
-        callgraph_item.appendRow(path_row)
+        parent_item.appendRow(path_row)
         
         self.path_count += 1
 

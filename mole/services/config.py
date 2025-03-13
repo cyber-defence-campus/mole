@@ -194,20 +194,21 @@ class ConfigService:
                         max_value=max_value
                     )
                 })
-            col_name = "highlight_color"
-            col_settings = settings.get(col_name, None)
-            if col_settings:
-                col_value = col_settings.get("value", "")
-                col_help = col_settings.get("help", "")
-                col_items = col_settings.get("items", [])
-                parsed_config["settings"].update({
-                    col_name: ComboboxSetting(
-                        name=col_name,
-                        value=col_value,
-                        help=col_help,
-                        items=col_items
-                    )
-                })
+            for name in ["highlight_color", "grouping_strategy"]:
+                col_name = name
+                col_settings = settings.get(col_name, None)
+                if col_settings:
+                    col_value = col_settings.get("value", "")
+                    col_help = col_settings.get("help", "")
+                    col_items = col_settings.get("items", [])
+                    parsed_config["settings"].update({
+                        col_name: ComboboxSetting(
+                            name=col_name,
+                            value=col_value,
+                            help=col_help,
+                            items=col_items
+                        )
+                    })
         except Exception as e:
             self._log.warn(
                 self._tag,

@@ -74,7 +74,14 @@ class PathController:
             if not self._paths_view:
                 self._paths.append(path)
                 return
-            self._paths_view.add_path(path, comment)
+                
+            # Get current grouping strategy from settings
+            grouping_strategy = "Callgraph"  # Default value
+            settings = self._model.get().settings
+            if "grouping_strategy" in settings:
+                grouping_strategy = settings["grouping_strategy"].value
+                
+            self._paths_view.add_path(path, comment, grouping_strategy)
             return
         
         bn.execute_on_main_thread(update_paths_view)
@@ -135,6 +142,13 @@ class PathController:
         self._paths = []
         self._paths_view = view
         self._paths_view.clear()
+        
+        # Get current grouping strategy from settings
+        grouping_strategy = "Callgraph"  # Default value
+        settings = self._model.get().settings
+        if "grouping_strategy" in settings:
+            grouping_strategy = settings["grouping_strategy"].value
+            
         # Load paths from database
         try:
             # Calculate SHA1 hash
