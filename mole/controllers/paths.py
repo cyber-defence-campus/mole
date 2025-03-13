@@ -1,7 +1,8 @@
 from __future__          import annotations
 from ..common.log      import Logger
 from ..common.parse    import LogicalExpressionParser
-from ..core.data       import Path, InstructionHelper, GroupingStrategy
+from ..core.data       import Path, InstructionHelper
+from ..core.grouping   import PathGrouper
 from ..models.config   import ConfigModel
 from ..services.slicer import MediumLevelILBackwardSlicerThread
 from ..views.graph     import GraphWidget
@@ -76,13 +77,15 @@ class PathController:
                 return
                 
             # Get current grouping strategy from settings
-            grouping_strategy = GroupingStrategy.CALLGRAPH  # Default value
+            grouping_strategy = PathGrouper.CALLGRAPH  # Default value
             settings = self._model.get().settings
             if "grouping_strategy" in settings:
                 strategy_value = settings["grouping_strategy"].value
-                grouping_strategy = GroupingStrategy.from_string(strategy_value)
+                # Strategy value is already a string, use directly
+                grouping_strategy = strategy_value
                 
-            self._paths_view.add_path(path, comment, grouping_strategy)
+            # Update the model directly - the view will update automatically
+            self._paths_view.model.add_path(path, comment, grouping_strategy)
             return
         
         bn.execute_on_main_thread(update_paths_view)
@@ -144,13 +147,6 @@ class PathController:
         self._paths_view = view
         self._paths_view.clear()
         
-        # Get current grouping strategy from settings
-        grouping_strategy = GroupingStrategy.CALLGRAPH  # Default value
-        settings = self._model.get().settings
-        if "grouping_strategy" in settings:
-            strategy_value = settings["grouping_strategy"].value
-            grouping_strategy = GroupingStrategy.from_string(strategy_value)
-            
         # Load paths from database
         try:
             # Calculate SHA1 hash
@@ -161,7 +157,17 @@ class PathController:
                 if s_path["sha1"] != sha1_hash:
                     self._log.warn(self._tag, "Loaded path seems to origin from another binary")
                 path = Path.from_dict(bv, s_path)
-                self.add_path_to_view(path, s_path.get("comment", ""))
+                
+                # Update model directly instead of through the view
+                grouping_strategy = PathGrouper.CALLGRAPH  # Default value
+                settings = self._model.get().settings
+                if "grouping_strategy" in settings:
+                    strategy_value = settings["grouping_strategy"].value
+                    # Strategy value is already a string, use directly
+                    grouping_strategy = strategy_value
+                
+                self._paths_view.model.add_path(path, s_path.get("comment", ""), grouping_strategy)
+                
             self._log.info(self._tag, f"Loaded {len(s_paths):d} path(s)")
         except KeyError:
             self._log.info(self._tag, "No paths found")

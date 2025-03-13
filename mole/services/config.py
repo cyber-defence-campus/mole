@@ -1,7 +1,8 @@
 from __future__ import annotations
 from ..common.log   import Logger
 from ..common.parse import LogicalExpressionParser
-from ..core.data    import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting, GroupingStrategy
+from ..core.data    import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting
+from ..core.grouping import PathGrouper
 from typing         import Dict
 import fnmatch as fn
 import os      as os
@@ -202,8 +203,8 @@ class ConfigService:
                     col_help = col_settings.get("help", "")
                     
                     if name == "grouping_strategy":
-                        # Use the enum values as items
-                        col_items = [strategy.value for strategy in GroupingStrategy]
+                        # Use the PathGrouper constants as items
+                        col_items = [PathGrouper.NONE, PathGrouper.CALLGRAPH]
                     else:
                         col_items = col_settings.get("items", [])
                     

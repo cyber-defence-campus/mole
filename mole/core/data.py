@@ -6,28 +6,6 @@ from dataclasses         import dataclass, field
 from typing              import Callable, Dict, List, Tuple
 import binaryninja       as bn
 import PySide6.QtWidgets as qtw
-from enum import Enum
-
-
-class GroupingStrategy(Enum):
-    """
-    Enumeration of path grouping strategies.
-    """
-    NONE = "None"
-    CALLGRAPH = "Callgraph"
-    
-    def __str__(self):
-        return self.value
-    
-    @classmethod
-    def from_string(cls, value: str):
-        """
-        Convert a string to the corresponding GroupingStrategy enum.
-        """
-        for strategy in cls:
-            if strategy.value == value:
-                return strategy
-        return cls.CALLGRAPH  # Default to Callgraph if not found
 
 
 @dataclass

@@ -10,7 +10,7 @@ from ..models.paths import (
     SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL,
     ITEM_TYPE_ROLE, SOURCE_ITEM, SINK_ITEM, CALLGRAPH_ITEM, PATH_ITEM
 )
-from ..core.data import Path, ComboboxSetting, GroupingStrategy
+from ..core.data import Path
 
 
 class PathsTreeView(qtw.QTreeView):
@@ -51,13 +51,47 @@ class PathsTreeView(qtw.QTreeView):
         self._model.rowsInserted.connect(self._handle_rows_inserted)
         # Also connect to the proxy model's row inserted signal
         self._proxy_model.rowsInserted.connect(self._handle_proxy_rows_inserted)
+        
+        # Connect to model dataChanged signal to ensure columns are properly sized
+        self._model.dataChanged.connect(self._handle_data_changed)
+        
+        # Connect to model's rowsInserted signal to auto-expand and resize
+        self._model.rowsInserted.connect(self.refresh_view)
+    
+    def refresh_view(self):
+        """
+        Refresh the view by expanding all items and resizing columns.
+        Called when new paths are added to ensure proper display.
+        """
+        # Resize columns to fit content
+        for col in range(self._model.columnCount()):
+            self.resizeColumnToContents(col)
+            
+        # Apply proper column spanning
+        self._handle_spanning_for_all_items()
+        
+        # Expand all items for better visibility
+        self.expandAll()
+    
+    def _handle_data_changed(self, topLeft, bottomRight):
+        """
+        Handle model data change to resize columns and apply spanning.
+        """
+        # Resize columns to fit content
+        for col in range(self._model.columnCount()):
+            self.resizeColumnToContents(col)
+            
+        # Make sure all header items span all columns
+        self._handle_spanning_for_all_items()
+        
+        # Expand all items for better visibility
+        self.expandAll()
     
     def _handle_proxy_rows_inserted(self, parent, first, last):
         """
         Handle proxy model rows inserted signal to map to source model and apply spanning.
         """
         # Map proxy index to source index
-        source_parent = self._proxy_model.mapToSource(parent)
         for row in range(first, last + 1):
             proxy_index = self._proxy_model.index(row, 0, parent)
             source_index = self._proxy_model.mapToSource(proxy_index)
@@ -155,25 +189,6 @@ class PathsTreeView(qtw.QTreeView):
         Clear all paths from the view.
         """
         self._model.clear()
-    
-    def add_path(self, path: Path, comment: str = "", grouping_strategy: GroupingStrategy = GroupingStrategy.CALLGRAPH):
-        """
-        Add a path to the view.
-        
-        Args:
-            path: The path to add
-            comment: Comment for the path
-            grouping_strategy: How to group paths - GroupingStrategy.NONE or GroupingStrategy.CALLGRAPH
-        """
-        self._model.add_path(path, comment, grouping_strategy)
-        # Resize columns to fit content
-        for col in range(self._model.columnCount()):
-            self.resizeColumnToContents(col)
-        # Expand the parent nodes for better visibility
-        self.expandAll()
-        
-        # Make sure all header items span all columns
-        self._handle_spanning_for_all_items()
     
     def get_selected_rows(self) -> List[int]:
         """

@@ -1,9 +1,10 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 
-from ..core.data import Path, GroupingStrategy
+from ..core.data import Path
+from ..core.grouping import PathGrouper
 
 # Column definitions
 PATH_COLUMNS = ["Id", "Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Insts", "Phis", "Branches", "Comment"]
@@ -92,9 +93,9 @@ class PathsTreeModel(qtui.QStandardItemModel):
         self.path_comments: Dict[int, str] = {}
         self.path_count = 0
         self.setHorizontalHeaderLabels(self.COLUMNS)
-        self.source_items: Dict[str, qtui.QStandardItem] = {}
-        self.sink_items: Dict[Tuple[str, str], qtui.QStandardItem] = {}
-        self.callgraph_items: Dict[Tuple[str, str, str], qtui.QStandardItem] = {}
+        # Store group items instead of specific source, sink, callgraph items
+        # Each level of grouping can have its own items
+        self.group_items: Dict[str, qtui.QStandardItem] = {}
         
     def clear(self) -> None:
         """
@@ -102,29 +103,9 @@ class PathsTreeModel(qtui.QStandardItemModel):
         """
         self.paths.clear()
         self.path_comments.clear()
-        self.source_items.clear()
-        self.sink_items.clear()
-        self.callgraph_items.clear()
+        self.group_items.clear()
         self.path_count = 0
         self.setRowCount(0)
-        
-    def _format_callgraph_name(self, path: Path) -> str:
-        """
-        Format a readable call graph path from the path's call graph.
-        """
-        if not path.call_graph or not path.call_graph.nodes:
-            return "Direct call"
-            
-        # Extract function names from the call graph
-        func_names = []
-        for node in path.call_graph.nodes:
-            if path.call_graph.nodes[node]["in_path"]:
-                func_names.append(node.source_function.name)
-                
-        # Format the call graph path
-        if func_names:
-            return " -> ".join(func_names)
-        return "Unknown call path"
         
     def _create_non_path_item_row(self, text: str, item_type: int) -> List[qtui.QStandardItem]:
         """
@@ -139,58 +120,50 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
         return [main_item]
         
-    def add_path(self, path: Path, comment: str = "", grouping_strategy: GroupingStrategy = GroupingStrategy.CALLGRAPH) -> None:
+    def add_path(self, path: Path, comment: str = "", grouping_strategy: str = PathGrouper.CALLGRAPH) -> None:
         """
-        Add a path to the model grouped by source and sink, optionally by call graph.
+        Add a path to the model grouped by strategy.
         
         Args:
             path: The path to add
             comment: Comment for the path
-            grouping_strategy: How to group paths - GroupingStrategy.NONE or GroupingStrategy.CALLGRAPH
+            grouping_strategy: How to group paths - PathGrouper.NONE or PathGrouper.CALLGRAPH
         """
         self.paths.append(path)
         path_id = len(self.paths) - 1
         self.path_comments[path_id] = comment
         
-        # Get or create source function group
-        source_name = path.src_sym_name
-        if source_name not in self.source_items:
-            # Create source function group row
-            source_row = self._create_non_path_item_row(f"Source: {source_name}", SOURCE_ITEM)
-            self.appendRow(source_row)
-            self.source_items[source_name] = source_row[0]
-            
-        # Get source item
-        source_item = self.source_items[source_name]
+        # Get the appropriate grouper for this strategy
+        grouper = PathGrouper.create(grouping_strategy)
         
-        # Get or create sink function group under this source
-        sink_name = path.snk_sym_name
-        sink_key = (source_name, sink_name)
-        if sink_key not in self.sink_items:
-            # Create sink function group row
-            sink_row = self._create_non_path_item_row(f"Sink: {sink_name}", SINK_ITEM)
-            source_item.appendRow(sink_row)
-            self.sink_items[sink_key] = sink_row[0]
+        # Get the hierarchy of group keys for this path
+        group_keys = grouper.get_group_keys(path)
         
-        # Get sink item
-        sink_item = self.sink_items[sink_key]
+        # Track the parent item as we create or find each group level
+        parent_item = self
         
-        # Add path directly under sink if grouping strategy is None
-        parent_item = sink_item
-        
-        # Otherwise, group by callgraph if the strategy is Callgraph
-        if grouping_strategy == GroupingStrategy.CALLGRAPH:
-            # Get or create call graph group under this sink
-            callgraph_name = self._format_callgraph_name(path)
-            callgraph_key = (source_name, sink_name, callgraph_name)
-            if callgraph_key not in self.callgraph_items:
-                # Create call graph group row
-                callgraph_row = self._create_non_path_item_row(f"Path: {callgraph_name}", CALLGRAPH_ITEM)
-                sink_item.appendRow(callgraph_row)
-                self.callgraph_items[callgraph_key] = callgraph_row[0]
+        # Create or get group items for each level of the hierarchy
+        for display_name, internal_id, level in group_keys:
+            if internal_id not in self.group_items:
+                # Determine the item type based on level
+                item_type = SOURCE_ITEM
+                if level == 1:
+                    item_type = SINK_ITEM
+                elif level == 2:
+                    item_type = CALLGRAPH_ITEM
                 
-            # Get call graph item as parent for path items
-            parent_item = self.callgraph_items[callgraph_key]
+                # Create and add the group item
+                group_row = self._create_non_path_item_row(display_name, item_type)
+                
+                if isinstance(parent_item, qtui.QStandardItemModel):
+                    parent_item.appendRow(group_row)
+                else:
+                    parent_item.appendRow(group_row)
+                    
+                self.group_items[internal_id] = group_row[0]
+            
+            # Update parent for next iteration
+            parent_item = self.group_items[internal_id]
         
         # Create path items
         index_item = qtui.QStandardItem(str(path_id))
@@ -242,7 +215,7 @@ class PathsTreeModel(qtui.QStandardItemModel):
                      snk_func_item, snk_parm_item, insts_item, phis_item, bdeps_item]:
             item.setFlags(item.flags() & ~qtc.Qt.ItemIsEditable)
             
-        # Create path row and append to parent item (sink or callgraph)
+        # Create path row and append to parent item (lowest level group)
         path_row = [
             index_item, src_addr_item, src_func_item, snk_addr_item,
             snk_func_item, snk_parm_item, insts_item, phis_item, bdeps_item, comment_item
@@ -250,6 +223,9 @@ class PathsTreeModel(qtui.QStandardItemModel):
         parent_item.appendRow(path_row)
         
         self.path_count += 1
+        
+        # Emit a dataChanged signal to ensure the view updates properly
+        self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
 
     def remove_paths_at_rows(self, rows: List[int]) -> None:
         """
@@ -258,49 +234,69 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Sort rows in descending order to avoid index shifting issues
         for row_id in sorted(rows, reverse=True):
             if 0 <= row_id < len(self.paths):
-                # Get the path's info to identify its position in the tree
-                path = self.paths[row_id]
-                source_name = path.src_sym_name
-                sink_name = path.snk_sym_name
-                callgraph_name = self._format_callgraph_name(path)
-                sink_key = (source_name, sink_name)
-                callgraph_key = (source_name, sink_name, callgraph_name)
-                
-                # Remove path from internal lists
-                self.paths[row_id] = None  # Mark as removed
+                # Mark this path as removed in the paths list
+                self.paths[row_id] = None
                 self.path_comments.pop(row_id, None)
                 
                 # Find and remove the path item from the tree
-                if (source_name in self.source_items and 
-                    sink_key in self.sink_items and
-                    callgraph_key in self.callgraph_items):
-                    
-                    source_item = self.source_items[source_name]
-                    sink_item = self.sink_items[sink_key]
-                    callgraph_item = self.callgraph_items[callgraph_key]
-                    
-                    # Find the item with matching path_id among callgraph item's children
-                    for i in range(callgraph_item.rowCount()):
-                        child = callgraph_item.child(i, 0)
-                        if child and child.data(PATH_ID_ROLE) == row_id:
-                            callgraph_item.removeRow(i)
-                            self.path_count -= 1
-                            break
-                    
-                    # If callgraph has no more paths, remove it
-                    if callgraph_item.rowCount() == 0:
-                        sink_item.removeRow(callgraph_item.row())
-                        self.callgraph_items.pop(callgraph_key, None)
-                    
-                    # If sink has no more callgraphs, remove it
-                    if sink_item.rowCount() == 0:
-                        source_item.removeRow(sink_item.row())
-                        self.sink_items.pop(sink_key, None)
-                    
-                    # If source has no more sinks, remove it
-                    if source_item.rowCount() == 0:
-                        self.removeRow(source_item.row())
-                        self.source_items.pop(source_name, None)
+                self._remove_path_item_by_id(row_id)
+                
+                # Decrement the path count
+                self.path_count -= 1
+                
+        # Clean up empty groups
+        self._cleanup_empty_groups()
+    
+    def _remove_path_item_by_id(self, path_id: int) -> bool:
+        """
+        Find and remove a path item by its ID.
+        Returns True if found and removed, False otherwise.
+        """
+        # Search through all items recursively
+        def find_and_remove_path(parent_item):
+            # Check in the standard item model
+            if isinstance(parent_item, qtui.QStandardItemModel):
+                for row in range(parent_item.rowCount()):
+                    item = parent_item.item(row, 0)
+                    if find_and_remove_path(item):
+                        return True
+            else:
+                # Check this item's children
+                for row in range(parent_item.rowCount()):
+                    child = parent_item.child(row, 0)
+                    if child is not None:
+                        # Check if this is the path item we're looking for
+                        if child.data(IS_PATH_ITEM_ROLE) and child.data(PATH_ID_ROLE) == path_id:
+                            parent_item.removeRow(row)
+                            return True
+                        # Or search its children
+                        if find_and_remove_path(child):
+                            return True
+            return False
+        
+        return find_and_remove_path(self)
+    
+    def _cleanup_empty_groups(self) -> None:
+        """
+        Remove any group items that no longer have children.
+        """
+        # Process groups from the bottom level up
+        group_keys = list(self.group_items.keys())
+        keys_to_remove = []
+        
+        for key in group_keys:
+            group_item = self.group_items[key]
+            if group_item.rowCount() == 0:
+                # Remove this empty group
+                if group_item.parent():
+                    group_item.parent().removeRow(group_item.row())
+                else:
+                    self.removeRow(group_item.row())
+                keys_to_remove.append(key)
+        
+        # Remove deleted groups from the dictionary
+        for key in keys_to_remove:
+            self.group_items.pop(key, None)
         
     def path_at_row(self, row: int) -> Optional[Path]:
         """
@@ -314,29 +310,33 @@ class PathsTreeModel(qtui.QStandardItemModel):
         """
         Get all comments from the model.
         """
-        # Update comments from UI
-        for source_name, source_item in self.source_items.items():
-            for src_i in range(source_item.rowCount()):
-                sink_item = source_item.child(src_i, 0)
-                if not sink_item:
-                    continue
-                    
-                for snk_i in range(sink_item.rowCount()):
-                    callgraph_item = sink_item.child(snk_i, 0)
-                    if not callgraph_item:
-                        continue
-                        
-                    for cg_i in range(callgraph_item.rowCount()):
-                        path_item = callgraph_item.child(cg_i, 0)
-                        if not path_item:
-                            continue
-                            
-                        path_id = path_item.data(PATH_ID_ROLE)
-                        if path_id is not None:
-                            comment_item = callgraph_item.child(cg_i, COMMENT_COL)
-                            if comment_item:
-                                self.path_comments[path_id] = comment_item.text()
-                            
+        # Find all path items in the tree and update comments dictionary
+        def update_comments(parent_item, column):
+            if isinstance(parent_item, qtui.QStandardItemModel):
+                for row in range(parent_item.rowCount()):
+                    for col in range(parent_item.columnCount()):
+                        item = parent_item.item(row, col)
+                        update_comments(item, col)
+            else:
+                # Check if this is a path item
+                if parent_item and parent_item.data(IS_PATH_ITEM_ROLE):
+                    if column == COMMENT_COL:
+                        # Find the index item in the same row
+                        index_item = parent_item.model().item(parent_item.row(), 0, parent_item.parent())
+                        if index_item:
+                            path_id = index_item.data(PATH_ID_ROLE)
+                            if path_id is not None:
+                                self.path_comments[path_id] = parent_item.text()
+                
+                # Process children
+                if parent_item:
+                    for row in range(parent_item.rowCount()):
+                        for col in range(parent_item.model().columnCount()):
+                            child = parent_item.child(row, col)
+                            if child:
+                                update_comments(child, col)
+        
+        update_comments(self, 0)
         return self.path_comments
     
     def get_path_id_from_index(self, index: qtc.QModelIndex) -> Optional[int]:
@@ -354,15 +354,8 @@ class PathsTreeModel(qtui.QStandardItemModel):
         if index.column() != 0:
             index = index.sibling(index.row(), 0)
             
-        # Check if we're dealing with an actual path item (not a header)
-        # With call graph grouping, a path item has 3 levels of parent nodes
-        if (not index.parent().isValid() or 
-            not index.parent().parent().isValid() or
-            not index.parent().parent().parent().isValid()):
-            return None
-            
         # Return the path ID
         return index.data(PATH_ID_ROLE)
-    
-    # Keep legacy PathsTableModel interface to maintain compatibility with existing code
+
+# Keep legacy PathsTableModel interface to maintain compatibility with existing code
 PathsTableModel = PathsTreeModel
