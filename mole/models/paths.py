@@ -31,19 +31,14 @@ PATH_ITEM = 4
 
 class PathsSortProxyModel(qtc.QSortFilterProxyModel):
     """
-    This class implements a proxy model to handle proper numeric sorting for paths.
+    This class implements a proxy model to handle proper sorting for paths.
+    Uses Qt.UserRole data to maintain original data types during sorting.
     """
-    
-    # Define columns that should be sorted numerically
-    NUMERIC_COLUMNS = [INDEX_COL, INSTS_COL, PHIS_COL, BRANCHES_COL]
-    HEX_COLUMNS = [SRC_ADDR_COL, SNK_ADDR_COL]
     
     def lessThan(self, left, right):
         """
-        Override the lessThan method to provide proper sorting.
+        Override the lessThan method to provide proper sorting based on data types.
         """
-        column = left.column()
-        
         # First check if these are header items (treat differently)
         left_is_path = self.sourceModel().data(left, IS_PATH_ITEM_ROLE)
         right_is_path = self.sourceModel().data(right, IS_PATH_ITEM_ROLE)
@@ -51,27 +46,28 @@ class PathsSortProxyModel(qtc.QSortFilterProxyModel):
         # Header items should come before path items
         if left_is_path != right_is_path:
             return right_is_path
-            
-        # Only use UserRole data for hex columns
-        if column in self.HEX_COLUMNS:
-            left_data = self.sourceModel().data(left, qtc.Qt.UserRole)
-            right_data = self.sourceModel().data(right, qtc.Qt.UserRole)
-            if left_data is not None and right_data is not None:
-                try:
-                    return int(left_data) < int(right_data)
-                except (ValueError, TypeError):
-                    pass
-        # For numeric columns, convert display text to int
-        elif column in self.NUMERIC_COLUMNS:
-            try:
-                left_value = int(self.sourceModel().data(left))
-                right_value = int(self.sourceModel().data(right))
-                return left_value < right_value
-            except (ValueError, TypeError):
-                pass
-                    
-        # Fall back to string comparison for non-numeric data
-        return super().lessThan(left, right)
+        
+        # Get the values stored in UserRole for proper type comparison
+        left_data = self.sourceModel().data(left, qtc.Qt.UserRole)
+        right_data = self.sourceModel().data(right, qtc.Qt.UserRole)
+        
+        # If we have UserRole data available, use it for comparison
+        if left_data is not None and right_data is not None:
+            # Compare based on the actual types
+            return left_data < right_data
+        
+        # Fall back to string comparison of display text
+        left_text = self.sourceModel().data(left, qtc.Qt.DisplayRole)
+        right_text = self.sourceModel().data(right, qtc.Qt.DisplayRole)
+        
+        # Try numeric comparison first if both are convertible to numbers
+        try:
+            left_num = float(left_text)
+            right_num = float(right_text)
+            return left_num < right_num
+        except (ValueError, TypeError):
+            # Fall back to string comparison
+            return str(left_text).lower() < str(right_text).lower()
 
 
 class PathsTreeModel(qtui.QStandardItemModel):
