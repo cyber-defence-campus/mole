@@ -57,12 +57,10 @@ class PathGrouper(ABC):
         """
         ssGrouper = SourceSinkPathGrouper()
         cgGrouper = CallgraphPathGrouper()
-        phGrouper = PhiPathGrouper()
         return {
             "None": None,
             ssGrouper.get_strategy_name(): ssGrouper,
-            cgGrouper.get_strategy_name(): cgGrouper,
-            phGrouper.get_strategy_name(): phGrouper,
+            cgGrouper.get_strategy_name(): cgGrouper
         }
     
     @staticmethod
@@ -132,26 +130,3 @@ class CallgraphPathGrouper(SourceSinkPathGrouper):
         if func_names:
             return " -> ".join(func_names)
         return "Unknown call path"
-
-class PhiPathGrouper(CallgraphPathGrouper):
-    """
-    Grouping strategy that groups by source, sink, call graph, and phi value.
-    """
-    
-    def get_group_keys(self, path: Path) -> List[Tuple[str, str, int]]:
-        """
-        Group paths by source, sink, call graph, and phi value.
-        """
-        # Get source-sink-callgraph grouping from parent class
-        keys = super().get_group_keys(path)
-        
-        # Add phi value grouping
-        phi_value = len(path.phiis)
-        phi_display = f"φ: {phi_value}"
-        base_id = f"{path.src_sym_name}:{path.snk_sym_name}:{self._format_callgraph_name(path)}"
-        keys.append((phi_display, f"{base_id}:{phi_value}", 3))
-        
-        return keys
-    
-    def get_strategy_name(self) -> str:
-        return "Phi Value"
