@@ -2,7 +2,7 @@ from __future__ import annotations
 from ..common.log   import Logger
 from ..common.parse import LogicalExpressionParser
 from ..core.data    import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting
-from ..core.grouping import PathGrouper
+from ..grouping import get_all_grouping_strategies
 from typing         import Dict
 import fnmatch as fn
 import os      as os
@@ -204,7 +204,7 @@ class ConfigService:
                     
                     if name == "grouping_strategy":
                         # Get all available strategies from the PathGrouper class
-                        col_items = PathGrouper.get_all_strategies()
+                        col_items = get_all_grouping_strategies()
                     else:
                         col_items = col_settings.get("items", [])
                     

@@ -35,8 +35,4 @@ settings:
     name: grouping_strategy
     help: Strategy used to group paths
     value: Same Callgraph
-    items:
-    - None
-    - Source - Sink
-    - Same Callgraph
     

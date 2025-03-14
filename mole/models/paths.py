@@ -4,7 +4,7 @@ import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 
 from ..core.data import Path
-from ..core.grouping import PathGrouper
+from ..grouping import get_grouper
 
 # Column definitions
 PATH_COLUMNS = ["Id", "Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Insts", "Phis", "Branches", "Comment"]
@@ -131,7 +131,7 @@ class PathsTreeModel(qtui.QStandardItemModel):
         self.path_comments[path_id] = comment
 
         # Get the appropriate grouper for this strategy
-        grouper = PathGrouper.create(grouping_strategy)
+        grouper = get_grouper(grouping_strategy)
         if grouper is None:
             parent_item = self
             group_keys = []  # No grouping hierarchy

@@ -1,6 +1,6 @@
 from __future__   import annotations
 from ..common.log import Logger
-from ..core.grouping  import PathGrouper
+from ..grouping  import get_all_grouping_strategies
 from typing       import Literal, TYPE_CHECKING
 import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
@@ -155,9 +155,8 @@ class ConfigView(qtw.QWidget):
             if col:
                 col.widget = qtw.QComboBox()
                 
-                # If this is the grouping strategy setting, populate with PathGrouper constants
                 if col_name == "grouping_strategy":
-                    col.items = PathGrouper.get_all_strategies()
+                    col.items = get_all_grouping_strategies()
                     
                 col.widget.addItems(col.items)
                 if col.value in col.items:
