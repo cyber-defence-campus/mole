@@ -86,6 +86,12 @@ class SidebarView(bnui.SidebarWidget):
     """
     This class implements the widget for the plugin's sidebar.
     """
+    # Signal for when binary view changes
+    binaryViewChanged = qtc.Signal(object)
+    # Signal for various button actions
+    findPathsClicked = qtc.Signal(object, object)
+    loadPathsClicked = qtc.Signal(object, object)
+    savePathsClicked = qtc.Signal(object)
 
     def __init__(
             self,
@@ -111,8 +117,20 @@ class SidebarView(bnui.SidebarWidget):
         This method sets the controller for the model.
         """
         self._ctr = ctr
+        # Connect signals to controller slots
+        self.findPathsClicked.connect(ctr.find_paths)
+        self.loadPathsClicked.connect(ctr.load_paths)
+        self.savePathsClicked.connect(ctr.save_paths)
+        self.binaryViewChanged.connect(self._on_binary_view_changed)
         return
-
+    
+    def _on_binary_view_changed(self, bv):
+        """
+        Handle binary view changes with proper MVC separation.
+        """
+        if self._paths_tree_view and self._ctr and self._wid:
+            self._ctr.setup_paths_tree(bv, self._paths_tree_view, self._wid)
+    
     def init(self) -> SidebarView:
         """
         This method initializes the main widget.
@@ -142,15 +160,15 @@ class SidebarView(bnui.SidebarWidget):
         # Create control buttons
         self._run_but = qtw.QPushButton("Find")
         self._run_but.clicked.connect(
-            lambda: self._ctr.find_paths(self._bv, self._paths_tree_view)
+            lambda: self.findPathsClicked.emit(self._bv, self._paths_tree_view)
         )
         self._load_but = qtw.QPushButton("Load")
         self._load_but.clicked.connect(
-            lambda: self._ctr.load_paths(self._bv, self._paths_tree_view)
+            lambda: self.loadPathsClicked.emit(self._bv, self._paths_tree_view)
         )
         self._save_but = qtw.QPushButton("Save")
         self._save_but.clicked.connect(
-            lambda: self._ctr.save_paths(self._bv)
+            lambda: self.savePathsClicked.emit(self._bv)
         )
         
         # Set up button layout
@@ -211,9 +229,8 @@ class SidebarView(bnui.SidebarWidget):
             # Only update if the binary view changed
             if self._bv != new_bv:
                 self._bv = new_bv
-                # Update the binary view and setup controller for path tree
-                if self._paths_tree_view and self._ctr:
-                    self._ctr.setup_paths_tree(self._bv, self._paths_tree_view, self._wid)
+                # Emit signal instead of directly calling controller
+                self.binaryViewChanged.emit(new_bv)
         else:
             self._bv = None
         return

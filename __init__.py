@@ -11,6 +11,9 @@ from mole.views.sidebar      import MoleSidebar, SidebarView
 tag = "Mole"
 log = Logger(level="debug")
 
+#from binaryninja import connect_vscode_debugger
+#connect_vscode_debugger(port=3133)
+
 # Models
 config_service = ConfigService(f"{tag:s}.ConfigService", log)
 config_model = ConfigModel(config_service.load_configuration())
@@ -24,9 +27,6 @@ path_controller = PathController(sidebar_view, config_model, tag, log)
 config_controller = ConfigController(config_model, config_view, config_service)
 
 # Initialize views
-config_view.set_controller(config_controller)
-sidebar_view.set_controller(path_controller)
-
 config_view.init()
 sidebar_view.init()
 

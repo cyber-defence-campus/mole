@@ -18,7 +18,8 @@ class ConfigController:
         self._model = model
         self._view = view
         self._service = service
-        return
+
+        view.set_controller(self)
         
     def get_libraries(
             self,
@@ -49,13 +50,13 @@ class ConfigController:
         """
         return self._model.get_setting(name)
     
-    def set_function_checkboxes(
+    def handle_function_toggled(
             self,
-            lib_name: str = None,
-            cat_name: str = None,
-            fun_name: str = None,
-            fun_type: Optional[Literal["Sources", "Sinks"]] = None,
-            fun_enabled: bool = None
+            lib_name: str,
+            cat_name: str,
+            fun_name: str,
+            fun_type: str,
+            fun_enabled: bool
         ) -> None:
         """
         This method sets the enabled attribute of all functions' checkboxes matching the given
@@ -71,13 +72,9 @@ class ConfigController:
             fun.checkbox.setChecked(fun.enabled)
         return
     
-    def set_setting_value(
-            self,
-            name: str,
-            value: int | str
-        ) -> None:
+    def handle_setting_changed(self, name: str, value: object) -> None:
         """
-        This method sets the value of the setting with name `name`.
+        Handler for setting value changes from the view.
         """
         setting = self._model.get_setting(name)
         if setting:

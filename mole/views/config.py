@@ -13,6 +13,11 @@ class ConfigView(qtw.QWidget):
     """
     This class implements a view to handle Mole's configuration.
     """
+    # Add signals for configuration actions
+    saveConfigClicked = qtc.Signal()
+    resetConfigClicked = qtc.Signal()
+    functionToggled = qtc.Signal(str, str, str, str, bool)  # lib_name, cat_name, fun_name, fun_type, checked
+    settingValueChanged = qtc.Signal(str, object)  # setting_name, new_value
 
     def __init__(self, tag: str, log: Logger) -> None:
         """
@@ -45,6 +50,11 @@ class ConfigView(qtw.QWidget):
         This method sets the controller for the model.
         """
         self._ctr = ctr
+        # Connect signals to the controller
+        self.saveConfigClicked.connect(ctr.store_configuration)
+        self.resetConfigClicked.connect(ctr.reset_conf)
+        self.functionToggled.connect(ctr.handle_function_toggled)
+        self.settingValueChanged.connect(ctr.handle_setting_changed)
         return
         
     def tab_title(self) -> str:
@@ -70,8 +80,8 @@ class ConfigView(qtw.QWidget):
                     fun.checkbox.setChecked(fun.enabled)
                     fun.checkbox.setToolTip(fun.synopsis)
                     fun.checkbox.clicked.connect(
-                        lambda _, lib_name=lib.name, cat_name=cat.name, fun_name=fun.name, fun_type=tab_name:
-                        self._ctr.set_function_checkboxes(lib_name=lib_name, cat_name=cat_name, fun_name=fun_name, fun_type=fun_type)
+                        lambda checked, lib_name=lib.name, cat_name=cat.name, fun_name=fun.name, fun_type=tab_name:
+                        self.functionToggled.emit(lib_name, cat_name, fun_name, fun_type, checked)
                     )
                     fun_lay.addRow(fun.checkbox)
                 fun_wid = qtw.QWidget()
@@ -80,12 +90,12 @@ class ConfigView(qtw.QWidget):
                 sel_but = qtw.QPushButton("Select All")
                 sel_but.clicked.connect(
                     lambda _, cat_name=cat.name, fun_type=tab_name:
-                    self._ctr.set_function_checkboxes(cat_name=cat_name, fun_type=fun_type, fun_enabled=True)
+                    self.functionToggled.emit(lib.name, cat_name, None, fun_type, True)
                 )
                 dsl_but = qtw.QPushButton("Deselect All")
                 dsl_but.clicked.connect(
                     lambda _, cat_name=cat.name, fun_type=tab_name:
-                    self._ctr.set_function_checkboxes(cat_name=cat_name, fun_type=fun_type, fun_enabled=False)
+                    self.functionToggled.emit(lib.name, cat_name, None, fun_type, False)
                 )
                 but_lay = qtw.QHBoxLayout()
                 but_lay.addWidget(sel_but)
@@ -125,7 +135,7 @@ class ConfigView(qtw.QWidget):
             setting.widget.setToolTip(setting.help)
             setting.widget.valueChanged.connect(
                 lambda value, name=name:
-                self._ctr.set_setting_value(name=name, value=value)
+                self.settingValueChanged.emit(name, value)
             )
             label = qtw.QLabel(f"{name:s}:")
             label.setToolTip(setting.help)
@@ -155,7 +165,7 @@ class ConfigView(qtw.QWidget):
                 col.widget.setToolTip(col.help)
                 col.widget.currentTextChanged.connect(
                     lambda value, name=col_name:
-                    self._ctr.set_setting_value(name=name, value=value)
+                    self.settingValueChanged.emit(name, value)
                 )
                 col_lbl = qtw.QLabel(f"{col_name:s}:")
                 pth_lay.addRow(col_lbl, col.widget)
@@ -177,13 +187,9 @@ class ConfigView(qtw.QWidget):
         This method initializes the buttons.
         """
         self._save_but = qtw.QPushButton("Save")
-        self._save_but.clicked.connect(
-            lambda _=None: self._ctr.store_configuration()
-        )
+        self._save_but.clicked.connect(lambda: self.saveConfigClicked.emit())
         self._reset_but = qtw.QPushButton("Reset")
-        self._reset_but.clicked.connect(
-            lambda _=None: self._ctr.reset_conf()
-        )
+        self._reset_but.clicked.connect(lambda: self.resetConfigClicked.emit())
         lay = qtw.QHBoxLayout()
         lay.addWidget(self._save_but)
         lay.addWidget(self._reset_but)

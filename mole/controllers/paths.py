@@ -52,7 +52,7 @@ class PathController:
             os.path.dirname(os.path.abspath(__file__)),
             "../../conf/"
         )
-        return
+        view.set_controller(self)
     
     @property
     def paths(self) -> List[Path]:
