@@ -74,8 +74,11 @@ In addition to the previously mentioned log entries, *Mole* summarizes the ident
 
 To implement a custom path grouping strategy:
 
-1. Create a new subclass of `PathGrouper` in the grouping package
-2. No need to manually add your strategy name to the `003-settings.yml` file as it will be dynamically detected.
-3. Define your key(s) that uniquely identify a group of paths and specify the corresponding depth level.
+1. Create a new subclass of `PathGrouper` in the grouping package.
+2. Your strategy name will be dynamically detected, so no need to manually add it to the `003-settings.yml` file.
+3. Define your key tuple by specifying the following values:
+  - `display_name`: A `str` that users will see in the tree view.
+  - `internal_id`: A key for uniquely identifying each group.
+  - `level`: Determines the group's depth level in the tree view hierarchy.
 
-> You can inherit from existing strategies (see `CallgraphPathGrouper` for an example)
+> You can inherit from existing strategies (see `CallgraphPathGrouper` for an example).
