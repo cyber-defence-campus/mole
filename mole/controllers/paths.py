@@ -3,6 +3,7 @@ from ..common.log      import Logger
 from ..common.parse    import LogicalExpressionParser
 from ..core.data       import Path, InstructionHelper
 from ..models.config   import ConfigModel
+from ..controllers.config import ConfigController
 from ..services.slicer import MediumLevelILBackwardSlicerThread
 from ..views.graph     import GraphWidget
 from ..views.sidebar   import SidebarView
@@ -28,6 +29,7 @@ class PathController:
             self,
             view: SidebarView,
             model: ConfigModel,
+            config_controller: ConfigController,
             tag: str,
             log: Logger
         ) -> None:
@@ -51,6 +53,17 @@ class PathController:
             "../../conf/"
         )
         view.set_controller(self)
+        # Connect to the signal for grouping strategy changes
+        config_controller.grouping_strategy_changed.connect(self._on_grouping_strategy_changed)
+
+    def _on_grouping_strategy_changed(self, new_strategy: str) -> None:
+        """
+        Handler for when grouping strategy changes in the config.
+        Regroups all paths with the new strategy.
+        """
+        if self._paths_view and self._paths_view.model.path_count > 0:
+            self._log.info(self._tag, f"Regrouping paths with new strategy: {new_strategy}")
+            self._paths_view.model.regroup_paths(new_strategy)
     
     @property
     def paths(self) -> List[Path]:
@@ -561,5 +574,10 @@ class PathController:
         
         # Expand all nodes by default
         view.expandAll()
+        
+        # Apply current grouping strategy to any existing paths
+        settings = self._model.get().settings
+        if "grouping_strategy" in settings and self._paths_view.model.path_count > 0:
+            self._paths_view.model.regroup_paths(settings["grouping_strategy"].value)
         
         return

@@ -4,23 +4,34 @@ from ..models.config   import ConfigModel
 from ..services.config import ConfigService
 from ..views.config    import ConfigView
 from typing            import Dict, List, Literal, Optional
+import PySide6.QtCore as qtc
 
 
-class ConfigController:
+class ConfigController(qtc.QObject):
     """
     This class implements a controller to handle Mole's configuration.
     """
+    
+    # Define a signal for grouping strategy changes
+    grouping_strategy_changed = qtc.Signal(str)
     
     def __init__(self, model: ConfigModel, view: ConfigView, service: ConfigService) -> None:
         """
         This method initializes the configuration controller.
         """
+        super().__init__()
         self._model = model
         self._view = view
         self._service = service
+        self._current_grouping_strategy = None  # Track the current grouping strategy
 
         view.set_controller(self)
         
+        # Initialize current grouping strategy from model
+        strategy_setting = self._model.get_setting("grouping_strategy")
+        if strategy_setting:
+            self._current_grouping_strategy = strategy_setting.value
+    
     def get_libraries(
             self,
             fun_type: Literal["Sources", "Sinks"]
@@ -79,9 +90,17 @@ class ConfigController:
         setting = self._model.get_setting(name)
         if setting:
             setting.value = value
+            # No signal emission here - we'll do it only on save if needed
         return
-
+    
     def store_configuration(self) -> None:
+        # Check if the grouping strategy has changed before saving
+        new_strategy_setting = self._model.get_setting("grouping_strategy")
+        if new_strategy_setting and new_strategy_setting.value != self._current_grouping_strategy:
+            # Strategy has changed, emit the signal
+            self.grouping_strategy_changed.emit(new_strategy_setting.value)
+            self._current_grouping_strategy = new_strategy_setting.value
+            
         self._service.store_configuration(self._model.get())
         self._view.give_feedback("Save", "Saving...")
         return

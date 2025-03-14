@@ -324,3 +324,25 @@ class PathsTreeModel(qtui.QStandardItemModel):
         if 0 <= path_id < len(self.paths) and self.paths[path_id] is not None:
             # Update the comment in the comments dictionary
             self.path_comments[path_id] = comment
+
+    def regroup_paths(self, grouping_strategy: str = None) -> None:
+        """
+        Regroup all paths using the specified grouping strategy.
+        
+        Args:
+            grouping_strategy: The new grouping strategy to use
+        """
+        if self.path_count == 0:
+            return  # Nothing to regroup
+            
+        # Store the existing paths and comments
+        paths = [path for path in self.paths if path is not None]
+        comments = self.path_comments.copy()
+        
+        # Clear the model
+        self.clear()
+        
+        # Re-add all paths with the new grouping strategy
+        for idx, path in enumerate(paths):
+            comment = comments.get(idx, "")
+            self.add_path(path, comment, grouping_strategy)
