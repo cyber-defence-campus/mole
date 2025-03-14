@@ -284,18 +284,20 @@ class PathController:
         s_paths: List[Dict] = []
         comments = self._paths_view.model.get_comments()
         
-        export_rows = rows if rows else list(range(self._paths_view.model.rowCount()))
-        for row in export_rows:
+        # Only include valid path rows (filtering out header/group items)
+        valid_paths = []
+        for row in (rows if rows else list(range(len(self._paths_view.model.paths)))):
             path = self._paths_view.path_at_row(row)
-            if path:
-                path_id = self._paths_view.model.data(
-                    self._paths_view.model.index(row, 0), 
-                    qtc.Qt.UserRole
-                )
-                s_path = path.to_dict()
-                s_path["comment"] = comments.get(path_id, "")
-                s_path["sha1"] = sha1_hash
-                s_paths.append(s_path)
+            if path:  # Only include rows that correspond to actual paths
+                valid_paths.append((row, path))
+        
+        # Now export each valid path
+        for row, path in valid_paths:
+            s_path = path.to_dict()
+            path_id = row  # row here is actually the path_id from the valid_paths list
+            s_path["comment"] = comments.get(path_id, "")
+            s_path["sha1"] = sha1_hash
+            s_paths.append(s_path)
                 
         # Open file
         with open(filepath, "w") as f:

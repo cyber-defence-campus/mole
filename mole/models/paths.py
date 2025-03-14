@@ -293,33 +293,6 @@ class PathsTreeModel(qtui.QStandardItemModel):
         """
         Get all comments from the model.
         """
-        # Find all path items in the tree and update comments dictionary
-        def update_comments(parent_item, column):
-            if isinstance(parent_item, qtui.QStandardItemModel):
-                for row in range(parent_item.rowCount()):
-                    for col in range(parent_item.columnCount()):
-                        item = parent_item.item(row, col)
-                        update_comments(item, col)
-            else:
-                # Check if this is a path item
-                if parent_item and parent_item.data(IS_PATH_ITEM_ROLE):
-                    if column == COMMENT_COL:
-                        # Find the index item in the same row
-                        index_item = parent_item.model().item(parent_item.row(), 0, parent_item.parent())
-                        if index_item:
-                            path_id = index_item.data(PATH_ID_ROLE)
-                            if path_id is not None:
-                                self.path_comments[path_id] = parent_item.text()
-                
-                # Process children
-                if parent_item:
-                    for row in range(parent_item.rowCount()):
-                        for col in range(parent_item.model().columnCount()):
-                            child = parent_item.child(row, col)
-                            if child:
-                                update_comments(child, col)
-        
-        update_comments(self, 0)
         return self.path_comments
     
     def get_path_id_from_index(self, index: qtc.QModelIndex) -> Optional[int]:
@@ -339,6 +312,18 @@ class PathsTreeModel(qtui.QStandardItemModel):
             
         # Return the path ID
         return index.data(PATH_ID_ROLE)
+    
+    def update_path_comment(self, path_id: int, comment: str) -> None:
+        """
+        Update the comment for a path in the path_comments dictionary.
+        
+        Args:
+            path_id: The ID of the path to update
+            comment: The new comment for the path
+        """
+        if 0 <= path_id < len(self.paths) and self.paths[path_id] is not None:
+            # Update the comment in the comments dictionary
+            self.path_comments[path_id] = comment
 
 # Keep legacy PathsTableModel interface to maintain compatibility with existing code
 PathsTableModel = PathsTreeModel

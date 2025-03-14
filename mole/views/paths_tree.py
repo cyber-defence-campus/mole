@@ -8,7 +8,7 @@ import PySide6.QtWidgets as qtw
 from ..models.paths import (
     PathsTreeModel, PathsSortProxyModel,
     SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL,
-    IS_PATH_ITEM_ROLE
+    IS_PATH_ITEM_ROLE, COMMENT_COL
 )
 from ..core.data import Path
 
@@ -57,6 +57,9 @@ class PathsTreeView(qtw.QTreeView):
         
         # Connect to model's rowsInserted signal to auto-expand and resize
         self._model.rowsInserted.connect(self.refresh_view)
+        
+        # Connect to proxy model data changed signal to capture comment edits
+        self._proxy_model.dataChanged.connect(self._handle_comment_edit)
     
     def refresh_view(self):
         """
@@ -352,7 +355,13 @@ class PathsTreeView(qtw.QTreeView):
         
         # Include all child paths for export operations
         if child_paths:
-            export_rows = sorted(set(export_rows + child_paths))
+            # Ensure we only include valid path IDs
+            valid_child_paths = []
+            for path_id in child_paths:
+                if path_id is not None and 0 <= path_id < len(self._model.paths) and self._model.paths[path_id] is not None:
+                    valid_child_paths.append(path_id)
+            
+            export_rows = sorted(set(export_rows + valid_child_paths))
             
         return export_rows
     
@@ -421,6 +430,30 @@ class PathsTreeView(qtw.QTreeView):
         # Connect the cell double-clicked signal and mark as connected
         self.doubleClicked.connect(navigate)
         self._navigation_connected = True
+    
+    def _handle_comment_edit(self, topLeft, bottomRight, roles):
+        """
+        Handle comment edits in the view and update the underlying model's path_comments dictionary.
+        """
+        # Only process if the data change includes the display role
+        if qtc.Qt.DisplayRole not in roles and qtc.Qt.EditRole not in roles:
+            return
+            
+        # Check if this edit spans the comment column
+        if topLeft.column() <= COMMENT_COL <= bottomRight.column():
+            # Process each row in the changed range
+            for row in range(topLeft.row(), bottomRight.row() + 1):
+                # Get the index for the comment column in the current row
+                comment_idx = self._proxy_model.index(row, COMMENT_COL, topLeft.parent())
+                
+                # Map to source index and get the path ID
+                source_idx = self._proxy_model.mapToSource(comment_idx)
+                path_id = self._model.get_path_id_from_index(source_idx)
+                
+                # If this is a valid path item, update its comment in the model
+                if path_id is not None:
+                    new_comment = comment_idx.data(qtc.Qt.DisplayRole)
+                    self._model.update_path_comment(path_id, new_comment)
 
 
 # For backward compatibility
