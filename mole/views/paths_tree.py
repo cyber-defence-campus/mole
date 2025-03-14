@@ -454,7 +454,3 @@ class PathsTreeView(qtw.QTreeView):
                 if path_id is not None:
                     new_comment = comment_idx.data(qtc.Qt.DisplayRole)
                     self._model.update_path_comment(path_id, new_comment)
-
-
-# For backward compatibility
-PathsTableView = PathsTreeView

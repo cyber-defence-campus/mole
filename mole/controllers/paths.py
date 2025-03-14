@@ -535,7 +535,7 @@ class PathController:
         self._log.info(self._tag, "Removed all path(s)")
         return
 
-    def setup_paths_table(self, bv: bn.BinaryView, view: PathsTreeView, tab_widget: qtw.QTabWidget = None) -> None:
+    def setup_paths_tree(self, bv: bn.BinaryView, view: PathsTreeView, tab_widget: qtw.QTabWidget = None) -> None:
         """
         This method sets up the path tree view with controller callbacks.
         """

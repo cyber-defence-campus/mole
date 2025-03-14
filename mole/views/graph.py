@@ -531,7 +531,7 @@ class GraphWidget(qtw.QWidget):
         Args:
             bv (bn.BinaryView): The BinaryView object
             path (Path): A Path object
-            path_id (int): The path's row in the table
+            path_id (int): The path's row in the tree
         """
         self._bv = bv
         self._path = path

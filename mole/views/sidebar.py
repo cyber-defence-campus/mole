@@ -2,7 +2,7 @@ from __future__     import annotations
 from ..common.log   import Logger
 from ..views.config import ConfigView
 from ..views.graph  import GraphWidget
-from .paths_tree import PathsTableView
+from .paths_tree import PathsTreeView
 from typing         import Any, Literal, Tuple, TYPE_CHECKING
 
 import binaryninja       as bn
@@ -103,7 +103,7 @@ class SidebarView(bnui.SidebarWidget):
         self._bv: bn.BinaryView = None
         self._wid: qtw.QTabWidget = None
         self._ctr: PathController = None
-        self._paths_table_view: PathsTableView = None
+        self._paths_tree_view: PathsTreeView = None
         return
     
     def set_controller(self, ctr: PathController) -> None:
@@ -130,23 +130,23 @@ class SidebarView(bnui.SidebarWidget):
         """
         This method initializes the tab `Run`.
         """
-        # Create the path table view
-        self._paths_table_view = PathsTableView()
+        # Create the path tree view
+        self._paths_tree_view = PathsTreeView()
         
-        # Create the layout for the table
+        # Create the layout for the tree
         res_lay = qtw.QVBoxLayout()
-        res_lay.addWidget(self._paths_table_view)
+        res_lay.addWidget(self._paths_tree_view)
         res_wid = qtw.QGroupBox("Interesting Paths:")
         res_wid.setLayout(res_lay)
         
         # Create control buttons
         self._run_but = qtw.QPushButton("Find")
         self._run_but.clicked.connect(
-            lambda: self._ctr.find_paths(self._bv, self._paths_table_view)
+            lambda: self._ctr.find_paths(self._bv, self._paths_tree_view)
         )
         self._load_but = qtw.QPushButton("Load")
         self._load_but.clicked.connect(
-            lambda: self._ctr.load_paths(self._bv, self._paths_table_view)
+            lambda: self._ctr.load_paths(self._bv, self._paths_tree_view)
         )
         self._save_but = qtw.QPushButton("Save")
         self._save_but.clicked.connect(
@@ -211,9 +211,9 @@ class SidebarView(bnui.SidebarWidget):
             # Only update if the binary view changed
             if self._bv != new_bv:
                 self._bv = new_bv
-                # Update the binary view and setup controller for path table
-                if self._paths_table_view and self._ctr:
-                    self._ctr.setup_paths_table(self._bv, self._paths_table_view, self._wid)
+                # Update the binary view and setup controller for path tree
+                if self._paths_tree_view and self._ctr:
+                    self._ctr.setup_paths_tree(self._bv, self._paths_tree_view, self._wid)
         else:
             self._bv = None
         return

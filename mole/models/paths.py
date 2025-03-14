@@ -324,6 +324,3 @@ class PathsTreeModel(qtui.QStandardItemModel):
         if 0 <= path_id < len(self.paths) and self.paths[path_id] is not None:
             # Update the comment in the comments dictionary
             self.path_comments[path_id] = comment
-
-# Keep legacy PathsTableModel interface to maintain compatibility with existing code
-PathsTableModel = PathsTreeModel
