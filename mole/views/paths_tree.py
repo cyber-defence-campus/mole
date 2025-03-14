@@ -47,16 +47,10 @@ class PathsTreeView(qtw.QTreeView):
         self._navigation_connected = False
         self._context_menu_function = None
         
-        # Connect to model signals to handle column spanning
-        self._model.rowsInserted.connect(self._handle_rows_inserted)
-        # Also connect to the proxy model's row inserted signal
-        self._proxy_model.rowsInserted.connect(self._handle_proxy_rows_inserted)
-        
-        # Connect to model dataChanged signal to ensure columns are properly sized
-        self._model.dataChanged.connect(self._handle_data_changed)
-        
-        # Connect to model's rowsInserted signal to auto-expand and resize
-        self._model.rowsInserted.connect(self.refresh_view)
+        # Connect only to proxy model signals for consistency
+        self._proxy_model.rowsInserted.connect(self._handle_rows_inserted_or_changed)
+        self._proxy_model.dataChanged.connect(self._handle_rows_inserted_or_changed)
+        self._proxy_model.modelReset.connect(self.refresh_view)
         
         # Connect to proxy model data changed signal to capture comment edits
         self._proxy_model.dataChanged.connect(self._handle_comment_edit)
@@ -76,88 +70,20 @@ class PathsTreeView(qtw.QTreeView):
         # Expand all items for better visibility
         self.expandAll()
     
-    def _handle_data_changed(self, topLeft, bottomRight):
+    def _handle_rows_inserted_or_changed(self, *args):
         """
-        Handle model data change to resize columns and apply spanning.
+        Generic handler for when rows are inserted or data changes.
+        This replaces the separate handlers for each model's signals.
         """
         # Resize columns to fit content
         for col in range(self._model.columnCount()):
             self.resizeColumnToContents(col)
             
-        # Make sure all header items span all columns
+        # Apply proper column spanning
         self._handle_spanning_for_all_items()
         
         # Expand all items for better visibility
         self.expandAll()
-    
-    def _handle_proxy_rows_inserted(self, parent, first, last):
-        """
-        Handle proxy model rows inserted signal to map to source model and apply spanning.
-        """
-        # Map proxy index to source index
-        for row in range(first, last + 1):
-            proxy_index = self._proxy_model.index(row, 0, parent)
-            source_index = self._proxy_model.mapToSource(proxy_index)
-            
-            # Check if this is a path item or a header item
-            is_path_item = source_index.data(IS_PATH_ITEM_ROLE)
-            
-            # Set all header items to span all columns
-            if not is_path_item:
-                self.setFirstColumnSpanned(row, parent, True)
-                # Process children immediately
-                self._process_children_spanning(source_index, proxy_index)
-    
-    def _process_children_spanning(self, source_index, proxy_index):
-        """
-        Process children of an item to ensure they have proper column spanning.
-        """
-        for row in range(self._model.rowCount(source_index)):
-            child_source_index = self._model.index(row, 0, source_index)
-            is_path_item = self._model.data(child_source_index, IS_PATH_ITEM_ROLE)
-            
-            if not is_path_item:
-                # Map source index back to proxy index for setFirstColumnSpanned
-                child_proxy_row = -1
-                for i in range(self._proxy_model.rowCount(proxy_index)):
-                    test_proxy_index = self._proxy_model.index(i, 0, proxy_index)
-                    test_source_index = self._proxy_model.mapToSource(test_proxy_index)
-                    if test_source_index.row() == child_source_index.row() and test_source_index.parent() == child_source_index.parent():
-                        child_proxy_row = i
-                        break
-                
-                if child_proxy_row >= 0:
-                    self.setFirstColumnSpanned(child_proxy_row, proxy_index, True)
-                    # Recursively process this child's children
-                    child_proxy_index = self._proxy_model.index(child_proxy_row, 0, proxy_index)
-                    self._process_children_spanning(child_source_index, child_proxy_index)
-    
-    def _handle_rows_inserted(self, parent, first, last):
-        """
-        Handle rows inserted signal to set column spanning for header items.
-        """
-        # Process the direct items
-        for row in range(first, last + 1):
-            source_index = self._model.index(row, 0, parent)
-            is_path_item = self._model.data(source_index, IS_PATH_ITEM_ROLE)
-            
-            # Set all header items to span all columns in both model and view
-            if not is_path_item:
-                # For the source model rows, we need to map them to proxy rows
-                proxy_parent = self._proxy_model.mapFromSource(parent)
-                
-                # Find the corresponding row in the proxy model
-                proxy_row = -1
-                for i in range(self._proxy_model.rowCount(proxy_parent)):
-                    proxy_index = self._proxy_model.index(i, 0, proxy_parent)
-                    source_idx = self._proxy_model.mapToSource(proxy_index)
-                    if source_idx.row() == row and source_idx.parent() == parent:
-                        proxy_row = i
-                        break
-                
-                if proxy_row >= 0:
-                    # Apply spanning in the view
-                    self.setFirstColumnSpanned(proxy_row, proxy_parent, True)
     
     def _handle_spanning_for_all_items(self):
         """
