@@ -180,63 +180,58 @@ class PathsTreeView(qtw.QTreeView):
             # Create context menu
             menu = qtw.QMenu(self)
             
-            # Add menu actions with their enabled states
-            actions = {}
+            # Add menu actions with their enabled states and direct connections
             
             # Log actions
-            actions["log_path"] = self._add_menu_action(menu, "Log instructions", len(rows) == 1)
-            actions["log_path_reversed"] = self._add_menu_action(menu, "Log instructions (reversed)", len(rows) == 1)
-            actions["log_path_diff"] = self._add_menu_action(menu, "Log instruction difference", len(rows) == 2)
+            log_path_action = self._add_menu_action(menu, "Log instructions", len(rows) == 1)
+            log_path_action.triggered.connect(lambda: on_log_path(rows, False))
+            
+            log_path_reversed_action = self._add_menu_action(menu, "Log instructions (reversed)", len(rows) == 1)
+            log_path_reversed_action.triggered.connect(lambda: on_log_path(rows, True))
+            
+            log_path_diff_action = self._add_menu_action(menu, "Log instruction difference", len(rows) == 2)
+            log_path_diff_action.triggered.connect(lambda: on_log_path_diff(rows))
+            
             menu.addSeparator()
             
             # Highlight and call graph actions
             has_single_row_and_bv = len(rows) == 1 and bv is not None
-            actions["highlight_path"] = self._add_menu_action(menu, "Un-/highlight instructions", has_single_row_and_bv)
-            actions["show_call_graph"] = self._add_menu_action(menu, "Show call graph", has_single_row_and_bv)
+            
+            highlight_path_action = self._add_menu_action(menu, "Un-/highlight instructions", has_single_row_and_bv)
+            highlight_path_action.triggered.connect(lambda: on_highlight_path(rows))
+            
+            show_call_graph_action = self._add_menu_action(menu, "Show call graph", has_single_row_and_bv)
+            show_call_graph_action.triggered.connect(lambda: on_show_call_graph(rows))
+            
             menu.addSeparator()
             
             # Tree-specific actions
-            actions["expand_all"] = menu.addAction("Expand all")
-            actions["collapse_all"] = menu.addAction("Collapse all")
+            expand_all_action = menu.addAction("Expand all")
+            expand_all_action.triggered.connect(self.expandAll)
+            
+            collapse_all_action = menu.addAction("Collapse all")
+            collapse_all_action.triggered.connect(self.collapseAll)
+            
             menu.addSeparator()
             
             # Import/export actions
-            actions["import_paths"] = menu.addAction("Import from file")
-            actions["export_paths"] = self._add_menu_action(menu, "Export to file", self._model.path_count > 0)
+            import_paths_action = menu.addAction("Import from file")
+            import_paths_action.triggered.connect(on_import_paths)
+            
+            export_paths_action = self._add_menu_action(menu, "Export to file", self._model.path_count > 0)
+            export_paths_action.triggered.connect(lambda: on_export_paths(export_rows))
+            
             menu.addSeparator()
             
             # Remove actions
-            actions["remove_selected"] = self._add_menu_action(menu, "Remove selected", len(rows) > 0)
-            actions["remove_all"] = self._add_menu_action(menu, "Remove all", self._model.path_count > 0)
-
-            # Execute menu and handle selected action
-            selected_action = menu.exec(self.viewport().mapToGlobal(pos))
-            if not selected_action:
-                return
+            remove_selected_action = self._add_menu_action(menu, "Remove selected", len(rows) > 0)
+            remove_selected_action.triggered.connect(lambda: on_remove_selected(rows))
             
-            # Handle the selected action
-            if selected_action == actions.get("log_path"):
-                on_log_path(rows, False)
-            elif selected_action == actions.get("log_path_reversed"):
-                on_log_path(rows, True)
-            elif selected_action == actions.get("log_path_diff"):
-                on_log_path_diff(rows)
-            elif selected_action == actions.get("highlight_path"):
-                on_highlight_path(rows)
-            elif selected_action == actions.get("show_call_graph"):
-                on_show_call_graph(rows)
-            elif selected_action == actions.get("expand_all"):
-                self.expandAll()
-            elif selected_action == actions.get("collapse_all"):
-                self.collapseAll()
-            elif selected_action == actions.get("import_paths"):
-                on_import_paths()
-            elif selected_action == actions.get("export_paths"):
-                on_export_paths(export_rows)
-            elif selected_action == actions.get("remove_selected"):
-                on_remove_selected(rows)
-            elif selected_action == actions.get("remove_all"):
-                on_remove_all()
+            remove_all_action = self._add_menu_action(menu, "Remove all", self._model.path_count > 0)
+            remove_all_action.triggered.connect(on_remove_all)
+
+            # Execute menu
+            menu.exec(self.viewport().mapToGlobal(pos))
         
         # Store the function reference to enable future disconnections if needed
         self._context_menu_function = show_context_menu
