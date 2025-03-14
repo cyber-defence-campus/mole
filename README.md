@@ -76,4 +76,6 @@ To implement a custom path grouping strategy:
 
 1. Create a new subclass of `PathGrouper` in the grouping package
 2. No need to manually add your strategy name to the `003-settings.yml` file as it will be dynamically detected.
-3. You can inherit from existing strategies (see `CallgraphPathGrouper` for an example)
+3. Define your key(s) that uniquely identify a group of paths and specify the corresponding depth level.
+
+> You can inherit from existing strategies (see `CallgraphPathGrouper` for an example)
