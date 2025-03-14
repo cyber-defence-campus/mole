@@ -184,11 +184,9 @@ class PathsTreeView(qtw.QTreeView):
             
             # Log actions
             log_path_action = self._add_menu_action(menu, "Log instructions", len(rows) == 1)
-            log_path_action.triggered.connect(lambda: on_log_path(rows, False))
-            
+            log_path_action.triggered.connect(lambda: on_log_path(rows, False)) 
             log_path_reversed_action = self._add_menu_action(menu, "Log instructions (reversed)", len(rows) == 1)
             log_path_reversed_action.triggered.connect(lambda: on_log_path(rows, True))
-            
             log_path_diff_action = self._add_menu_action(menu, "Log instruction difference", len(rows) == 2)
             log_path_diff_action.triggered.connect(lambda: on_log_path_diff(rows))
             
@@ -196,10 +194,8 @@ class PathsTreeView(qtw.QTreeView):
             
             # Highlight and call graph actions
             has_single_row_and_bv = len(rows) == 1 and bv is not None
-            
             highlight_path_action = self._add_menu_action(menu, "Un-/highlight instructions", has_single_row_and_bv)
             highlight_path_action.triggered.connect(lambda: on_highlight_path(rows))
-            
             show_call_graph_action = self._add_menu_action(menu, "Show call graph", has_single_row_and_bv)
             show_call_graph_action.triggered.connect(lambda: on_show_call_graph(rows))
             
@@ -208,7 +204,6 @@ class PathsTreeView(qtw.QTreeView):
             # Tree-specific actions
             expand_all_action = menu.addAction("Expand all")
             expand_all_action.triggered.connect(self.expandAll)
-            
             collapse_all_action = menu.addAction("Collapse all")
             collapse_all_action.triggered.connect(self.collapseAll)
             
@@ -217,7 +212,6 @@ class PathsTreeView(qtw.QTreeView):
             # Import/export actions
             import_paths_action = menu.addAction("Import from file")
             import_paths_action.triggered.connect(on_import_paths)
-            
             export_paths_action = self._add_menu_action(menu, "Export to file", self._model.path_count > 0)
             export_paths_action.triggered.connect(lambda: on_export_paths(export_rows))
             
@@ -226,7 +220,6 @@ class PathsTreeView(qtw.QTreeView):
             # Remove actions
             remove_selected_action = self._add_menu_action(menu, "Remove selected", len(rows) > 0)
             remove_selected_action.triggered.connect(lambda: on_remove_selected(rows))
-            
             remove_all_action = self._add_menu_action(menu, "Remove all", self._model.path_count > 0)
             remove_all_action.triggered.connect(on_remove_all)
 

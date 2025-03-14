@@ -2,7 +2,6 @@ from __future__          import annotations
 from ..common.log      import Logger
 from ..common.parse    import LogicalExpressionParser
 from ..core.data       import Path, InstructionHelper
-from ..core.grouping   import PathGrouper
 from ..models.config   import ConfigModel
 from ..services.slicer import MediumLevelILBackwardSlicerThread
 from ..views.graph     import GraphWidget
@@ -15,7 +14,6 @@ import difflib           as difflib
 import hashlib           as hashlib
 import json              as json
 import os                as os
-import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
 import shutil            as shu
 import yaml              as yaml
