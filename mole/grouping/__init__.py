@@ -76,7 +76,7 @@ class PathGrouper(ABC):
                 instance = cls()
                 strategy_map[instance.get_strategy_name()] = instance
             except Exception as e:
-                print(f"Error instantiating {cls.__name__}: {e}", file=sys.stderr)
+                print(f"Error instantiating {cls.__name__:s}: {str(e):s}", file=sys.stderr)
         return strategy_map
 
 def get_all_grouping_strategies() -> List[str]:
@@ -105,4 +105,4 @@ package_dir = os.path.dirname(__file__)
 for (_, module_name, _) in pkgutil.iter_modules([package_dir]):
     # Skip importing this module to avoid circular imports
     if module_name != "__init__":
-        importlib.import_module(f"{__name__}.{module_name}")
+        importlib.import_module(f"{__name__:s}.{module_name:s}")

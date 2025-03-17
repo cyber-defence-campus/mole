@@ -17,8 +17,8 @@ class SourceSinkPathGrouper(PathGrouper):
         Group paths by source and sink symbols.
         """
         return [
-            (f"Source: {path.src_sym_name}", path.src_sym_name, 0),
-            (f"Sink: {path.snk_sym_name}", f"{path.src_sym_name}:{path.snk_sym_name}", 1)
+            (f"Source: {path.src_sym_name:s}", path.src_sym_name, 0),
+            (f"Sink: {path.snk_sym_name:s}", f"{path.src_sym_name:s}:{path.snk_sym_name:s}", 1)
         ]
     
     def get_strategy_name(self) -> str:
