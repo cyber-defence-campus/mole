@@ -27,8 +27,8 @@ class PathController:
 
     def __init__(
             self,
-            view: SidebarView,
-            model: ConfigModel,
+            sidebar_view: SidebarView,
+            config_model: ConfigModel,
             config_controller: ConfigController,
             tag: str,
             log: Logger
@@ -36,8 +36,9 @@ class PathController:
         """
         This method initializes a controller (MVC pattern).
         """
-        self._view = view
-        self._model = model
+        self._sidebar_view = sidebar_view
+        self._config_model = config_model
+        self._config_controller = config_controller
         self._tag = tag
         self._log = log
         self._thread: MediumLevelILBackwardSlicerThread = None
@@ -52,9 +53,9 @@ class PathController:
             os.path.dirname(os.path.abspath(__file__)),
             "../../conf/"
         )
-        view.set_controller(self)
-        # Connect to the signal for grouping strategy changes
-        config_controller.grouping_strategy_changed.connect(self._on_grouping_strategy_changed)
+        self._sidebar_view.set_controller(self)
+        self._config_controller.grouping_strategy_changed.connect(self._on_grouping_strategy_changed)
+        return
 
     def _on_grouping_strategy_changed(self, new_strategy: str) -> None:
         """
@@ -89,7 +90,7 @@ class PathController:
                 
             # Get current grouping strategy from settings
             grouping_strategy = None
-            settings = self._model.get().settings
+            settings = self._config_model.get().settings
             if "grouping_strategy" in settings:
                 strategy_value = settings["grouping_strategy"].value
                 # Strategy value is already a string, use directly
@@ -113,28 +114,28 @@ class PathController:
         # Require a binary to be loaded
         if not bv:
             self._log.warn(self._tag, "No binary loaded.")
-            self._view.give_feedback("Find", "No Binary Loaded...")
+            self._sidebar_view.give_feedback("Find", "No Binary Loaded...")
             return
         # Require the binary to be in mapped view
         if bv.view_type == "Raw":
             self._log.warn(self._tag, "Binary is in Raw view.")
-            self._view.give_feedback("Find", "Binary is in Raw View...")
+            self._sidebar_view.give_feedback("Find", "Binary is in Raw View...")
             return
         # Require previous analyses to complete
         if self._thread and not self._thread.finished:
             self._log.warn(self._tag, "Analysis already running.")
-            self._view.give_feedback("Find", "Analysis Already Running...")
+            self._sidebar_view.give_feedback("Find", "Analysis Already Running...")
             return
         # Initialize new logger to detect newly attached debugger
         self._log = Logger(self._log.get_level(), False)
-        self._view.give_feedback("Find", "Finding Paths...")
+        self._sidebar_view.give_feedback("Find", "Finding Paths...")
         # Initialize data structures
         if view:
             self._paths_view = view
         # Run background thread
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
-            model=self._model,
+            model=self._config_model,
             tag=f"{self._tag:s}.Slicer",
             log=self._log,
             found_path_callback=self.add_path_to_view
@@ -152,7 +153,7 @@ class PathController:
         """
         if not view: 
             return
-        self._view.give_feedback("Load", "Loading Paths...")
+        self._sidebar_view.give_feedback("Load", "Loading Paths...")
         # Clear paths
         self._paths = []
         self._paths_view = view
@@ -171,7 +172,7 @@ class PathController:
                 
                 # Update model directly instead of through the view
                 grouping_strategy = None
-                settings = self._model.get().settings
+                settings = self._config_model.get().settings
                 if "grouping_strategy" in settings:
                     strategy_value = settings["grouping_strategy"].value
                     # Strategy value is already a string, use directly
@@ -248,7 +249,7 @@ class PathController:
         """
         if not self._paths_view: 
             return
-        self._view.give_feedback("Save", "Saving Paths...")
+        self._sidebar_view.give_feedback("Save", "Saving Paths...")
         try:
             # Calculate SHA1 hash of binary
             sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
@@ -474,7 +475,7 @@ class PathController:
         highlighted_path = path
         insts_colors = {}
         try:
-            model = self._model.get()
+            model = self._config_model.get()
             color_name = model.settings.get("highlight_color").widget.currentText().capitalize()
             color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
         except Exception as _:
@@ -576,7 +577,7 @@ class PathController:
         view.expandAll()
         
         # Apply current grouping strategy to any existing paths
-        settings = self._model.get().settings
+        settings = self._config_model.get().settings
         if "grouping_strategy" in settings and self._paths_view.model.path_count > 0:
             self._paths_view.model.regroup_paths(settings["grouping_strategy"].value)
         

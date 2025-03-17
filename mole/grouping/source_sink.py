@@ -1,18 +1,20 @@
 """
-Source-Sink grouping strategy implementation.
+Source / Sink grouping strategy implementation.
 """
-from typing import List, Tuple
-from . import PathGrouper
+from __future__  import annotations
+from .           import PathGrouper
 from ..core.data import Path
+from typing      import List, Tuple
+
 
 class SourceSinkPathGrouper(PathGrouper):
     """
-    Grouping strategy that only groups by source and sink, without call graph grouping.
+    Grouping strategy that groups by source and sink symbols.
     """
     
     def get_group_keys(self, path: Path) -> List[Tuple[str, str, int]]:
         """
-        Group paths only by source and sink.
+        Group paths by source and sink symbols.
         """
         return [
             (f"Source: {path.src_sym_name}", path.src_sym_name, 0),
@@ -20,4 +22,4 @@ class SourceSinkPathGrouper(PathGrouper):
         ]
     
     def get_strategy_name(self) -> str:
-        return "Source - Sink"
+        return "Source / Sink"

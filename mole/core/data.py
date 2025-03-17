@@ -431,23 +431,8 @@ class Path:
         self.insts = insts
         self.call_graph = call_graph
         self._init_metrics()
+        self._init_calls()
         return
-    
-    def get_callgraph_signature(self) -> str:
-        """
-        Returns a string representation of the call graph for comparison purposes.
-        """
-        if not self.call_graph or not self.call_graph.nodes:
-            return ""
-            
-        result = []
-        for node in self.call_graph.nodes:
-            if hasattr(node, 'start'):
-                result.append(f"{node.start}")
-            elif hasattr(node, 'name'):
-                result.append(node.name)
-                
-        return "->".join(result)
     
     def _init_metrics(self) -> None:
         self.phiis = []
@@ -457,6 +442,15 @@ class Path:
                 self.phiis.append(inst)
             for bch_idx, bch_dep in inst.branch_dependence.items():
                 self.bdeps.setdefault(bch_idx, bch_dep)
+        return
+    
+    def _init_calls(self) -> None:
+        self.calls = [self.snk_sym_name]
+        for inst in self.insts:
+            call = inst.function.source_function.name
+            if self.calls[-1] != call:
+                self.calls.append(call)
+        self.calls.append(self.src_sym_name)
         return
 
     def __eq__(self, other: Path) -> bool:
@@ -503,7 +497,8 @@ class Path:
         insts: List[bn.MediumLevelILInstruction] = []
         for func_addr, expr_idx in d["insts"]:
             func = bv.get_function_at(int(func_addr, 0))
-            insts.append(func.mlil.ssa_form.get_expr(expr_idx))
+            inst = func.mlil.ssa_form.get_expr(expr_idx)
+            insts.append(inst)
         # Deserialize sink parameter variable
         snk_par_idx = d["snk_par_idx"]
         snk_par_var = insts[0].params[snk_par_idx-1]
@@ -519,8 +514,6 @@ class Path:
             call_graph   = MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"])
         )
         return path
-
-
 
 
 @dataclass

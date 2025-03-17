@@ -11,9 +11,6 @@ from mole.views.sidebar      import MoleSidebar, SidebarView
 tag = "Mole"
 log = Logger(level="debug")
 
-#from binaryninja import connect_vscode_debugger
-#connect_vscode_debugger(port=3133)
-
 # Models
 config_service = ConfigService(f"{tag:s}.ConfigService", log)
 config_model = ConfigModel(config_service.load_configuration())

@@ -71,9 +71,7 @@ In addition to the previously mentioned log entries, *Mole* summarizes the ident
 ![Mole UI Interesting Paths](https://github.com/user-attachments/assets/dcc97248-af2e-46d9-9d46-f3e257434882)
 
 ## Extending Path Grouping
-
 To implement a custom path grouping strategy:
-
 1. Create a new subclass of `PathGrouper` in the grouping package.
 2. Your strategy name will be dynamically detected, so no need to manually add it to the `003-settings.yml` file.
 3. Define your key tuple by specifying the following values:
