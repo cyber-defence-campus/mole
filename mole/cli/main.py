@@ -53,14 +53,14 @@ def main() -> None:
         "--export_paths_to_yml_file",
         help="export identified paths in YAML format"
     )
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
 
     # Initialize logger to operate in headless mode
     tag = "Mole"
-    log = Logger(level=args.log_level, runs_headless=True)
+    log = Logger(level=args["log_level"], runs_headless=True)
     try:
         # Load and analyze binary with Binary Ninja
-        bv = bn.load(args.file)
+        bv = bn.load(args["file"])
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
         slicer = MediumLevelILBackwardSlicerThread(
@@ -68,14 +68,14 @@ def main() -> None:
             model=ConfigModel(ConfigService(f"{tag:s}.ConfigService", log).load_configuration()),
             tag=f"{tag:s}.Slicer",
             log=log,
-            max_workers=args.max_workers,
-            max_call_level=args.max_call_level,
-            max_slice_depth=args.max_slice_depth
+            max_workers=args["max_workers"],
+            max_call_level=args["max_call_level"],
+            max_slice_depth=args["max_slice_depth"]
         )
         slicer.start()
         paths = slicer.get_paths()
         # Export identified paths
-        if args.export_paths_to_yml_file or args.export_paths_to_json_file:
+        if args["export_paths_to_yml_file"] or args["export_paths_to_json_file"]:
             # Calculate SHA1 hash of binary
             sha1_hash = hl.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
             # Serialize paths
@@ -86,16 +86,16 @@ def main() -> None:
                 s_path["sha1"] = sha1_hash
                 s_paths.append(s_path)
             # Write JSON data (default)
-            if args.export_paths_to_json_file:
-                with open(args.export_paths_to_json_file, "w") as f:
+            if args["export_paths_to_json_file"]:
+                with open(args["export_paths_to_json_file"], "w") as f:
                     json.dump(
                         s_paths,
                         f,
                         indent=2
                     )
             # Write YAML data
-            if args.export_paths_to_yml_file:
-                with open(args.export_paths_to_yml_file, "w") as f:
+            if args["export_paths_to_yml_file"]:
+                with open(args["export_paths_to_yml_file"], "w") as f:
                     yaml.safe_dump(
                         s_paths,
                         f,
