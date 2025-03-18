@@ -1,8 +1,8 @@
-from __future__ import annotations
+from __future__     import annotations
 from ..common.log   import Logger
 from ..common.parse import LogicalExpressionParser
 from ..core.data    import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting
-from ..grouping import get_all_grouping_strategies
+from ..grouping     import get_all_grouping_strategies
 from typing         import Dict
 import fnmatch as fn
 import os      as os
@@ -27,21 +27,21 @@ class ConfigService:
         self._parser = LogicalExpressionParser(tag, log)
         return
     
-    def load_configuration(self) -> Configuration:
+    def load_config(self) -> Configuration:
         """
         This method loads all configuration files and returns a complete `Configuration` object.
         """
         # Initialize empty configuration
         config = Configuration()
         # Load custom configuration files
-        custom_config = self.load_custom_configuration()
-        self._update_configuration(config, custom_config)
+        custom_config = self.load_custom_config()
+        self._update_config(config, custom_config)
         # Load main configuration file
-        main_config = self.load_main_configuration()
-        self._update_configuration(config, main_config)
+        main_config = self.load_main_config()
+        self._update_config(config, main_config)
         return config
     
-    def load_custom_configuration(self) -> Configuration:
+    def load_custom_config(self) -> Configuration:
         """
         This method loads all custom configuration files.
         """
@@ -63,11 +63,11 @@ class ConfigService:
                 )
                 continue
             # Parse configuration file
-            custom_config = self._parse_conf(config_dict)
-            self._update_configuration(config, custom_config)
+            custom_config = self._parse_config(config_dict)
+            self._update_config(config, custom_config)
         return config
     
-    def load_main_configuration(self) -> Configuration:
+    def load_main_config(self) -> Configuration:
         """
         This method loads the main configuration file.
         """
@@ -85,12 +85,12 @@ class ConfigService:
                     )
             return None
         # Parse configuration file
-        config = self._parse_conf(config_dict)
+        config = self._parse_config(config_dict)
         return config
 
-    def store_configuration(self, configuration: Configuration) -> None:
+    def save_config(self, configuration: Configuration) -> None:
         """
-        This method stores the main configuration file based on the provided `Configuration` object.
+        This method saves the main configuration file based on the provided `Configuration` object.
         """
         with open(os.path.join(self._config_path, "000-mole.yml"), "w") as f:
             yaml.safe_dump(
@@ -103,7 +103,7 @@ class ConfigService:
             )
         return
 
-    def _update_configuration(self, target: Configuration, source: Configuration) -> None:
+    def _update_config(self, target: Configuration, source: Configuration) -> None:
         """
         This method updates the `target` `Configuration` with data from `source` `Configuration`.
         """
@@ -140,7 +140,7 @@ class ConfigService:
             old_settings[new_setting_name] = new_setting
         return
 
-    def _parse_conf(self, config: Dict) -> Configuration:
+    def _parse_config(self, config: Dict) -> Configuration:
         """
         This method parse the plain configuration `conf` into a `Configuration` instance.
         """
@@ -196,26 +196,23 @@ class ConfigService:
                     )
                 })
             for name in ["highlight_color", "grouping_strategy"]:
-                col_name = name
-                col_settings = settings.get(col_name, None)
-                if col_settings:
-                    col_value = col_settings.get("value", "")
-                    col_help = col_settings.get("help", "")
-                    
-                    if name == "grouping_strategy":
-                        # Get all available strategies from the PathGrouper class
-                        col_items = get_all_grouping_strategies()
-                    else:
-                        col_items = col_settings.get("items", [])
-                    
-                    parsed_config["settings"].update({
-                        col_name: ComboboxSetting(
-                            name=col_name,
-                            value=col_value,
-                            help=col_help,
-                            items=col_items
-                        )
-                    })
+                setting = settings.get(name, None)
+                if not setting:
+                    continue
+                value = setting.get("value", "")
+                help = setting.get("help", "")
+                if name == "grouping_strategy":
+                    items = get_all_grouping_strategies()
+                else:
+                    items = setting.get("items", [])
+                parsed_config["settings"].update({
+                    name: ComboboxSetting(
+                        name=name,
+                        value=value,
+                        help=help,
+                        items=items
+                    )
+                })
         except Exception as e:
             self._log.warn(
                 self._tag,

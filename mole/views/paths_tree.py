@@ -1,24 +1,23 @@
-from __future__ import annotations
-from typing import Callable, List, Optional
-import binaryninja as bn
-import binaryninjaui as bnui
-import PySide6.QtCore as qtc
-import PySide6.QtWidgets as qtw
-
+from __future__     import annotations
+from ..core.data    import Path
 from ..models.paths import (
-    PathsTreeModel, PathsSortProxyModel,
+    PathsSortProxyModel, PathsTreeModel,
     SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL,
     IS_PATH_ITEM_ROLE, COMMENT_COL
 )
-from ..core.data import Path
+from typing      import Callable, List, Optional
+import binaryninja       as bn
+import binaryninjaui     as bnui
+import PySide6.QtCore    as qtc
+import PySide6.QtWidgets as qtw
 
 
 class PathsTreeView(qtw.QTreeView):
     """
-    This class implements a tree view for displaying paths grouped by source, sink, and call graph.
+    This class implements a tree view for displaying paths grouped by source, sink and call graph.
     """
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         """
         Initialize the path tree view.
         """
@@ -54,8 +53,9 @@ class PathsTreeView(qtw.QTreeView):
         
         # Connect to proxy model data changed signal to capture comment edits
         self._proxy_model.dataChanged.connect(self._handle_comment_edit)
+        return
     
-    def refresh_view(self):
+    def refresh_view(self) -> None:
         """
         Refresh the view by expanding all items and resizing columns.
         Called when new paths are added to ensure proper display.
@@ -69,8 +69,9 @@ class PathsTreeView(qtw.QTreeView):
         
         # Expand all items for better visibility
         self.expandAll()
+        return
     
-    def _handle_rows_inserted_or_changed(self, *args):
+    def _handle_rows_inserted_or_changed(self, *args) -> None:
         """
         Generic handler for when rows are inserted or data changes.
         This replaces the separate handlers for each model's signals.
@@ -84,16 +85,18 @@ class PathsTreeView(qtw.QTreeView):
         
         # Expand all items for better visibility
         self.expandAll()
+        return
     
-    def _handle_spanning_for_all_items(self):
+    def _handle_spanning_for_all_items(self) -> None:
         """
         Ensure all header items have column spanning set correctly.
         Called after items are added to ensure proper spanning.
         """
         # Reset all spanning first
         self._apply_spanning_recursively(qtc.QModelIndex())
+        return
     
-    def _apply_spanning_recursively(self, proxy_parent_index):
+    def _apply_spanning_recursively(self, proxy_parent_index) -> None:
         """
         Apply spanning to all items recursively.
         """
@@ -107,6 +110,7 @@ class PathsTreeView(qtw.QTreeView):
                 self.setFirstColumnSpanned(row, proxy_parent_index, True)
                 # Recursively apply to children
                 self._apply_spanning_recursively(proxy_index)
+        return
     
     @property
     def model(self) -> PathsTreeModel:
@@ -115,11 +119,12 @@ class PathsTreeView(qtw.QTreeView):
         """
         return self._model
     
-    def clear(self):
+    def clear(self) -> None:
         """
         Clear all paths from the view.
         """
         self._model.clear()
+        return
     
     def get_selected_rows(self) -> List[int]:
         """
@@ -137,14 +142,14 @@ class PathsTreeView(qtw.QTreeView):
             path_id = self._model.get_path_id_from_index(source_index)
             if path_id is not None:
                 path_rows.append(path_id)
-                
         return sorted(set(path_rows))
     
-    def remove_paths_at_rows(self, rows: List[int]):
+    def remove_paths_at_rows(self, rows: List[int]) -> None:
         """
         Remove the paths at the specified rows.
         """
         self._model.remove_paths_at_rows(rows)
+        return
     
     def path_at_row(self, row: int) -> Optional[Path]:
         """
@@ -158,16 +163,18 @@ class PathsTreeView(qtw.QTreeView):
         """
         return self._model.paths
     
-    def setup_context_menu(self, 
-                           on_log_path: Callable[[List[int], bool], None],
-                           on_log_path_diff: Callable[[List[int]], None],
-                           on_highlight_path: Callable[[List[int]], None],
-                           on_show_call_graph: Callable[[List[int]], None],
-                           on_import_paths: Callable[[], None],
-                           on_export_paths: Callable[[List[int]], None],
-                           on_remove_selected: Callable[[List[int]], None],
-                           on_remove_all: Callable[[], None],
-                           bv: bn.BinaryView = None):
+    def setup_context_menu(
+            self, 
+            on_log_path: Callable[[List[int], bool], None],
+            on_log_path_diff: Callable[[List[int]], None],
+            on_highlight_path: Callable[[List[int]], None],
+            on_show_call_graph: Callable[[List[int]], None],
+            on_import_paths: Callable[[], None],
+            on_export_paths: Callable[[List[int]], None],
+            on_remove_selected: Callable[[List[int]], None],
+            on_remove_all: Callable[[], None],
+            bv: bn.BinaryView = None
+        ) -> None:
         """
         Set up the context menu for the view.
         """
@@ -236,6 +243,7 @@ class PathsTreeView(qtw.QTreeView):
         # Connect the signal and mark as connected
         self.customContextMenuRequested.connect(show_context_menu)
         self._context_menu_connected = True
+        return
     
     def _add_menu_action(self, menu: qtw.QMenu, text: str, enabled: bool = True) -> qtw.QAction:
         """
@@ -279,7 +287,7 @@ class PathsTreeView(qtw.QTreeView):
             
         return export_rows
     
-    def _collect_child_paths(self, parent_idx, path_list: List[int]):
+    def _collect_child_paths(self, parent_idx, path_list: List[int]) -> None:
         """
         Recursively collect all path IDs under a parent index.
         """
@@ -294,8 +302,9 @@ class PathsTreeView(qtw.QTreeView):
             else:
                 # This is a header item, so recurse into it
                 self._collect_child_paths(child_idx, path_list)
+        return
     
-    def setup_navigation(self, bv: bn.BinaryView = None):
+    def setup_navigation(self, bv: bn.BinaryView = None) -> None:
         """
         Set up navigation for the view.
         """
@@ -344,8 +353,9 @@ class PathsTreeView(qtw.QTreeView):
         # Connect the cell double-clicked signal and mark as connected
         self.doubleClicked.connect(navigate)
         self._navigation_connected = True
+        return
     
-    def _handle_comment_edit(self, topLeft, bottomRight, roles):
+    def _handle_comment_edit(self, topLeft, bottomRight, roles) -> None:
         """
         Handle comment edits in the view and update the underlying model's path_comments dictionary.
         """
@@ -368,3 +378,4 @@ class PathsTreeView(qtw.QTreeView):
                 if path_id is not None:
                     new_comment = comment_idx.data(qtc.Qt.DisplayRole)
                     self._model.update_path_comment(path_id, new_comment)
+        return

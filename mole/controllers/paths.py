@@ -54,10 +54,10 @@ class PathController:
             "../../conf/"
         )
         self._sidebar_view.set_controller(self)
-        self._config_controller.grouping_strategy_changed.connect(self._on_grouping_strategy_changed)
+        self._config_controller.signal_change_path_grouping.connect(self._change_path_grouping)
         return
 
-    def _on_grouping_strategy_changed(self, new_strategy: str) -> None:
+    def _change_path_grouping(self, new_strategy: str) -> None:
         """
         Handler for when grouping strategy changes in the config.
         Regroups all paths with the new strategy.
@@ -547,10 +547,17 @@ class PathController:
         self._log.info(self._tag, "Removed all path(s)")
         return
 
-    def setup_paths_tree(self, bv: bn.BinaryView, view: PathsTreeView, tab_widget: qtw.QTabWidget = None) -> None:
+    def setup_paths_tree(
+            self,
+            bv: bn.BinaryView,
+            view: PathsTreeView,
+            wid: qtw.QTabWidget = None
+        ) -> None:
         """
         This method sets up the path tree view with controller callbacks.
         """
+        # if not bv or not view or not wid:
+        #     return
         if not view:
             return
             
@@ -562,7 +569,7 @@ class PathController:
             on_log_path=self.log_path,
             on_log_path_diff=self.log_path_diff,
             on_highlight_path=lambda rows: self.highlight_path(bv, rows),
-            on_show_call_graph=lambda rows: self.show_call_graph(bv, rows, tab_widget),
+            on_show_call_graph=lambda rows: self.show_call_graph(bv, rows, wid),
             on_import_paths=lambda: self.import_paths(bv),
             on_export_paths=lambda rows: self.export_paths(bv, rows),
             on_remove_selected=self.remove_selected_paths,
@@ -580,5 +587,4 @@ class PathController:
         settings = self._config_model.get().settings
         if "grouping_strategy" in settings and self._paths_view.model.path_count > 0:
             self._paths_view.model.regroup_paths(settings["grouping_strategy"].value)
-        
         return

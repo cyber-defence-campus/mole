@@ -11,9 +11,11 @@ from mole.views.sidebar      import MoleSidebar, SidebarView
 tag = "Mole"
 log = Logger(level="debug")
 
-# Models
+# Services
 config_service = ConfigService(f"{tag:s}.ConfigService", log)
-config_model = ConfigModel(config_service.load_configuration())
+
+# Models
+config_model = ConfigModel(config_service.load_config())
 
 # Views
 config_view = ConfigView(f"{tag:s}.ConfigView", log)

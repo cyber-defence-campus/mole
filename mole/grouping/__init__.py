@@ -37,7 +37,6 @@ class PathGrouper(ABC):
     @abstractmethod
     def get_strategy_name(self) -> str:
         """
-        TODO: What is the strategy constant?
         Return the name of this grouping strategy. This should match the corresponding strategy
         constant.
         """

@@ -48,11 +48,11 @@ class ConfigModel:
     
     def get_functions(
             self,
-            lib_name: str = None,
-            cat_name: str = None,
-            fun_name: str = None,
+            lib_name: Optional[str] = None,
+            cat_name: Optional[str] = None,
+            fun_name: Optional[str] = None,
             fun_type: Optional[Literal["Sources", "Sinks"]] = None,
-            fun_enabled: bool = None
+            fun_enabled: Optional[bool] = None
         ) -> List[Function]:
         """
         This method returns all functions matching the given attributes. An attribute of `None`

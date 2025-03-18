@@ -34,5 +34,4 @@ settings:
   grouping_strategy:
     name: grouping_strategy
     help: Strategy used to group paths
-    value: Callgraph
-    
+    value: Call Graph

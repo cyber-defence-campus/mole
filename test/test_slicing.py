@@ -18,7 +18,7 @@ class TestCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tag = "Mole"
         self._log = Logger(level="debug", runs_headless=True)
-        self._model = ConfigModel(ConfigService(f"{self._tag}.ConfigService", self._log).load_configuration())
+        self._model = ConfigModel(ConfigService(f"{self._tag}.ConfigService", self._log).load_config())
         return
     
     @staticmethod

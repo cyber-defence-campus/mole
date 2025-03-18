@@ -2,9 +2,8 @@ from __future__     import annotations
 from ..common.log   import Logger
 from ..views.config import ConfigView
 from ..views.graph  import GraphWidget
-from .paths_tree import PathsTreeView
+from .paths_tree    import PathsTreeView
 from typing         import Any, Literal, Tuple, TYPE_CHECKING
-
 import binaryninja       as bn
 import binaryninjaui     as bnui
 import os                as os
@@ -86,12 +85,11 @@ class SidebarView(bnui.SidebarWidget):
     """
     This class implements the widget for the plugin's sidebar.
     """
-    # Signal for when binary view changes
-    binaryViewChanged = qtc.Signal(object)
-    # Signal for various button actions
-    findPathsClicked = qtc.Signal(object, object)
-    loadPathsClicked = qtc.Signal(object, object)
-    savePathsClicked = qtc.Signal(object)
+
+    signal_change_bv = qtc.Signal(object)
+    signal_find_paths = qtc.Signal(object, object)
+    signal_load_paths = qtc.Signal(object, object)
+    signal_save_paths = qtc.Signal(object)
 
     def __init__(
             self,
@@ -112,24 +110,24 @@ class SidebarView(bnui.SidebarWidget):
         self._paths_tree_view: PathsTreeView = None
         return
     
+    def _change_bv(self, bv: bn.BinaryView) -> None:
+        """
+        This method handles changes in the binary view.
+        """
+        if self._wid and self._ctr and self._paths_tree_view:
+            self._ctr.setup_paths_tree(bv, self._paths_tree_view, self._wid)
+        return
+
     def set_controller(self, ctr: PathController) -> None:
         """
         This method sets the controller for the model.
         """
         self._ctr = ctr
-        # Connect signals to controller slots
-        self.findPathsClicked.connect(ctr.find_paths)
-        self.loadPathsClicked.connect(ctr.load_paths)
-        self.savePathsClicked.connect(ctr.save_paths)
-        self.binaryViewChanged.connect(self._on_binary_view_changed)
+        self.signal_change_bv.connect(self._change_bv)
+        self.signal_find_paths.connect(ctr.find_paths)
+        self.signal_load_paths.connect(ctr.load_paths)
+        self.signal_save_paths.connect(ctr.save_paths)
         return
-    
-    def _on_binary_view_changed(self, bv):
-        """
-        Handle binary view changes with proper MVC separation.
-        """
-        if self._paths_tree_view and self._ctr and self._wid:
-            self._ctr.setup_paths_tree(bv, self._paths_tree_view, self._wid)
     
     def init(self) -> SidebarView:
         """
@@ -160,15 +158,15 @@ class SidebarView(bnui.SidebarWidget):
         # Create control buttons
         self._run_but = qtw.QPushButton("Find")
         self._run_but.clicked.connect(
-            lambda: self.findPathsClicked.emit(self._bv, self._paths_tree_view)
+            lambda: self.signal_find_paths.emit(self._bv, self._paths_tree_view)
         )
         self._load_but = qtw.QPushButton("Load")
         self._load_but.clicked.connect(
-            lambda: self.loadPathsClicked.emit(self._bv, self._paths_tree_view)
+            lambda: self.signal_load_paths.emit(self._bv, self._paths_tree_view)
         )
         self._save_but = qtw.QPushButton("Save")
         self._save_but.clicked.connect(
-            lambda: self.savePathsClicked.emit(self._bv)
+            lambda: self.signal_save_paths.emit(self._bv)
         )
         
         # Set up button layout
@@ -225,12 +223,10 @@ class SidebarView(bnui.SidebarWidget):
         This method is a callback invoked when the active view in the Binary UI changes.
         """
         if vf:
-            new_bv = vf.getCurrentBinaryView()
-            # Only update if the binary view changed
-            if self._bv != new_bv:
+            new_bv: bn.BinaryView = vf.getCurrentBinaryView()
+            if new_bv != self._bv:
                 self._bv = new_bv
-                # Emit signal instead of directly calling controller
-                self.binaryViewChanged.emit(new_bv)
+                self.signal_change_bv.emit(new_bv)
         else:
             self._bv = None
         return

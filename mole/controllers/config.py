@@ -12,8 +12,7 @@ class ConfigController(qtc.QObject):
     This class implements a controller to handle Mole's configuration.
     """
     
-    # Define a signal for grouping strategy changes
-    grouping_strategy_changed = qtc.Signal(str)
+    signal_change_path_grouping = qtc.Signal(object)
     
     def __init__(self, model: ConfigModel, view: ConfigView, service: ConfigService) -> None:
         """
@@ -61,13 +60,13 @@ class ConfigController(qtc.QObject):
         """
         return self._model.get_setting(name)
     
-    def handle_function_toggled(
+    def check_functions(
             self,
-            lib_name: str,
-            cat_name: str,
-            fun_name: str,
-            fun_type: str,
-            fun_enabled: bool
+            lib_name: Optional[str] = None,
+            cat_name: Optional[str] = None,
+            fun_name: Optional[str] = None,
+            fun_type: Optional[str] = None,
+            fun_enabled: Optional[bool] = None
         ) -> None:
         """
         This method sets the enabled attribute of all functions' checkboxes matching the given
@@ -83,9 +82,9 @@ class ConfigController(qtc.QObject):
             fun.checkbox.setChecked(fun.enabled)
         return
     
-    def handle_setting_changed(self, name: str, value: object) -> None:
+    def change_setting(self, name: str, value: object) -> None:
         """
-        Handler for setting value changes from the view.
+        This method changes setting values.
         """
         setting = self._model.get_setting(name)
         if setting:
@@ -93,19 +92,22 @@ class ConfigController(qtc.QObject):
             # No signal emission here - we'll do it only on save if needed
         return
     
-    def store_configuration(self) -> None:
+    def save_config(self) -> None:
+        """
+        This method saves the configuration.
+        """
         # Check if the grouping strategy has changed before saving
         new_strategy_setting = self._model.get_setting("grouping_strategy")
         if new_strategy_setting and new_strategy_setting.value != self._current_grouping_strategy:
             # Strategy has changed, emit the signal
-            self.grouping_strategy_changed.emit(new_strategy_setting.value)
+            self.signal_change_path_grouping.emit(new_strategy_setting.value)
             self._current_grouping_strategy = new_strategy_setting.value
             
-        self._service.store_configuration(self._model.get())
+        self._service.save_config(self._model.get())
         self._view.give_feedback("Save", "Saving...")
         return
 
-    def reset_conf(self) -> None:
+    def reset_config(self) -> None:
         """
         This method resets the configuration.
         """
@@ -129,7 +131,7 @@ class ConfigController(qtc.QObject):
         for setting_name, setting in old_model.settings.items():
             settings[setting_name] = setting.widget
         # Reset model
-        new_config = self._service.load_custom_configuration()
+        new_config = self._service.load_custom_config()
         # Restore input elements
         for lib_name, lib in new_config.sources.items():
             sources_ie_lib = sources_ie.get(lib_name, {})
