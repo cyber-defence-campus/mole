@@ -17,7 +17,10 @@ venv/
 # Visual Studio Code
 .vscode
 
-# exclude all yml but 001-settings.yml and 002-libc.yml in conf folder
+# Custom YML Files
 conf/*.yml
 !conf/001-settings.yml
 !conf/002-libc.yml
+
+# Test Binaries
+test/bin/
