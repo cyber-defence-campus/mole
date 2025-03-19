@@ -1,7 +1,7 @@
 from __future__     import annotations
 from ..core.data    import Path
-from ..models.paths import (
-    PathsSortProxyModel, PathsTreeModel,
+from ..models.path import (
+    PathSortProxyModel, PathTreeModel,
     SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL,
     IS_PATH_ITEM_ROLE, COMMENT_COL
 )
@@ -12,7 +12,7 @@ import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
 
 
-class PathsTreeView(qtw.QTreeView):
+class PathTreeView(qtw.QTreeView):
     """
     This class implements a tree view for displaying paths grouped by source, sink and call graph.
     """
@@ -22,8 +22,8 @@ class PathsTreeView(qtw.QTreeView):
         Initialize the path tree view.
         """
         super().__init__(parent)
-        self._model = PathsTreeModel()
-        self._proxy_model = PathsSortProxyModel()
+        self._model = PathTreeModel()
+        self._proxy_model = PathSortProxyModel()
         self._proxy_model.setSourceModel(self._model)
         self.setModel(self._proxy_model)
         
@@ -113,7 +113,7 @@ class PathsTreeView(qtw.QTreeView):
         return
     
     @property
-    def model(self) -> PathsTreeModel:
+    def model(self) -> PathTreeModel:
         """
         Get the underlying model.
         """

@@ -1,18 +1,11 @@
-from __future__     import annotations
-from ..common.log   import Logger
-from ..views.config import ConfigView
-from ..views.graph  import GraphWidget
-from .paths_tree    import PathsTreeView
-from typing         import Any, Literal, Tuple, TYPE_CHECKING
-import binaryninja       as bn
+from __future__   import annotations
+from ..common.log import Logger
+from .path        import PathView
+from typing       import Any
 import binaryninjaui     as bnui
 import os                as os
 import PySide6.QtCore    as qtc
 import PySide6.QtGui     as qtui
-import PySide6.QtWidgets as qtw
-
-if TYPE_CHECKING:
-    from ..controllers.paths import PathController
 
 
 class MoleSidebar(bnui.SidebarWidgetType):
@@ -22,7 +15,7 @@ class MoleSidebar(bnui.SidebarWidgetType):
 
     def __init__(
             self,
-            sidebar_view: SidebarView,
+            sidebar_view: PathView,
             tag: str,
             log: Logger
         ) -> None:
@@ -55,14 +48,14 @@ class MoleSidebar(bnui.SidebarWidgetType):
             p.end()
         return icon
     
-    def init(self) -> SidebarView:
+    def init(self) -> PathView:
         """
         This method registers the sidebar with Binary Ninja.
         """
         bnui.Sidebar.addSidebarWidgetType(self)
         return self
     
-    def createWidget(self, frame: Any, data: Any) -> SidebarView:
+    def createWidget(self, frame: Any, data: Any) -> PathView:
         """
         This method creates the sidebar's widget.
         """
@@ -79,146 +72,3 @@ class MoleSidebar(bnui.SidebarWidgetType):
         This method configures the widget to use a single instance that detects changes.
         """
         return bnui.SidebarContextSensitivity.SelfManagedSidebarContext
-
-
-class SidebarView(bnui.SidebarWidget):
-    """
-    This class implements the widget for the plugin's sidebar.
-    """
-
-    signal_find_paths = qtc.Signal(object, object)
-    signal_load_paths = qtc.Signal(object, object)
-    signal_save_paths = qtc.Signal(object)
-    signal_setup_path_tree = qtc.Signal(object, object, object)
-
-    def __init__(
-            self,
-            tag: str,
-            log: Logger
-        ) -> None:
-        """
-        This method initializes a sidebar widget.
-        """
-        super().__init__("Mole")
-        self._tag: str = tag
-        self._log: Logger = log
-        self._bv: bn.BinaryView = None
-        self._wid: qtw.QTabWidget = None
-        self.path_ctr: PathController = None
-        self._paths_tree_view: PathsTreeView = None
-        return
-    
-    def init(self, path_ctr: PathController) -> SidebarView:
-        """
-        This method sets the controller and initializes relevant UI widgets.
-        """
-        # Set controller
-        self.path_ctr = path_ctr
-        # Initialize UI widgets
-        self._wid = qtw.QTabWidget()
-        self._wid.addTab(*self._init_run_tab())
-        self._wid.addTab(*self._init_graph_tab())
-        self._wid.addTab(self.path_ctr.config_ctr.config_view, "Configure")
-        lay = qtw.QVBoxLayout()
-        lay.addWidget(self._wid)
-        self.setLayout(lay)
-        return self
-    
-    # def _change_bv(self, bv: bn.BinaryView) -> None:
-    #     """
-    #     This method handles changes in the binary view.
-    #     """
-    #     if self._wid and self._ctr and self._paths_tree_view:
-    #         self._ctr.setup_paths_tree(bv, self._paths_tree_view, self._wid)
-    #     return
-    
-    def _init_run_tab(self) -> Tuple[qtw.QWidget, str]:
-        """
-        This method initializes the tab `Run`.
-        """
-        # Create the path tree view
-        self._paths_tree_view = PathsTreeView()
-        
-        # Create the layout for the tree
-        res_lay = qtw.QVBoxLayout()
-        res_lay.addWidget(self._paths_tree_view)
-        res_wid = qtw.QGroupBox("Interesting Paths:")
-        res_wid.setLayout(res_lay)
-        
-        # Create control buttons
-        self._run_but = qtw.QPushButton("Find")
-        self._run_but.clicked.connect(
-            lambda: self.signal_find_paths.emit(self._bv, self._paths_tree_view)
-        )
-        self._load_but = qtw.QPushButton("Load")
-        self._load_but.clicked.connect(
-            lambda: self.signal_load_paths.emit(self._bv, self._paths_tree_view)
-        )
-        self._save_but = qtw.QPushButton("Save")
-        self._save_but.clicked.connect(
-            lambda: self.signal_save_paths.emit(self._bv)
-        )
-        
-        # Set up button layout
-        but_lay = qtw.QHBoxLayout()
-        but_lay.addWidget(self._run_but)
-        but_lay.addWidget(self._load_but)
-        but_lay.addWidget(self._save_but)
-        but_wid = qtw.QWidget()
-        but_wid.setLayout(but_lay)
-        
-        # Set up main layout
-        lay = qtw.QVBoxLayout()
-        lay.addWidget(res_wid)
-        lay.addWidget(but_wid)
-        wid = qtw.QWidget()
-        wid.setLayout(lay)       
-        
-        return wid, "Run"
-    
-    def give_feedback(
-            self,
-            button_type: Literal["Find", "Load", "Save"],
-            text: str,
-            msec: int = 1000
-        ) -> None:
-        """
-        This method gives user feedback by temporarily changing a button's text.
-        """
-        match button_type:
-            case "Find":
-                button = self._run_but
-            case "Load":
-                button = self._load_but
-            case "Save":
-                button = self._save_but
-
-        def restore(text: str) -> None:
-            button.setText(text)
-            button.setEnabled(True)
-            return
-
-        if button:
-            button.setEnabled(False)
-            old_text = button.text()
-            button.setText(text)
-            qtc.QTimer.singleShot(msec, lambda text=old_text: restore(text))
-        return 
-    
-    def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
-        return GraphWidget(self._tag, self._log), "Graph"
-    
-    def notifyViewChanged(self, vf: bnui.ViewFrame) -> None:
-        """
-        This method is a callback invoked when the active view in the Binary UI changes.
-        """
-        if vf:
-            new_bv: bn.BinaryView = vf.getCurrentBinaryView()
-            if new_bv != self._bv:
-                self._bv = new_bv
-                # TODO: Maybe do renaming
-                # TODO: Do we need to add `if self._paths_tree_view and self._wid:`
-                self.signal_setup_path_tree.emit(new_bv, self._paths_tree_view, self._wid)
-        else:
-            self._bv = None
-        return

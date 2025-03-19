@@ -29,7 +29,7 @@ LEVEL_ROLE = qtc.Qt.UserRole + 103  # Role to store the level of the item
 # Only keep PATH_ITEM as it's needed to distinguish path items
 PATH_ITEM = 4
 
-class PathsSortProxyModel(qtc.QSortFilterProxyModel):
+class PathSortProxyModel(qtc.QSortFilterProxyModel):
     """
     This class implements a proxy model to handle proper sorting for paths.
     Uses Qt.UserRole data to maintain original data types during sorting.
@@ -70,7 +70,7 @@ class PathsSortProxyModel(qtc.QSortFilterProxyModel):
             return str(left_text).lower() < str(right_text).lower()
 
 
-class PathsTreeModel(qtui.QStandardItemModel):
+class PathTreeModel(qtui.QStandardItemModel):
     """
     This class implements a tree model for displaying paths grouped by source and sink.
     """

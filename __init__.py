@@ -1,11 +1,12 @@
 from __future__              import annotations
 from mole.common.log         import Logger
 from mole.controllers.config import ConfigController
-from mole.controllers.paths  import PathController
+from mole.controllers.path  import PathController
 from mole.models.config      import ConfigModel
 from mole.services.config    import ConfigService
 from mole.views.config       import ConfigView
-from mole.views.sidebar      import MoleSidebar, SidebarView
+from mole.views.path         import PathView
+from mole.views.sidebar      import MoleSidebar
 
 
 tag = "Mole"
@@ -19,7 +20,7 @@ config_model = ConfigModel(config_service.load_config())
 
 # Views
 config_view = ConfigView(f"{tag:s}.ConfigView", log)
-sidebar_view = SidebarView(f"{tag:s}.SidebarView", log)
+sidebar_view = PathView(f"{tag:s}.SidebarView", log)
 
 # Controllers
 config_ctr = ConfigController(config_service, config_model, config_view)
