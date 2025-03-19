@@ -4,32 +4,60 @@ from ..models.config   import ConfigModel
 from ..services.config import ConfigService
 from ..views.config    import ConfigView
 from typing            import Dict, List, Literal, Optional
-import PySide6.QtCore as qtc
 
 
-class ConfigController(qtc.QObject):
+class ConfigController:
     """
     This class implements a controller to handle Mole's configuration.
     """
     
-    signal_change_path_grouping = qtc.Signal(object)
-    
-    def __init__(self, model: ConfigModel, view: ConfigView, service: ConfigService) -> None:
+    def __init__(self, service: ConfigService, model: ConfigModel, view: ConfigView) -> None:
         """
         This method initializes the configuration controller.
         """
-        super().__init__()
+        self._service = service
         self._model = model
         self._view = view
-        self._service = service
-        self._current_grouping_strategy = None  # Track the current grouping strategy
-
-        view.set_controller(self)
-        
-        # Initialize current grouping strategy from model
-        strategy_setting = self._model.get_setting("grouping_strategy")
-        if strategy_setting:
-            self._current_grouping_strategy = strategy_setting.value
+        return
+    
+    def connect_signal_save_config(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when the configuration should
+        be saved.
+        """
+        self._view.signal_save_config.connect(slot)
+        return
+    
+    def connect_signal_reset_config(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when the configuration should
+        be reset.
+        """
+        self._view.signal_reset_config.connect(slot)
+        return
+    
+    def connect_signal_check_functions(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when source/sink function
+        checkboxes are checked.
+        """
+        self._view.signal_check_functions.connect(slot)
+        return
+    
+    def connect_signal_change_seting(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when a setting changes.
+        """
+        self._view.signal_change_setting.connect(slot)
+        return
+    
+    def connect_signal_change_path_grouping(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when the path grouping
+        strategy changes.
+        """
+        self._view.signal_change_path_grouping.connect(slot)
+        return
     
     def get_libraries(
             self,
@@ -60,49 +88,10 @@ class ConfigController(qtc.QObject):
         """
         return self._model.get_setting(name)
     
-    def check_functions(
-            self,
-            lib_name: Optional[str] = None,
-            cat_name: Optional[str] = None,
-            fun_name: Optional[str] = None,
-            fun_type: Optional[str] = None,
-            fun_enabled: Optional[bool] = None
-        ) -> None:
-        """
-        This method sets the enabled attribute of all functions' checkboxes matching the given
-        attributes. An attribute of `None` indicates that the corresponding attribute is irrelevant.
-        In case `fun_enabled` is `None` the checkboxes enabled attribute is toggled, otherwise set
-        to the given value `fun_enabled`.
-        """
-        for fun in self._model.get_functions(lib_name, cat_name, fun_name, fun_type):
-            if fun_enabled is None:
-                fun.enabled = not fun.enabled
-            else:
-                fun.enabled = fun_enabled
-            fun.checkbox.setChecked(fun.enabled)
-        return
-    
-    def change_setting(self, name: str, value: object) -> None:
-        """
-        This method changes setting values.
-        """
-        setting = self._model.get_setting(name)
-        if setting:
-            setting.value = value
-            # No signal emission here - we'll do it only on save if needed
-        return
-    
     def save_config(self) -> None:
         """
         This method saves the configuration.
         """
-        # Check if the grouping strategy has changed before saving
-        new_strategy_setting = self._model.get_setting("grouping_strategy")
-        if new_strategy_setting and new_strategy_setting.value != self._current_grouping_strategy:
-            # Strategy has changed, emit the signal
-            self.signal_change_path_grouping.emit(new_strategy_setting.value)
-            self._current_grouping_strategy = new_strategy_setting.value
-            
         self._service.save_config(self._model.get())
         self._view.give_feedback("Save", "Saving...")
         return
@@ -157,4 +146,35 @@ class ConfigController(qtc.QObject):
         self._model.set(new_config)
         # User feedback
         self._view.give_feedback("Reset", "Resetting...")
+        return
+    
+    def check_functions(
+            self,
+            lib_name: Optional[str] = None,
+            cat_name: Optional[str] = None,
+            fun_name: Optional[str] = None,
+            fun_type: Optional[str] = None,
+            fun_enabled: Optional[bool] = None
+        ) -> None:
+        """
+        This method sets the enabled attribute of all functions' checkboxes matching the given
+        attributes. An attribute of `None` indicates that the corresponding attribute is irrelevant.
+        In case `fun_enabled` is `None` the checkboxes enabled attribute is toggled, otherwise set
+        to the given value `fun_enabled`.
+        """
+        for fun in self._model.get_functions(lib_name, cat_name, fun_name, fun_type):
+            if fun_enabled is None:
+                fun.enabled = not fun.enabled
+            else:
+                fun.enabled = fun_enabled
+            fun.checkbox.setChecked(fun.enabled)
+        return
+    
+    def change_setting(self, name: str, value: object) -> None:
+        """
+        This method changes setting values.
+        """
+        setting = self._model.get_setting(name)
+        if setting:
+            setting.value = value
         return

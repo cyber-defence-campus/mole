@@ -6,7 +6,7 @@ import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
     from ..controllers.config import ConfigController
-    from ..core.data          import ComboboxSetting
+    from ..core.data          import ComboboxSetting, SpinboxSetting
 
 
 class ConfigView(qtw.QWidget):
@@ -18,6 +18,7 @@ class ConfigView(qtw.QWidget):
     signal_reset_config = qtc.Signal()
     signal_check_functions = qtc.Signal(object, object, object, object, object)
     signal_change_setting = qtc.Signal(object, object)
+    signal_change_path_grouping = qtc.Signal(object)
 
     def __init__(self, tag: str, log: Logger) -> None:
         """
@@ -26,15 +27,20 @@ class ConfigView(qtw.QWidget):
         super().__init__()
         self._tag = tag
         self._log = log
-        self._ctr = None
-        self._save_but = None
-        self._reset_but = None
         return
 
-    def init(self) -> None:
+    def init(self, ctr: ConfigController) -> ConfigView:
         """
-        Initialize the UI components
+        This method sets the controller, connects relevant signals and initializes all UI widgets.
         """
+        # Set controller
+        self._ctr = ctr
+        # Connect signals
+        self._ctr.connect_signal_save_config(self._ctr.save_config)
+        self._ctr.connect_signal_reset_config(self._ctr.reset_config)
+        self._ctr.connect_signal_check_functions(self._ctr.check_functions)
+        self._ctr.connect_signal_change_seting(self._ctr.change_setting)
+        # Initialize UI widgets
         tab = qtw.QTabWidget()
         tab.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
         tab.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
@@ -44,24 +50,7 @@ class ConfigView(qtw.QWidget):
         lay.addWidget(tab)
         lay.addWidget(but)
         self.setLayout(lay)
-        return
-
-    def set_controller(self, ctr: ConfigController) -> None:
-        """
-        This method sets the controller for the model.
-        """
-        self._ctr = ctr
-        self.signal_save_config.connect(ctr.save_config)
-        self.signal_reset_config.connect(ctr.reset_config)
-        self.signal_check_functions.connect(ctr.check_functions)
-        self.signal_change_setting.connect(ctr.change_setting)
-        return
-        
-    def tab_title(self) -> str:
-        """
-        Returns the title for this tab
-        """
-        return "Configure"
+        return self
 
     def _init_cnf_fun_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QWidget:
         """
@@ -126,7 +115,7 @@ class ConfigView(qtw.QWidget):
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
         for name in ["max_workers", "max_call_level", "max_slice_depth"]:
-            setting = self._ctr.get_setting(name)
+            setting: SpinboxSetting = self._ctr.get_setting(name)
             if not setting:
                 continue
             setting.widget = qtw.QSpinBox()
@@ -162,6 +151,11 @@ class ConfigView(qtw.QWidget):
                 lambda value, name=name:
                 self.signal_change_setting.emit(name, value)
             )
+            if name == "grouping_strategy":
+                setting.widget.currentTextChanged.connect(
+                    lambda value:
+                    self.signal_change_path_grouping.emit(value)
+                )
             setting_lbl = qtw.QLabel(f"{name:s}:")
             pth_lay.addRow(setting_lbl, setting.widget)
             

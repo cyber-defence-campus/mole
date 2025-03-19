@@ -53,8 +53,36 @@ class PathController:
             os.path.dirname(os.path.abspath(__file__)),
             "../../conf/"
         )
-        self._sidebar_view.set_controller(self)
-        self._config_controller.signal_change_path_grouping.connect(self._change_path_grouping)
+        # self._sidebar_view.set_controller(self)
+        self._config_controller.connect_signal_change_path_grouping(self._change_path_grouping)
+        return
+    
+    def connect_signal_setup_paths_tree(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when the Binary View changes.
+        """
+        self._sidebar_view.signal_setup_path_tree.connect(slot)
+        return
+    
+    def connect_signal_find_paths(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when paths should be found.
+        """
+        self._sidebar_view.signal_find_paths.connect(slot)
+        return
+    
+    def connect_signal_load_paths(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when paths should be loaded.
+        """
+        self._sidebar_view.signal_load_paths.connect(slot)
+        return
+    
+    def connect_signal_save_paths(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when paths should be saved.
+        """
+        self._sidebar_view.signal_save_paths.connect(slot)
         return
 
     def _change_path_grouping(self, new_strategy: str) -> None:

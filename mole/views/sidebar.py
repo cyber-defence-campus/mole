@@ -86,10 +86,10 @@ class SidebarView(bnui.SidebarWidget):
     This class implements the widget for the plugin's sidebar.
     """
 
-    signal_change_bv = qtc.Signal(object)
     signal_find_paths = qtc.Signal(object, object)
     signal_load_paths = qtc.Signal(object, object)
     signal_save_paths = qtc.Signal(object)
+    signal_setup_path_tree = qtc.Signal(object, object, object)
 
     def __init__(
             self,
@@ -110,29 +110,18 @@ class SidebarView(bnui.SidebarWidget):
         self._paths_tree_view: PathsTreeView = None
         return
     
-    def _change_bv(self, bv: bn.BinaryView) -> None:
+    def init(self, ctr: PathController) -> SidebarView:
         """
-        This method handles changes in the binary view.
+        This method sets the controller, connects relevant signals and initializes all UI widgets.
         """
-        if self._wid and self._ctr and self._paths_tree_view:
-            self._ctr.setup_paths_tree(bv, self._paths_tree_view, self._wid)
-        return
-
-    def set_controller(self, ctr: PathController) -> None:
-        """
-        This method sets the controller for the model.
-        """
+        # Set controller
         self._ctr = ctr
-        self.signal_change_bv.connect(self._change_bv)
-        self.signal_find_paths.connect(ctr.find_paths)
-        self.signal_load_paths.connect(ctr.load_paths)
-        self.signal_save_paths.connect(ctr.save_paths)
-        return
-    
-    def init(self) -> SidebarView:
-        """
-        This method initializes the main widget.
-        """
+        # Connect signals
+        self._ctr.connect_signal_setup_paths_tree(self._ctr.setup_paths_tree)
+        self._ctr.connect_signal_find_paths(self._ctr.find_paths)
+        self._ctr.connect_signal_load_paths(self._ctr.load_paths)
+        self._ctr.connect_signal_save_paths(self._ctr.save_paths)
+        # Initialize UI widgets
         self._wid = qtw.QTabWidget()
         self._wid.addTab(*self._init_run_tab())
         self._wid.addTab(*self._init_graph_tab())
@@ -141,6 +130,14 @@ class SidebarView(bnui.SidebarWidget):
         lay.addWidget(self._wid)
         self.setLayout(lay)
         return self
+    
+    # def _change_bv(self, bv: bn.BinaryView) -> None:
+    #     """
+    #     This method handles changes in the binary view.
+    #     """
+    #     if self._wid and self._ctr and self._paths_tree_view:
+    #         self._ctr.setup_paths_tree(bv, self._paths_tree_view, self._wid)
+    #     return
     
     def _init_run_tab(self) -> Tuple[qtw.QWidget, str]:
         """
@@ -226,7 +223,9 @@ class SidebarView(bnui.SidebarWidget):
             new_bv: bn.BinaryView = vf.getCurrentBinaryView()
             if new_bv != self._bv:
                 self._bv = new_bv
-                self.signal_change_bv.emit(new_bv)
+                # TODO: Maybe do renaming
+                # TODO: Do we need to add `if self._paths_tree_view and self._wid:`
+                self.signal_setup_path_tree.emit(new_bv, self._paths_tree_view, self._wid)
         else:
             self._bv = None
         return
