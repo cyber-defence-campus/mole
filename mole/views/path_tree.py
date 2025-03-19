@@ -1,10 +1,6 @@
 from __future__     import annotations
 from ..core.data    import Path
-from ..models.path import (
-    PathSortProxyModel, PathTreeModel,
-    SRC_ADDR_COL, SRC_FUNC_COL, SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL,
-    IS_PATH_ITEM_ROLE, COMMENT_COL
-)
+from ..models.path import PathSortProxyModel, PathTreeModel, PATH_COLS, IS_PATH_ITEM_ROLE
 from typing      import Callable, List, Optional
 import binaryninja       as bn
 import binaryninjaui     as bnui
@@ -332,7 +328,7 @@ class PathTreeView(qtw.QTreeView):
             col = index.column()
             
             # Navigate based on column
-            if col in [SRC_ADDR_COL, SRC_FUNC_COL]:
+            if col in [PATH_COLS["Src Addr"], PATH_COLS["Src Func"]]:
                 # Get source address
                 addr = self._model.data(
                     source_index, 
@@ -340,7 +336,7 @@ class PathTreeView(qtw.QTreeView):
                 )
                 if addr:
                     vf.navigate(bv, addr)
-            elif col in [SNK_ADDR_COL, SNK_FUNC_COL, SNK_PARM_COL]:
+            elif col in [PATH_COLS["Snk Addr"], PATH_COLS["Snk Func"], PATH_COLS["Snk Parm"]]:
                 # Get sink address
                 path = self.path_at_row(path_id)
                 if path:
@@ -364,11 +360,11 @@ class PathTreeView(qtw.QTreeView):
             return
             
         # Check if this edit spans the comment column
-        if topLeft.column() <= COMMENT_COL <= bottomRight.column():
+        if topLeft.column() <= PATH_COLS["Comment"] <= bottomRight.column():
             # Process each row in the changed range
             for row in range(topLeft.row(), bottomRight.row() + 1):
                 # Get the index for the comment column in the current row
-                comment_idx = self._proxy_model.index(row, COMMENT_COL, topLeft.parent())
+                comment_idx = self._proxy_model.index(row, PATH_COLS["Comment"], topLeft.parent())
                 
                 # Map to source index and get the path ID
                 source_idx = self._proxy_model.mapToSource(comment_idx)

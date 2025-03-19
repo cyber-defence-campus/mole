@@ -48,7 +48,7 @@ class PathView(bnui.SidebarWidget):
         self.path_ctr = path_ctr
         # Initialize UI widgets
         self._wid = qtw.QTabWidget()
-        self._wid.addTab(*self._init_run_tab())
+        self._wid.addTab(*self._init_path_tab())
         self._wid.addTab(*self._init_graph_tab())
         self._wid.addTab(self.path_ctr.config_ctr.config_view, "Configure")
         lay = qtw.QVBoxLayout()
@@ -56,7 +56,7 @@ class PathView(bnui.SidebarWidget):
         self.setLayout(lay)
         return self
     
-    def _init_run_tab(self) -> Tuple[qtw.QWidget, str]:
+    def _init_path_tab(self) -> Tuple[qtw.QWidget, str]:
         """
         This method initializes the tab `Run`.
         """
@@ -98,7 +98,7 @@ class PathView(bnui.SidebarWidget):
         wid = qtw.QWidget()
         wid.setLayout(lay)       
         
-        return wid, "Run"
+        return wid, "Path"
     
     def give_feedback(
             self,

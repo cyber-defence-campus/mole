@@ -1,25 +1,24 @@
-from __future__ import annotations
-from typing import Dict, List, Optional
+from __future__  import annotations
+from ..core.data import Path
+from ..grouping  import get_grouper
+from typing      import Dict, List, Optional
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 
-from ..core.data import Path
-from ..grouping import get_grouper
 
 # Column definitions
-PATH_COLUMNS = ["Id", "Src Addr", "Src Func", "Snk Addr", "Snk Func", "Snk Parm", "Insts", "Phis", "Branches", "Comment"]
-
-# Column indices
-INDEX_COL = 0
-SRC_ADDR_COL = 1
-SRC_FUNC_COL = 2
-SNK_ADDR_COL = 3
-SNK_FUNC_COL = 4
-SNK_PARM_COL = 5
-INSTS_COL = 6
-PHIS_COL = 7
-BRANCHES_COL = 8
-COMMENT_COL = 9
+PATH_COLS = {
+    "Id": 0,
+    "Src Addr": 1,
+    "Src Func": 2,
+    "Snk Addr": 3,
+    "Snk Func": 4,
+    "Snk Parm": 5,
+    "Insts": 6,
+    "Phis": 7,
+    "Branches": 8,
+    "Comment": 9,
+}
 
 # Custom roles for tree items
 PATH_ID_ROLE = qtc.Qt.UserRole + 100
@@ -74,8 +73,6 @@ class PathTreeModel(qtui.QStandardItemModel):
     """
     This class implements a tree model for displaying paths grouped by source and sink.
     """
-
-    COLUMNS = PATH_COLUMNS
     
     def __init__(self, parent=None):
         """
@@ -85,7 +82,7 @@ class PathTreeModel(qtui.QStandardItemModel):
         self.paths: List[Path] = []
         self.path_comments: Dict[int, str] = {}
         self.path_count = 0
-        self.setHorizontalHeaderLabels(self.COLUMNS)
+        self.setHorizontalHeaderLabels(PATH_COLS.keys())
         # Store group items instead of specific source, sink, callgraph items
         # Each level of grouping can have its own items
         self.group_items: Dict[str, qtui.QStandardItem] = {}
@@ -164,14 +161,14 @@ class PathTreeModel(qtui.QStandardItemModel):
         index_item.setData(True, IS_PATH_ITEM_ROLE)
         
         # Only store hex values as UserRole data for proper sorting
-        src_addr_item = qtui.QStandardItem(f"{path.src_sym_addr:x}")
+        src_addr_item = qtui.QStandardItem(f"0x{path.src_sym_addr:x}")
         src_addr_item.setData(path.src_sym_addr, qtc.Qt.UserRole)
         src_addr_item.setData(True, IS_PATH_ITEM_ROLE)
         
         src_func_item = qtui.QStandardItem(path.src_sym_name)
         src_func_item.setData(True, IS_PATH_ITEM_ROLE)
         
-        snk_addr_item = qtui.QStandardItem(f"{path.snk_sym_addr:x}")
+        snk_addr_item = qtui.QStandardItem(f"0x{path.snk_sym_addr:x}")
         snk_addr_item.setData(path.snk_sym_addr, qtc.Qt.UserRole)
         snk_addr_item.setData(True, IS_PATH_ITEM_ROLE)
         
