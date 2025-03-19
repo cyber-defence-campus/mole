@@ -15,7 +15,12 @@ class CallgraphPathGrouper(SourceSinkPathGrouper):
         """
         Group paths by source and sink symbols, as well as call graphs.
         """
-        calls = " -> ".join(reversed(path.calls))
+        # TODO: Make `max_calls` a setting
+        max_calls = 4
+        calls = path.calls[1:-1]
+        if len(calls) > max_calls:
+            calls = calls[:int(max_calls/2)] + ["..."] + calls[int(-max_calls/2):]
+        calls = " -> ".join(reversed(calls))
         keys = super().get_group_keys(path)
         keys.append((f"Path: {calls:s}", f"{path.src_sym_name:s}:{path.snk_sym_name}:{calls:s}", 2))
         return keys
