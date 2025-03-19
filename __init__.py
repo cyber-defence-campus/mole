@@ -20,16 +20,16 @@ config_model = ConfigModel(config_service.load_config())
 
 # Views
 config_view = ConfigView(f"{tag:s}.ConfigView", log)
-sidebar_view = PathView(f"{tag:s}.SidebarView", log)
+path_view = PathView(f"{tag:s}.SidebarView", log)
 
 # Controllers
-config_ctr = ConfigController(config_service, config_model, config_view)
-path_ctr = PathController(sidebar_view, config_ctr, tag, log)
+config_ctr = ConfigController(config_service, config_model, config_view, tag, log)
+path_ctr = PathController(config_ctr, path_view, tag, log)
 
 # Initialize views
 config_view.init(config_ctr)
-sidebar_view.init(path_ctr)
+path_view.init(path_ctr)
 
 # Initialize sidebar in Binary Ninja
-sidebar = MoleSidebar(sidebar_view, tag, log)
+sidebar = MoleSidebar(path_view, tag, log)
 sidebar.init()

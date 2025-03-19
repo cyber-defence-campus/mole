@@ -1,4 +1,5 @@
 from __future__        import annotations
+from ..common.log      import Logger
 from ..core.data       import ComboboxSetting, Function, Library, SpinboxSetting, WidgetSetting
 from ..models.config   import ConfigModel
 from ..services.config import ConfigService
@@ -15,14 +16,20 @@ class ConfigController:
             self,
             config_service: ConfigService,
             config_model: ConfigModel,
-            config_view: ConfigView
+            config_view: ConfigView,
+            tag: str,
+            log: Logger
         ) -> None:
         """
         This method initializes the configuration controller.
         """
+        # Initialization
         self.config_service = config_service
         self.config_model = config_model
         self.config_view = config_view
+        # Logging
+        self._tag = tag
+        self._log = log
         # Connect signals
         self.connect_signal_save_config(self.save_config)
         self.connect_signal_reset_config(self.reset_config)

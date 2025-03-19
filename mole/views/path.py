@@ -1,8 +1,8 @@
 from __future__     import annotations
 from ..common.log   import Logger
 from ..views.graph  import GraphWidget
-from .path_tree    import PathTreeView
-from typing         import Literal, Tuple, TYPE_CHECKING
+from .path_tree     import PathTreeView
+from typing         import Literal, Optional, Tuple, TYPE_CHECKING
 import binaryninja       as bn
 import binaryninjaui     as bnui
 import os                as os
@@ -34,10 +34,10 @@ class PathView(bnui.SidebarWidget):
         super().__init__("Mole")
         self._tag: str = tag
         self._log: Logger = log
-        self._bv: bn.BinaryView = None
-        self._wid: qtw.QTabWidget = None
-        self.path_ctr: PathController = None
-        self._paths_tree_view: PathTreeView = None
+        self._bv: Optional[bn.BinaryView] = None
+        self._wid: Optional[qtw.QTabWidget] = None
+        self.path_ctr: Optional[PathController] = None
+        self.path_tree_view: Optional[PathTreeView] = None
         return
     
     def init(self, path_ctr: PathController) -> PathView:
@@ -56,35 +56,27 @@ class PathView(bnui.SidebarWidget):
         self.setLayout(lay)
         return self
     
-    # def _change_bv(self, bv: bn.BinaryView) -> None:
-    #     """
-    #     This method handles changes in the binary view.
-    #     """
-    #     if self._wid and self._ctr and self._paths_tree_view:
-    #         self._ctr.setup_paths_tree(bv, self._paths_tree_view, self._wid)
-    #     return
-    
     def _init_run_tab(self) -> Tuple[qtw.QWidget, str]:
         """
         This method initializes the tab `Run`.
         """
         # Create the path tree view
-        self._paths_tree_view = PathTreeView()
+        self.path_tree_view = PathTreeView()
         
         # Create the layout for the tree
         res_lay = qtw.QVBoxLayout()
-        res_lay.addWidget(self._paths_tree_view)
+        res_lay.addWidget(self.path_tree_view)
         res_wid = qtw.QGroupBox("Interesting Paths:")
         res_wid.setLayout(res_lay)
         
         # Create control buttons
         self._run_but = qtw.QPushButton("Find")
         self._run_but.clicked.connect(
-            lambda: self.signal_find_paths.emit(self._bv, self._paths_tree_view)
+            lambda: self.signal_find_paths.emit(self._bv, self.path_tree_view)
         )
         self._load_but = qtw.QPushButton("Load")
         self._load_but.clicked.connect(
-            lambda: self.signal_load_paths.emit(self._bv, self._paths_tree_view)
+            lambda: self.signal_load_paths.emit(self._bv, self.path_tree_view)
         )
         self._save_but = qtw.QPushButton("Save")
         self._save_but.clicked.connect(
@@ -148,9 +140,8 @@ class PathView(bnui.SidebarWidget):
             new_bv: bn.BinaryView = vf.getCurrentBinaryView()
             if new_bv != self._bv:
                 self._bv = new_bv
-                # TODO: Maybe do renaming
-                # TODO: Do we need to add `if self._paths_tree_view and self._wid:`
-                self.signal_setup_path_tree.emit(new_bv, self._paths_tree_view, self._wid)
+                if self.path_tree_view and self._wid:
+                    self.signal_setup_path_tree.emit(new_bv, self.path_tree_view, self._wid)
         else:
             self._bv = None
         return

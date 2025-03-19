@@ -1,6 +1,6 @@
 from __future__   import annotations
 from ..common.log import Logger
-from typing       import Literal, TYPE_CHECKING
+from typing       import Literal, Optional, TYPE_CHECKING
 import PySide6.QtCore    as qtc
 import PySide6.QtWidgets as qtw
 
@@ -27,6 +27,9 @@ class ConfigView(qtw.QWidget):
         super().__init__()
         self._tag = tag
         self._log = log
+        self._save_but: Optional[qtw.QPushButton] = None
+        self._reset_but: Optional[qtw.QPushButton] = None
+        self.config_ctr: Optional[ConfigController] = None
         return
 
     def init(self, config_ctr: ConfigController) -> ConfigView:

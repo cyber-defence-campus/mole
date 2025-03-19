@@ -1,12 +1,12 @@
-from __future__           import annotations
-from ..common.log         import Logger
-from ..core.data          import Path, InstructionHelper
-from .config import ConfigController
-from ..services.slicer    import MediumLevelILBackwardSlicerThread
-from ..views.graph        import GraphWidget
-from ..views.path         import PathView
-from ..views.path_tree   import PathTreeView
-from typing               import Dict, List, Tuple, Optional
+from __future__        import annotations
+from ..common.log      import Logger
+from ..core.data       import Path, InstructionHelper
+from ..services.slicer import MediumLevelILBackwardSlicerThread
+from ..views.graph     import GraphWidget
+from ..views.path      import PathView
+from ..views.path_tree import PathTreeView
+from .config           import ConfigController
+from typing            import Dict, List, Tuple, Optional
 import binaryninja       as bn
 import copy              as copy
 import difflib           as difflib
@@ -25,30 +25,32 @@ class PathController:
 
     def __init__(
             self,
-            path_view: PathView,
             config_ctr: ConfigController,
+            path_view: PathView,
             tag: str,
             log: Logger
         ) -> None:
         """
         This method initializes a controller (MVC pattern).
         """
-        self.path_view = path_view
+        # Initialization
         self.config_ctr = config_ctr
-        self._tag = tag
-        self._log = log
+        self.path_view = path_view
         self._paths: List[Path] = []
         self._paths_highlight: Tuple[
             Path,
             Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
-        self.path_tree_view: Optional[PathTreeView] = None
         self._thread: Optional[MediumLevelILBackwardSlicerThread] = None
+        self.path_tree_view: Optional[PathTreeView] = None
+        # Logging
+        self._tag = tag
+        self._log = log
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
         self.connect_signal_load_paths(self.load_paths)
         self.connect_signal_save_paths(self.save_paths)
-        self.connect_signal_setup_paths_tree(self.setup_paths_tree)
+        self.connect_signal_setup_paths_tree(self.setup_path_tree)
         self.config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
         return
     
@@ -566,25 +568,20 @@ class PathController:
         self._log.info(self._tag, "Removed all path(s)")
         return
 
-    def setup_paths_tree(
+    def setup_path_tree(
             self,
             bv: bn.BinaryView,
-            view: PathTreeView,
+            path_tree_view: PathTreeView,
             wid: qtw.QTabWidget = None
         ) -> None:
         """
         This method sets up the path tree view with controller callbacks.
-        """
-        # if not bv or not view or not wid:
-        #     return
-        if not view:
-            return
-            
+        """            
         # Store reference to the view 
-        self.path_tree_view = view
+        self.path_tree_view = path_tree_view
         
         # Set up context menu
-        view.setup_context_menu(
+        path_tree_view.setup_context_menu(
             on_log_path=self.log_path,
             on_log_path_diff=self.log_path_diff,
             on_highlight_path=lambda rows: self.highlight_path(bv, rows),
@@ -597,10 +594,10 @@ class PathController:
         )
         
         # Set up navigation
-        view.setup_navigation(bv)
+        path_tree_view.setup_navigation(bv)
         
         # Expand all nodes by default
-        view.expandAll()
+        path_tree_view.expandAll()
         
         # Apply current path grouping strategy to any existing paths
         setting = self.config_ctr.get_setting("path_grouping")
