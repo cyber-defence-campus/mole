@@ -19,7 +19,7 @@ config_model = ConfigModel(config_service.load_config())
 
 # Views
 config_view = ConfigView(f"{tag:s}.ConfigView", log)
-sidebar_view = SidebarView(config_view, f"{tag:s}.SidebarView", log)
+sidebar_view = SidebarView(f"{tag:s}.SidebarView", log)
 
 # Controllers
 config_ctr = ConfigController(config_service, config_model, config_view)

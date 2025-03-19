@@ -93,7 +93,6 @@ class SidebarView(bnui.SidebarWidget):
 
     def __init__(
             self,
-            config_view: ConfigView,
             tag: str,
             log: Logger
         ) -> None:
@@ -101,12 +100,11 @@ class SidebarView(bnui.SidebarWidget):
         This method initializes a sidebar widget.
         """
         super().__init__("Mole")
-        self._config_view: ConfigView = config_view
         self._tag: str = tag
         self._log: Logger = log
         self._bv: bn.BinaryView = None
         self._wid: qtw.QTabWidget = None
-        self._path_ctr: PathController = None
+        self.path_ctr: PathController = None
         self._paths_tree_view: PathsTreeView = None
         return
     
@@ -115,12 +113,12 @@ class SidebarView(bnui.SidebarWidget):
         This method sets the controller and initializes relevant UI widgets.
         """
         # Set controller
-        self._path_ctr = path_ctr
+        self.path_ctr = path_ctr
         # Initialize UI widgets
         self._wid = qtw.QTabWidget()
         self._wid.addTab(*self._init_run_tab())
         self._wid.addTab(*self._init_graph_tab())
-        self._wid.addTab(self._config_view, "Configure")
+        self._wid.addTab(self.path_ctr.config_ctr.config_view, "Configure")
         lay = qtw.QVBoxLayout()
         lay.addWidget(self._wid)
         self.setLayout(lay)

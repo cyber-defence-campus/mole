@@ -20,9 +20,9 @@ class ConfigController:
         """
         This method initializes the configuration controller.
         """
-        self._config_service = config_service
-        self._config_model = config_model
-        self._config_view = config_view
+        self.config_service = config_service
+        self.config_model = config_model
+        self.config_view = config_view
         # Connect signals
         self.connect_signal_save_config(self.save_config)
         self.connect_signal_reset_config(self.reset_config)
@@ -35,7 +35,7 @@ class ConfigController:
         This method allows connecting to the signal that is triggered when the configuration should
         be saved.
         """
-        self._config_view.signal_save_config.connect(slot)
+        self.config_view.signal_save_config.connect(slot)
         return
     
     def connect_signal_reset_config(self, slot: object) -> None:
@@ -43,7 +43,7 @@ class ConfigController:
         This method allows connecting to the signal that is triggered when the configuration should
         be reset.
         """
-        self._config_view.signal_reset_config.connect(slot)
+        self.config_view.signal_reset_config.connect(slot)
         return
     
     def connect_signal_check_functions(self, slot: object) -> None:
@@ -51,14 +51,14 @@ class ConfigController:
         This method allows connecting to the signal that is triggered when source/sink function
         checkboxes are checked.
         """
-        self._config_view.signal_check_functions.connect(slot)
+        self.config_view.signal_check_functions.connect(slot)
         return
     
     def connect_signal_change_seting(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when a setting changes.
         """
-        self._config_view.signal_change_setting.connect(slot)
+        self.config_view.signal_change_setting.connect(slot)
         return
     
     def connect_signal_change_path_grouping(self, slot: object) -> None:
@@ -66,7 +66,7 @@ class ConfigController:
         This method allows connecting to the signal that is triggered when the path grouping
         strategy changes.
         """
-        self._config_view.signal_change_path_grouping.connect(slot)
+        self.config_view.signal_change_path_grouping.connect(slot)
         return
     
     def get_libraries(
@@ -76,7 +76,7 @@ class ConfigController:
         """
         This method returns all libraries matching the given type.
         """
-        return self._config_model.get_libraries(fun_type)
+        return self.config_model.get_libraries(fun_type)
     
     def get_functions(
             self,
@@ -90,20 +90,20 @@ class ConfigController:
         This method returns all functions matching the given attributes. An attribute of `None`
         indicates that this attribute is irrelevant and all functions should be included.
         """
-        return self._config_model.get_functions(lib_name, cat_name, fun_name, fun_type, fun_enabled)
+        return self.config_model.get_functions(lib_name, cat_name, fun_name, fun_type, fun_enabled)
     
     def get_setting(self, name: str) -> Optional[WidgetSetting]:
         """
         This method returns the setting with name `name`.
         """
-        return self._config_model.get_setting(name)
+        return self.config_model.get_setting(name)
     
     def save_config(self) -> None:
         """
         This method saves the configuration.
         """
-        self._config_service.save_config(self._config_model.get())
-        self._config_view.give_feedback("Save", "Saving...")
+        self.config_service.save_config(self.config_model.get())
+        self.config_view.give_feedback("Save", "Saving...")
         return
 
     def reset_config(self) -> None:
@@ -111,7 +111,7 @@ class ConfigController:
         This method resets the configuration.
         """
         # Store input elements
-        old_model = self._config_model.get()
+        old_model = self.config_model.get()
         sources_ie: Dict[str, Dict] = {}
         for lib_name, lib in old_model.sources.items():
             sources_ie_lib: Dict[str, Dict] = sources_ie.setdefault(lib_name, {})
@@ -130,7 +130,7 @@ class ConfigController:
         for setting_name, setting in old_model.settings.items():
             settings[setting_name] = setting.widget
         # Reset model
-        new_config = self._config_service.load_custom_config()
+        new_config = self.config_service.load_custom_config()
         # Restore input elements
         for lib_name, lib in new_config.sources.items():
             sources_ie_lib = sources_ie.get(lib_name, {})
@@ -153,9 +153,9 @@ class ConfigController:
             elif isinstance(setting, ComboboxSetting):
                 if setting.value in setting.items:
                     setting.widget.setCurrentText(setting.value)
-        self._config_model.set(new_config)
+        self.config_model.set(new_config)
         # User feedback
-        self._config_view.give_feedback("Reset", "Resetting...")
+        self.config_view.give_feedback("Reset", "Resetting...")
         return
     
     def check_functions(
@@ -172,7 +172,7 @@ class ConfigController:
         In case `fun_enabled` is `None` the checkboxes enabled attribute is toggled, otherwise set
         to the given value `fun_enabled`.
         """
-        for fun in self._config_model.get_functions(lib_name, cat_name, fun_name, fun_type):
+        for fun in self.config_model.get_functions(lib_name, cat_name, fun_name, fun_type):
             if fun_enabled is None:
                 fun.enabled = not fun.enabled
             else:
@@ -184,7 +184,7 @@ class ConfigController:
         """
         This method changes setting values.
         """
-        setting = self._config_model.get_setting(name)
+        setting = self.config_model.get_setting(name)
         if setting:
             setting.value = value
         return

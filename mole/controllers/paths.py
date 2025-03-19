@@ -33,8 +33,8 @@ class PathController:
         """
         This method initializes a controller (MVC pattern).
         """
-        self._sidebar_view = sidebar_view
-        self._config_ctr = config_ctr
+        self.sidebar_view = sidebar_view
+        self.config_ctr = config_ctr
         self._tag = tag
         self._log = log
         self._paths: List[Path] = []
@@ -42,42 +42,42 @@ class PathController:
             Path,
             Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
-        self._paths_view: Optional[PathsTreeView] = None
+        self.paths_view: Optional[PathsTreeView] = None
         self._thread: Optional[MediumLevelILBackwardSlicerThread] = None
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
         self.connect_signal_load_paths(self.load_paths)
         self.connect_signal_save_paths(self.save_paths)
         self.connect_signal_setup_paths_tree(self.setup_paths_tree)
-        self._config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
+        self.config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
         return
     
     def connect_signal_find_paths(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when paths should be found.
         """
-        self._sidebar_view.signal_find_paths.connect(slot)
+        self.sidebar_view.signal_find_paths.connect(slot)
         return
     
     def connect_signal_load_paths(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when paths should be loaded.
         """
-        self._sidebar_view.signal_load_paths.connect(slot)
+        self.sidebar_view.signal_load_paths.connect(slot)
         return
     
     def connect_signal_save_paths(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when paths should be saved.
         """
-        self._sidebar_view.signal_save_paths.connect(slot)
+        self.sidebar_view.signal_save_paths.connect(slot)
         return
     
     def connect_signal_setup_paths_tree(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when the Binary View changes.
         """
-        self._sidebar_view.signal_setup_path_tree.connect(slot)
+        self.sidebar_view.signal_setup_path_tree.connect(slot)
         return
 
     def _change_path_grouping(self, new_strategy: str) -> None:
@@ -85,17 +85,17 @@ class PathController:
         Handler for when grouping strategy changes in the config.
         Regroups all paths with the new strategy.
         """
-        if self._paths_view and self._paths_view.model.path_count > 0:
+        if self.paths_view and self.paths_view.model.path_count > 0:
             self._log.info(self._tag, f"Regrouping paths with new strategy: {new_strategy}")
-            self._paths_view.model.regroup_paths(new_strategy)
+            self.paths_view.model.regroup_paths(new_strategy)
     
     @property
     def paths(self) -> List[Path]:
         """
         Get all paths from either the internal list or the view, if available.
         """
-        if self._paths_view and self._paths_view.model.path_count > 0:
-            return self._paths_view.get_all_paths()
+        if self.paths_view and self.paths_view.model.path_count > 0:
+            return self.paths_view.get_all_paths()
         return self._paths
     
     def add_path_to_view(
@@ -107,18 +107,18 @@ class PathController:
         This method updates the UI with a newly identified path.
         """
         def update_paths_view() -> None:
-            if not self._paths_view:
+            if not self.paths_view:
                 self._paths.append(path)
                 return
                 
             # Get current path grouping strategy from settings
             path_grouping = None
-            setting = self._config_ctr.get_setting("path_grouping")
+            setting = self.config_ctr.get_setting("path_grouping")
             if setting:
                 path_grouping = setting.value
                 
             # Update the model directly - the view will update automatically
-            self._paths_view.model.add_path(path, comment, path_grouping)
+            self.paths_view.model.add_path(path, comment, path_grouping)
             return
         
         bn.execute_on_main_thread(update_paths_view)
@@ -135,28 +135,28 @@ class PathController:
         # Require a binary to be loaded
         if not bv:
             self._log.warn(self._tag, "No binary loaded.")
-            self._sidebar_view.give_feedback("Find", "No Binary Loaded...")
+            self.sidebar_view.give_feedback("Find", "No Binary Loaded...")
             return
         # Require the binary to be in mapped view
         if bv.view_type == "Raw":
             self._log.warn(self._tag, "Binary is in Raw view.")
-            self._sidebar_view.give_feedback("Find", "Binary is in Raw View...")
+            self.sidebar_view.give_feedback("Find", "Binary is in Raw View...")
             return
         # Require previous analyses to complete
         if self._thread and not self._thread.finished:
             self._log.warn(self._tag, "Analysis already running.")
-            self._sidebar_view.give_feedback("Find", "Analysis Already Running...")
+            self.sidebar_view.give_feedback("Find", "Analysis Already Running...")
             return
         # Initialize new logger to detect newly attached debugger
         self._log = Logger(self._log.get_level(), False)
-        self._sidebar_view.give_feedback("Find", "Finding Paths...")
+        self.sidebar_view.give_feedback("Find", "Finding Paths...")
         # Initialize data structures
         if view:
-            self._paths_view = view
+            self.paths_view = view
         # Run background thread
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
-            model=self._config_ctr._config_model,
+            model=self.config_ctr.config_model,
             tag=f"{self._tag:s}.Slicer",
             log=self._log,
             found_path_callback=self.add_path_to_view
@@ -174,11 +174,11 @@ class PathController:
         """
         if not view: 
             return
-        self._sidebar_view.give_feedback("Load", "Loading Paths...")
+        self.sidebar_view.give_feedback("Load", "Loading Paths...")
         # Clear paths
         self._paths = []
-        self._paths_view = view
-        self._paths_view.clear()
+        self.paths_view = view
+        self.paths_view.clear()
         
         # Load paths from database
         try:
@@ -193,11 +193,11 @@ class PathController:
                 
                 # Update model directly instead of through the view
                 path_grouping = None
-                setting = self._config_ctr.get_setting("path_grouping")
+                setting = self.config_ctr.get_setting("path_grouping")
                 if setting:
                     path_grouping = setting.value
                 
-                self._paths_view.model.add_path(path, s_path.get("comment", ""), path_grouping)
+                self.paths_view.model.add_path(path, s_path.get("comment", ""), path_grouping)
                 
             self._log.info(self._tag, f"Loaded {len(s_paths):d} path(s)")
         except KeyError:
@@ -213,7 +213,7 @@ class PathController:
         """
         This method imports paths from a file.
         """
-        if not self._paths_view: 
+        if not self.paths_view: 
             return
         # Select file
         filepath, _ = qtw.QFileDialog.getOpenFileName(
@@ -266,16 +266,16 @@ class PathController:
         """
         This method stores paths to the binary's database.
         """
-        if not self._paths_view: 
+        if not self.paths_view: 
             return
-        self._sidebar_view.give_feedback("Save", "Saving Paths...")
+        self.sidebar_view.give_feedback("Save", "Saving Paths...")
         try:
             # Calculate SHA1 hash of binary
             sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
             # Serialize paths
             s_paths: List[Dict] = []
-            paths = self._paths_view.get_all_paths()
-            comments = self._paths_view.model.get_comments()
+            paths = self.paths_view.get_all_paths()
+            comments = self.paths_view.model.get_comments()
             
             for idx, path in enumerate(paths):
                 s_path = path.to_dict()
@@ -297,7 +297,7 @@ class PathController:
         """
         This method exports paths to a file.
         """
-        if not self._paths_view: 
+        if not self.paths_view: 
             return
         # Select file
         filepath, _ = qtw.QFileDialog.getSaveFileName(
@@ -313,12 +313,12 @@ class PathController:
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         # Serialize paths
         s_paths: List[Dict] = []
-        comments = self._paths_view.model.get_comments()
+        comments = self.paths_view.model.get_comments()
         
         # Only include valid path rows (filtering out header/group items)
         valid_paths = []
-        for row in (rows if rows else list(range(len(self._paths_view.model.paths)))):
-            path = self._paths_view.path_at_row(row)
+        for row in (rows if rows else list(range(len(self.paths_view.model.paths)))):
+            path = self.paths_view.path_at_row(row)
             if path:  # Only include rows that correspond to actual paths
                 valid_paths.append((row, path))
         
@@ -360,12 +360,12 @@ class PathController:
         """
         This method logs information about a path.
         """
-        if not self._paths_view: 
+        if not self.paths_view: 
             return
         if len(rows) != 1: 
             return
         
-        path = self._paths_view.path_at_row(rows[0])
+        path = self.paths_view.path_at_row(rows[0])
         if not path: 
             return
         
@@ -400,20 +400,20 @@ class PathController:
         """
         This method logs the difference between two paths.
         """
-        if not self._paths_view: 
+        if not self.paths_view: 
             return
         if len(rows) != 2: 
             return
 
         # Get instructions of path 0
-        path_0 = self._paths_view.path_at_row(rows[0])
+        path_0 = self.paths_view.path_at_row(rows[0])
         if not path_0: 
             return
         path_0_id = rows[0]
         path_0_insts = [InstructionHelper.get_inst_info(inst, False) for inst in path_0.insts]
 
         # Get instructions of path 1
-        path_1 = self._paths_view.path_at_row(rows[1])
+        path_1 = self.paths_view.path_at_row(rows[1])
         if not path_1: 
             return
         path_1_id = rows[1]
@@ -464,12 +464,12 @@ class PathController:
         """
         This method highlights all instructions in a path.
         """
-        if not self._paths_view: 
+        if not self.paths_view: 
             return
         if len(rows) != 1: 
             return
         
-        path = self._paths_view.path_at_row(rows[0])
+        path = self.paths_view.path_at_row(rows[0])
         if not path: 
             return
             
@@ -494,7 +494,7 @@ class PathController:
         highlighted_path = path
         insts_colors = {}
         try:
-            setting = self._config_ctr.get_setting("highlight_color")
+            setting = self.config_ctr.get_setting("highlight_color")
             color_name = setting.widget.currentText().capitalize()
             color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
         except Exception as _:
@@ -521,12 +521,12 @@ class PathController:
         """
         This method shows the call graph of a path.
         """
-        if not self._paths_view: 
+        if not self.paths_view: 
             return
         if len(rows) != 1: 
             return
             
-        path = self._paths_view.path_at_row(rows[0])
+        path = self.paths_view.path_at_row(rows[0])
         if not path: 
             return
             
@@ -547,10 +547,10 @@ class PathController:
         """
         This method removes the paths at rows `rows` from the view.
         """
-        if not self._paths_view: 
+        if not self.paths_view: 
             return
             
-        self._paths_view.remove_paths_at_rows(rows)
+        self.paths_view.remove_paths_at_rows(rows)
         self._log.info(self._tag, f"Removed {len(rows):d} path(s)")
         return
     
@@ -558,8 +558,8 @@ class PathController:
         """
         This method removes all paths from the view.
         """
-        if self._paths_view:
-            self._paths_view.clear()
+        if self.paths_view:
+            self.paths_view.clear()
         else:
             self._paths.clear()
             
@@ -581,7 +581,7 @@ class PathController:
             return
             
         # Store reference to the view 
-        self._paths_view = view
+        self.paths_view = view
         
         # Set up context menu
         view.setup_context_menu(
@@ -603,7 +603,7 @@ class PathController:
         view.expandAll()
         
         # Apply current path grouping strategy to any existing paths
-        setting = self._config_ctr.get_setting("path_grouping")
-        if setting and self._paths_view.model.path_count > 0:
-            self._paths_view.model.regroup_paths(setting.value)
+        setting = self.config_ctr.get_setting("path_grouping")
+        if setting and self.paths_view.model.path_count > 0:
+            self.paths_view.model.regroup_paths(setting.value)
         return

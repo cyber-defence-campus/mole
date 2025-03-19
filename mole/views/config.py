@@ -34,7 +34,7 @@ class ConfigView(qtw.QWidget):
         This method sets the controller and initializes relevant UI widgets.
         """
         # Set controller
-        self._config_ctr = config_ctr
+        self.config_ctr = config_ctr
         # Initialize UI widgets
         tab = qtw.QTabWidget()
         tab.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
@@ -52,7 +52,7 @@ class ConfigView(qtw.QWidget):
         This method initializes the tabs `Sources` and `Sinks`.
         """
         tab_wid = qtw.QTabWidget()
-        for lib in self._config_ctr.get_libraries(tab_name).values():
+        for lib in self.config_ctr.get_libraries(tab_name).values():
             lib_lay = qtw.QVBoxLayout()
             lib_wid = qtw.QWidget()
             lib_wid.setLayout(lib_lay)
@@ -110,7 +110,7 @@ class ConfigView(qtw.QWidget):
         com_wid = qtw.QWidget()
         com_lay = qtw.QFormLayout()
         for name in ["max_workers", "max_call_level", "max_slice_depth"]:
-            setting: SpinboxSetting = self._config_ctr.get_setting(name)
+            setting: SpinboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue
             setting.widget = qtw.QSpinBox()
@@ -134,7 +134,7 @@ class ConfigView(qtw.QWidget):
         pth_lay = qtw.QFormLayout()
         
         for name in ["highlight_color", "path_grouping"]:
-            setting: ComboboxSetting = self._config_ctr.get_setting(name)
+            setting: ComboboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue
             setting.widget = qtw.QComboBox()
