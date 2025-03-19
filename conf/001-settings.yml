@@ -31,7 +31,7 @@ settings:
     - Orange
     - White
     - Black
-  grouping_strategy:
-    name: grouping_strategy
+  path_grouping:
+    name: path_grouping
     help: Strategy used to group paths
     value: Call Graph

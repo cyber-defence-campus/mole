@@ -195,13 +195,13 @@ class ConfigService:
                         max_value=max_value
                     )
                 })
-            for name in ["highlight_color", "grouping_strategy"]:
+            for name in ["highlight_color", "path_grouping"]:
                 setting = settings.get(name, None)
                 if not setting:
                     continue
                 value = setting.get("value", "")
                 help = setting.get("help", "")
-                if name == "grouping_strategy":
+                if name == "path_grouping":
                     items = get_all_grouping_strategies()
                 else:
                     items = setting.get("items", [])

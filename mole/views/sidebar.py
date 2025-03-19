@@ -106,21 +106,16 @@ class SidebarView(bnui.SidebarWidget):
         self._log: Logger = log
         self._bv: bn.BinaryView = None
         self._wid: qtw.QTabWidget = None
-        self._ctr: PathController = None
+        self._path_ctr: PathController = None
         self._paths_tree_view: PathsTreeView = None
         return
     
-    def init(self, ctr: PathController) -> SidebarView:
+    def init(self, path_ctr: PathController) -> SidebarView:
         """
-        This method sets the controller, connects relevant signals and initializes all UI widgets.
+        This method sets the controller and initializes relevant UI widgets.
         """
         # Set controller
-        self._ctr = ctr
-        # Connect signals
-        self._ctr.connect_signal_setup_paths_tree(self._ctr.setup_paths_tree)
-        self._ctr.connect_signal_find_paths(self._ctr.find_paths)
-        self._ctr.connect_signal_load_paths(self._ctr.load_paths)
-        self._ctr.connect_signal_save_paths(self._ctr.save_paths)
+        self._path_ctr = path_ctr
         # Initialize UI widgets
         self._wid = qtw.QTabWidget()
         self._wid.addTab(*self._init_run_tab())

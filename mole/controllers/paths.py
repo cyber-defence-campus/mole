@@ -1,14 +1,12 @@
-from __future__          import annotations
-from ..common.log      import Logger
-from ..common.parse    import LogicalExpressionParser
-from ..core.data       import Path, InstructionHelper
-from ..models.config   import ConfigModel
+from __future__           import annotations
+from ..common.log         import Logger
+from ..core.data          import Path, InstructionHelper
 from ..controllers.config import ConfigController
-from ..services.slicer import MediumLevelILBackwardSlicerThread
-from ..views.graph     import GraphWidget
-from ..views.sidebar   import SidebarView
-from ..views.paths_tree import PathsTreeView
-from typing            import Dict, List, Tuple, Optional
+from ..services.slicer    import MediumLevelILBackwardSlicerThread
+from ..views.graph        import GraphWidget
+from ..views.sidebar      import SidebarView
+from ..views.paths_tree   import PathsTreeView
+from typing               import Dict, List, Tuple, Optional
 import binaryninja       as bn
 import copy              as copy
 import difflib           as difflib
@@ -28,8 +26,7 @@ class PathController:
     def __init__(
             self,
             sidebar_view: SidebarView,
-            config_model: ConfigModel,
-            config_controller: ConfigController,
+            config_ctr: ConfigController,
             tag: str,
             log: Logger
         ) -> None:
@@ -37,31 +34,22 @@ class PathController:
         This method initializes a controller (MVC pattern).
         """
         self._sidebar_view = sidebar_view
-        self._config_model = config_model
-        self._config_controller = config_controller
+        self._config_ctr = config_ctr
         self._tag = tag
         self._log = log
-        self._thread: MediumLevelILBackwardSlicerThread = None
-        self._parser: LogicalExpressionParser = LogicalExpressionParser(tag, log)
         self._paths: List[Path] = []
-        self._paths_view: Optional[PathsTreeView] = None
         self._paths_highlight: Tuple[
             Path,
             Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
-        self._config_path: str = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "../../conf/"
-        )
-        # self._sidebar_view.set_controller(self)
-        self._config_controller.connect_signal_change_path_grouping(self._change_path_grouping)
-        return
-    
-    def connect_signal_setup_paths_tree(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when the Binary View changes.
-        """
-        self._sidebar_view.signal_setup_path_tree.connect(slot)
+        self._paths_view: Optional[PathsTreeView] = None
+        self._thread: Optional[MediumLevelILBackwardSlicerThread] = None
+        # Connect signals
+        self.connect_signal_find_paths(self.find_paths)
+        self.connect_signal_load_paths(self.load_paths)
+        self.connect_signal_save_paths(self.save_paths)
+        self.connect_signal_setup_paths_tree(self.setup_paths_tree)
+        self._config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
         return
     
     def connect_signal_find_paths(self, slot: object) -> None:
@@ -83,6 +71,13 @@ class PathController:
         This method allows connecting to the signal that is triggered when paths should be saved.
         """
         self._sidebar_view.signal_save_paths.connect(slot)
+        return
+    
+    def connect_signal_setup_paths_tree(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when the Binary View changes.
+        """
+        self._sidebar_view.signal_setup_path_tree.connect(slot)
         return
 
     def _change_path_grouping(self, new_strategy: str) -> None:
@@ -116,16 +111,14 @@ class PathController:
                 self._paths.append(path)
                 return
                 
-            # Get current grouping strategy from settings
-            grouping_strategy = None
-            settings = self._config_model.get().settings
-            if "grouping_strategy" in settings:
-                strategy_value = settings["grouping_strategy"].value
-                # Strategy value is already a string, use directly
-                grouping_strategy = strategy_value
+            # Get current path grouping strategy from settings
+            path_grouping = None
+            setting = self._config_ctr.get_setting("path_grouping")
+            if setting:
+                path_grouping = setting.value
                 
             # Update the model directly - the view will update automatically
-            self._paths_view.model.add_path(path, comment, grouping_strategy)
+            self._paths_view.model.add_path(path, comment, path_grouping)
             return
         
         bn.execute_on_main_thread(update_paths_view)
@@ -163,7 +156,7 @@ class PathController:
         # Run background thread
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
-            model=self._config_model,
+            model=self._config_ctr._config_model,
             tag=f"{self._tag:s}.Slicer",
             log=self._log,
             found_path_callback=self.add_path_to_view
@@ -199,14 +192,12 @@ class PathController:
                 path = Path.from_dict(bv, s_path)
                 
                 # Update model directly instead of through the view
-                grouping_strategy = None
-                settings = self._config_model.get().settings
-                if "grouping_strategy" in settings:
-                    strategy_value = settings["grouping_strategy"].value
-                    # Strategy value is already a string, use directly
-                    grouping_strategy = strategy_value
+                path_grouping = None
+                setting = self._config_ctr.get_setting("path_grouping")
+                if setting:
+                    path_grouping = setting.value
                 
-                self._paths_view.model.add_path(path, s_path.get("comment", ""), grouping_strategy)
+                self._paths_view.model.add_path(path, s_path.get("comment", ""), path_grouping)
                 
             self._log.info(self._tag, f"Loaded {len(s_paths):d} path(s)")
         except KeyError:
@@ -503,8 +494,8 @@ class PathController:
         highlighted_path = path
         insts_colors = {}
         try:
-            model = self._config_model.get()
-            color_name = model.settings.get("highlight_color").widget.currentText().capitalize()
+            setting = self._config_ctr.get_setting("highlight_color")
+            color_name = setting.widget.currentText().capitalize()
             color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
         except Exception as _:
             color = bn.HighlightStandardColor.RedHighlightColor
@@ -611,8 +602,8 @@ class PathController:
         # Expand all nodes by default
         view.expandAll()
         
-        # Apply current grouping strategy to any existing paths
-        settings = self._config_model.get().settings
-        if "grouping_strategy" in settings and self._paths_view.model.path_count > 0:
-            self._paths_view.model.regroup_paths(settings["grouping_strategy"].value)
+        # Apply current path grouping strategy to any existing paths
+        setting = self._config_ctr.get_setting("path_grouping")
+        if setting and self._paths_view.model.path_count > 0:
+            self._paths_view.model.regroup_paths(setting.value)
         return

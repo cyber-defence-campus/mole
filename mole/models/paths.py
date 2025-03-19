@@ -117,21 +117,21 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
         return [main_item]
         
-    def add_path(self, path: Path, comment: str = "", grouping_strategy: str = None) -> None:
+    def add_path(self, path: Path, comment: str = "", path_grouping: str = None) -> None:
         """
         Add a path to the model grouped by strategy.
         
         Args:
             path: The path to add
             comment: Comment for the path
-            grouping_strategy: How to group paths - one of the PathGrouper strategies
+            path_grouping: How to group paths - one of the PathGrouper strategies
         """
         self.paths.append(path)
         path_id = len(self.paths) - 1
         self.path_comments[path_id] = comment
 
         # Get the appropriate grouper for this strategy
-        grouper = get_grouper(grouping_strategy)
+        grouper = get_grouper(path_grouping)
         if grouper is None:
             parent_item = self
             group_keys = []  # No grouping hierarchy
@@ -325,12 +325,12 @@ class PathsTreeModel(qtui.QStandardItemModel):
             # Update the comment in the comments dictionary
             self.path_comments[path_id] = comment
 
-    def regroup_paths(self, grouping_strategy: str = None) -> None:
+    def regroup_paths(self, path_grouping: str = None) -> None:
         """
         Regroup all paths using the specified grouping strategy.
         
         Args:
-            grouping_strategy: The new grouping strategy to use
+            path_grouping: The new grouping strategy to use
         """
         if self.path_count == 0:
             return  # Nothing to regroup
@@ -345,4 +345,4 @@ class PathsTreeModel(qtui.QStandardItemModel):
         # Re-add all paths with the new grouping strategy
         for idx, path in enumerate(paths):
             comment = comments.get(idx, "")
-            self.add_path(path, comment, grouping_strategy)
+            self.add_path(path, comment, path_grouping)
