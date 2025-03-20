@@ -17,7 +17,7 @@ class CallgraphPathGrouper(SourceSinkPathGrouper):
         """
         # TODO: Make `max_calls` a setting
         max_calls = 4
-        calls = path.calls[1:-1]
+        calls = [call[1] for call in path.calls[1:-1]]
         if len(calls) > max_calls:
             calls = calls[:int(max_calls/2)] + ["..."] + calls[int(-max_calls/2):]
         calls = " -> ".join(reversed(calls))

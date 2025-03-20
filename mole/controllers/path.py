@@ -362,9 +362,7 @@ class PathController:
         """
         This method logs information about a path.
         """
-        if not self.path_tree_view: 
-            return
-        if len(rows) != 1: 
+        if not self.path_tree_view or len(rows) != 1:
             return
         
         path = self.path_tree_view.path_at_row(rows[0])
@@ -402,9 +400,7 @@ class PathController:
         """
         This method logs the difference between two paths.
         """
-        if not self.path_tree_view: 
-            return
-        if len(rows) != 2: 
+        if not self.path_tree_view or len(rows) != 2: 
             return
 
         # Get instructions of path 0
@@ -458,6 +454,39 @@ class PathController:
             )
         return
     
+    def log_call(
+            self,
+            rows: List[int],
+            reverse: bool = False
+        ) -> None:
+        """
+        This method logs the call sequence of a path.
+        """
+        if not self.path_tree_view or len(rows) != 1:
+            return
+        
+        path = self.path_tree_view.path_at_row(rows[0])
+        if not path: 
+            return
+        
+        path_id = rows[0]
+        msg = f"Path {path_id:d}: {str(path):s}"
+        msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
+        self._log.info(self._tag, msg)
+        
+        if reverse:
+            self._log.debug(self._tag, "--- Forward  Call Sequence ---")
+            calls = reversed(path.calls)
+        else:
+            self._log.debug(self._tag, "--- Backward Call Sequence ---")
+            calls = path.calls
+        
+        for call_addr, call_name in calls:
+            self._log.debug(self._tag, f"- 0x{call_addr:x} {call_name:s}")
+        self._log.debug(self._tag, "----------------------")
+        self._log.debug(self._tag, msg)
+        return
+    
     def highlight_path(
             self,
             bv: bn.BinaryView,
@@ -466,9 +495,7 @@ class PathController:
         """
         This method highlights all instructions in a path.
         """
-        if not self.path_tree_view: 
-            return
-        if len(rows) != 1: 
+        if not self.path_tree_view or len(rows) != 1: 
             return
         
         path = self.path_tree_view.path_at_row(rows[0])
@@ -523,9 +550,7 @@ class PathController:
         """
         This method shows the call graph of a path.
         """
-        if not self.path_tree_view: 
-            return
-        if len(rows) != 1: 
+        if not self.path_tree_view or len(rows) != 1: 
             return
             
         path = self.path_tree_view.path_at_row(rows[0])
@@ -584,6 +609,7 @@ class PathController:
         path_tree_view.setup_context_menu(
             on_log_path=self.log_path,
             on_log_path_diff=self.log_path_diff,
+            on_log_call=self.log_call,
             on_highlight_path=lambda rows: self.highlight_path(bv, rows),
             on_show_call_graph=lambda rows: self.show_call_graph(bv, rows, wid),
             on_import_paths=lambda: self.import_paths(bv),

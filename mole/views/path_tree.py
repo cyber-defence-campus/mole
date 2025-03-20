@@ -5,6 +5,7 @@ from typing      import Callable, List, Optional
 import binaryninja       as bn
 import binaryninjaui     as bnui
 import PySide6.QtCore    as qtc
+import PySide6.QtGui     as qtui
 import PySide6.QtWidgets as qtw
 
 
@@ -166,6 +167,7 @@ class PathTreeView(qtw.QTreeView):
             self, 
             on_log_path: Callable[[List[int], bool], None],
             on_log_path_diff: Callable[[List[int]], None],
+            on_log_call: Callable[[List[int], bool], None],
             on_highlight_path: Callable[[List[int]], None],
             on_show_call_graph: Callable[[List[int]], None],
             on_import_paths: Callable[[], None],
@@ -195,7 +197,11 @@ class PathTreeView(qtw.QTreeView):
             log_path_reversed_action.triggered.connect(lambda: on_log_path(rows, True))
             log_path_diff_action = self._add_menu_action(menu, "Log instruction difference", len(rows) == 2)
             log_path_diff_action.triggered.connect(lambda: on_log_path_diff(rows))
-            
+            log_call_action = self._add_menu_action(menu, "Log call sequence", len(rows) == 1)
+            log_call_action.triggered.connect(lambda: on_log_call(rows, False))
+            log_call_reversed_action = self._add_menu_action(menu, "Log call sequence (reversed)", len(rows) == 1)
+            log_call_reversed_action.triggered.connect(lambda: on_log_call(rows, True))
+             
             menu.addSeparator()
             
             # Highlight and call graph actions
@@ -244,7 +250,7 @@ class PathTreeView(qtw.QTreeView):
         self._context_menu_connected = True
         return
     
-    def _add_menu_action(self, menu: qtw.QMenu, text: str, enabled: bool = True) -> qtw.QAction:
+    def _add_menu_action(self, menu: qtw.QMenu, text: str, enabled: bool = True) -> qtui.QAction:
         """
         This method is a helper to add a menu action with enabled state.
         """

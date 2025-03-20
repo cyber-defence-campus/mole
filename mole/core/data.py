@@ -445,12 +445,13 @@ class Path:
         return
     
     def _init_calls(self) -> None:
-        self.calls = [self.snk_sym_name]
+        self.calls = [(self.snk_sym_addr, self.snk_sym_name)]
         for inst in self.insts:
-            call = inst.function.source_function.name
-            if self.calls[-1] != call:
-                self.calls.append(call)
-        self.calls.append(self.src_sym_name)
+            call_addr = inst.function.source_function.start
+            call_name = inst.function.source_function.name
+            if self.calls[-1] != (call_addr, call_name):
+                self.calls.append((call_addr, call_name))
+        self.calls.append((self.src_sym_addr, self.src_sym_name))
         return
 
     def __eq__(self, other: Path) -> bool:

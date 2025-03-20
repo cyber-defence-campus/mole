@@ -93,8 +93,9 @@ class TestVarious(TestCase):
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
             )
+            calls = [call[1] for call in path.calls]
             self.assertEqual(
-                path.calls,
+                calls,
                 ["gets", "main", "gets"],
                 "call paths"
             )
@@ -127,7 +128,8 @@ class TestVarious(TestCase):
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa),
                     "sink is a MLIL call instruction"
                 )
-                call_paths.append(path.calls)
+                calls = [call[1] for call in path.calls]
+                call_paths.append(calls)
             self.assertCountEqual(
                 call_paths,
                 [
@@ -175,9 +177,10 @@ class TestVarious(TestCase):
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
                 )
+                calls = [call[1] for call in path.calls]
                 self.assertTrue(
-                    path.calls == ["sscanf", "main", "getenv"] or
-                    path.calls == ["__isoc99_sscanf", "main", "getenv"],
+                    calls == ["sscanf", "main", "getenv"] or
+                    calls == ["__isoc99_sscanf", "main", "getenv"],
                     "call paths"
                 )
             bv.file.close()
@@ -215,8 +218,9 @@ class TestVarious(TestCase):
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
             )
+            calls = [call[1] for call in path.calls]
             self.assertEqual(
-                path.calls,
+                calls,
                 ["memcpy", "main", "getenv"],
                 "call paths"
             )
@@ -255,8 +259,9 @@ class TestVarious(TestCase):
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
                 )
+                calls = [call[1] for call in path.calls]
                 self.assertEqual(
-                    path.calls,
+                    calls,
                     ["memcpy", "main", "getenv"],
                     "call paths"
                 )
@@ -295,8 +300,9 @@ class TestVarious(TestCase):
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
             )
+            calls = [call[1] for call in path.calls]
             self.assertEqual(
-                path.calls,
+                calls,
                 ["memcpy", "main", "getenv"],
                 "call paths"
             )
@@ -335,8 +341,9 @@ class TestVarious(TestCase):
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
             )
+            calls = [call[1] for call in path.calls]
             self.assertEqual(
-                path.calls,
+                calls,
                 ["memcpy", "main", "my_getenv", "getenv"],
                 "call paths"
             )
@@ -375,8 +382,9 @@ class TestVarious(TestCase):
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
                 )
+                calls = [call[1] for call in path.calls]
                 self.assertEqual(
-                    path.calls,
+                    calls,
                     ["memcpy", "main", "my_getenv", "getenv"],
                     "call paths"
                 )
@@ -465,8 +473,9 @@ class TestFunctionCalling(TestCase):
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
                 )
-                self.assertTrue("system_1b" not in path.calls, "system_1b not called")
-                self.assertTrue("getenv_1c" not in path.calls, "getenv_1c not called")
+                calls = [call[1] for call in path.calls]
+                self.assertTrue("system_1b" not in calls, "system_1b not called")
+                self.assertTrue("getenv_1c" not in calls, "getenv_1c not called")
             bv.file.close()
         return
     
@@ -503,7 +512,8 @@ class TestFunctionCalling(TestCase):
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
                 )
-                call_paths.append(path.calls)
+                calls = [call[1] for call in path.calls]
+                call_paths.append(calls)
             self.assertCountEqual(
                 call_paths,
                 [
@@ -563,8 +573,9 @@ class TestFunctionCalling(TestCase):
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
             )
+            calls = [call[1] for call in path.calls]
             self.assertEqual(
-                path.calls,
+                calls,
                 ["system", "main", "func", "main", "getenv"]
             )
             bv.file.close()
@@ -632,7 +643,8 @@ class TestPointerAnalysis(TestCase):
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
             )
-            self.assertEqual(path.calls, ["system", "main", "getenv"], "call chain")
+            calls = [call[1] for call in path.calls]
+            self.assertEqual(calls, ["system", "main", "getenv"], "call chain")
             bv.file.close()
         return
 
@@ -672,7 +684,8 @@ class TestPointerAnalysis(TestCase):
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa),
                     "sink is a MLIL call instruction"
                 )
-                self.assertEqual(path.calls, ["system", "main", "getenv"])
+                calls = [call[1] for call in path.calls]
+                self.assertEqual(calls, ["system", "main", "getenv"])
             bv.file.close()
         return
     
@@ -715,7 +728,8 @@ class TestPointerAnalysis(TestCase):
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa),
                     "sink is a MLIL call instruction"
                 )
-                self.assertEqual(path.calls, ["memcpy", "main", "modify_n", "getenv"])
+                calls = [call[1] for call in path.calls]
+                self.assertEqual(calls, ["memcpy", "main", "modify_n", "getenv"])
             bv.file.close()
         return
     
@@ -751,7 +765,8 @@ class TestPointerAnalysis(TestCase):
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "argument is a MLIL variable"
             )
-            self.assertEqual(path.calls, ["memcpy", "main", "my_getenv", "getenv"], "call chain")
+            calls = [call[1] for call in path.calls]
+            self.assertEqual(calls, ["memcpy", "main", "my_getenv", "getenv"], "call chain")
             bv.file.close()
         return
     
@@ -809,7 +824,8 @@ class TestSimpleServer(TestCase):
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
                 )
-                call_paths.append(path.calls)
+                calls = [call[1] for call in path.calls]
+                call_paths.append(calls)
             self.assertCountEqual(
                 call_paths,
                 [
@@ -862,7 +878,8 @@ class TestSimpleServer(TestCase):
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "argument is a MLIL variable"
                 )
-                call_paths.append(path.calls)
+                calls = [call[1] for call in path.calls]
+                call_paths.append(calls)
             self.assertCountEqual(
                 call_paths,
                 [
