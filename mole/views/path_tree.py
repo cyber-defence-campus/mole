@@ -334,18 +334,13 @@ class PathTreeView(qtw.QTreeView):
             col = index.column()
             
             # Navigate based on column
-            if col in [PATH_COLS["Src Addr"], PATH_COLS["Src Func"]]:
-                # Get source address
-                addr = self._path_tree_model.data(
-                    source_index, 
-                    qtc.Qt.UserRole
-                )
-                if addr:
-                    vf.navigate(bv, addr)
-            elif col in [PATH_COLS["Snk Addr"], PATH_COLS["Snk Func"], PATH_COLS["Snk Parm"]]:
-                # Get sink address
-                path = self.path_at_row(path_id)
-                if path:
+            path = self.path_at_row(path_id)
+            if path:
+                # Navigate to source address
+                if col in [PATH_COLS["Src Addr"], PATH_COLS["Src Func"]]:
+                    vf.navigate(bv, path.src_sym_addr)
+                # Navigate to sink address
+                elif col in [PATH_COLS["Snk Addr"], PATH_COLS["Snk Func"], PATH_COLS["Snk Parm"]]:
                     vf.navigate(bv, path.snk_sym_addr)
         
         # Disconnect existing navigation signals to prevent multiple connections
