@@ -94,7 +94,7 @@ class TestVarious(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["main"], "call sequence")
+            self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
     
@@ -124,7 +124,7 @@ class TestVarious(TestCase):
                     "sink is a MLIL call instruction"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["main"], "call sequence")
+                self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
     
@@ -161,7 +161,7 @@ class TestVarious(TestCase):
                     "argument is a MLIL variable"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["main"], "call sequence")
+                self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
     
@@ -198,7 +198,7 @@ class TestVarious(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["main"], "call sequence")
+            self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
     
@@ -235,7 +235,7 @@ class TestVarious(TestCase):
                     "argument is a MLIL variable"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["main"], "call sequence")
+                self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
     
@@ -272,7 +272,7 @@ class TestVarious(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["main"], "call sequence")
+            self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
     
@@ -309,7 +309,7 @@ class TestVarious(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["main", "my_getenv"], "call sequence")
+            self.assertEqual(calls, ["main", "my_getenv"], "calls")
             bv.file.close()
         return
     
@@ -346,7 +346,7 @@ class TestVarious(TestCase):
                     "argument is a MLIL variable"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["main", "my_getenv"], "call sequence")
+                self.assertEqual(calls, ["main", "my_getenv"], "calls")
             bv.file.close()
         return
     
@@ -533,7 +533,7 @@ class TestFunctionCalling(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["main", "func", "main"], "call sequence")
+            self.assertEqual(calls, ["main", "func", "main"], "calls")
             bv.file.close()
         return
     
@@ -600,7 +600,7 @@ class TestPointerAnalysis(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["main"], "call sequence")
+            self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
 
@@ -641,7 +641,7 @@ class TestPointerAnalysis(TestCase):
                     "sink is a MLIL call instruction"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["main"], "call sequence")
+                self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
     
@@ -685,7 +685,7 @@ class TestPointerAnalysis(TestCase):
                     "sink is a MLIL call instruction"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["main", "modify_n"], "call sequence")
+                self.assertEqual(calls, ["main", "modify_n"], "calls")
             bv.file.close()
         return
     
@@ -722,7 +722,7 @@ class TestPointerAnalysis(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["main", "my_getenv"], "call sequence")
+            self.assertEqual(calls, ["main", "my_getenv"], "calls")
             bv.file.close()
         return
     
@@ -786,7 +786,7 @@ class TestSimpleServer(TestCase):
             self.assertCountEqual(
                 call_paths,
                 [["handle_get_request"],["handle_post_request"]],
-                "call sequence"
+                "calls"
             )
             bv.file.close()
         return
@@ -840,7 +840,7 @@ class TestSimpleServer(TestCase):
                         "receive_data"
                     ]
                 ],
-                "call sequence"
+                "calls"
             )
             bv.file.close()
         return

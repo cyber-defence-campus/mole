@@ -21,7 +21,7 @@ class CallgraphPathGrouper(SourceSinkPathGrouper):
             calls = calls[:int(max_calls/2)] + ["..."] + calls[int(-max_calls/2):]
         calls = " - ".join(reversed(calls))
         keys = super().get_group_keys(path, *args, **kwargs)
-        keys.append((f"Call Seq: {calls:s}", f"{path.src_sym_name:s}:{path.snk_sym_name}:{calls:s}", 2))
+        keys.append((f"Calls: {calls:s}", f"{path.src_sym_name:s}:{path.snk_sym_name}:{calls:s}", 2))
         return keys
     
     def get_strategy_name(self) -> str:

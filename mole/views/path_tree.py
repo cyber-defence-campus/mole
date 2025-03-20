@@ -197,9 +197,9 @@ class PathTreeView(qtw.QTreeView):
             log_path_reversed_action.triggered.connect(lambda: on_log_path(rows, True))
             log_path_diff_action = self._add_menu_action(menu, "Log instruction difference", len(rows) == 2)
             log_path_diff_action.triggered.connect(lambda: on_log_path_diff(rows))
-            log_call_action = self._add_menu_action(menu, "Log call sequence", len(rows) == 1)
+            log_call_action = self._add_menu_action(menu, "Log calls", len(rows) == 1)
             log_call_action.triggered.connect(lambda: on_log_call(rows, False))
-            log_call_reversed_action = self._add_menu_action(menu, "Log call sequence (reversed)", len(rows) == 1)
+            log_call_reversed_action = self._add_menu_action(menu, "Log calls (reversed)", len(rows) == 1)
             log_call_reversed_action.triggered.connect(lambda: on_log_call(rows, True))
              
             menu.addSeparator()

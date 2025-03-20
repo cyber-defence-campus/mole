@@ -460,7 +460,7 @@ class PathController:
             reverse: bool = False
         ) -> None:
         """
-        This method logs the call sequence of a path.
+        This method logs the calls of a path.
         """
         if not self.path_tree_view or len(rows) != 1:
             return
@@ -475,14 +475,16 @@ class PathController:
         self._log.info(self._tag, msg)
         
         if reverse:
-            self._log.debug(self._tag, "--- Forward  Call Sequence ---")
-            calls = reversed(path.calls)
+            self._log.debug(self._tag, "--- Forward  Calls ---")
+            calls = list(reversed(path.calls))
         else:
-            self._log.debug(self._tag, "--- Backward Call Sequence ---")
+            self._log.debug(self._tag, "--- Backward Calls ---")
             calls = path.calls
         
-        for call_addr, call_name in calls:
-            self._log.debug(self._tag, f"- 0x{call_addr:x} {call_name:s}")
+        min_call_level = min(calls, key=lambda x: x[2])[2]
+        for call_addr, call_name, call_level in calls:
+            indent = call_level - min_call_level
+            self._log.debug(self._tag, f"{'>'*indent:s} 0x{call_addr:x} {call_name:s}")
         self._log.debug(self._tag, "----------------------")
         self._log.debug(self._tag, msg)
         return

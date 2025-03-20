@@ -449,7 +449,8 @@ class Path:
         for inst in self.insts:
             func_name = inst.function.source_function.name
             if len(self.calls) == 0 or self.calls[-1][1] != func_name:
-                self.calls.append((inst.address, func_name))
+                call_level = self.call_graph.nodes.get(inst.function, {}).get("call_level", 0)
+                self.calls.append((inst.address, func_name, call_level))
         return
 
     def __eq__(self, other: Path) -> bool:
