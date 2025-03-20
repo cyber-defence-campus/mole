@@ -12,7 +12,7 @@ class SourceSinkPathGrouper(PathGrouper):
     This class implements a strategy that groups by source and sink symbols.
     """
     
-    def get_group_keys(self, path: Path) -> List[Tuple[str, str, int]]:
+    def get_group_keys(self, path: Path, *args, **kwargs) -> List[Tuple[str, str, int]]:
         """
         This method groups paths by source and sink symbols.
         """

@@ -20,7 +20,7 @@ class PathGrouper(ABC):
     """
     
     @abstractmethod
-    def get_group_keys(self, path: Path) -> List[Tuple[str, str, int]]:
+    def get_group_keys(self, path: Path, *args, **kwargs) -> List[Tuple[str, str, int]]:
         """
         This method returns a list of hierarchy keys for organizing paths. Each key is a tuple of
         (display_name, internal_id, level). The level indicates the depth in the tree (0=root,
@@ -28,6 +28,8 @@ class PathGrouper(ABC):
         
         Args:
             path: `Path` object to be grouped
+            args:   Custom positional arguments
+            kwargs: Custom keyword arguments
             
         Returns:
             List of tuples containing (display_name, internal_id, level)
