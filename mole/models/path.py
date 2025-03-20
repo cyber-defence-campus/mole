@@ -57,7 +57,7 @@ class PathSortProxyModel(qtc.QSortFilterProxyModel):
         # If we have UserRole data available, use it for comparison
         if left_data is not None and right_data is not None:
             # Compare based on the actual types
-            return left_data < right_data
+            return left_data > right_data
         
         # Fall back to string comparison of display text
         left_text = self.sourceModel().data(left, qtc.Qt.DisplayRole)
@@ -67,11 +67,11 @@ class PathSortProxyModel(qtc.QSortFilterProxyModel):
         try:
             left_num = float(left_text)
             right_num = float(right_text)
-            return left_num < right_num
+            return left_num > right_num
         except Exception as _:
             pass
         # Fall back to string comparison
-        return str(left_text).lower() < str(right_text).lower()
+        return str(left_text).lower() > str(right_text).lower()
 
 
 class PathTreeModel(qtui.QStandardItemModel):
