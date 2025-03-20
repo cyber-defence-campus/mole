@@ -1,5 +1,5 @@
 """
-Call graph grouping strategy implementation.
+This module implements a call graph grouping strategy.
 """
 from __future__   import annotations
 from ..core.data  import Path
@@ -8,12 +8,12 @@ from .source_sink import SourceSinkPathGrouper
 
 class CallgraphPathGrouper(SourceSinkPathGrouper):
     """
-    Grouping strategy that groups by source and sink symbols, as well as same call graphs.
+    This class implements a strategy that groups by source and sink symbols, as well as call graphs.
     """
     
     def get_group_keys(self, path: Path):
         """
-        Group paths by source and sink symbols, as well as call graphs.
+        This method groups paths by source and sink symbols, as well as call graphs.
         """
         # TODO: Make `max_calls` a setting
         max_calls = 4
@@ -26,4 +26,7 @@ class CallgraphPathGrouper(SourceSinkPathGrouper):
         return keys
     
     def get_strategy_name(self) -> str:
+        """
+        This method returns the name of this grouping strategy.
+        """
         return "Call Graph"

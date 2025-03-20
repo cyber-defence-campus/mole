@@ -31,13 +31,15 @@ class PathView(bnui.SidebarWidget):
         """
         This method initializes a sidebar widget.
         """
+        # Initialization
         super().__init__("Mole")
-        self._tag: str = tag
-        self._log: Logger = log
         self._bv: Optional[bn.BinaryView] = None
         self._wid: Optional[qtw.QTabWidget] = None
         self.path_ctr: Optional[PathController] = None
         self.path_tree_view: Optional[PathTreeView] = None
+        # Logging
+        self._tag: str = tag
+        self._log: Logger = log
         return
     
     def init(self, path_ctr: PathController) -> PathView:
@@ -58,7 +60,7 @@ class PathView(bnui.SidebarWidget):
     
     def _init_path_tab(self) -> Tuple[qtw.QWidget, str]:
         """
-        This method initializes the tab `Run`.
+        This method initializes the tab `Path`.
         """
         # Create the path tree view
         self.path_tree_view = PathTreeView()
@@ -100,6 +102,9 @@ class PathView(bnui.SidebarWidget):
         
         return wid, "Path"
     
+    def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
+        return GraphWidget(self._tag, self._log), "Graph"
+    
     def give_feedback(
             self,
             button_type: Literal["Find", "Load", "Save"],
@@ -127,10 +132,7 @@ class PathView(bnui.SidebarWidget):
             old_text = button.text()
             button.setText(text)
             qtc.QTimer.singleShot(msec, lambda text=old_text: restore(text))
-        return 
-    
-    def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
-        return GraphWidget(self._tag, self._log), "Graph"
+        return
     
     def notifyViewChanged(self, vf: bnui.ViewFrame) -> None:
         """

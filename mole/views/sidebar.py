@@ -26,6 +26,7 @@ class MoleSidebar(bnui.SidebarWidgetType):
         self._sidebar_view = sidebar_view
         self._tag: str = tag
         self._log: Logger = log
+        return
     
     def _init_icon(self) -> qtui.QImage:
         """

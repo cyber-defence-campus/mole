@@ -15,13 +15,13 @@ class PathTreeView(qtw.QTreeView):
     
     def __init__(self, parent=None) -> None:
         """
-        Initialize the path tree view.
+        This method initializes the path tree view.
         """
         super().__init__(parent)
-        self._model = PathTreeModel()
-        self._proxy_model = PathSortProxyModel()
-        self._proxy_model.setSourceModel(self._model)
-        self.setModel(self._proxy_model)
+        self._path_tree_model = PathTreeModel()
+        self._path_sort_proxy_model = PathSortProxyModel()
+        self._path_sort_proxy_model.setSourceModel(self._path_tree_model)
+        self.setModel(self._path_sort_proxy_model)
         
         # Configure view properties
         self.setSelectionMode(qtw.QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -34,7 +34,7 @@ class PathTreeView(qtw.QTreeView):
         self.header().setStretchLastSection(True)
         
         # Ensure the columns are appropriately sized initially
-        for col in range(self._model.columnCount()):
+        for col in range(self._path_tree_model.columnCount()):
             self.resizeColumnToContents(col)
         
         # Track if signals are connected
@@ -43,21 +43,21 @@ class PathTreeView(qtw.QTreeView):
         self._context_menu_function = None
         
         # Connect only to proxy model signals for consistency
-        self._proxy_model.rowsInserted.connect(self._handle_rows_inserted_or_changed)
-        self._proxy_model.dataChanged.connect(self._handle_rows_inserted_or_changed)
-        self._proxy_model.modelReset.connect(self.refresh_view)
+        self._path_sort_proxy_model.rowsInserted.connect(self._handle_rows_inserted_or_changed)
+        self._path_sort_proxy_model.dataChanged.connect(self._handle_rows_inserted_or_changed)
+        self._path_sort_proxy_model.modelReset.connect(self.refresh_view)
         
         # Connect to proxy model data changed signal to capture comment edits
-        self._proxy_model.dataChanged.connect(self._handle_comment_edit)
+        self._path_sort_proxy_model.dataChanged.connect(self._handle_comment_edit)
         return
     
     def refresh_view(self) -> None:
         """
-        Refresh the view by expanding all items and resizing columns.
-        Called when new paths are added to ensure proper display.
+        This method refreshes the view by expanding all items and resizing columns. It is called
+        when new paths are added to ensure proper display.
         """
         # Resize columns to fit content
-        for col in range(self._model.columnCount()):
+        for col in range(self._path_tree_model.columnCount()):
             self.resizeColumnToContents(col)
             
         # Apply proper column spanning
@@ -69,11 +69,11 @@ class PathTreeView(qtw.QTreeView):
     
     def _handle_rows_inserted_or_changed(self, *args) -> None:
         """
-        Generic handler for when rows are inserted or data changes.
-        This replaces the separate handlers for each model's signals.
+        This method a generic handler for when rows are inserted or data changes. It replaces the
+        separate handlers for each model's signals.
         """
         # Resize columns to fit content
-        for col in range(self._model.columnCount()):
+        for col in range(self._path_tree_model.columnCount()):
             self.resizeColumnToContents(col)
             
         # Apply proper column spanning
@@ -85,21 +85,24 @@ class PathTreeView(qtw.QTreeView):
     
     def _handle_spanning_for_all_items(self) -> None:
         """
-        Ensure all header items have column spanning set correctly.
-        Called after items are added to ensure proper spanning.
+        This method ensures all header items have column spanning set correctly. It is called after
+        items are added to ensure proper spanning.
         """
         # Reset all spanning first
         self._apply_spanning_recursively(qtc.QModelIndex())
         return
     
-    def _apply_spanning_recursively(self, proxy_parent_index) -> None:
+    def _apply_spanning_recursively(
+            self,
+            proxy_parent_index: qtc.QModelIndex | qtc.QPersistentModelIndex
+        ) -> None:
         """
-        Apply spanning to all items recursively.
+        This method applies spanning to all items recursively.
         """
-        for row in range(self._proxy_model.rowCount(proxy_parent_index)):
-            proxy_index = self._proxy_model.index(row, 0, proxy_parent_index)
-            source_index = self._proxy_model.mapToSource(proxy_index)
-            is_path_item = self._model.data(source_index, IS_PATH_ITEM_ROLE)
+        for row in range(self._path_sort_proxy_model.rowCount(proxy_parent_index)):
+            proxy_index = self._path_sort_proxy_model.index(row, 0, proxy_parent_index)
+            source_index = self._path_sort_proxy_model.mapToSource(proxy_index)
+            is_path_item = self._path_tree_model.data(source_index, IS_PATH_ITEM_ROLE)
             
             if not is_path_item:
                 # Apply spanning to this item
@@ -111,20 +114,20 @@ class PathTreeView(qtw.QTreeView):
     @property
     def model(self) -> PathTreeModel:
         """
-        Get the underlying model.
+        This method returns the underlying model.
         """
-        return self._model
+        return self._path_tree_model
     
     def clear(self) -> None:
         """
-        Clear all paths from the view.
+        This method clears all paths from the view.
         """
-        self._model.clear()
+        self._path_tree_model.clear()
         return
     
     def get_selected_rows(self) -> List[int]:
         """
-        Get the currently selected path rows.
+        This method returns the currently selected path rows.
         """
         path_rows = []
         for index in self.selectionModel().selectedIndexes():
@@ -132,32 +135,32 @@ class PathTreeView(qtw.QTreeView):
                 continue
                 
             # Map proxy index to source model index
-            source_index = self._proxy_model.mapToSource(index)
+            source_index = self._path_sort_proxy_model.mapToSource(index)
             
             # Check if this is a path item (not a group header)
-            path_id = self._model.get_path_id_from_index(source_index)
+            path_id = self._path_tree_model.get_path_id_from_index(source_index)
             if path_id is not None:
                 path_rows.append(path_id)
         return sorted(set(path_rows))
     
     def remove_paths_at_rows(self, rows: List[int]) -> None:
         """
-        Remove the paths at the specified rows.
+        This method removes the paths at the specified rows.
         """
-        self._model.remove_paths_at_rows(rows)
+        self._path_tree_model.remove_paths_at_rows(rows)
         return
     
     def path_at_row(self, row: int) -> Optional[Path]:
         """
-        Get the path at the specified row.
+        This method returns the path at the specified row.
         """
-        return self._model.path_at_row(row)
+        return self._path_tree_model.path_at_row(row)
     
     def get_all_paths(self) -> List[Path]:
         """
-        Get all paths from the model.
+        This method returns all paths from the model.
         """
-        return self._model.paths
+        return self._path_tree_model.paths
     
     def setup_context_menu(
             self, 
@@ -172,7 +175,7 @@ class PathTreeView(qtw.QTreeView):
             bv: bn.BinaryView = None
         ) -> None:
         """
-        Set up the context menu for the view.
+        This method sets up the context menu for the view.
         """
         
         def show_context_menu(pos: qtc.QPoint) -> None:
@@ -215,7 +218,7 @@ class PathTreeView(qtw.QTreeView):
             # Import/export actions
             import_paths_action = menu.addAction("Import from file")
             import_paths_action.triggered.connect(on_import_paths)
-            export_paths_action = self._add_menu_action(menu, "Export to file", self._model.path_count > 0)
+            export_paths_action = self._add_menu_action(menu, "Export to file", self._path_tree_model.path_count > 0)
             export_paths_action.triggered.connect(lambda: on_export_paths(export_rows))
             
             menu.addSeparator()
@@ -223,7 +226,7 @@ class PathTreeView(qtw.QTreeView):
             # Remove actions
             remove_selected_action = self._add_menu_action(menu, "Remove selected", len(rows) > 0)
             remove_selected_action.triggered.connect(lambda: on_remove_selected(rows))
-            remove_all_action = self._add_menu_action(menu, "Remove all", self._model.path_count > 0)
+            remove_all_action = self._add_menu_action(menu, "Remove all", self._path_tree_model.path_count > 0)
             remove_all_action.triggered.connect(on_remove_all)
 
             # Execute menu
@@ -243,7 +246,7 @@ class PathTreeView(qtw.QTreeView):
     
     def _add_menu_action(self, menu: qtw.QMenu, text: str, enabled: bool = True) -> qtw.QAction:
         """
-        Helper method to add a menu action with enabled state.
+        This method is a helper to add a menu action with enabled state.
         """
         action = menu.addAction(text)
         action.setEnabled(enabled)
@@ -251,7 +254,8 @@ class PathTreeView(qtw.QTreeView):
     
     def _get_expanded_export_rows(self, pos: qtc.QPoint, selected_rows: List[int]) -> List[int]:
         """
-        Get expanded list of rows for export, including all child paths if a header is clicked.
+        This method returns an expanded list of rows for export, including all child paths if a
+        header is clicked.
         """
         export_rows = selected_rows.copy()
         
@@ -260,10 +264,10 @@ class PathTreeView(qtw.QTreeView):
         if not clicked_idx.isValid():
             return export_rows
             
-        clicked_source_idx = self._proxy_model.mapToSource(clicked_idx)
+        clicked_source_idx = self._path_sort_proxy_model.mapToSource(clicked_idx)
         
         # Check if the clicked item is a group/header (not a path item)
-        is_path_item = self._model.data(clicked_source_idx, IS_PATH_ITEM_ROLE)
+        is_path_item = self._path_tree_model.data(clicked_source_idx, IS_PATH_ITEM_ROLE)
         if is_path_item:
             return export_rows
         
@@ -276,7 +280,9 @@ class PathTreeView(qtw.QTreeView):
             # Ensure we only include valid path IDs
             valid_child_paths = []
             for path_id in child_paths:
-                if path_id is not None and 0 <= path_id < len(self._model.paths) and self._model.paths[path_id] is not None:
+                if (path_id is not None and
+                    0 <= path_id < len(self._path_tree_model.paths) and
+                    self._path_tree_model.paths[path_id] is not None):
                     valid_child_paths.append(path_id)
             
             export_rows = sorted(set(export_rows + valid_child_paths))
@@ -285,14 +291,14 @@ class PathTreeView(qtw.QTreeView):
     
     def _collect_child_paths(self, parent_idx, path_list: List[int]) -> None:
         """
-        Recursively collect all path IDs under a parent index.
+        This method recursively collects all path IDs under a parent index.
         """
-        for row in range(self._model.rowCount(parent_idx)):
-            child_idx = self._model.index(row, 0, parent_idx)
-            is_path_item = self._model.data(child_idx, IS_PATH_ITEM_ROLE)
+        for row in range(self._path_tree_model.rowCount(parent_idx)):
+            child_idx = self._path_tree_model.index(row, 0, parent_idx)
+            is_path_item = self._path_tree_model.data(child_idx, IS_PATH_ITEM_ROLE)
             
             if is_path_item:
-                path_id = self._model.get_path_id_from_index(child_idx)
+                path_id = self._path_tree_model.get_path_id_from_index(child_idx)
                 if path_id is not None and path_id not in path_list:
                     path_list.append(path_id)
             else:
@@ -302,7 +308,7 @@ class PathTreeView(qtw.QTreeView):
     
     def setup_navigation(self, bv: bn.BinaryView = None) -> None:
         """
-        Set up navigation for the view.
+        This method sets up navigation for the view.
         """
         
         def navigate(index: qtc.QModelIndex) -> None:
@@ -318,10 +324,10 @@ class PathTreeView(qtw.QTreeView):
                 return
             
             # Map proxy index to source model index
-            source_index = self._proxy_model.mapToSource(index)
+            source_index = self._path_sort_proxy_model.mapToSource(index)
             
             # Check if this is a path item (not a group header)
-            path_id = self._model.get_path_id_from_index(source_index)
+            path_id = self._path_tree_model.get_path_id_from_index(source_index)
             if path_id is None:
                 return
                 
@@ -330,7 +336,7 @@ class PathTreeView(qtw.QTreeView):
             # Navigate based on column
             if col in [PATH_COLS["Src Addr"], PATH_COLS["Src Func"]]:
                 # Get source address
-                addr = self._model.data(
+                addr = self._path_tree_model.data(
                     source_index, 
                     qtc.Qt.UserRole
                 )
@@ -353,7 +359,8 @@ class PathTreeView(qtw.QTreeView):
     
     def _handle_comment_edit(self, topLeft, bottomRight, roles) -> None:
         """
-        Handle comment edits in the view and update the underlying model's path_comments dictionary.
+        This method handles comment edits in the view and update the underlying model's
+        path_comments dictionary.
         """
         # Only process if the data change includes the display role
         if qtc.Qt.DisplayRole not in roles and qtc.Qt.EditRole not in roles:
@@ -364,14 +371,14 @@ class PathTreeView(qtw.QTreeView):
             # Process each row in the changed range
             for row in range(topLeft.row(), bottomRight.row() + 1):
                 # Get the index for the comment column in the current row
-                comment_idx = self._proxy_model.index(row, PATH_COLS["Comment"], topLeft.parent())
+                comment_idx = self._path_sort_proxy_model.index(row, PATH_COLS["Comment"], topLeft.parent())
                 
                 # Map to source index and get the path ID
-                source_idx = self._proxy_model.mapToSource(comment_idx)
-                path_id = self._model.get_path_id_from_index(source_idx)
+                source_idx = self._path_sort_proxy_model.mapToSource(comment_idx)
+                path_id = self._path_tree_model.get_path_id_from_index(source_idx)
                 
                 # If this is a valid path item, update its comment in the model
                 if path_id is not None:
                     new_comment = comment_idx.data(qtc.Qt.DisplayRole)
-                    self._model.update_path_comment(path_id, new_comment)
+                    self._path_tree_model.update_path_comment(path_id, new_comment)
         return
