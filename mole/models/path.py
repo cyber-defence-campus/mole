@@ -112,11 +112,17 @@ class PathTreeModel(qtui.QStandardItemModel):
             text: The display text for the item
             level: The level in the hierarchy (used for display purposes)
         """
+        # Styling
+        font = qtui.QFont()
+        font.setItalic(True)
+        color = qtui.QBrush(qtui.QColor(255, 239, 213)) # Peach puff (light pastel orange)
         # Create main item
         main_item = qtui.QStandardItem(text)
+        main_item.setFont(font)
+        main_item.setForeground(color)
         main_item.setData(False, IS_PATH_ITEM_ROLE)
         main_item.setData(level, LEVEL_ROLE)  # Store level information
-        main_item.setFlags(main_item.flags() & ~qtc.Qt.ItemIsEditable)
+        main_item.setFlags(main_item.flags() & ~qtc.Qt.ItemIsEditable & ~qtc.Qt.ItemIsSelectable)
         
         # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
         return [main_item]
