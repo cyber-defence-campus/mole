@@ -35,7 +35,7 @@ class MoleSidebar(bnui.SidebarWidgetType):
         icon = qtui.QImage(
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                "../../images/icon.png"
+                "../../resources/icon.png"
             )
         )
         if icon.isNull():
