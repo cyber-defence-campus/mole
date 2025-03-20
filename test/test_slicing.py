@@ -94,15 +94,10 @@ class TestVarious(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(
-                calls,
-                ["gets", "main", "gets"],
-                "call paths"
-            )
+            self.assertEqual(calls, ["main"], "call sequence")
             bv.file.close()
         return
     
-    @unittest.expectedFailure
     def test_gets_02(
         self,
         filenames: List[str] = ["gets-02"]
@@ -115,7 +110,7 @@ class TestVarious(TestCase):
             paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
-            call_paths = []
+            # call_paths = []
             for path in paths:
                 self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
                 self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
@@ -129,19 +124,7 @@ class TestVarious(TestCase):
                     "sink is a MLIL call instruction"
                 )
                 calls = [call[1] for call in path.calls]
-                call_paths.append(calls)
-            self.assertCountEqual(
-                call_paths,
-                [
-                    [
-                        "gets", "main", "gets"
-                    ],
-                    [
-                        "gets", "main", "memcpy"
-                    ]
-                ],
-                "call paths"
-            )
+                self.assertEqual(calls, ["main"], "call sequence")
             bv.file.close()
         return
     
@@ -178,11 +161,7 @@ class TestVarious(TestCase):
                     "argument is a MLIL variable"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertTrue(
-                    calls == ["sscanf", "main", "getenv"] or
-                    calls == ["__isoc99_sscanf", "main", "getenv"],
-                    "call paths"
-                )
+                self.assertEqual(calls, ["main"], "call sequence")
             bv.file.close()
         return
     
@@ -219,11 +198,7 @@ class TestVarious(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(
-                calls,
-                ["memcpy", "main", "getenv"],
-                "call paths"
-            )
+            self.assertEqual(calls, ["main"], "call sequence")
             bv.file.close()
         return
     
@@ -260,11 +235,7 @@ class TestVarious(TestCase):
                     "argument is a MLIL variable"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(
-                    calls,
-                    ["memcpy", "main", "getenv"],
-                    "call paths"
-                )
+                self.assertEqual(calls, ["main"], "call sequence")
             bv.file.close()
         return
     
@@ -301,11 +272,7 @@ class TestVarious(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(
-                calls,
-                ["memcpy", "main", "getenv"],
-                "call paths"
-            )
+            self.assertEqual(calls, ["main"], "call sequence")
             bv.file.close()
         return
     
@@ -342,11 +309,7 @@ class TestVarious(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(
-                calls,
-                ["memcpy", "main", "my_getenv", "getenv"],
-                "call paths"
-            )
+            self.assertEqual(calls, ["main", "my_getenv"], "call sequence")
             bv.file.close()
         return
     
@@ -383,11 +346,7 @@ class TestVarious(TestCase):
                     "argument is a MLIL variable"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(
-                    calls,
-                    ["memcpy", "main", "my_getenv", "getenv"],
-                    "call paths"
-                )
+                self.assertEqual(calls, ["main", "my_getenv"], "call sequence")
             bv.file.close()
         return
     
@@ -518,10 +477,10 @@ class TestFunctionCalling(TestCase):
                 call_paths,
                 [
                     [
-                        "system", "system_2", "system_1a", "main", "getenv_1a", "getenv_2", "getenv"
+                        "system_2", "system_1a", "main", "getenv_1a", "getenv_2"
                     ],
                     [
-                        "system", "system_2", "system_1a", "main", "getenv_1b", "getenv_2", "getenv"
+                        "system_2", "system_1a", "main", "getenv_1b", "getenv_2"
                     ]
                 ],
                 "call paths"
@@ -574,10 +533,7 @@ class TestFunctionCalling(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(
-                calls,
-                ["system", "main", "func", "main", "getenv"]
-            )
+            self.assertEqual(calls, ["main", "func", "main"], "call sequence")
             bv.file.close()
         return
     
@@ -644,7 +600,7 @@ class TestPointerAnalysis(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["system", "main", "getenv"], "call chain")
+            self.assertEqual(calls, ["main"], "call sequence")
             bv.file.close()
         return
 
@@ -685,7 +641,7 @@ class TestPointerAnalysis(TestCase):
                     "sink is a MLIL call instruction"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["system", "main", "getenv"])
+                self.assertEqual(calls, ["main"], "call sequence")
             bv.file.close()
         return
     
@@ -729,7 +685,7 @@ class TestPointerAnalysis(TestCase):
                     "sink is a MLIL call instruction"
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["memcpy", "main", "modify_n", "getenv"])
+                self.assertEqual(calls, ["main", "modify_n"], "call sequence")
             bv.file.close()
         return
     
@@ -766,7 +722,7 @@ class TestPointerAnalysis(TestCase):
                 "argument is a MLIL variable"
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["memcpy", "main", "my_getenv", "getenv"], "call chain")
+            self.assertEqual(calls, ["main", "my_getenv"], "call sequence")
             bv.file.close()
         return
     
@@ -826,21 +782,11 @@ class TestSimpleServer(TestCase):
                 )
                 calls = [call[1] for call in path.calls]
                 call_paths.append(calls)
+
             self.assertCountEqual(
                 call_paths,
-                [
-                    [
-                        "system",
-                        "handle_get_request",
-                        "recv"
-                    ],
-                    [
-                        "system",
-                        "handle_post_request",
-                        "recv"
-                    ]
-                ],
-                "call paths"
+                [["handle_get_request"],["handle_post_request"]],
+                "call sequence"
             )
             bv.file.close()
         return
@@ -884,21 +830,17 @@ class TestSimpleServer(TestCase):
                 call_paths,
                 [
                     [
-                        "system",
                         "execute_cgi_command",
                         "handle_get_request",
-                        "receive_data",
-                        "recv"
+                        "receive_data"
                     ],
                     [
-                        "system",
                         "execute_cgi_command",
                         "handle_post_request",
-                        "receive_data",
-                        "recv"
+                        "receive_data"
                     ]
                 ],
-                "call paths"
+                "call sequence"
             )
             bv.file.close()
         return
