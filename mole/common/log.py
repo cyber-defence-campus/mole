@@ -1,3 +1,4 @@
+from __future__    import annotations
 from   datetime    import datetime
 from   termcolor   import colored
 from   typing      import List, Literal
@@ -14,17 +15,35 @@ class Logger:
 
     def __init__(
             self,
-            level: Literal["debug", "info", "warning", "error"] = "info",
+            level: Literal["debug", "info", "warning", "error"] = "debug",
             runs_headless: bool = False
         ) -> None:
         """
-        This method initializes a logger that writes messages of a given `level` and above to
-        `stdout`/`stderr`, as well as to Binary Ninja's log.
+        This method initializes a `Logger` that can be used to write messages of a given `level`
+        (and above) to Binary Ninja's log and to stdout/stderr.
+        """
+        self._logger = bn.Logger(0, "Plugin: Mole")
+        self.change_properties(level, runs_headless)
+        self.find_attached_debugger()
+        return
+    
+    def change_properties(
+            self,
+            level: Literal["debug", "info", "warning", "error"] = "debug",
+            runs_headless: bool = False
+        ) -> None:
+        """
+        This method changes the properties of a `Logger`.
         """
         self._level = self._levels.index(level)
-        self._runs_headless: bool = runs_headless
-        self._runs_debugger: bool = any(module.startswith("debugpy") for module in sys.modules)
-        self._logger = bn.Logger(0, "Plugin: Mole")
+        self._runs_headless = runs_headless
+        return
+    
+    def find_attached_debugger(self) -> None:
+        """
+        This method checks whether or not a debugger is attached.
+        """
+        self._runs_debugger = any(module.startswith("debugpy") for module in sys.modules)
         return
     
     def get_level(self) -> str:
@@ -168,3 +187,6 @@ class Logger:
                 attrs=attrs, file=sys.stderr
             )   
         return
+
+
+log = Logger()

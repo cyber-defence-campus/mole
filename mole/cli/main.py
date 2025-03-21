@@ -1,5 +1,5 @@
 from __future__           import annotations
-from mole.common.log      import Logger
+from mole.common.log      import log
 from mole.models.config   import ConfigModel
 from mole.services.config import ConfigService
 from mole.services.slicer import MediumLevelILBackwardSlicerThread
@@ -28,7 +28,7 @@ def main() -> None:
         help="file to analyze")
     parser.add_argument(
         "--log_level",
-        choices=["error", "warning", "info", "debug"], default="info",
+        choices=["error", "warning", "info", "debug"], default="debug",
         help="log level")
     parser.add_argument(
         "--max_workers",
@@ -55,9 +55,8 @@ def main() -> None:
     )
     args = vars(parser.parse_args())
 
-    # Initialize logger to operate in headless mode
-    tag = "Mole"
-    log = Logger(level=args["log_level"], runs_headless=True)
+    # Change properties of logger
+    log.change_properties(level=args["log_level"], runs_headless=True)
     try:
         # Load and analyze binary with Binary Ninja
         bv = bn.load(args["file"])
@@ -65,9 +64,7 @@ def main() -> None:
         # Analyze binary with Mole
         slicer = MediumLevelILBackwardSlicerThread(
             bv=bv,
-            model=ConfigModel(ConfigService(f"{tag:s}.ConfigService", log).load_config()),
-            tag=f"{tag:s}.Slicer",
-            log=log,
+            model=ConfigModel(ConfigService().load_config()),
             max_workers=args["max_workers"],
             max_call_level=args["max_call_level"],
             max_slice_depth=args["max_slice_depth"]

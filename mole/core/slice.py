@@ -1,28 +1,19 @@
 from __future__      import annotations
 from ..common.help   import FunctionHelper, InstructionHelper, VariableHelper
-from ..common.log    import Logger
 from functools       import lru_cache
+from mole.common.log import log
 from typing          import Any, Dict, Generator, List, Set, Tuple
 import binaryninja   as bn
 import networkx      as nx
+
+
+tag = "Mole.Slice"
 
 
 class MediumLevelILInstructionGraph(nx.DiGraph):
     """
     This class represents a directed graph that stores the `MediumLevelILInstruction` of a slice.
     """
-
-    def __init__(
-            self,
-            tag: str,
-            log: Logger
-        ) -> None:
-        """
-        This method initializes an empty graph.
-        """
-        self._tag = tag
-        self._log = log
-        return super().__init__()
     
     def add_node(
             self,
@@ -55,15 +46,15 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
         """
         if from_inst not in self.nodes:
             info = InstructionHelper.get_inst_info(from_inst)
-            self._log.warn(
-                self._tag,
+            log.warn(
+                tag,
                 f"Edge not added to instruction graph due to an inexisting from node ({info:s})"
             )
             return
         if to_inst not in self.nodes:
             info = InstructionHelper.get_inst_info(to_inst)
-            self._log.warn(
-                self._tag,
+            log.warn(
+                tag,
                 f"Edge not added to instruction graph due to an inexisting to node ({info:s})"
             )
             return
@@ -76,18 +67,6 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
     This class represents a directed graph that stores the `MediumLevelILFunction` call graph of a
     slice.
     """
-
-    def __init__(
-            self,
-            tag: str,
-            log: Logger
-        ) -> None:
-        """
-        This method initializes an empty graph.
-        """
-        self._tag = tag
-        self._log = log
-        return super().__init__()
     
     def add_node(
             self,
@@ -117,15 +96,15 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         """
         if from_call_site not in self.nodes:
             info = FunctionHelper.get_func_info(from_call_site)
-            self._log.warn(
-                self._tag,
+            log.warn(
+                tag,
                 f"Edge not added to function graph due to an inexisting from node ({info:s})"
             )
             return
         if to_call_site not in self.nodes:
             info = FunctionHelper.get_func_info(to_call_site)
-            self._log.warn(
-                self._tag,
+            log.warn(
+                tag,
                 f"Edge not added to function graph due to an inexisting to node ({info:s})"
             )
             return
@@ -136,7 +115,7 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         """
         This method returns a copy of the graph.
         """
-        call_graph = MediumLevelILFunctionGraph(self._tag, self._log)
+        call_graph = MediumLevelILFunctionGraph()
         call_graph.update(self)
         return call_graph
     
@@ -160,8 +139,6 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
                 "att": atts
             })
         return {
-            "tag": self._tag,
-            "log_level": self._log.get_level(),
             "nodes": nodes,
             "edges": edges
         }
@@ -171,9 +148,7 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         """
         This method deserializes a dictionary to a graph.
         """
-        tag = d["tag"]
-        log = Logger(d["log_level"])
-        call_graph: MediumLevelILFunctionGraph = cls(tag, log)
+        call_graph: MediumLevelILFunctionGraph = cls()
         # Deserialize nodes
         for node in d["nodes"]:
             addr = int(node["adr"], 0)
@@ -199,20 +174,16 @@ class MediumLevelILBackwardSlicer:
     def __init__(
             self,
             bv: bn.BinaryView,
-            tag: str,
-            log: Logger,
             max_call_level: int = -1
         ) -> None:
         """
         This method initializes a backward slicer for for MLIL instructions.
         """
         self._bv: bn.BinaryView = bv
-        self._tag: str = tag
-        self._log: Logger = log
         self._max_call_level: int = max_call_level
         self._inst_visited: Set[bn.MediumLevelILInstruction] = set()
-        self._inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph(tag, log)
-        self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph(tag, log)
+        self._inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
+        self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
         return
     
     def _slice_ssa_var_definition(
@@ -255,8 +226,8 @@ class MediumLevelILBackwardSlicer:
                             continue
                     var_info = VariableHelper.get_ssavar_info(ssa_var)
                     cs_info = InstructionHelper.get_inst_info(cs_inst, False)
-                    self._log.debug(
-                        self._tag,
+                    log.debug(
+                        tag,
                         f"Follow parameter '{var_info:s}' to caller '{cs_info:s}'"
                     )
                     self._inst_graph.add_node(inst, call_level, caller_site)
@@ -284,21 +255,21 @@ class MediumLevelILBackwardSlicer:
         info = InstructionHelper.get_inst_info(inst)
         # Maxium call level
         if self._max_call_level >= 0 and abs(call_level) > self._max_call_level:
-            self._log.debug(
-                self._tag,
+            log.debug(
+                tag,
                 f"Maximum call level {self._max_call_level:d} reached"
             )
             return
         # Instruction sliced before
         if inst in self._inst_visited:
-            self._log.debug(
-                self._tag,
+            log.debug(
+                tag,
                 f"Ignore instruction '{info:s}' since sliced before"
             )
             return
         # Slice instruction
         self._inst_visited.add(inst)
-        self._log.debug(self._tag, f"[{call_level:+d}] {info:s}")
+        log.debug(tag, f"[{call_level:+d}] {info:s}")
         match inst:
             # TODO: Support all instructions
             case (bn.MediumLevelILConst() |
@@ -311,8 +282,8 @@ class MediumLevelILBackwardSlicer:
                 for mem_def_inst in self.get_mem_definitions(inst):
                     mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
                     if mem_def_inst in self._inst_visited:
-                        self._log.debug(
-                            self._tag,
+                        log.debug(
+                            tag,
                             f"Ignore '{mem_def_inst_info:s}' since sliced before"
                         )
                         continue
@@ -323,8 +294,8 @@ class MediumLevelILBackwardSlicer:
                             for param in params:
                                 match param:
                                     case (bn.MediumLevelILConstPtr(constant=constant)) if constant == inst.constant:
-                                        self._log.debug(
-                                            self._tag,
+                                        log.debug(
+                                            tag,
                                             f"Follow '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'"
                                         )
                                         self._inst_graph.add_node(inst, call_level, caller_site)
@@ -335,8 +306,8 @@ class MediumLevelILBackwardSlicer:
                                 if followed:
                                     break
                             if not followed:
-                                self._log.debug(
-                                    self._tag,
+                                log.debug(
+                                    tag,
                                     f"Do not follow '{mem_def_inst_info:s}' since it not uses '0x{inst.constant:x}'"
                                 )
             case (bn.MediumLevelILVarAliased() |
@@ -353,8 +324,8 @@ class MediumLevelILBackwardSlicer:
                 for mem_def_inst in self.get_mem_definitions(inst):
                     mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
                     if mem_def_inst in self._inst_visited:
-                        self._log.debug(
-                            self._tag,
+                        log.debug(
+                            tag,
                             f"Ignore '{mem_def_inst_info:s}' since sliced before"
                         )
                         continue
@@ -364,8 +335,8 @@ class MediumLevelILBackwardSlicer:
                             if mem_def_inst in var_use_sites.keys():
                                 var_addr_ass_inst = var_use_sites[mem_def_inst]
                                 var_addr_ass_inst_info = InstructionHelper.get_inst_info(var_addr_ass_inst, False)
-                                self._log.debug(
-                                    self._tag,
+                                log.debug(
+                                    tag,
                                     f"Follow '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'"
                                 )
                                 self._inst_graph.add_node(inst, call_level, caller_site)
@@ -373,8 +344,8 @@ class MediumLevelILBackwardSlicer:
                                 self._inst_graph.add_edge(inst, mem_def_inst)
                                 self._slice_backwards(mem_def_inst, call_level, caller_site)
                             else:
-                                self._log.debug(
-                                    self._tag,
+                                log.debug(
+                                    tag,
                                     f"Do not follow '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'"
                                 )
             case (bn.MediumLevelILVarSsa() |
@@ -463,8 +434,8 @@ class MediumLevelILBackwardSlicer:
                                         # Function
                                         if symb.type == bn.SymbolType.FunctionSymbol:
                                             ret_info = InstructionHelper.get_inst_info(func_inst, False)
-                                            self._log.debug(
-                                                self._tag,
+                                            log.debug(
+                                                tag,
                                                 f"Follow return instruction '{ret_info:s}' of function '{call_info:s}'"
                                             )
                                             self._inst_graph.add_node(inst, call_level, caller_site)
@@ -478,8 +449,8 @@ class MediumLevelILBackwardSlicer:
                                         elif symb.type == bn.SymbolType.ImportedFunctionSymbol:
                                             for par_idx, par in enumerate(inst.params):
                                                 par_info = InstructionHelper.get_inst_info(par, False)
-                                                self._log.debug(
-                                                    self._tag,
+                                                log.debug(
+                                                    tag,
                                                     f"Follow parameter {par_idx:d} '{par_info:s}' of imported function '{call_info:s}'"
                                                 )
                                                 self._inst_graph.add_node(inst, call_level, caller_site)
@@ -487,7 +458,7 @@ class MediumLevelILBackwardSlicer:
                                                 self._inst_graph.add_edge(inst, par)
                                                 self._slice_backwards(par, call_level, caller_site)
                                         else:
-                                            self._log.warn(self._tag, f"Function '{call_info:s}' has an unexpected type '{str(symb.type):s}'")
+                                            log.warn(tag, f"Function '{call_info:s}' has an unexpected type '{str(symb.type):s}'")
                         except Exception as _:
                             # Function not found within the binary
                             pass
@@ -495,8 +466,8 @@ class MediumLevelILBackwardSlicer:
                     case (bn.MediumLevelILVarSsa()):
                         for par_idx, par in enumerate(inst.params):
                             par_info = InstructionHelper.get_inst_info(par, False)
-                            self._log.debug(
-                                self._tag,
+                            log.debug(
+                                tag,
                                 f"Follow parameter {par_idx:d} '{par_info:s}' of indirect function call '{call_info:s}'"
                             )
                             self._inst_graph.add_node(inst, call_level, caller_site)
@@ -504,8 +475,8 @@ class MediumLevelILBackwardSlicer:
                             self._inst_graph.add_edge(inst, par)
                             self._slice_backwards(par, call_level, caller_site)
                     case _:
-                        self._log.warn(
-                            self._tag,
+                        log.warn(
+                            tag,
                             f"[{call_level:+d}] {dest_info:s}: Missing handler"
                         )
             case (bn.MediumLevelILSyscallSsa()):
@@ -515,7 +486,7 @@ class MediumLevelILBackwardSlicer:
                     self._inst_graph.add_edge(inst, par)
                     self._slice_backwards(par, call_level, caller_site)
             case _:
-                self._log.warn(self._tag, f"[{call_level:+d}] {info:s}: Missing handler")
+                log.warn(tag, f"[{call_level:+d}] {info:s}: Missing handler")
         return
     
     def slice_backwards(

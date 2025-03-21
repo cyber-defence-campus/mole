@@ -1,6 +1,5 @@
 from __future__           import annotations
 from mole.core.data       import Path
-from mole.common.log      import Logger
 from mole.models.config   import ConfigModel
 from mole.services.config import ConfigService
 from mole.services.slicer import MediumLevelILBackwardSlicerThread
@@ -16,9 +15,7 @@ class TestCase(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self._tag = "Mole"
-        self._log = Logger(level="debug", runs_headless=True)
-        self._model = ConfigModel(ConfigService(f"{self._tag}.ConfigService", self._log).load_config())
+        self._model = ConfigModel(ConfigService().load_config())
         return
     
     @staticmethod
@@ -49,8 +46,6 @@ class TestCase(unittest.TestCase):
         slicer = MediumLevelILBackwardSlicerThread(
             bv=bv,
             model=self._model,
-            tag=f"{self._tag:s}.Slicer",
-            log=self._log,
             max_workers=max_workers,
             max_call_level=max_call_level,
             max_slice_depth=max_slice_depth,

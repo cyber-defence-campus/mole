@@ -1,12 +1,15 @@
-from __future__     import annotations
-from ..common.log   import Logger
-from ..common.parse import LogicalExpressionParser
-from ..core.data    import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting
-from ..grouping     import get_all_grouping_strategies
-from typing         import Dict
+from __future__      import annotations
+from ..common.parse  import LogicalExpressionParser
+from ..core.data     import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting
+from ..grouping      import get_all_grouping_strategies
+from mole.common.log import log
+from typing          import Dict
 import fnmatch as fn
 import os      as os
 import yaml    as yaml
+
+
+tag = "Mole.Config"
 
 
 class ConfigService:
@@ -14,17 +17,15 @@ class ConfigService:
     This class implements a service to handle Mole's configuration.
     """
 
-    def __init__(self, tag: str, log: Logger) -> None:
+    def __init__(self) -> None:
         """
         This method initializes a configuration service.
         """
-        self._tag = tag
-        self._log = log
         self._config_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "../../conf/"
         )
-        self._parser = LogicalExpressionParser(tag, log)
+        self._parser = LogicalExpressionParser()
         return
     
     def load_config(self) -> Configuration:
@@ -57,8 +58,8 @@ class ConfigService:
                 with open(os.path.join(self._config_path, config_file), "r") as f:
                     config_dict = yaml.safe_load(f)
             except Exception as e:
-                self._log.warn(
-                    self._tag,
+                log.warn(
+                    tag,
                     f"Failed to open configuration file '{config_file:s}': '{str(e):s}'"
                 )
                 continue
@@ -78,11 +79,10 @@ class ConfigService:
         except FileNotFoundError:
             return None
         except Exception as e:
-            if hasattr(self, '_log'):
-                self._log.warn(
-                        "Config",
-                        f"Failed to open configuration file '000-mole.yml': '{str(e):s}'"
-                    )
+            log.warn(
+                tag,
+                f"Failed to open configuration file '000-mole.yml': '{str(e):s}'"
+            )
             return None
         # Parse configuration file
         config = self._parse_config(config_dict)
@@ -214,8 +214,8 @@ class ConfigService:
                     )
                 })
         except Exception as e:
-            self._log.warn(
-                self._tag,
+            log.warn(
+                tag,
                 f"Failed to parse configuration file: '{str(e):s}'"
             )
         return Configuration(**parsed_config)

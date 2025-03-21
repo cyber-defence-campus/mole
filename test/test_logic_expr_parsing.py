@@ -1,5 +1,4 @@
 from __future__        import annotations
-from mole.common.log   import Logger
 from mole.common.parse import LogicalExpressionParser
 import unittest
 
@@ -10,7 +9,7 @@ class TestLogicalExpressionParser(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self.parser = LogicalExpressionParser(tag="Mole", log=Logger(level="debug", runs_headless=True))
+        self.parser = LogicalExpressionParser()
         return
     
     def test_true(self) -> None:

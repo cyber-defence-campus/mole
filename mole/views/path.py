@@ -1,5 +1,4 @@
 from __future__     import annotations
-from ..common.log   import Logger
 from ..views.graph  import GraphWidget
 from .path_tree     import PathTreeView
 from typing         import Literal, Optional, Tuple, TYPE_CHECKING
@@ -23,11 +22,7 @@ class PathView(bnui.SidebarWidget):
     signal_save_paths = qtc.Signal(object)
     signal_setup_path_tree = qtc.Signal(object, object, object)
 
-    def __init__(
-            self,
-            tag: str,
-            log: Logger
-        ) -> None:
+    def __init__(self) -> None:
         """
         This method initializes a sidebar widget.
         """
@@ -37,9 +32,6 @@ class PathView(bnui.SidebarWidget):
         self._wid: Optional[qtw.QTabWidget] = None
         self.path_ctr: Optional[PathController] = None
         self.path_tree_view: Optional[PathTreeView] = None
-        # Logging
-        self._tag: str = tag
-        self._log: Logger = log
         return
     
     def init(self, path_ctr: PathController) -> PathView:
@@ -103,7 +95,7 @@ class PathView(bnui.SidebarWidget):
         return wid, "Path"
     
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
-        return GraphWidget(self._tag, self._log), "Graph"
+        return GraphWidget(), "Graph"
     
     def give_feedback(
             self,

@@ -1,11 +1,14 @@
 from __future__          import annotations
 from ..common.help       import InstructionHelper, SymbolHelper
-from ..common.log        import Logger
 from .slice              import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph
 from dataclasses         import dataclass, field
+from mole.common.log     import log
 from typing              import Callable, Dict, List, Tuple
 import binaryninja       as bn
 import PySide6.QtWidgets as qtw
+
+
+tag = "Mole.Data"
 
 
 @dataclass
@@ -188,14 +191,12 @@ class SourceFunction(Function):
     def find_targets(
             self,
             bv: bn.BinaryView,
-            canceled: Callable[[], bool],
-            tag: str,
-            log: Logger
+            canceled: Callable[[], bool]
         ) -> None:
         """
         This method finds a set of target instructions that a static backward slice should hit on.
         """
-        tag = f"{tag:s}] [{self.name:s}"
+        custom_tag = f"{tag:s}] [{self.name:s}"
         self.target_insts.clear()
         code_refs = SymbolHelper.get_code_refs(
             bv,
@@ -211,7 +212,10 @@ class SourceFunction(Function):
             for src_inst in src_insts:
                 if canceled(): 
                     break
-                log.info(tag, f"Analyze source function '0x{src_inst.address:x} {src_name:s}'")
+                log.info(
+                    custom_tag,
+                    f"Analyze source function '0x{src_inst.address:x} {src_name:s}'"
+                )
                 # Ignore everything but call instructions
                 match src_inst:
                     case (bn.MediumLevelILCallSsa() |
@@ -221,28 +225,40 @@ class SourceFunction(Function):
                         continue
                 # Ignore calls with an invalid number of parameters
                 if not self.par_cnt_fun(len(src_inst.params)):
-                    log.warn(tag, f"0x{src_inst.address:x} Ignore arguments of call '0x{src_inst.address:x} {src_name:s}' due to an unexpected amount")
+                    log.warn(
+                        custom_tag,
+                        f"0x{src_inst.address:x} Ignore arguments of call '0x{src_inst.address:x} {src_name:s}' due to an unexpected amount"
+                    )
                     continue
                 # Analyze parameters
                 for par_idx, par_var in enumerate(src_inst.params):
                     if canceled():
                         break
                     par_idx += 1
-                    log.debug(tag, f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'")
+                    log.debug(
+                        custom_tag,
+                        f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'"
+                    )
                     # Perform dataflow analysis
                     if self.par_dataflow_fun(par_idx):
                         # Ignore constant parameters
                         if par_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            log.debug(tag, f"0x{src_inst.address:x} Ignore constant argument 'arg#{par_idx:d}:{str(par_var):s}'")
+                            log.debug(
+                                custom_tag,
+                                f"0x{src_inst.address:x} Ignore constant argument 'arg#{par_idx:d}:{str(par_var):s}'"
+                            )
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
                         possible_sizes = par_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            log.debug(tag, f"0x{src_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx:d}:{str(par_var):s}'")
+                            log.debug(
+                                custom_tag,
+                                f"0x{src_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx:d}:{str(par_var):s}'"
+                            )
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
-                        slicer = MediumLevelILBackwardSlicer(bv, tag, log, 0)
+                        slicer = MediumLevelILBackwardSlicer(bv, 0)
                         slicer.slice_backwards(par_var)
                         # Add sliced instructions to the target instructions
                         addr_src_list = self.target_insts.setdefault((src_inst.address, src_name), [])
@@ -273,16 +289,14 @@ class SinkFunction(Function):
             max_call_level: int,
             max_slice_depth: int,
             found_path: Callable[[Path], None],
-            canceled: Callable[[], bool],
-            tag: str,
-            log: Logger
+            canceled: Callable[[], bool]
         ) -> List[Path]:
         """
         This method tries to find paths, starting from the current sink and ending in one of the
         given `sources` using static backward slicing.
         """
         paths = []
-        tag = f"{tag:s}] [{self.name:s}"
+        custom_tag = f"{tag:s}] [{self.name:s}"
         code_refs = SymbolHelper.get_code_refs(
             bv,
             self.symbols,
@@ -297,7 +311,10 @@ class SinkFunction(Function):
             for snk_inst in snk_insts:
                 if canceled(): 
                     break
-                log.info(tag, f"Analyze sink function '0x{snk_inst.address:x} {snk_name:s}'")
+                log.info(
+                    custom_tag,
+                    f"Analyze sink function '0x{snk_inst.address:x} {snk_name:s}'"
+                )
                 # Ignore everything but call instructions
                 match snk_inst:
                     case (bn.MediumLevelILCallSsa() |
@@ -307,28 +324,40 @@ class SinkFunction(Function):
                         continue
                 # Ignore calls with an invalid number of parameters
                 if not self.par_cnt_fun(len(snk_inst.params)):
-                    log.warn(tag, f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments")
+                    log.warn(
+                        custom_tag,
+                        f"0x{snk_inst.address:x} Ignore call '0x{snk_inst.address:x} {snk_name:s}' due to invalid number of arguments"
+                    )
                     continue
                 # Analyze parameters
                 for par_idx, par_var in enumerate(snk_inst.params):
                     if canceled():
                         break
                     par_idx += 1
-                    log.debug(tag, f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'")
+                    log.debug(
+                        custom_tag,
+                        f"Analyze argument 'arg#{par_idx:d}:{str(par_var):s}'"
+                    )
                     # Perform dataflow analysis
                     if self.par_dataflow_fun(par_idx):
                         # Ignore constant parameters
                         if par_var.operation != bn.MediumLevelILOperation.MLIL_VAR_SSA:
-                            log.debug(tag, f"0x{snk_inst.address:x} Ignore constant argument 'arg#{par_idx:d}:{str(par_var):s}'")
+                            log.debug(
+                                custom_tag,
+                                f"0x{snk_inst.address:x} Ignore constant argument 'arg#{par_idx:d}:{str(par_var):s}'"
+                            )
                             continue
                         # Ignore parameters that can be determined with dataflow analysis
                         possible_sizes = par_var.possible_values
                         if possible_sizes.type != bn.RegisterValueType.UndeterminedValue:
-                            log.debug(tag, f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx:d}:{str(par_var):s}'")
+                            log.debug(
+                                custom_tag,
+                                f"0x{snk_inst.address:x} Ignore dataflow determined argument 'arg#{par_idx:d}:{str(par_var):s}'"
+                            )
                             continue
                     # Backward slice the parameter
                     if self.par_slice_fun(par_idx):
-                        slicer = MediumLevelILBackwardSlicer(bv, tag, log, max_call_level)
+                        slicer = MediumLevelILBackwardSlicer(bv, max_call_level)
                         slicer.slice_backwards(par_var)
                         for source in sources:
                             if canceled(): 
@@ -376,19 +405,19 @@ class SinkFunction(Function):
                                         # Log path
                                         t_log = f"Interesting path: {str(path):s}"
                                         t_log = f"{t_log:s} [L:{len(insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
-                                        log.info(tag, t_log)
-                                        log.debug(tag, "--- Backward Slice  ---")
+                                        log.info(custom_tag, t_log)
+                                        log.debug(custom_tag, "--- Backward Slice  ---")
                                         basic_block = None
                                         for idx, inst in enumerate(insts):
                                             if idx == src_inst_idx:
-                                                log.debug(tag, "--- Source Function ---")
+                                                log.debug(custom_tag, "--- Source Function ---")
                                             if inst.il_basic_block != basic_block:
                                                 basic_block = inst.il_basic_block
                                                 fun_name = basic_block.function.name
                                                 bb_addr = basic_block[0].address
-                                                log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
-                                            log.debug(tag, InstructionHelper.get_inst_info(inst))
-                                        log.debug(tag, "-----------------------")
+                                                log.debug(custom_tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+                                            log.debug(custom_tag, InstructionHelper.get_inst_info(inst))
+                                        log.debug(custom_tag, "-----------------------")
         return paths
 
 

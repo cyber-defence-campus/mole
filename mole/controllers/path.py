@@ -1,11 +1,11 @@
 from __future__        import annotations
-from ..common.log      import Logger
 from ..core.data       import Path, InstructionHelper
 from ..services.slicer import MediumLevelILBackwardSlicerThread
 from ..views.graph     import GraphWidget
 from ..views.path      import PathView
 from ..views.path_tree import PathTreeView
 from .config           import ConfigController
+from mole.common.log   import log
 from typing            import Dict, List, Tuple, Optional
 import binaryninja       as bn
 import copy              as copy
@@ -18,6 +18,9 @@ import shutil            as shu
 import yaml              as yaml
 
 
+tag = "Mole.Path"
+
+
 class PathController:
     """
     This class implements a controller to handle paths.
@@ -26,9 +29,7 @@ class PathController:
     def __init__(
             self,
             config_ctr: ConfigController,
-            path_view: PathView,
-            tag: str,
-            log: Logger
+            path_view: PathView
         ) -> None:
         """
         This method initializes a controller (MVC pattern).
@@ -43,9 +44,6 @@ class PathController:
         ] = (None, {})
         self._thread: Optional[MediumLevelILBackwardSlicerThread] = None
         self.path_tree_view: Optional[PathTreeView] = None
-        # Logging
-        self._tag = tag
-        self._log = log
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
         self.connect_signal_load_paths(self.load_paths)
@@ -88,7 +86,7 @@ class PathController:
         Regroups all paths with the new strategy.
         """
         if self.path_tree_view and self.path_tree_view.model.path_count > 0:
-            self._log.info(self._tag, f"Regrouping paths with new strategy: {new_strategy}")
+            log.info(tag, f"Regrouping paths with new strategy: {new_strategy}")
             self.path_tree_view.model.regroup_paths(new_strategy)
     
     @property
@@ -136,31 +134,29 @@ class PathController:
         """
         # Require a binary to be loaded
         if not bv:
-            self._log.warn(self._tag, "No binary loaded.")
+            log.warn(tag, "No binary loaded.")
             self.path_view.give_feedback("Find", "No Binary Loaded...")
             return
         # Require the binary to be in mapped view
         if bv.view_type == "Raw":
-            self._log.warn(self._tag, "Binary is in Raw view.")
+            log.warn(tag, "Binary is in Raw view.")
             self.path_view.give_feedback("Find", "Binary is in Raw View...")
             return
         # Require previous analyses to complete
         if self._thread and not self._thread.finished:
-            self._log.warn(self._tag, "Analysis already running.")
+            log.warn(tag, "Analysis already running.")
             self.path_view.give_feedback("Find", "Analysis Already Running...")
             return
-        # Initialize new logger to detect newly attached debugger
-        self._log = Logger(self._log.get_level(), False)
-        self.path_view.give_feedback("Find", "Finding Paths...")
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
         # Initialize data structures
         if view:
             self.path_tree_view = view
         # Run background thread
+        self.path_view.give_feedback("Find", "Finding Paths...")
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
             model=self.config_ctr.config_model,
-            tag=f"{self._tag:s}.Slicer",
-            log=self._log,
             found_path_callback=self.add_path_to_view
         )
         self._thread.start()
@@ -190,7 +186,7 @@ class PathController:
             s_paths: List[Dict] = bv.query_metadata("mole_paths")
             for s_path in s_paths:
                 if s_path["sha1"] != sha1_hash:
-                    self._log.warn(self._tag, "Loaded path seems to origin from another binary")
+                    log.warn(tag, "Loaded path seems to origin from another binary")
                 path = Path.from_dict(bv, s_path)
                 
                 # Update model directly instead of through the view
@@ -201,11 +197,11 @@ class PathController:
                 
                 self.path_tree_view.model.add_path(path, s_path.get("comment", ""), path_grouping)
                 
-            self._log.info(self._tag, f"Loaded {len(s_paths):d} path(s)")
+            log.info(tag, f"Loaded {len(s_paths):d} path(s)")
         except KeyError:
-            self._log.info(self._tag, "No paths found")
+            log.info(tag, "No paths found")
         except Exception as e:
-            self._log.error(self._tag, f"Failed to load paths: {str(e):s}")
+            log.error(tag, f"Failed to load paths: {str(e):s}")
         return
     
     def import_paths(
@@ -225,7 +221,7 @@ class PathController:
             "JSON Files (*.json);;YAML Files (*.yml *.yaml)"
         )
         if not filepath:
-            self._log.info(self._tag, "No paths imported")
+            log.info(tag, "No paths imported")
             return
         # Open file
         try:
@@ -237,7 +233,7 @@ class PathController:
                     s_paths = json.load(f)
                     
             if not isinstance(s_paths, list):
-                self._log.error(self._tag, f"Invalid paths format in {filepath}")
+                log.error(tag, f"Invalid paths format in {filepath}")
                 return
                 
             # Calculate SHA1 hash
@@ -248,17 +244,17 @@ class PathController:
             for s_path in s_paths:
                 try:
                     if s_path.get("sha1") != sha1_hash:
-                        self._log.warn(self._tag, "Loaded path seems to origin from another binary")
+                        log.warn(tag, "Loaded path seems to origin from another binary")
                     path = Path.from_dict(bv, s_path)
                     self.add_path_to_view(path, s_path.get("comment", ""))
                     imported_count += 1
                 except Exception as e:
-                    self._log.warn(self._tag, f"Could not import path: {str(e)}")
+                    log.warn(tag, f"Could not import path: {str(e)}")
                     
-            self._log.info(self._tag, f"Imported {imported_count:d} path(s)")
+            log.info(tag, f"Imported {imported_count:d} path(s)")
             
         except Exception as e:
-            self._log.error(self._tag, f"Failed to import paths: {str(e):s}")
+            log.error(tag, f"Failed to import paths: {str(e):s}")
         return
     
     def save_paths(
@@ -286,9 +282,9 @@ class PathController:
                 s_paths.append(s_path)
                 
             bv.store_metadata("mole_paths", s_paths)
-            self._log.info(self._tag, f"Saved {len(s_paths):d} path(s)")
+            log.info(tag, f"Saved {len(s_paths):d} path(s)")
         except Exception as e:
-            self._log.error(self._tag, f"Failed to save paths: {str(e):s}")
+            log.error(tag, f"Failed to save paths: {str(e):s}")
         return
     
     def export_paths(
@@ -309,7 +305,7 @@ class PathController:
             "JSON Files (*.json);;YAML Files (*.yml *.yaml)"
         )
         if not filepath:
-            self._log.error(self._tag, "No paths exported")
+            log.error(tag, "No paths exported")
             return
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
@@ -351,7 +347,7 @@ class PathController:
                     f,
                     indent=2
                 )
-        self._log.info(self._tag, f"Exported {len(s_paths):d} path(s)")
+        log.info(tag, f"Exported {len(s_paths):d} path(s)")
         return
     
     def log_path(
@@ -372,13 +368,13 @@ class PathController:
         path_id = rows[0]
         msg = f"Path {path_id:d}: {str(path):s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
-        self._log.info(self._tag, msg)
+        log.info(tag, msg)
         
         if reverse:
-            self._log.debug(self._tag, "--- Forward  Slice ---")
+            log.debug(tag, "--- Forward  Slice ---")
             insts = reversed(path.insts)
         else:
-            self._log.debug(self._tag, "--- Backward Slice ---")
+            log.debug(tag, "--- Backward Slice ---")
             insts = path.insts
             
         basic_block = None
@@ -387,10 +383,10 @@ class PathController:
                 basic_block = inst.il_basic_block
                 fun_name = basic_block.function.name
                 bb_addr = basic_block[0].address
-                self._log.debug(self._tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
-            self._log.debug(self._tag, InstructionHelper.get_inst_info(inst))
-        self._log.debug(self._tag, "----------------------")
-        self._log.debug(self._tag, msg)
+                log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+            log.debug(tag, InstructionHelper.get_inst_info(inst))
+        log.debug(tag, "----------------------")
+        log.debug(tag, msg)
         return
     
     def log_path_diff(
@@ -448,8 +444,8 @@ class PathController:
 
         # Log differences side by side
         for lft, rgt in zip(lft_col, rgt_col):
-            self._log.debug(
-                self._tag,
+            log.debug(
+                tag,
                 f"{lft:<{col_width}} | {rgt:<{col_width}}"
             )
         return
@@ -472,21 +468,21 @@ class PathController:
         path_id = rows[0]
         msg = f"Path {path_id:d}: {str(path):s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
-        self._log.info(self._tag, msg)
+        log.info(tag, msg)
         
         if reverse:
-            self._log.debug(self._tag, "--- Forward  Calls ---")
+            log.debug(tag, "--- Forward  Calls ---")
             calls = list(reversed(path.calls))
         else:
-            self._log.debug(self._tag, "--- Backward Calls ---")
+            log.debug(tag, "--- Backward Calls ---")
             calls = path.calls
         
         min_call_level = min(calls, key=lambda x: x[2])[2]
         for call_addr, call_name, call_level in calls:
             indent = call_level - min_call_level
-            self._log.debug(self._tag, f"{'>'*indent:s} 0x{call_addr:x} {call_name:s}")
-        self._log.debug(self._tag, "----------------------")
-        self._log.debug(self._tag, msg)
+            log.debug(tag, f"{'>'*indent:s} 0x{call_addr:x} {call_name:s}")
+        log.debug(tag, "----------------------")
+        log.debug(tag, msg)
         return
     
     def highlight_path(
@@ -517,7 +513,7 @@ class PathController:
         
         # If the clicked path was already highlighted, just log and return (it's now unhighlighted)
         if path == highlighted_path:
-            self._log.info(self._tag, f"Un-highlighted instructions of path {rows[0]:d}")
+            log.info(tag, f"Un-highlighted instructions of path {rows[0]:d}")
             bv.forget_undo_actions(undo_action)
             return
         
@@ -538,7 +534,7 @@ class PathController:
                 insts_colors[addr] = (inst, func.get_instr_highlight(addr))
             func.set_user_instr_highlight(addr, color)
             
-        self._log.info(self._tag, f"Highlighted instructions of path {rows[0]:d}")
+        log.info(tag, f"Highlighted instructions of path {rows[0]:d}")
         self._paths_highlight = (highlighted_path, insts_colors)
         bv.forget_undo_actions(undo_action)
         return
@@ -566,7 +562,7 @@ class PathController:
                 wid.setCurrentWidget(graph_widget)
                 return
                 
-        self._log.info(self._tag, f"Showing call graph of path {rows[0]:d}")
+        log.info(tag, f"Showing call graph of path {rows[0]:d}")
         return
 
     def remove_selected_paths(
@@ -580,7 +576,7 @@ class PathController:
             return
             
         self.path_tree_view.remove_paths_at_rows(rows)
-        self._log.info(self._tag, f"Removed {len(rows):d} path(s)")
+        log.info(tag, f"Removed {len(rows):d} path(s)")
         return
     
     def remove_all_paths(self) -> None:
@@ -592,7 +588,7 @@ class PathController:
         else:
             self._paths.clear()
             
-        self._log.info(self._tag, "Removed all path(s)")
+        log.info(tag, "Removed all path(s)")
         return
 
     def setup_path_tree(

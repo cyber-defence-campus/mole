@@ -1,5 +1,4 @@
 from __future__   import annotations
-from ..common.log import Logger
 from .path        import PathView
 from typing       import Any
 import binaryninjaui     as bnui
@@ -13,19 +12,12 @@ class MoleSidebar(bnui.SidebarWidgetType):
     This class implements the view for the plugin's sidebar.
     """
 
-    def __init__(
-            self,
-            sidebar_view: PathView,
-            tag: str,
-            log: Logger
-        ) -> None:
+    def __init__(self, sidebar_view: PathView) -> None:
         """
         This method initializes a view (MVC pattern).
         """
         super().__init__(self._init_icon(), "Mole")
         self._sidebar_view = sidebar_view
-        self._tag: str = tag
-        self._log: Logger = log
         return
     
     def _init_icon(self) -> qtui.QImage:
