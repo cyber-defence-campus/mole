@@ -188,15 +188,12 @@ class PathController:
                 if s_path["sha1"] != sha1_hash:
                     log.warn(tag, "Loaded path seems to origin from another binary")
                 path = Path.from_dict(bv, s_path)
-                
-                # Update model directly instead of through the view
+                # Update the model
                 path_grouping = None
                 setting = self.config_ctr.get_setting("path_grouping")
                 if setting:
                     path_grouping = setting.value
-                
-                self.path_tree_view.model.add_path(path, s_path.get("comment", ""), path_grouping)
-                
+                self.path_tree_view.model.add_path(path, s_path["comment"], path_grouping)
             log.info(tag, f"Loaded {len(s_paths):d} path(s)")
         except KeyError:
             log.info(tag, "No paths found")
@@ -231,28 +228,20 @@ class PathController:
                     s_paths = yaml.safe_load(f)
                 else:
                     s_paths = json.load(f)
-                    
-            if not isinstance(s_paths, list):
-                log.error(tag, f"Invalid paths format in {filepath}")
-                return
-                
             # Calculate SHA1 hash
             sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-            
             # Deserialize paths
-            imported_count = 0
             for s_path in s_paths:
-                try:
-                    if s_path.get("sha1") != sha1_hash:
-                        log.warn(tag, "Loaded path seems to origin from another binary")
-                    path = Path.from_dict(bv, s_path)
-                    self.add_path_to_view(path, s_path.get("comment", ""))
-                    imported_count += 1
-                except Exception as e:
-                    log.warn(tag, f"Could not import path: {str(e)}")
-                    
-            log.info(tag, f"Imported {imported_count:d} path(s)")
-            
+                if s_path["sha1"] != sha1_hash:
+                    log.warn(tag, "Loaded path seems to origin from another binary")
+                path = Path.from_dict(bv, s_path)
+                # Update the model
+                path_grouping = None
+                setting = self.config_ctr.get_setting("path_grouping")
+                if setting:
+                    path_grouping = setting.value
+                self.path_tree_view.model.add_path(path, s_path["comment"], path_grouping)
+            log.info(tag, f"Imported {len(s_paths):d} path(s)")
         except Exception as e:
             log.error(tag, f"Failed to import paths: {str(e):s}")
         return
