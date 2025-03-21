@@ -183,7 +183,7 @@ class PathController:
             # Calculate SHA1 hash
             sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
             # Deserialize paths
-            s_paths: List[Dict] = bv.query_metadata("mole_paths")
+            s_paths: List[Dict] = json.loads(bv.query_metadata("mole_paths"))
             for s_path in s_paths:
                 if s_path["sha1"] != sha1_hash:
                     log.warn(tag, "Loaded path seems to origin from another binary")
@@ -263,14 +263,12 @@ class PathController:
             s_paths: List[Dict] = []
             paths = self.path_tree_view.get_all_paths()
             comments = self.path_tree_view.model.get_comments()
-            
             for idx, path in enumerate(paths):
                 s_path = path.to_dict()
                 s_path["comment"] = comments.get(idx, "")
                 s_path["sha1"] = sha1_hash
                 s_paths.append(s_path)
-                
-            bv.store_metadata("mole_paths", s_paths)
+            bv.store_metadata("mole_paths", json.dumps(s_paths))
             log.info(tag, f"Saved {len(s_paths):d} path(s)")
         except Exception as e:
             log.error(tag, f"Failed to save paths: {str(e):s}")
