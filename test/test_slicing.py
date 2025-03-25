@@ -45,7 +45,7 @@ class TestCase(unittest.TestCase):
         """
         slicer = MediumLevelILBackwardSlicerThread(
             bv=bv,
-            model=self._model,
+            config_model=self._model,
             max_workers=max_workers,
             max_call_level=max_call_level,
             max_slice_depth=max_slice_depth,

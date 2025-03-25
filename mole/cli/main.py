@@ -65,7 +65,7 @@ def main() -> None:
         # Analyze binary with Mole
         slicer = MediumLevelILBackwardSlicerThread(
             bv=bv,
-            model=ConfigModel(ConfigService().load_config()),
+            config_model=ConfigModel(ConfigService().load_config()),
             max_workers=args["max_workers"],
             max_call_level=args["max_call_level"],
             max_slice_depth=args["max_slice_depth"]
@@ -80,7 +80,6 @@ def main() -> None:
             s_paths: List[Dict] = []
             for path in paths:
                 s_path = path.to_dict()
-                s_path["comment"] = ""
                 s_path["sha1"] = sha1_hash
                 s_paths.append(s_path)
             # Write JSON data (default)

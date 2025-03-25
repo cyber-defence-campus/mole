@@ -1,6 +1,7 @@
 from __future__        import annotations
-from ..core.data       import Path, InstructionHelper
+from ..core.data       import InstructionHelper, Path
 from ..services.slicer import MediumLevelILBackwardSlicerThread
+from ..services.path   import PathImporterThread
 from ..views.graph     import GraphWidget
 from ..views.path      import PathView
 from ..views.path_tree import PathTreeView
@@ -11,6 +12,7 @@ import binaryninja       as bn
 import copy              as copy
 import difflib           as difflib
 import hashlib           as hashlib
+import ijson             as ijson
 import json              as json
 import os                as os
 import PySide6.QtWidgets as qtw
@@ -88,6 +90,7 @@ class PathController:
         if self.path_tree_view and self.path_tree_view.model.path_count > 0:
             log.info(tag, f"Regrouping paths with new strategy: {new_strategy}")
             self.path_tree_view.model.regroup_paths(new_strategy)
+        return
     
     @property
     def paths(self) -> List[Path]:
@@ -107,17 +110,15 @@ class PathController:
         This method updates the UI with a newly identified path.
         """
         def update_paths_view() -> None:
+            # Ensure view exists
             if not self.path_tree_view:
-                self._paths.append(path)
                 return
-                
-            # Get current path grouping strategy from settings
+            # Determine path grouping strategy
             path_grouping = None
             setting = self.config_ctr.get_setting("path_grouping")
             if setting:
                 path_grouping = setting.value
-                
-            # Update the model directly - the view will update automatically
+            # Update the model
             self.path_tree_view.model.add_path(path, comment, path_grouping)
             return
         
@@ -132,32 +133,30 @@ class PathController:
         """
         This method analyzes the entire binary for interesting looking code paths.
         """
-        # Require a binary to be loaded
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure views exist
         if not bv:
             log.warn(tag, "No binary loaded.")
             self.path_view.give_feedback("Find", "No Binary Loaded...")
             return
-        # Require the binary to be in mapped view
         if bv.view_type == "Raw":
             log.warn(tag, "Binary is in Raw view.")
             self.path_view.give_feedback("Find", "Binary is in Raw View...")
             return
-        # Require previous analyses to complete
-        if self._thread and not self._thread.finished:
-            log.warn(tag, "Analysis already running.")
-            self.path_view.give_feedback("Find", "Analysis Already Running...")
-            return
-        # Detect newly attached debuggers
-        log.find_attached_debugger()
-        # Initialize data structures
         if view:
             self.path_tree_view = view
+        # Require previous background threads to have completed
+        if self._thread and not self._thread.finished:
+            log.warn(tag, "Wait for previous background thread to complete first")
+            self.path_view.give_feedback("Find", "Other Task Running...")
+            return
         # Run background thread
         self.path_view.give_feedback("Find", "Finding Paths...")
         self._thread = MediumLevelILBackwardSlicerThread(
             bv=bv,
-            model=self.config_ctr.config_model,
-            found_path_callback=self.add_path_to_view
+            config_model=self.config_ctr.config_model,
+            path_callback=self.add_path_to_view
         )
         self._thread.start()
         return None
@@ -170,6 +169,8 @@ class PathController:
         """
         This method loads paths from the binary's database.
         """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
         if not view: 
             return
         self.path_view.give_feedback("Load", "Loading Paths...")
@@ -177,7 +178,6 @@ class PathController:
         self._paths = []
         self.path_tree_view = view
         self.path_tree_view.clear()
-        
         # Load paths from database
         try:
             # Calculate SHA1 hash
@@ -208,43 +208,33 @@ class PathController:
         """
         This method imports paths from a file.
         """
-        if not self.path_tree_view: 
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure views exist
+        if not bv or not self.path_tree_view:
             return
-        # Select file
+        # Open dialog to select file
         filepath, _ = qtw.QFileDialog.getOpenFileName(
-            None,
-            "Open File",
-            "",
-            "JSON Files (*.json);;YAML Files (*.yml *.yaml)"
+            caption="Open File",
+            filter="JSON Files (*.json);;All Files (*)"
         )
         if not filepath:
             log.info(tag, "No paths imported")
             return
-        # Open file
-        try:
-            # Load YAML or JSON data
-            fp = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
-            with open(fp, "r") as f:
-                if fp.lower().endswith((".yml", ".yaml")):
-                    s_paths = yaml.safe_load(f)
-                else:
-                    s_paths = json.load(f)
-            # Calculate SHA1 hash
-            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-            # Deserialize paths
-            for s_path in s_paths:
-                if s_path["sha1"] != sha1_hash:
-                    log.warn(tag, "Loaded path seems to origin from another binary")
-                path = Path.from_dict(bv, s_path)
-                # Update the model
-                path_grouping = None
-                setting = self.config_ctr.get_setting("path_grouping")
-                if setting:
-                    path_grouping = setting.value
-                self.path_tree_view.model.add_path(path, s_path["comment"], path_grouping)
-            log.info(tag, f"Imported {len(s_paths):d} path(s)")
-        except Exception as e:
-            log.error(tag, f"Failed to import paths: {str(e):s}")
+        # Expand file path
+        filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
+        # Require previous background threads to have completed
+        if self._thread and not self._thread.finished:
+            log.warn(tag, "Wait for previous background thread to complete first")
+            self.path_view.give_feedback("Find", "Other Task Running...")
+            return
+        # Run background thread
+        self._thread = PathImporterThread(
+            bv=bv,
+            filepath=filepath,
+            path_callback=self.add_path_to_view
+        )
+        self._thread.start()
         return
     
     def save_paths(
@@ -254,6 +244,8 @@ class PathController:
         """
         This method stores paths to the binary's database.
         """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
         if not self.path_tree_view: 
             return
         self.path_view.give_feedback("Save", "Saving Paths...")
@@ -263,10 +255,8 @@ class PathController:
             # Serialize paths
             s_paths: List[Dict] = []
             paths = self.path_tree_view.get_all_paths()
-            comments = self.path_tree_view.model.get_comments()
             for idx, path in enumerate(paths):
                 s_path = path.to_dict()
-                s_path["comment"] = comments.get(idx, "")
                 s_path["sha1"] = sha1_hash
                 s_paths.append(s_path)
             bv.store_metadata("mole_paths", json.dumps(s_paths))
@@ -283,6 +273,7 @@ class PathController:
         """
         This method exports paths to a file.
         """
+        log.find_attached_debugger()
         if not self.path_tree_view: 
             return
         # Select file
@@ -300,7 +291,7 @@ class PathController:
         # Serialize paths
         s_paths: List[Dict] = []
         comments = self.path_tree_view.model.get_comments()
-        
+
         # Only include valid path rows (filtering out header/group items)
         valid_paths = []
         for row in (rows if rows else list(range(len(self.path_tree_view.model.paths)))):
@@ -311,7 +302,7 @@ class PathController:
         # Now export each valid path
         for row, path in valid_paths:
             s_path = path.to_dict()
-            path_id = row  # row here is actually the path_id from the valid_paths list
+            path_id = row # row here is actually the path_id from the valid_paths list
             s_path["comment"] = comments.get(path_id, "")
             s_path["sha1"] = sha1_hash
             s_paths.append(s_path)
@@ -347,6 +338,7 @@ class PathController:
         """
         This method logs information about a path.
         """
+        log.find_attached_debugger()
         if not self.path_tree_view or len(rows) != 1:
             return
         
@@ -385,6 +377,7 @@ class PathController:
         """
         This method logs the difference between two paths.
         """
+        log.find_attached_debugger()
         if not self.path_tree_view or len(rows) != 2: 
             return
 
@@ -447,6 +440,7 @@ class PathController:
         """
         This method logs the calls of a path.
         """
+        log.find_attached_debugger()
         if not self.path_tree_view or len(rows) != 1:
             return
         
@@ -482,6 +476,7 @@ class PathController:
         """
         This method highlights all instructions in a path.
         """
+        log.find_attached_debugger()
         if not self.path_tree_view or len(rows) != 1: 
             return
         
@@ -537,6 +532,7 @@ class PathController:
         """
         This method shows the call graph of a path.
         """
+        log.find_attached_debugger()
         if not self.path_tree_view or len(rows) != 1: 
             return
             
@@ -561,6 +557,7 @@ class PathController:
         """
         This method removes the paths at rows `rows` from the view.
         """
+        log.find_attached_debugger()
         if not self.path_tree_view: 
             return
             
@@ -572,6 +569,7 @@ class PathController:
         """
         This method removes all paths from the view.
         """
+        log.find_attached_debugger()
         if self.path_tree_view:
             self.path_tree_view.clear()
         else:
@@ -588,7 +586,7 @@ class PathController:
         ) -> None:
         """
         This method sets up the path tree view with controller callbacks.
-        """            
+        """
         # Store reference to the view 
         self.path_tree_view = path_tree_view
         
