@@ -223,8 +223,9 @@ class PathController:
         # Open file
         try:
             # Load YAML or JSON data
-            with open(filepath, "r") as f:
-                if filepath.lower().endswith((".yml", ".yaml")):
+            fp = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
+            with open(fp, "r") as f:
+                if fp.lower().endswith((".yml", ".yaml")):
                     s_paths = yaml.safe_load(f)
                 else:
                     s_paths = json.load(f)
@@ -316,9 +317,10 @@ class PathController:
             s_paths.append(s_path)
                 
         # Open file
-        with open(filepath, "w") as f:
+        fp = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
+        with open(fp, "w") as f:
             # Write YAML data
-            if filepath.lower().endswith(".yml") or filepath.lower().endswith(".yaml"):
+            if fp.lower().endswith(".yml") or fp.lower().endswith(".yaml"):
                 yaml.safe_dump(
                     s_paths,
                     f,

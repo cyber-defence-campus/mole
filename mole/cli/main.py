@@ -8,6 +8,7 @@ import argparse    as ap
 import binaryninja as bn
 import hashlib     as hl
 import json        as json
+import os          as os
 import yaml        as yaml
 
 
@@ -84,7 +85,9 @@ def main() -> None:
                 s_paths.append(s_path)
             # Write JSON data (default)
             if args["export_paths_to_json_file"]:
-                with open(args["export_paths_to_json_file"], "w") as f:
+                fp = args["export_paths_to_json_file"]
+                fp = os.path.abspath(os.path.expanduser(os.path.expandvars(fp)))
+                with open(fp, "w") as f:
                     json.dump(
                         s_paths,
                         f,
@@ -92,7 +95,9 @@ def main() -> None:
                     )
             # Write YAML data
             if args["export_paths_to_yml_file"]:
-                with open(args["export_paths_to_yml_file"], "w") as f:
+                fp = args["export_paths_to_yml_file"]
+                fp = os.path.abspath(os.path.expanduser(os.path.expandvars(fp)))
+                with open(os.path.abspath(fp), "w") as f:
                     yaml.safe_dump(
                         s_paths,
                         f,
