@@ -173,34 +173,55 @@ class PathController:
         """
         # Detect newly attached debuggers
         log.find_attached_debugger()
+        # Ensure views exist
         if not view: 
             return
-        self.path_view.give_feedback("Load", "Loading Paths...")
+        # Require previous background threads to have completed
+        if self._thread and not self._thread.finished:
+            log.warn(tag, "Wait for previous background thread to complete first")
+            self.path_view.give_feedback("Load", "Other Task Running...")
+            return
         # Clear paths
         self._paths = []
         self.path_tree_view = view
         self.path_tree_view.clear()
-        # Load paths from database
-        try:
-            # Calculate SHA1 hash
-            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-            # Deserialize paths
-            s_paths: List[Dict] = json.loads(bv.query_metadata("mole_paths"))
-            for s_path in s_paths:
-                if s_path["sha1"] != sha1_hash:
-                    log.warn(tag, "Loaded path seems to origin from another binary")
-                path = Path.from_dict(bv, s_path)
-                # Update the model
-                path_grouping = None
-                setting = self.config_ctr.get_setting("path_grouping")
-                if setting:
-                    path_grouping = setting.value
-                self.path_tree_view.model.add_path(path, s_path["comment"], path_grouping)
-            log.info(tag, f"Loaded {len(s_paths):d} path(s)")
-        except KeyError:
-            log.info(tag, "No paths found")
-        except Exception as e:
-            log.error(tag, f"Failed to load paths: {str(e):s}")
+        # Load paths in a background task
+        def _load_paths() -> None:
+            cnt_loaded_paths = 0
+            try:
+                # Calculate SHA1 hash
+                sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+                # Deserialize paths
+                s_paths: List[Dict] = json.loads(bv.query_metadata("mole_paths"))
+                for i, s_path in enumerate(s_paths):
+                    try:
+                        # Check if user cancelled the background task
+                        if self._thread.cancelled:
+                            break
+                        # Compare SHA1 hashes
+                        if s_path["sha1"] != sha1_hash:
+                            log.warn(tag, f"Path #{i+1:d} seems to origin from another binary")
+                        # Deserialize and add path
+                        path = Path.from_dict(bv, s_path)
+                        self.add_path_to_view(path, s_path["comment"])
+                        # Increment loaded path counter
+                        cnt_loaded_paths += 1
+                    except Exception as e:
+                        log.error(tag, f"Failed to load path #{i+1:d}: {str(e):s}")
+                    finally:
+                        self._thread.progress = f"Paths loaded: {i+1:d}/{len(s_paths):d}"
+            except Exception as e:
+                log.error(tag, f"Failed to load paths: {str(e):s}")
+            log.info(tag, f"Loaded {cnt_loaded_paths:d} path(s)")
+            return
+        # Start a background task
+        self.path_view.give_feedback("Load", "Loading Paths...")
+        self._thread = BackgroundTask(
+            initial_progress_text="Load paths...",
+            can_cancel=True,
+            run=_load_paths
+        )
+        self._thread.start()
         return
     
     def save_paths(
@@ -271,12 +292,11 @@ class PathController:
             self.path_view.give_feedback("Find", "Other Task Running...")
             return
         # Import paths in a background task
-        def run() -> None:
-            # Calculate SHA1 hash
-            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-            # Import paths
+        def _import_paths() -> None:
             cnt_imported_paths = 0
             try:
+                # Calculate SHA1 hash
+                sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
                 # Count the total number of paths to be imported
                 cnt_total_paths = 0
                 with open(filepath, "r") as f:
@@ -309,7 +329,7 @@ class PathController:
         self._thread = BackgroundTask(
             initial_progress_text="Import paths...",
             can_cancel=True,
-            run=run
+            run=_import_paths
         )
         self._thread.start()
         return
@@ -337,16 +357,15 @@ class PathController:
             log.warn(tag, "Wait for previous background thread to complete first")
             return
         # Export paths in a background task
-        def run() -> None:
+        def _export_paths() -> None:
             nonlocal rows
             ident = 2
-            # Get comments
-            comments = self.path_tree_view.model.get_comments()
-            # Calculate SHA1 hash of binary
-            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-            # Export paths
             cnt_exported_paths = 0
             try:
+                # Get comments
+                comments = self.path_tree_view.model.get_comments()
+                # Calculate SHA1 hash of binary
+                sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
                 # Iteratively export paths to the JSON file
                 with open(filepath, "w") as f:
                     rows = rows if rows else range(len(self.path_tree_view.model.paths))
@@ -383,7 +402,7 @@ class PathController:
         self._thread = BackgroundTask(
             initial_progress_text="Export paths...",
             can_cancel=True,
-            run=run
+            run=_export_paths
         )
         self._thread.start()
         return
