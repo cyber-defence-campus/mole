@@ -1,6 +1,7 @@
 
 from __future__      import annotations
 from ..core.data     import Path, SourceFunction, SinkFunction
+from ..common.task   import BackgroundTask
 from ..models.config import ConfigModel
 from concurrent      import futures
 from mole.common.log import log
@@ -11,24 +12,27 @@ import binaryninja as bn
 tag = "Mole.Slice"
 
 
-class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
+class MediumLevelILBackwardSlicer(BackgroundTask):
     """
-    This class implements a background thread that runs backward slicing for MLIL instructions.
+    This class implements a background task that backward slices MLIL instructions.
     """
+
     def __init__(
             self,
             bv: bn.BinaryView,
             config_model: ConfigModel,
-            max_workers: int | None = None,
-            max_call_level: int = None,
-            max_slice_depth: int = None,
+            max_workers: Optional[int] = None,
+            max_call_level: Optional[int] = None,
+            max_slice_depth: Optional[int] = None,
             enable_all_funs: bool = False,
-            path_callback: Optional[Callable[[Path, str], None]] = None
+            path_callback: Optional[Callable[[Path, str], None]] = None,
+            initial_progress_text: str = "",
+            can_cancel: bool = False,
         ) -> None:
         """
         This method initializes the background task.
         """
-        super().__init__(initial_progress_text="Start slicing...", can_cancel=True)
+        super().__init__(initial_progress_text, can_cancel)
         self._bv = bv
         self._config_model = config_model
         self._max_workers = max_workers
@@ -36,15 +40,24 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
         self._max_slice_depth = max_slice_depth
         self._enable_all_funs = enable_all_funs
         self._path_callback = path_callback
-        self._paths = None
+        return
+    
+    @property
+    def _paths(self) -> List[Path]:
+        paths: List[Path] = self._results
+        return paths
+    
+    @_paths.setter
+    def _paths(self, paths: List[Path]) -> None:
+        self._results = paths
         return
     
     def run(self) -> None:
         """
-        This method implements the background task's functionality, i.e. it tries to identify
-        intersting code paths using static backward slicing.
+        This method runs the background task, i.e. tries to identify interesting code paths using
+        static backward slicing.
         """
-        log.info(tag, "Starting analysis")
+        log.info(tag, "Starting backward slicing")
         self._paths = []
         # Settings
         log.debug(tag, "Settings")
@@ -68,9 +81,13 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
             if setting:
                 max_slice_depth = setting.value
         log.debug(tag, f"- max_slice_depth: '{max_slice_depth}'")
-        src_funs: List[SourceFunction] = self._config_model.get_functions(fun_type="Sources", fun_enabled=(None if self._enable_all_funs else True))
+        src_funs: List[SourceFunction] = self._config_model.get_functions(
+            fun_type="Sources", fun_enabled=(None if self._enable_all_funs else True)
+        )
         log.debug(tag, f"- number of sources: '{len(src_funs):d}'")
-        snk_funs: List[SinkFunction] = self._config_model.get_functions(fun_type="Sinks", fun_enabled=(None if self._enable_all_funs else True))
+        snk_funs: List[SinkFunction] = self._config_model.get_functions(
+            fun_type="Sinks", fun_enabled=(None if self._enable_all_funs else True)
+        )
         log.debug(tag, f"- number of sinks: '{len(snk_funs):d}'")
         # Backward slicing
         if not src_funs or not snk_funs:
@@ -123,13 +140,12 @@ class MediumLevelILBackwardSlicerThread(bn.BackgroundTaskThread):
                         paths = task.result()
                         if paths:
                             self._paths.extend(paths)
-        log.info(tag, "Analysis completed")
+        log.info(tag, "Backward slicing completed")
         return
     
-    def get_paths(self) -> List[Path]:
+    def paths(self) -> List[Path]:
         """
-        This method blocks until backward slicing finished and then returns all identified
-        interesting looking code paths.
+        This method waits for the backward slicing to complete and returns all identified paths.
         """
-        self.join()
-        return self._paths
+        paths: List[Path] = self.results()
+        return paths

@@ -2,7 +2,7 @@ from __future__           import annotations
 from mole.common.log      import log
 from mole.models.config   import ConfigModel
 from mole.services.config import ConfigService
-from mole.services.slicer import MediumLevelILBackwardSlicerThread
+from mole.services.slicer import MediumLevelILBackwardSlicer
 from typing               import Dict, List
 import argparse    as ap
 import binaryninja as bn
@@ -63,7 +63,7 @@ def main() -> None:
         bv = bn.load(args["file"])
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
-        slicer = MediumLevelILBackwardSlicerThread(
+        slicer = MediumLevelILBackwardSlicer(
             bv=bv,
             config_model=ConfigModel(ConfigService().load_config()),
             max_workers=args["max_workers"],
@@ -71,7 +71,7 @@ def main() -> None:
             max_slice_depth=args["max_slice_depth"]
         )
         slicer.start()
-        paths = slicer.get_paths()
+        paths = slicer.paths()
         # Export identified paths
         if args["export_paths_to_yml_file"] or args["export_paths_to_json_file"]:
             # Calculate SHA1 hash of binary

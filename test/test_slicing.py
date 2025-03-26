@@ -2,7 +2,7 @@ from __future__           import annotations
 from mole.core.data       import Path
 from mole.models.config   import ConfigModel
 from mole.services.config import ConfigService
-from mole.services.slicer import MediumLevelILBackwardSlicerThread
+from mole.services.slicer import MediumLevelILBackwardSlicer
 from typing               import List
 import binaryninja as bn
 import os          as os
@@ -43,7 +43,7 @@ class TestCase(unittest.TestCase):
         """
         This method is a helper to find paths.
         """
-        slicer = MediumLevelILBackwardSlicerThread(
+        slicer = MediumLevelILBackwardSlicer(
             bv=bv,
             config_model=self._model,
             max_workers=max_workers,
@@ -52,7 +52,7 @@ class TestCase(unittest.TestCase):
             enable_all_funs=enable_all_funs
         )
         slicer.start()
-        return slicer.get_paths()
+        return slicer.paths()
 
 class TestVarious(TestCase):
     
@@ -442,7 +442,7 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = paths = self.get_paths(bv)
+            paths = self.get_paths(bv)
             # Assert results
             self.assertTrue(len(paths) == 2, "2 paths identified")
             call_paths = []

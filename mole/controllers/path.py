@@ -1,7 +1,7 @@
 from __future__        import annotations
 from ..core.data       import InstructionHelper, Path
-from ..services.path   import PathHelperThread
-from ..services.slicer import MediumLevelILBackwardSlicerThread
+from ..common.task     import BackgroundTask
+from ..services.slicer import MediumLevelILBackwardSlicer
 from ..views.graph     import GraphWidget
 from ..views.path      import PathView
 from ..views.path_tree import PathTreeView
@@ -44,7 +44,7 @@ class PathController:
             Path,
             Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
-        self._thread: Optional[MediumLevelILBackwardSlicerThread] = None
+        self._thread: Optional[MediumLevelILBackwardSlicer] = None
         self.path_tree_view: Optional[PathTreeView] = None
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
@@ -151,15 +151,17 @@ class PathController:
             log.warn(tag, "Wait for previous background thread to complete first")
             self.path_view.give_feedback("Find", "Other Task Running...")
             return
-        # Run background thread
+        # Start background thread
         self.path_view.give_feedback("Find", "Finding Paths...")
-        self._thread = MediumLevelILBackwardSlicerThread(
+        self._thread = MediumLevelILBackwardSlicer(
             bv=bv,
             config_model=self.config_ctr.config_model,
-            path_callback=self.add_path_to_view
+            path_callback=self.add_path_to_view,
+            initial_progress_text="Find paths...",
+            can_cancel=True
         )
         self._thread.start()
-        return None
+        return
     
     def load_paths(
             self,
@@ -301,7 +303,7 @@ class PathController:
             log.info(tag, f"Imported {cnt_imported_paths:d} path(s)")
             return
         # Start background task
-        self._thread = PathHelperThread(
+        self._thread = BackgroundTask(
             initial_progress_text="Import paths...",
             can_cancel=True,
             run=run
@@ -375,7 +377,7 @@ class PathController:
             log.info(tag, f"Exported {cnt_exported_paths:d} path(s)")
             return
         # Start background task
-        self._thread = PathHelperThread(
+        self._thread = BackgroundTask(
             initial_progress_text="Export paths...",
             can_cancel=True,
             run=run
