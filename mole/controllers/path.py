@@ -212,6 +212,7 @@ class PathController:
         """
         # Detect newly attached debuggers
         log.find_attached_debugger()
+        # Ensure views exist
         if not self.path_tree_view: 
             return
         self.path_view.give_feedback("Save", "Saving Paths...")
@@ -221,8 +222,10 @@ class PathController:
             # Serialize paths
             s_paths: List[Dict] = []
             paths = self.path_tree_view.get_all_paths()
+            comments = self.path_tree_view.model.get_comments()
             for idx, path in enumerate(paths):
                 s_path = path.to_dict()
+                s_path["comment"] = comments.get(idx, "")
                 s_path["sha1"] = sha1_hash
                 s_paths.append(s_path)
             bv.store_metadata("mole_paths", json.dumps(s_paths))
