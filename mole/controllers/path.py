@@ -1,7 +1,7 @@
 from __future__        import annotations
 from ..core.data       import InstructionHelper, Path
+from ..services.path   import PathHelperThread
 from ..services.slicer import MediumLevelILBackwardSlicerThread
-from ..services.path   import PathImporterThread
 from ..views.graph     import GraphWidget
 from ..views.path      import PathView
 from ..views.path_tree import PathTreeView
@@ -201,42 +201,6 @@ class PathController:
             log.error(tag, f"Failed to load paths: {str(e):s}")
         return
     
-    def import_paths(
-            self,
-            bv: bn.BinaryView
-        ) -> None:
-        """
-        This method imports paths from a file.
-        """
-        # Detect newly attached debuggers
-        log.find_attached_debugger()
-        # Ensure views exist
-        if not bv or not self.path_tree_view:
-            return
-        # Open dialog to select file
-        filepath, _ = qtw.QFileDialog.getOpenFileName(
-            caption="Open File",
-            filter="JSON Files (*.json);;All Files (*)"
-        )
-        if not filepath:
-            log.info(tag, "No paths imported")
-            return
-        # Expand file path
-        filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
-        # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
-            log.warn(tag, "Wait for previous background thread to complete first")
-            self.path_view.give_feedback("Find", "Other Task Running...")
-            return
-        # Run background thread
-        self._thread = PathImporterThread(
-            bv=bv,
-            filepath=filepath,
-            path_callback=self.add_path_to_view
-        )
-        self._thread.start()
-        return
-    
     def save_paths(
             self,
             bv: bn.BinaryView
@@ -265,6 +229,86 @@ class PathController:
             log.error(tag, f"Failed to save paths: {str(e):s}")
         return
     
+    def _select_file(self) -> Optional[str]:
+        """
+        This method shows a dialog and lets the user select a (JSON) file.
+        """
+        # Open dialog to select file
+        filepath, _ = qtw.QFileDialog.getOpenFileName(
+            caption="Open File",
+            filter="JSON Files (*.json);;All Files (*)"
+        )
+        if not filepath:
+            return
+        # Expand file path
+        return os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
+    
+    def import_paths(
+            self,
+            bv: bn.BinaryView
+        ) -> None:
+        """
+        This method imports paths from a file.
+        """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure views exist
+        if not bv or not self.path_tree_view:
+            return
+        # Open dialog to select file
+        filepath = self._select_file()
+        if not filepath:
+            log.warn(tag, "No paths imported")
+            return
+        # Require previous background threads to have completed
+        if self._thread and not self._thread.finished:
+            log.warn(tag, "Wait for previous background thread to complete first")
+            self.path_view.give_feedback("Find", "Other Task Running...")
+            return
+        # Import paths in a background task
+        def run() -> None:
+            # Calculate SHA1 hash
+            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            # Import paths
+            cnt_imported_paths = 0
+            try:
+                # Count the total number of paths to be imported
+                cnt_total_paths = 0
+                with open(filepath, "r") as f:
+                    for _ in ijson.items(f, "item"):
+                        cnt_total_paths += 1
+                # Iteratively import paths from the JSON file
+                with open(filepath, "r") as f:
+                    for i, s_path in enumerate(ijson.items(f, "item")):
+                        try:
+                            # Check if user cancelled the background task
+                            if self._thread.cancelled:
+                                break
+                            # Compare SHA1 hashes
+                            if s_path["sha1"] != sha1_hash:
+                                log.warn(tag, f"Path #{i+1:d} seems to origin from another binary")
+                            # Deserialize and add path
+                            path = Path.from_dict(bv, s_path)
+                            self.add_path_to_view(path, s_path["comment"])
+                            # Increment imported path counter
+                            cnt_imported_paths += 1
+                        except Exception as e:
+                            log.error(tag, f"Failed to import path #{i+1:d}: {str(e):s}")
+                        finally:
+                            self._thread.progress = f"Paths imported: {i+1:d}/{cnt_total_paths:d}"
+            except Exception as e:
+                log.error(tag, f"Failed to import paths: {str(e):s}")
+            log.info(tag, f"Imported {cnt_imported_paths:d} path(s)")
+            return
+        # Start background task
+        self._thread = PathHelperThread(
+            initial_progress_text="Import paths...",
+            can_cancel=True,
+            run=run
+        )
+        self._thread.start()
+        return
+    
     def export_paths(
             self,
             bv: bn.BinaryView,
@@ -273,61 +317,70 @@ class PathController:
         """
         This method exports paths to a file.
         """
+        # Detect newly attached debuggers
         log.find_attached_debugger()
-        if not self.path_tree_view: 
+        # Ensure views exist
+        if not bv or not self.path_tree_view:
             return
-        # Select file
-        filepath, _ = qtw.QFileDialog.getSaveFileName(
-            None,
-            "Save As",
-            "",
-            "JSON Files (*.json);;YAML Files (*.yml *.yaml)"
-        )
+        # Open dialog to select file
+        filepath = self._select_file()
         if not filepath:
-            log.error(tag, "No paths exported")
+            log.info(tag, "No paths exported")
             return
-        # Calculate SHA1 hash of binary
-        sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-        # Serialize paths
-        s_paths: List[Dict] = []
-        comments = self.path_tree_view.model.get_comments()
-
-        # Only include valid path rows (filtering out header/group items)
-        valid_paths = []
-        for row in (rows if rows else list(range(len(self.path_tree_view.model.paths)))):
-            path = self.path_tree_view.path_at_row(row)
-            if path:  # Only include rows that correspond to actual paths
-                valid_paths.append((row, path))
-        
-        # Now export each valid path
-        for row, path in valid_paths:
-            s_path = path.to_dict()
-            path_id = row # row here is actually the path_id from the valid_paths list
-            s_path["comment"] = comments.get(path_id, "")
-            s_path["sha1"] = sha1_hash
-            s_paths.append(s_path)
-                
-        # Open file
-        fp = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
-        with open(fp, "w") as f:
-            # Write YAML data
-            if fp.lower().endswith(".yml") or fp.lower().endswith(".yaml"):
-                yaml.safe_dump(
-                    s_paths,
-                    f,
-                    sort_keys=False,
-                    default_style=None,
-                    default_flow_style=False,
-                    encoding="utf-8"
-                )
-            # Write JSON data (default)
-            else:
-                json.dump(
-                    s_paths,
-                    f,
-                    indent=2
-                )
-        log.info(tag, f"Exported {len(s_paths):d} path(s)")
+        # Require previous background threads to have completed
+        if self._thread and not self._thread.finished:
+            log.warn(tag, "Wait for previous background thread to complete first")
+            return
+        # Export paths in a background task
+        def run() -> None:
+            nonlocal rows
+            ident = 2
+            # Get comments
+            comments = self.path_tree_view.model.get_comments()
+            # Calculate SHA1 hash of binary
+            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            # Export paths
+            cnt_exported_paths = 0
+            try:
+                # Iteratively export paths to the JSON file
+                with open(filepath, "w") as f:
+                    rows = rows if rows else range(len(self.path_tree_view.model.paths))
+                    f.write("[\n")
+                    for i, row in enumerate(rows):
+                        try:
+                            # Check if user cancelled the background task
+                            if self._thread.cancelled:
+                                break
+                            # Get path (filtering out headers/groups)
+                            path = self.path_tree_view.path_at_row(row)
+                            if not path:
+                                continue
+                            # Serialize and dump path
+                            s_path = path.to_dict()
+                            s_path["comment"] = comments.get(row, "")
+                            s_path["sha1"] = sha1_hash
+                            if i != 0:
+                                f.write(",\n")
+                            f.write(" "*ident)
+                            f.write(json.dumps(s_path, indent=ident).replace("\n", "\n" + " "*ident))
+                            # Increment exported path counter
+                            cnt_exported_paths += 1
+                        except Exception as e:
+                            log.error(tag, f"Failed to export path #{i+1:d}: {str(e):s}")
+                        finally:
+                            self._thread.progress = f"Paths exported: {i+1:d}/{len(rows):d}"
+                    f.write("\n]")
+            except Exception as e:
+                log.error(tag, f"Failed to export paths: {str(e):s}")
+            log.info(tag, f"Exported {cnt_exported_paths:d} path(s)")
+            return
+        # Start background task
+        self._thread = PathHelperThread(
+            initial_progress_text="Export paths...",
+            can_cancel=True,
+            run=run
+        )
+        self._thread.start()
         return
     
     def log_path(
