@@ -42,7 +42,6 @@ class PathController:
         self._bv: Optional[bn.BinaryView] = None
         self.path_tree_view: Optional[PathTreeView] = None
         self._thread: Optional[MediumLevelILBackwardSlicer] = None
-        # self._paths: List[Path] = []
         self._paths_highlight: Tuple[
             Path,
             Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
@@ -92,15 +91,6 @@ class PathController:
             log.info(tag, f"Regrouping paths with new strategy: {new_strategy}")
             self.path_tree_view.model.regroup_paths(new_strategy)
         return
-    
-    # @property
-    # def paths(self) -> List[Path]:
-    #     """
-    #     Get all paths from either the internal list or the view, if available.
-    #     """
-    #     if self.path_tree_view and self.path_tree_view.model.path_count > 0:
-    #         return self.path_tree_view.get_all_paths()
-    #     return self._paths
     
     def add_path_to_view(
             self,
@@ -185,7 +175,6 @@ class PathController:
             self.path_view.give_feedback("Load", "Other Task Running...")
             return
         # Clear paths
-        # self._paths.clear()
         self.path_tree_view.clear()
         # Load paths in a background task
         def _load_paths() -> None:
