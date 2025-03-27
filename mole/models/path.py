@@ -30,8 +30,8 @@ PATH_ITEM = 4
 
 class PathSortProxyModel(qtc.QSortFilterProxyModel):
     """
-    This class implements a proxy model to handle proper sorting for paths. It uses `Qt.UserRole`
-    data to maintain original data types during sorting.
+    This class implements a proxy model to handle proper sorting for paths. It uses
+    `qtc.Qt.UserRole` data to maintain original data types during sorting.
     """
     
     def lessThan(
@@ -85,7 +85,6 @@ class PathTreeModel(qtui.QStandardItemModel):
         """
         super().__init__(parent)
         self.paths: List[Path] = []
-        self.path_comments: Dict[int, str] = {}
         self.path_count = 0
         self.setHorizontalHeaderLabels(PATH_COLS.keys())
         # Store group items instead of specific source, sink, callgraph items
@@ -98,7 +97,6 @@ class PathTreeModel(qtui.QStandardItemModel):
         This method clears all data from the model.
         """
         self.paths.clear()
-        self.path_comments.clear()
         self.group_items.clear()
         self.path_count = 0
         self.setRowCount(0)
@@ -127,18 +125,16 @@ class PathTreeModel(qtui.QStandardItemModel):
         # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
         return [main_item]
         
-    def add_path(self, path: Path, comment: str = "", path_grouping: str = None) -> None:
+    def add_path(self, path: Path, path_grouping: str = None) -> None:
         """
         This method adds a path to the model grouped by strategy.
         
         Args:
             path: The path to add
-            comment: Comment for the path
             path_grouping: How to group paths - one of the PathGrouper strategies
         """
         self.paths.append(path)
-        path_id = len(self.paths) - 1
-        self.path_comments[path_id] = comment
+        path_id = len(self.paths)-1
 
         # Get the appropriate grouper for this strategy
         grouper = get_grouper(path_grouping)
@@ -200,7 +196,7 @@ class PathTreeModel(qtui.QStandardItemModel):
         bdeps_item = qtui.QStandardItem(str(len(path.bdeps)))
         bdeps_item.setData(True, IS_PATH_ITEM_ROLE)
         
-        comment_item = qtui.QStandardItem(comment)
+        comment_item = qtui.QStandardItem(path.comment)
         comment_item.setData(True, IS_PATH_ITEM_ROLE)
 
         # Set items as non-editable (except for comment)
@@ -228,16 +224,14 @@ class PathTreeModel(qtui.QStandardItemModel):
         # Sort rows in descending order to avoid index shifting issues
         for row_id in sorted(rows, reverse=True):
             if 0 <= row_id < len(self.paths):
-                # Mark this path as removed in the paths list
-                self.paths[row_id] = None
-                self.path_comments.pop(row_id, None)
+                # Remove path from list
+                del self.paths[row_id]
                 
                 # Find and remove the path item from the tree
                 self._remove_path_item_by_id(row_id)
                 
                 # Decrement the path count
                 self.path_count -= 1
-                
         # Clean up empty groups
         self._cleanup_empty_groups()
         return
@@ -273,13 +267,14 @@ class PathTreeModel(qtui.QStandardItemModel):
     
     def _cleanup_empty_groups(self) -> None:
         """
+        TODO:
         This method removes any group items that no longer have children.
         """
         # Process groups from the bottom level up
         group_keys = list(self.group_items.keys())
         keys_to_remove = []
         
-        for key in group_keys:
+        for key in reversed(group_keys):
             group_item = self.group_items[key]
             if group_item.rowCount() == 0:
                 # Remove this empty group
@@ -302,12 +297,6 @@ class PathTreeModel(qtui.QStandardItemModel):
             return self.paths[row]
         return None
     
-    def get_comments(self) -> Dict[int, str]:
-        """
-        This method returns all comments from the model.
-        """
-        return self.path_comments
-    
     def get_path_id_from_index(self, index: qtc.QModelIndex) -> Optional[int]:
         """
         This method returns the path ID from a model index, or `None` if it's not a path item.
@@ -328,15 +317,14 @@ class PathTreeModel(qtui.QStandardItemModel):
     
     def update_path_comment(self, path_id: int, comment: str) -> None:
         """
-        This method updates the comment for a path in the path_comments dictionary.
-        
+        This method updates the comment of a given path.
+
         Args:
             path_id: The ID of the path to update
             comment: The new comment for the path
         """
-        if 0 <= path_id < len(self.paths) and self.paths[path_id] is not None:
-            # Update the comment in the comments dictionary
-            self.path_comments[path_id] = comment
+        if 0 <= path_id < len(self.paths):
+            self.paths[path_id].comment = comment
         return
 
     def regroup_paths(self, path_grouping: str = None) -> None:
@@ -351,13 +339,11 @@ class PathTreeModel(qtui.QStandardItemModel):
             
         # Store the existing paths and comments
         paths = [path for path in self.paths if path is not None]
-        comments = self.path_comments.copy()
         
         # Clear the model
         self.clear()
         
         # Re-add all paths with the new grouping strategy
         for idx, path in enumerate(paths):
-            comment = comments.get(idx, "")
-            self.add_path(path, comment, path_grouping)
+            self.add_path(path, path_grouping)
         return

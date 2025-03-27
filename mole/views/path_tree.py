@@ -1,7 +1,7 @@
 from __future__     import annotations
 from ..core.data    import Path
-from ..models.path import PathSortProxyModel, PathTreeModel, PATH_COLS, IS_PATH_ITEM_ROLE
-from typing      import Callable, List, Optional
+from ..models.path  import PathSortProxyModel, PathTreeModel, PATH_COLS, IS_PATH_ITEM_ROLE
+from typing         import Callable, List, Optional
 import binaryninja       as bn
 import binaryninjaui     as bnui
 import PySide6.QtCore    as qtc
@@ -358,26 +358,31 @@ class PathTreeView(qtw.QTreeView):
         self._navigation_connected = True
         return
     
-    def _handle_comment_edit(self, topLeft, bottomRight, roles) -> None:
+    def _handle_comment_edit(
+            self,
+            topLeft: qtc.QModelIndex,
+            bottomRight: qtc.QModelIndex,
+            roles: List[qtc.Qt.ItemDataRole]
+        ) -> None:
         """
-        This method handles comment edits in the view and update the underlying model's
-        path_comments dictionary.
+        This method handles comment edits in the view and updates the underlying model's comment.
         """
         # Only process if the data change includes the display role
         if qtc.Qt.DisplayRole not in roles and qtc.Qt.EditRole not in roles:
             return
-            
         # Check if this edit spans the comment column
         if topLeft.column() <= PATH_COLS["Comment"] <= bottomRight.column():
             # Process each row in the changed range
             for row in range(topLeft.row(), bottomRight.row() + 1):
                 # Get the index for the comment column in the current row
-                comment_idx = self.path_sort_proxy_model.index(row, PATH_COLS["Comment"], topLeft.parent())
-                
+                comment_idx = self.path_sort_proxy_model.index(
+                    row,
+                    PATH_COLS["Comment"],
+                    topLeft.parent()
+                )
                 # Map to source index and get the path ID
                 source_idx = self.path_sort_proxy_model.mapToSource(comment_idx)
                 path_id = self.path_tree_model.get_path_id_from_index(source_idx)
-                
                 # If this is a valid path item, update its comment in the model
                 if path_id is not None:
                     new_comment = comment_idx.data(qtc.Qt.DisplayRole)

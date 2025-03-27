@@ -94,8 +94,7 @@ class PathController:
     
     def add_path_to_view(
             self,
-            path: Path,
-            comment: str = ""
+            path: Path
         ) -> None:
         """
         This method updates the UI with a newly identified path.
@@ -110,7 +109,7 @@ class PathController:
             if setting:
                 path_grouping = setting.value
             # Update the model
-            self.path_tree_view.model.add_path(path, comment, path_grouping)
+            self.path_tree_view.model.add_path(path, path_grouping)
             return
         
         bn.execute_on_main_thread(update_paths_view)
@@ -190,11 +189,11 @@ class PathController:
                         if self._thread.cancelled:
                             break
                         # Compare SHA1 hashes
-                        if s_path["sha1"] != sha1_hash:
+                        if s_path["sha1_hash"] != sha1_hash:
                             log.warn(tag, f"Path #{i+1:d} seems to origin from another binary")
                         # Deserialize and add path
                         path = Path.from_dict(self._bv, s_path)
-                        self.add_path_to_view(path, s_path["comment"])
+                        self.add_path_to_view(path)
                         # Increment loaded path counter
                         cnt_loaded_paths += 1
                     except Exception as e:
@@ -234,21 +233,16 @@ class PathController:
         def _save_paths() -> None:
             cnt_saved_paths = 0
             try:
-                # Calculate SHA1 hash of binary
-                sha1_hash = hashlib.sha1(self._bv.file.raw.read(0, self._bv.file.raw.end)).hexdigest()
-                # Get paths and comments
-                paths = self.path_tree_view.get_all_paths()
-                comments = self.path_tree_view.model.get_comments()
                 # Save paths to database
+                paths = self.path_tree_view.get_all_paths()
                 s_paths: List[Dict] = []
                 for i, path in enumerate(paths):
-                    if not path:
-                        continue
                     try:
+                        # Check if user cancelled the background task
+                        if self._thread.cancelled:
+                            break
                         # Serialize paths
                         s_path = path.to_dict()
-                        s_path["comment"] = comments.get(i, "")
-                        s_path["sha1"] = sha1_hash
                         s_paths.append(s_path)
                         # Increment exported path counter
                         cnt_saved_paths += 1
@@ -323,11 +317,11 @@ class PathController:
                             if self._thread.cancelled:
                                 break
                             # Compare SHA1 hashes
-                            if s_path["sha1"] != sha1_hash:
+                            if s_path["sha1_hash"] != sha1_hash:
                                 log.warn(tag, f"Path #{i+1:d} seems to origin from another binary")
                             # Deserialize and add path
                             path = Path.from_dict(self._bv, s_path)
-                            self.add_path_to_view(path, s_path["comment"])
+                            self.add_path_to_view(path)
                             # Increment imported path counter
                             cnt_imported_paths += 1
                         except Exception as e:
@@ -371,10 +365,6 @@ class PathController:
             ident = 2
             cnt_exported_paths = 0
             try:
-                # Calculate SHA1 hash of binary
-                sha1_hash = hashlib.sha1(self._bv.file.raw.read(0, self._bv.file.raw.end)).hexdigest()
-                # Get comments
-                comments = self.path_tree_view.model.get_comments()
                 # Iteratively export paths to the JSON file
                 with open(filepath, "w") as f:
                     rows = rows if rows else range(len(self.path_tree_view.model.paths))
@@ -390,8 +380,6 @@ class PathController:
                                 continue
                             # Serialize and dump path
                             s_path = path.to_dict()
-                            s_path["comment"] = comments.get(row, "")
-                            s_path["sha1"] = sha1_hash
                             if i != 0:
                                 f.write(",\n")
                             f.write(" "*ident)
