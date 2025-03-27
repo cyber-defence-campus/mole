@@ -17,9 +17,9 @@ class PathView(bnui.SidebarWidget):
     This class implements the widget for the plugin's sidebar.
     """
 
-    signal_find_paths = qtc.Signal(object, object)
-    signal_load_paths = qtc.Signal(object, object)
-    signal_save_paths = qtc.Signal(object)
+    signal_find_paths = qtc.Signal()
+    signal_load_paths = qtc.Signal()
+    signal_save_paths = qtc.Signal()
     signal_setup_path_tree = qtc.Signal(object, object, object)
 
     def __init__(self) -> None:
@@ -48,6 +48,7 @@ class PathView(bnui.SidebarWidget):
         lay = qtw.QVBoxLayout()
         lay.addWidget(self._wid)
         self.setLayout(lay)
+        self.signal_setup_path_tree.emit(self._bv, self.path_tree_view, self._wid)
         return self
     
     def _init_path_tab(self) -> Tuple[qtw.QWidget, str]:
@@ -65,17 +66,11 @@ class PathView(bnui.SidebarWidget):
         
         # Create control buttons
         self._run_but = qtw.QPushButton("Find")
-        self._run_but.clicked.connect(
-            lambda: self.signal_find_paths.emit(self._bv, self.path_tree_view)
-        )
+        self._run_but.clicked.connect(self.signal_find_paths.emit)
         self._load_but = qtw.QPushButton("Load")
-        self._load_but.clicked.connect(
-            lambda: self.signal_load_paths.emit(self._bv, self.path_tree_view)
-        )
+        self._load_but.clicked.connect(self.signal_load_paths.emit)
         self._save_but = qtw.QPushButton("Save")
-        self._save_but.clicked.connect(
-            lambda: self.signal_save_paths.emit(self._bv)
-        )
+        self._save_but.clicked.connect(self.signal_save_paths.emit)
         
         # Set up button layout
         but_lay = qtw.QHBoxLayout()
@@ -99,8 +94,8 @@ class PathView(bnui.SidebarWidget):
     
     def give_feedback(
             self,
-            button_type: Literal["Find", "Load", "Save"],
-            text: str,
+            button_type: Optional[Literal["Find", "Load", "Save"]] = None,
+            button_text: str = "",
             msec: int = 1000
         ) -> None:
         """
@@ -113,6 +108,8 @@ class PathView(bnui.SidebarWidget):
                 button = self._load_but
             case "Save":
                 button = self._save_but
+            case _:
+                return
 
         def restore(text: str) -> None:
             button.setText(text)
@@ -122,7 +119,7 @@ class PathView(bnui.SidebarWidget):
         if button:
             button.setEnabled(False)
             old_text = button.text()
-            button.setText(text)
+            button.setText(button_text)
             qtc.QTimer.singleShot(msec, lambda text=old_text: restore(text))
         return
     
@@ -130,12 +127,8 @@ class PathView(bnui.SidebarWidget):
         """
         This method is a callback invoked when the active view in the Binary UI changes.
         """
-        if vf:
-            new_bv: bn.BinaryView = vf.getCurrentBinaryView()
-            if new_bv != self._bv:
-                self._bv = new_bv
-                if self.path_tree_view and self._wid:
-                    self.signal_setup_path_tree.emit(new_bv, self.path_tree_view, self._wid)
-        else:
-            self._bv = None
+        new_bv = vf.getCurrentBinaryView() if vf else None
+        if new_bv != self._bv:
+            self._bv = new_bv
+            self.signal_setup_path_tree.emit(new_bv, self.path_tree_view, self._wid)
         return
