@@ -5,6 +5,7 @@ from dataclasses         import dataclass, field
 from mole.common.log     import log
 from typing              import Callable, Dict, List, Tuple
 import binaryninja       as bn
+import hashlib           as hashlib
 import PySide6.QtWidgets as qtw
 
 
@@ -297,6 +298,7 @@ class SinkFunction(Function):
         """
         paths = []
         custom_tag = f"{tag:s}] [{self.name:s}"
+        sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         code_refs = SymbolHelper.get_code_refs(
             bv,
             self.symbols,
@@ -392,6 +394,8 @@ class SinkFunction(Function):
                                             snk_par_idx=par_idx,
                                             snk_par_var=par_var,
                                             src_inst_idx=src_inst_idx,
+                                            comment="",
+                                            sha1_hash=sha1_hash,
                                             insts=insts,
                                             call_graph=call_graph
                                         )
@@ -433,6 +437,8 @@ class Path:
     snk_par_idx: int
     snk_par_var: bn.MediumLevelILVarSsa
     src_inst_idx: int
+    comment: str
+    sha1_hash: str
     insts: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
@@ -447,6 +453,8 @@ class Path:
             snk_par_idx: int,
             snk_par_var: bn.MediumLevelILVarSsa,
             src_inst_idx: int,
+            comment: str,
+            sha1_hash: str,
             insts: List[bn.MediumLevelILInstruction] = field(default_factory=list),
             call_graph: MediumLevelILFunctionGraph = field(default_factory=MediumLevelILFunctionGraph)
         ) -> None:
@@ -457,6 +465,8 @@ class Path:
         self.snk_par_idx = snk_par_idx
         self.snk_par_var = snk_par_var
         self.src_inst_idx = src_inst_idx
+        self.comment = comment
+        self.sha1_hash = sha1_hash
         self.insts = insts
         self.call_graph = call_graph
         self._init_metrics()
@@ -495,6 +505,7 @@ class Path:
             self.snk_sym_name == other.snk_sym_name and
             self.snk_par_idx  == other.snk_par_idx  and
             self.snk_par_var  == other.snk_par_var  and
+            self.sha1_hash    == other.sha1_hash    and
             self.insts[1:self.src_inst_idx-1] == other.insts[1:other.src_inst_idx-1]
         )
     
@@ -516,6 +527,8 @@ class Path:
             "snk_sym_name": self.snk_sym_name,
             "snk_par_idx" : self.snk_par_idx,
             "src_inst_idx": self.src_inst_idx,
+            "comment"     : self.comment,
+            "sha1_hash"   : self.sha1_hash,
             "insts"       : insts,
             "call_graph"  : self.call_graph.to_dict()
         }
@@ -539,6 +552,8 @@ class Path:
             snk_par_idx  = snk_par_idx,
             snk_par_var  = snk_par_var,
             src_inst_idx = d["src_inst_idx"],
+            comment      = d["comment"],
+            sha1_hash    = d["sha1_hash"],
             insts        = insts,
             call_graph   = MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"])
         )
