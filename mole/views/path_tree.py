@@ -119,12 +119,11 @@ class PathTreeView(qtw.QTreeView):
         """
         return self.path_tree_model
     
-    def clear(self) -> None:
+    def remove_all_paths(self) -> int:
         """
-        This method clears all paths from the view.
+        This method removes all paths from the model.
         """
-        self.path_tree_model.clear()
-        return
+        return self.path_tree_model.clear()
     
     def get_selected_rows(self) -> List[int]:
         """
@@ -144,12 +143,11 @@ class PathTreeView(qtw.QTreeView):
                 path_rows.append(path_id)
         return sorted(set(path_rows))
     
-    def remove_paths_at_rows(self, rows: List[int]) -> None:
+    def remove_paths_at_rows(self, rows: List[int]) -> int:
         """
         This method removes the paths at the specified rows.
         """
-        self.path_tree_model.remove_paths_at_rows(rows)
-        return
+        return self.path_tree_model.remove_paths_at_rows(rows)
     
     def path_at_row(self, row: int) -> Optional[Path]:
         """

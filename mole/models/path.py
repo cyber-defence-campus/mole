@@ -92,15 +92,16 @@ class PathTreeModel(qtui.QStandardItemModel):
         self.group_items: Dict[str, qtui.QStandardItem] = {}
         return
         
-    def clear(self) -> None:
+    def clear(self) -> int:
         """
         This method clears all data from the model.
         """
+        cnt = self.path_count
         self.paths.clear()
         self.group_items.clear()
         self.path_count = 0
         self.setRowCount(0)
-        return
+        return cnt
         
     def _create_non_path_item_row(self, text: str, level: int) -> List[qtui.QStandardItem]:
         """
@@ -258,10 +259,11 @@ class PathTreeModel(qtui.QStandardItemModel):
                 return (parent_item, child_item, child_row)
         return (None, None, -1)
 
-    def remove_paths_at_rows(self, rows: List[int]) -> None:
+    def remove_paths_at_rows(self, rows: List[int]) -> int:
         """
         This method removes paths at the specified row indices.
         """
+        cnt_removed_paths = 0
         # Sort rows in descending order to avoid index shifting issues
         for row_id in sorted(rows, reverse=True):
             if 0 <= row_id < len(self.paths):
@@ -269,17 +271,19 @@ class PathTreeModel(qtui.QStandardItemModel):
                 self.paths[row_id] = None
                 # Find the path item
                 parent_item, child_item, child_row = self.find_path_item(row_id)
-                if parent_item is not None:
-                    # Remove from parent
-                    parent_item.removeRow(child_row)
-                else:
-                    # Remove from top-level
-                    self.removeRow(child_row)
+                if child_item is not None:
+                    if parent_item is not None:
+                        # Remove from parent
+                        parent_item.removeRow(child_row)
+                    else:
+                        # Remove from top-level
+                        self.removeRow(child_row)
+                    cnt_removed_paths += 1
                 # Decrement the path count
                 self.path_count -= 1
         # Clean up empty groups
         self._cleanup_empty_groups()
-        return
+        return cnt_removed_paths
     
     def _remove_path_item_by_id(self, path_id: int) -> bool:
         """

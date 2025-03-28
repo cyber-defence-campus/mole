@@ -173,8 +173,8 @@ class PathController:
             log.warn(tag, "Wait for previous background thread to complete first")
             self.path_view.give_feedback("Load", "Other Task Running...")
             return
-        # Clear paths
-        self.path_tree_view.clear()
+        # Remove all paths
+        self.path_tree_view.remove_all_paths()
         # Load paths in a background task
         def _load_paths() -> None:
             cnt_loaded_paths = 0
@@ -634,8 +634,8 @@ class PathController:
         if not self._validate_bv():
             return
         # Remove all paths
-        self.path_tree_view.clear()
-        log.info(tag, "Removed all path(s)")
+        cnt = self.path_tree_view.remove_all_paths()
+        log.info(tag, f"Removed {cnt:d} path(s)")
         return
 
     def setup_path_tree(
