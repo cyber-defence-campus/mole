@@ -224,12 +224,11 @@ class PathTreeModel(qtui.QStandardItemModel):
         # Sort rows in descending order to avoid index shifting issues
         for row_id in sorted(rows, reverse=True):
             if 0 <= row_id < len(self.paths):
-                # Remove path from list
-                del self.paths[row_id]
-                
+                # Mark this path as removed in the paths list
+                self.paths[row_id] = None
                 # Find and remove the path item from the tree
+                self.find_path(row_id)
                 self._remove_path_item_by_id(row_id)
-                
                 # Decrement the path count
                 self.path_count -= 1
         # Clean up empty groups

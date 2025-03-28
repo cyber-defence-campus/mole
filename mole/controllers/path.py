@@ -241,11 +241,12 @@ class PathController:
                         # Check if user cancelled the background task
                         if self._thread.cancelled:
                             break
-                        # Serialize paths
-                        s_path = path.to_dict()
-                        s_paths.append(s_path)
-                        # Increment exported path counter
-                        cnt_saved_paths += 1
+                        if path:
+                            # Serialize paths
+                            s_path = path.to_dict()
+                            s_paths.append(s_path)
+                            # Increment exported path counter
+                            cnt_saved_paths += 1
                     except Exception as e:
                         log.error(tag, f"Failed to save path #{i+1:d}: {str(e):s}")
                     finally:
