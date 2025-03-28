@@ -3,8 +3,8 @@ This module implements a source / sink grouping strategy.
 """
 
 from __future__ import annotations
-from ..core.data import Path
-from . import PathGrouper
+from mole.core.data import Path
+from mole.grouping import PathGrouper
 from typing import List, Tuple
 
 

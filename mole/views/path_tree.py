@@ -1,6 +1,6 @@
 from __future__ import annotations
-from ..core.data import Path
-from ..models.path import (
+from mole.core.data import Path
+from mole.models.path import (
     PathSortProxyModel,
     PathTreeModel,
     PATH_COLS,

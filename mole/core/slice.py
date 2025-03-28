@@ -1,5 +1,5 @@
 from __future__ import annotations
-from ..common.help import FunctionHelper, InstructionHelper, VariableHelper
+from mole.common.help import FunctionHelper, InstructionHelper, VariableHelper
 from functools import lru_cache
 from mole.common.log import log
 from typing import Any, Dict, Generator, List, Set, Tuple

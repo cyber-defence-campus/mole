@@ -1,5 +1,5 @@
 from __future__ import annotations
-from ..core.data import Path
+from mole.core.data import Path
 from mole.common.log import log
 from typing import Any
 import binaryninja as bn

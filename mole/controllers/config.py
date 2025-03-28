@@ -1,14 +1,14 @@
 from __future__ import annotations
-from ..core.data import (
+from mole.core.data import (
     ComboboxSetting,
     Function,
     Library,
     SpinboxSetting,
     WidgetSetting,
 )
-from ..models.config import ConfigModel
-from ..services.config import ConfigService
-from ..views.config import ConfigView
+from mole.models.config import ConfigModel
+from mole.services.config import ConfigService
+from mole.views.config import ConfigView
 from typing import Dict, List, Literal, Optional
 
 

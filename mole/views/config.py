@@ -4,8 +4,8 @@ import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
-    from ..controllers.config import ConfigController
-    from ..core.data import ComboboxSetting, SpinboxSetting
+    from mole.controllers.config import ConfigController
+    from mole.core.data import ComboboxSetting, SpinboxSetting
 
 
 class ConfigView(qtw.QWidget):

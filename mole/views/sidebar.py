@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .path import PathView
+from mole.views.path import PathView
 from typing import Any
 import binaryninjaui as bnui
 import os as os
