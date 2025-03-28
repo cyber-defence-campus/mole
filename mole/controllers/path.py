@@ -87,10 +87,28 @@ class PathController:
         Handler for when grouping strategy changes in the config.
         Regroups all paths with the new strategy.
         """
-        if self.path_tree_view and self.path_tree_view.model.path_count > 0:
+        if self.path_tree_view and len(self.path_tree_view.model.path_map) > 0:
             log.info(tag, f"Regrouping paths with new strategy: {new_strategy}")
             self.path_tree_view.model.regroup_paths(new_strategy)
         return
+    
+    def _validate_bv(
+            self,
+            view_type: Optional[str] = None,
+            button_type: Optional[Literal["Find", "Load", "Save"]] = None
+        ) -> bool:
+        """
+        This method ensures that the given views exist.
+        """
+        if not self._bv:
+            log.warn(tag, "No binary loaded")
+            self.path_view.give_feedback(button_type, "No Binary Loaded...")
+            return False
+        if view_type is not None and self._bv.view_type != view_type:
+            log.warn(tag, f"Binary is in '{self._bv.view_type:s}' but must be in '{view_type:s}' view")
+            self.path_view.give_feedback(button_type, "Incorrect Binary View")
+            return False
+        return True
     
     def add_path_to_view(
             self,
@@ -114,24 +132,6 @@ class PathController:
         
         bn.execute_on_main_thread(update_paths_view)
         return
-    
-    def _validate_bv(
-            self,
-            view_type: Optional[str] = None,
-            button_type: Optional[Literal["Find", "Load", "Save"]] = None
-        ) -> bool:
-        """
-        This method ensures that the given views exist.
-        """
-        if not self._bv:
-            log.warn(tag, "No binary loaded")
-            self.path_view.give_feedback(button_type, "No Binary Loaded...")
-            return False
-        if view_type is not None and self._bv.view_type != view_type:
-            log.warn(tag, f"Binary is in '{self._bv.view_type:s}' but must be in '{view_type:s}' view")
-            self.path_view.give_feedback(button_type, "Incorrect Binary View")
-            return False
-        return True
 
     def find_paths(self) -> None:
         """
@@ -241,12 +241,11 @@ class PathController:
                         # Check if user cancelled the background task
                         if self._thread.cancelled:
                             break
-                        if path:
-                            # Serialize paths
-                            s_path = path.to_dict()
-                            s_paths.append(s_path)
-                            # Increment exported path counter
-                            cnt_saved_paths += 1
+                        # Serialize paths
+                        s_path = path.to_dict()
+                        s_paths.append(s_path)
+                        # Increment exported path counter
+                        cnt_saved_paths += 1
                     except Exception as e:
                         log.error(tag, f"Failed to save path #{i+1:d}: {str(e):s}")
                     finally:
@@ -342,7 +341,7 @@ class PathController:
         self._thread.start()
         return
     
-    def export_paths(self, rows: List[int]) -> None:
+    def export_paths(self, path_ids: List[int]) -> None:
         """
         This method exports paths to a file.
         """
@@ -362,21 +361,21 @@ class PathController:
             return
         # Export paths in a background task
         def _export_paths() -> None:
-            nonlocal rows
+            nonlocal path_ids
             ident = 2
             cnt_exported_paths = 0
             try:
                 # Iteratively export paths to the JSON file
                 with open(filepath, "w") as f:
-                    rows = rows if rows else range(len(self.path_tree_view.model.paths))
+                    path_ids = path_ids if path_ids else list(self.path_tree_view.model.path_map.keys())
                     f.write("[\n")
-                    for i, row in enumerate(rows):
+                    for i, path_id in enumerate(path_ids):
                         try:
                             # Check if user cancelled the background task
                             if self._thread.cancelled:
                                 break
                             # Get path (filtering out headers/groups)
-                            path = self.path_tree_view.path_at_row(row)
+                            path = self.path_tree_view.get_path(path_id)
                             if not path:
                                 continue
                             # Serialize and dump path
@@ -390,7 +389,7 @@ class PathController:
                         except Exception as e:
                             log.error(tag, f"Failed to export path #{i+1:d}: {str(e):s}")
                         finally:
-                            self._thread.progress = f"Paths exported: {i+1:d}/{len(rows):d}"
+                            self._thread.progress = f"Paths exported: {i+1:d}/{len(path_ids):d}"
                     f.write("\n]")
             except Exception as e:
                 log.error(tag, f"Failed to export paths: {str(e):s}")
@@ -405,7 +404,7 @@ class PathController:
         self._thread.start()
         return
     
-    def log_path(self, rows: List[int], reverse: bool = False) -> None:
+    def log_path(self, path_ids: List[int], reverse: bool = False) -> None:
         """
         This method logs information about a path.
         """
@@ -415,11 +414,11 @@ class PathController:
         if not self._validate_bv():
             return
         # Ensure expected number of selected paths
-        if len(rows) != 1:
+        if len(path_ids) != 1:
             return
         # Print selected path to log
-        path_id = rows[0]
-        path = self.path_tree_view.path_at_row(rows[0])
+        path_id = path_ids[0]
+        path = self.path_tree_view.get_path(path_ids[0])
         if not path: 
             return
         msg = f"Path {path_id:d}: {str(path):s}"
@@ -443,7 +442,7 @@ class PathController:
         log.debug(tag, msg)
         return
     
-    def log_path_diff(self, rows: List[int]) -> None:
+    def log_path_diff(self, path_ids: List[int]) -> None:
         """
         This method logs the difference between two paths.
         """
@@ -453,19 +452,19 @@ class PathController:
         if not self._validate_bv():
             return
         # Ensure expected number of selected paths
-        if len(rows) != 2:
+        if len(path_ids) != 2:
             return
         # Get instructions of path 0
-        path_0 = self.path_tree_view.path_at_row(rows[0])
+        path_0 = self.path_tree_view.get_path(path_ids[0])
         if not path_0: 
             return
-        path_0_id = rows[0]
+        path_0_id = path_ids[0]
         path_0_insts = [InstructionHelper.get_inst_info(inst, False) for inst in path_0.insts]
         # Get instructions of path 1
-        path_1 = self.path_tree_view.path_at_row(rows[1])
+        path_1 = self.path_tree_view.get_path(path_ids[1])
         if not path_1: 
             return
-        path_1_id = rows[1]
+        path_1_id = path_ids[1]
         path_1_insts = [InstructionHelper.get_inst_info(inst, False) for inst in path_1.insts]
         # Get terminal width and calculate column width
         ter_width = shu.get_terminal_size().columns
@@ -502,7 +501,7 @@ class PathController:
             )
         return
     
-    def log_call(self, rows: List[int], reverse: bool = False) -> None:
+    def log_call(self, path_ids: List[int], reverse: bool = False) -> None:
         """
         This method logs the calls of a path.
         """
@@ -512,13 +511,13 @@ class PathController:
         if not self._validate_bv():
             return
         # Ensure expected number of selected paths
-        if len(rows) != 1:
+        if len(path_ids) != 1:
             return
         # Print selected path to log
-        path = self.path_tree_view.path_at_row(rows[0])
+        path = self.path_tree_view.get_path(path_ids[0])
         if not path: 
             return
-        path_id = rows[0]
+        path_id = path_ids[0]
         msg = f"Path {path_id:d}: {str(path):s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         log.info(tag, msg)
@@ -536,7 +535,7 @@ class PathController:
         log.debug(tag, msg)
         return
     
-    def highlight_path(self, rows: List[int]) -> None:
+    def highlight_path(self, path_ids: List[int]) -> None:
         """
         This method highlights all instructions in a path.
         """
@@ -546,10 +545,10 @@ class PathController:
         if not self._validate_bv():
             return
         # Ensure expected number of selected paths
-        if len(rows) != 1: 
+        if len(path_ids) != 1: 
             return
         # Get path
-        path = self.path_tree_view.path_at_row(rows[0])
+        path = self.path_tree_view.get_path(path_ids[0])
         if not path: 
             return   
         undo_action = self._bv.begin_undo_actions()
@@ -562,7 +561,7 @@ class PathController:
         self._paths_highlight = (None, {})
         # If the clicked path was already highlighted, just log and return (it's now unhighlighted)
         if path == highlighted_path:
-            log.info(tag, f"Un-highlighted instructions of path {rows[0]:d}")
+            log.info(tag, f"Un-highlighted instructions of path {path_ids[0]:d}")
             self._bv.forget_undo_actions(undo_action)
             return
         # Add new path highlighting
@@ -580,12 +579,12 @@ class PathController:
             if addr not in insts_colors:
                 insts_colors[addr] = (inst, func.get_instr_highlight(addr))
             func.set_user_instr_highlight(addr, color)
-        log.info(tag, f"Highlighted instructions of path {rows[0]:d}")
+        log.info(tag, f"Highlighted instructions of path {path_ids[0]:d}")
         self._paths_highlight = (highlighted_path, insts_colors)
         self._bv.forget_undo_actions(undo_action)
         return
     
-    def show_call_graph(self, rows: List[int], wid: qtw.QTabWidget) -> None:
+    def show_call_graph(self, path_ids: List[int], wid: qtw.QTabWidget) -> None:
         """
         This method shows the call graph of a path.
         """
@@ -595,24 +594,24 @@ class PathController:
         if not self._validate_bv():
             return
         # Ensure expected number of selected paths
-        if len(rows) != 1: 
+        if len(path_ids) != 1: 
             return
         # Show call graph of selected path
-        path = self.path_tree_view.path_at_row(rows[0])
+        path = self.path_tree_view.get_path(path_ids[0])
         if not path: 
             return
         for idx in range(wid.count()):
             if wid.tabText(idx) == "Graph":
                 graph_widget: GraphWidget = wid.widget(idx)
-                graph_widget.load_path(self._bv, path, rows[0])
+                graph_widget.load_path(self._bv, path, path_ids[0])
                 wid.setCurrentWidget(graph_widget)
                 return
-        log.info(tag, f"Showing call graph of path {rows[0]:d}")
+        log.info(tag, f"Showing call graph of path {path_ids[0]:d}")
         return
 
-    def remove_selected_paths(self, rows: List[int]) -> None:
+    def remove_selected_paths(self, path_ids: List[int]) -> None:
         """
-        This method removes the paths at rows `rows` from the view.
+        This method removes selected paths from the view.
         """
         # Detect newly attached debuggers
         log.find_attached_debugger()
@@ -620,7 +619,7 @@ class PathController:
         if not self._validate_bv():
             return
         # Remove selected paths  
-        cnt = self.path_tree_view.remove_paths_at_rows(rows)
+        cnt = self.path_tree_view.remove_selected_paths(path_ids)
         log.info(tag, f"Removed {cnt:d} path(s)")
         return
     
@@ -669,6 +668,6 @@ class PathController:
         ptv.expandAll()
         # Apply current path grouping strategy to any existing paths
         setting = self.config_ctr.get_setting("path_grouping")
-        if setting and self.path_tree_view.model.path_count > 0:
+        if setting and len(self.path_tree_view.model.path_map) > 0:
             self.path_tree_view.model.regroup_paths(setting.value)
         return

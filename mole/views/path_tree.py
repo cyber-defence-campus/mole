@@ -142,23 +142,23 @@ class PathTreeView(qtw.QTreeView):
                 path_rows.add(path_id)
         return sorted(path_rows)
     
-    def remove_paths_at_rows(self, rows: List[int]) -> int:
+    def remove_selected_paths(self, path_ids: List[int]) -> int:
         """
-        This method removes the paths at the specified rows.
+        This method removes selected paths from the model.
         """
-        return self.path_tree_model.remove_paths_at_rows(rows)
+        return self.path_tree_model.remove_selected_paths(path_ids)
     
-    def path_at_row(self, row: int) -> Optional[Path]:
+    def get_path(self, path_id: int) -> Optional[Path]:
         """
-        This method returns the path at the specified row.
+        This method returns the path with the specified ID from the model.
         """
-        return self.path_tree_model.path_at_row(row)
+        return self.path_tree_model.get_path(path_id)
     
     def get_all_paths(self) -> List[Path]:
         """
         This method returns all paths from the model.
         """
-        return self.path_tree_model.paths
+        return list(self.path_tree_model.path_map.values())
     
     def setup_context_menu(
             self, 
@@ -221,7 +221,7 @@ class PathTreeView(qtw.QTreeView):
             # Import/export actions
             import_paths_action = menu.addAction("Import from file")
             import_paths_action.triggered.connect(on_import_paths)
-            export_paths_action = self._add_menu_action(menu, "Export to file", self.path_tree_model.path_count > 0)
+            export_paths_action = self._add_menu_action(menu, "Export to file", len(self.path_tree_model.path_map) > 0)
             export_paths_action.triggered.connect(lambda: on_export_paths(export_rows))
             
             menu.addSeparator()
@@ -229,7 +229,7 @@ class PathTreeView(qtw.QTreeView):
             # Remove actions
             remove_selected_action = self._add_menu_action(menu, "Remove selected", len(rows) > 0)
             remove_selected_action.triggered.connect(lambda: on_remove_selected(rows))
-            clear_all_action = self._add_menu_action(menu, "Clear all", self.path_tree_model.path_count > 0)
+            clear_all_action = self._add_menu_action(menu, "Clear all", len(self.path_tree_model.path_map) > 0)
             clear_all_action.triggered.connect(on_clear_all)
 
             # Execute menu
@@ -337,7 +337,7 @@ class PathTreeView(qtw.QTreeView):
             col = index.column()
             
             # Navigate based on column
-            path = self.path_at_row(path_id)
+            path = self.get_path(path_id)
             if path:
                 # Navigate to source address
                 if col in [PATH_COLS["Src Addr"], PATH_COLS["Src Func"]]:

@@ -23,7 +23,7 @@ PATH_COLS = {
 # Custom roles for tree items
 PATH_ID_ROLE = qtc.Qt.UserRole + 100
 IS_PATH_ITEM_ROLE = qtc.Qt.UserRole + 101
-LEVEL_ROLE = qtc.Qt.UserRole + 103  # Role to store the level of the item
+LEVEL_ROLE = qtc.Qt.UserRole + 102  # Role to store the level of the item
 
 # Only keep PATH_ITEM as it's needed to distinguish path items
 PATH_ITEM = 4
@@ -84,26 +84,15 @@ class PathTreeModel(qtui.QStandardItemModel):
         This method initializes the path tree model.
         """
         super().__init__(parent)
-        self.paths: List[Path] = []
-        self.path_count = 0
+        self.path_id = 0
+        self.path_map: Dict[int, Path] = {}
         self.setHorizontalHeaderLabels(PATH_COLS.keys())
         # Store group items instead of specific source, sink, callgraph items
         # Each level of grouping can have its own items
         self.group_items: Dict[str, qtui.QStandardItem] = {}
         return
         
-    def clear(self) -> int:
-        """
-        This method clears all data from the model.
-        """
-        cnt = self.path_count
-        self.paths.clear()
-        self.group_items.clear()
-        self.path_count = 0
-        self.setRowCount(0)
-        return cnt
-        
-    def _create_non_path_item_row(self, text: str, level: int) -> List[qtui.QStandardItem]:
+    def _create_non_path_item_row(self, text: str, level: int) -> qtui.QStandardItem:
         """
         This method creates a row of items for non-path items (group headers).
         
@@ -122,20 +111,19 @@ class PathTreeModel(qtui.QStandardItemModel):
         main_item.setData(False, IS_PATH_ITEM_ROLE)
         main_item.setData(level, LEVEL_ROLE)  # Store level information
         main_item.setFlags(main_item.flags() & ~qtc.Qt.ItemIsEditable & ~qtc.Qt.ItemIsSelectable)
-        
         # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
-        return [main_item]
+        return main_item
         
     def add_path(self, path: Path, path_grouping: str = None) -> None:
         """
-        This method adds a path to the model grouped by strategy.
+        This method adds a path to the model grouped by the specified strategy.
         
         Args:
             path: The path to add
             path_grouping: How to group paths - one of the PathGrouper strategies
         """
-        self.paths.append(path)
-        path_id = len(self.paths)-1
+        self.path_id += 1
+        self.path_map[self.path_id] = path
 
         # Get the appropriate grouper for this strategy
         grouper = get_grouper(path_grouping)
@@ -154,20 +142,18 @@ class PathTreeModel(qtui.QStandardItemModel):
             if internal_id not in self.group_items:
                 # Create and add the group item with level information
                 group_row = self._create_non_path_item_row(display_name, level)
-                
                 if isinstance(parent_item, qtui.QStandardItemModel):
                     parent_item.appendRow(group_row)
                 else:
                     parent_item.appendRow(group_row)
-                    
-                self.group_items[internal_id] = group_row[0]
+                self.group_items[internal_id] = group_row
             
             # Update parent for next iteration
             parent_item = self.group_items[internal_id]
         
         # Create path items
-        index_item = qtui.QStandardItem(str(path_id))
-        index_item.setData(path_id, PATH_ID_ROLE)
+        index_item = qtui.QStandardItem(f"{self.path_id:d}")
+        index_item.setData(self.path_id, PATH_ID_ROLE)
         index_item.setData(True, IS_PATH_ITEM_ROLE)
         
         # Only store hex values as UserRole data for proper sorting
@@ -212,11 +198,20 @@ class PathTreeModel(qtui.QStandardItemModel):
         ]
         parent_item.appendRow(path_row)
         
-        self.path_count += 1
-        
         # Emit a dataChanged signal to ensure the view updates properly
         self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
         return
+    
+    def clear(self) -> int:
+        """
+        This method clears all data from the model.
+        """
+        path_cnt = len(self.path_map)
+        self.path_id = 0
+        self.setRowCount(0)
+        self.path_map.clear()
+        self.group_items.clear()
+        return path_cnt
     
     def find_path_item(
             self,
@@ -259,60 +254,30 @@ class PathTreeModel(qtui.QStandardItemModel):
                 return (parent_item, child_item, child_row)
         return (None, None, -1)
 
-    def remove_paths_at_rows(self, rows: List[int]) -> int:
+    def remove_selected_paths(self, path_ids: List[int]) -> int:
         """
-        This method removes paths at the specified row indices.
+        This method removes selected paths.
         """
+        # Remove paths
         cnt_removed_paths = 0
-        # Sort rows in descending order to avoid index shifting issues
-        for row_id in sorted(rows, reverse=True):
-            if 0 <= row_id < len(self.paths):
-                # Mark this path as removed in the paths list
-                self.paths[row_id] = None
-                # Find the path item
-                parent_item, child_item, child_row = self.find_path_item(row_id)
-                if child_item is not None:
-                    if parent_item is not None:
-                        # Remove from parent
-                        parent_item.removeRow(child_row)
-                    else:
-                        # Remove from top-level
-                        self.removeRow(child_row)
-                    cnt_removed_paths += 1
-                # Decrement the path count
-                self.path_count -= 1
-        # Clean up empty groups
+        for path_id in path_ids:
+            # Find the path item
+            parent_item, child_item, child_row = self.find_path_item(path_id)
+            # Remove the path item
+            if child_item is not None:
+                if parent_item is not None:
+                    # Remove from parent
+                    parent_item.removeRow(child_row)
+                else:
+                    # Remove from top-level
+                    self.removeRow(child_row)
+                cnt_removed_paths += 1
+            # Remove the path from the map
+            if path_id in self.path_map:
+                del self.path_map[path_id]
+        # Cleanup empty groups
         self._cleanup_empty_groups()
         return cnt_removed_paths
-    
-    def _remove_path_item_by_id(self, path_id: int) -> bool:
-        """
-        This method finds and removes a path item by its ID. It returns `True` if found and removed,
-        `False` otherwise.
-        """
-        # Search through all items recursively
-        def find_and_remove_path(parent_item):
-            # Check in the standard item model
-            if isinstance(parent_item, qtui.QStandardItemModel):
-                for row in range(parent_item.rowCount()):
-                    item = parent_item.item(row, 0)
-                    if find_and_remove_path(item):
-                        return True
-            else:
-                # Check this item's children
-                for row in range(parent_item.rowCount()):
-                    child = parent_item.child(row, 0)
-                    if child is not None:
-                        # Check if this is the path item we're looking for
-                        if child.data(IS_PATH_ITEM_ROLE) and child.data(PATH_ID_ROLE) == path_id:
-                            parent_item.removeRow(row)
-                            return True
-                        # Or search its children
-                        if find_and_remove_path(child):
-                            return True
-            return False
-        
-        return find_and_remove_path(self)
     
     def _cleanup_empty_groups(self) -> None:
         """
@@ -337,29 +302,22 @@ class PathTreeModel(qtui.QStandardItemModel):
             self.group_items.pop(key, None)
         return
         
-    def path_at_row(self, row: int) -> Optional[Path]:
+    def get_path(self, path_id: int) -> Optional[Path]:
         """
-        This method returns the path at the specified path ID.
+        This method returns the path with the specified ID.
         """
-        if 0 <= row < len(self.paths):
-            return self.paths[row]
-        return None
+        return self.path_map.get(path_id, None)
     
     def get_path_id_from_index(self, index: qtc.QModelIndex) -> Optional[int]:
         """
         This method returns the path ID from a model index, or `None` if it's not a path item.
         """
-        if not index.isValid():
+        # Check if this is a valid path item
+        if not index.isValid() or not index.data(IS_PATH_ITEM_ROLE):
             return None
-            
-        # Check if this is a path item
-        if not index.data(IS_PATH_ITEM_ROLE):
-            return None
-            
         # Get the first column item which contains the path ID
         if index.column() != 0:
             index = index.sibling(index.row(), 0)
-            
         # Return the path ID
         return index.data(PATH_ID_ROLE)
     
@@ -371,8 +329,9 @@ class PathTreeModel(qtui.QStandardItemModel):
             path_id: The ID of the path to update
             comment: The new comment for the path
         """
-        if 0 <= path_id < len(self.paths):
-            self.paths[path_id].comment = comment
+        path = self.path_map.get(path_id, None)
+        if path:
+            path.comment = comment
         return
 
     def regroup_paths(self, path_grouping: str = None) -> None:
@@ -382,16 +341,14 @@ class PathTreeModel(qtui.QStandardItemModel):
         Args:
             path_grouping: The new grouping strategy to use
         """
-        if self.path_count == 0:
-            return  # Nothing to regroup
-            
-        # Store the existing paths and comments
-        paths = [path for path in self.paths if path is not None]
-        
+        # Nothing to regroup
+        if len(self.path_map) == 0:
+            return
+        # Store existing paths
+        paths = list(self.path_map.values())
         # Clear the model
         self.clear()
-        
         # Re-add all paths with the new grouping strategy
-        for idx, path in enumerate(paths):
+        for path in paths:
             self.add_path(path, path_grouping)
         return
