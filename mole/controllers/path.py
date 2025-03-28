@@ -149,7 +149,7 @@ class PathController:
             bv=self._bv,
             config_model=self.config_ctr.config_model,
             path_callback=self.add_path_to_view,
-            initial_progress_text="Find paths...",
+            initial_progress_text="Mole finds paths...",
             can_cancel=True,
         )
         self._thread.start()
@@ -202,7 +202,7 @@ class PathController:
                         log.error(tag, f"Failed to load path #{i + 1:d}: {str(e):s}")
                     finally:
                         self._thread.progress = (
-                            f"Paths loaded: {i + 1:d}/{len(s_paths):d}"
+                            f"Mole loads paths: {i + 1:d}/{len(s_paths):d}"
                         )
             except KeyError:
                 pass
@@ -214,7 +214,9 @@ class PathController:
         # Start a background task
         self.path_view.give_feedback("Load", "Loading Paths...")
         self._thread = BackgroundTask(
-            initial_progress_text="Load paths...", can_cancel=True, run=_load_paths
+            initial_progress_text="Mole loads paths...",
+            can_cancel=True,
+            run=_load_paths,
         )
         self._thread.start()
         return
@@ -253,7 +255,9 @@ class PathController:
                     except Exception as e:
                         log.error(tag, f"Failed to save path #{i + 1:d}: {str(e):s}")
                     finally:
-                        self._thread.progress = f"Paths saved: {i + 1:d}/{len(paths):d}"
+                        self._thread.progress = (
+                            f"Mole saves paths: {i + 1:d}/{len(paths):d}"
+                        )
                 self._bv.store_metadata("mole_paths", json.dumps(s_paths))
             except Exception as e:
                 log.error(tag, f"Failed to save paths: {str(e):s}")
@@ -263,7 +267,9 @@ class PathController:
         # Start a background task
         self.path_view.give_feedback("Save", "Saving Paths...")
         self._thread = BackgroundTask(
-            initial_progress_text="Save paths...", can_cancel=True, run=_save_paths
+            initial_progress_text="Mole saves paths...",
+            can_cancel=True,
+            run=_save_paths,
         )
         self._thread.start()
         return
@@ -338,7 +344,7 @@ class PathController:
                             )
                         finally:
                             self._thread.progress = (
-                                f"Paths imported: {i + 1:d}/{cnt_total_paths:d}"
+                                f"Mole imports paths: {i + 1:d}/{cnt_total_paths:d}"
                             )
             except Exception as e:
                 log.error(tag, f"Failed to import paths: {str(e):s}")
@@ -347,7 +353,9 @@ class PathController:
 
         # Start background task
         self._thread = BackgroundTask(
-            initial_progress_text="Import paths...", can_cancel=True, run=_import_paths
+            initial_progress_text="Mole imports paths...",
+            can_cancel=True,
+            run=_import_paths,
         )
         self._thread.start()
         return
@@ -412,7 +420,7 @@ class PathController:
                             )
                         finally:
                             self._thread.progress = (
-                                f"Paths exported: {i + 1:d}/{len(path_ids):d}"
+                                f"Mole exports paths: {i + 1:d}/{len(path_ids):d}"
                             )
                     f.write("\n]")
             except Exception as e:
@@ -422,7 +430,9 @@ class PathController:
 
         # Start background task
         self._thread = BackgroundTask(
-            initial_progress_text="Export paths...", can_cancel=True, run=_export_paths
+            initial_progress_text="Mole exports paths...",
+            can_cancel=True,
+            run=_export_paths,
         )
         self._thread.start()
         return
