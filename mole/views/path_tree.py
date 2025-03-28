@@ -315,11 +315,7 @@ class PathTreeView(qtw.QTreeView):
             # Ensure we only include valid path IDs
             valid_child_paths = []
             for path_id in child_paths:
-                if (
-                    path_id is not None
-                    and 0 <= path_id < len(self.path_tree_model.paths)
-                    and self.path_tree_model.paths[path_id] is not None
-                ):
+                if path_id is not None and path_id in self.path_tree_model.path_map:
                     valid_child_paths.append(path_id)
 
             export_rows = sorted(set(export_rows + valid_child_paths))
