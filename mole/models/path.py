@@ -227,7 +227,6 @@ class PathTreeModel(qtui.QStandardItemModel):
                 # Mark this path as removed in the paths list
                 self.paths[row_id] = None
                 # Find and remove the path item from the tree
-                self.find_path(row_id)
                 self._remove_path_item_by_id(row_id)
                 # Decrement the path count
                 self.path_count -= 1
