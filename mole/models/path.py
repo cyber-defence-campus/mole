@@ -1,7 +1,7 @@
 from __future__  import annotations
 from ..core.data import Path
 from ..grouping  import get_grouper
-from typing      import Dict, List, Optional
+from typing      import Dict, List, Optional, Tuple
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 
@@ -216,6 +216,47 @@ class PathTreeModel(qtui.QStandardItemModel):
         # Emit a dataChanged signal to ensure the view updates properly
         self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
         return
+    
+    def find_path_item(
+            self,
+            path_id
+        ) -> Tuple[Optional[qtui.QStandardItem], Optional[qtui.QStandardItem], int]:
+        """
+        This method tries to find the path item matching the given path ID.
+
+        Args:
+            path_id    : ID of the path that should be found
+
+        Returns:
+            parent_item: The parent item or `None` if the parent does not exist
+            child_item : The child item or `None` if it has not been found
+            child_row  : The child's row index relative to its parent item
+        """
+        def _find_path(
+                item: qtui.QStandardItem
+            ) -> Tuple[Optional[qtui.QStandardItem], Optional[qtui.QStandardItem], int]:
+            # If the item is a path, check whether the `path_id` matches
+            if item.data(IS_PATH_ITEM_ROLE):
+                if item.data(PATH_ID_ROLE) == path_id:
+                    return (None, item, -1)
+            # If the item is not a path, try finding in its children
+            else:
+                for row in range(item.rowCount()):
+                    parent_item, child_item, child_row = _find_path(item.child(row, 0))
+                    if child_item is not None:
+                        if parent_item is None:
+                            parent_item = item
+                            child_row = row
+                        return (parent_item, child_item, child_row)
+            return (None, None, -1)
+        # Iterate all top-level items
+        for row in range(self.rowCount()):
+            parent_item, child_item, child_row = _find_path(self.item(row, 0))
+            if child_item is not None:
+                if parent_item is None:
+                    child_row = row
+                return (parent_item, child_item, child_row)
+        return (None, None, -1)
 
     def remove_paths_at_rows(self, rows: List[int]) -> None:
         """
@@ -226,8 +267,14 @@ class PathTreeModel(qtui.QStandardItemModel):
             if 0 <= row_id < len(self.paths):
                 # Mark this path as removed in the paths list
                 self.paths[row_id] = None
-                # Find and remove the path item from the tree
-                self._remove_path_item_by_id(row_id)
+                # Find the path item
+                parent_item, child_item, child_row = self.find_path_item(row_id)
+                if parent_item is not None:
+                    # Remove from parent
+                    parent_item.removeRow(child_row)
+                else:
+                    # Remove from top-level
+                    self.removeRow(child_row)
                 # Decrement the path count
                 self.path_count -= 1
         # Clean up empty groups
@@ -265,7 +312,6 @@ class PathTreeModel(qtui.QStandardItemModel):
     
     def _cleanup_empty_groups(self) -> None:
         """
-        TODO:
         This method removes any group items that no longer have children.
         """
         # Process groups from the bottom level up
