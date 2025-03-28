@@ -1,11 +1,11 @@
-from __future__              import annotations
+from __future__ import annotations
 from mole.controllers.config import ConfigController
-from mole.controllers.path   import PathController
-from mole.models.config      import ConfigModel
-from mole.services.config    import ConfigService
-from mole.views.config       import ConfigView
-from mole.views.path         import PathView
-from mole.views.sidebar      import MoleSidebar
+from mole.controllers.path import PathController
+from mole.models.config import ConfigModel
+from mole.services.config import ConfigService
+from mole.views.config import ConfigView
+from mole.views.path import PathView
+from mole.views.sidebar import MoleSidebar
 
 
 # Services

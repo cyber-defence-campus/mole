@@ -1,11 +1,10 @@
-
-from __future__      import annotations
-from ..core.data     import Path, SourceFunction, SinkFunction
-from ..common.task   import BackgroundTask
+from __future__ import annotations
+from ..core.data import Path, SourceFunction, SinkFunction
+from ..common.task import BackgroundTask
 from ..models.config import ConfigModel
-from concurrent      import futures
+from concurrent import futures
 from mole.common.log import log
-from typing          import Callable, List, Optional
+from typing import Callable, List, Optional
 import binaryninja as bn
 
 
@@ -18,17 +17,17 @@ class MediumLevelILBackwardSlicer(BackgroundTask):
     """
 
     def __init__(
-            self,
-            bv: bn.BinaryView,
-            config_model: ConfigModel,
-            max_workers: Optional[int] = None,
-            max_call_level: Optional[int] = None,
-            max_slice_depth: Optional[int] = None,
-            enable_all_funs: bool = False,
-            path_callback: Optional[Callable[[Path, str], None]] = None,
-            initial_progress_text: str = "",
-            can_cancel: bool = False,
-        ) -> None:
+        self,
+        bv: bn.BinaryView,
+        config_model: ConfigModel,
+        max_workers: Optional[int] = None,
+        max_call_level: Optional[int] = None,
+        max_slice_depth: Optional[int] = None,
+        enable_all_funs: bool = False,
+        path_callback: Optional[Callable[[Path, str], None]] = None,
+        initial_progress_text: str = "",
+        can_cancel: bool = False,
+    ) -> None:
         """
         This method initializes the background task.
         """
@@ -41,17 +40,17 @@ class MediumLevelILBackwardSlicer(BackgroundTask):
         self._enable_all_funs = enable_all_funs
         self._path_callback = path_callback
         return
-    
+
     @property
     def _paths(self) -> List[Path]:
         paths: List[Path] = self._results
         return paths
-    
+
     @_paths.setter
     def _paths(self, paths: List[Path]) -> None:
         self._results = paths
         return
-    
+
     def run(self) -> None:
         """
         This method runs the background task, i.e. tries to identify interesting code paths using
@@ -95,29 +94,29 @@ class MediumLevelILBackwardSlicer(BackgroundTask):
         else:
             # Backward slice source functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    # Submit tasks
-                    tasks: List[futures.Future] = []
-                    for src_fun in src_funs:
-                        if self.cancelled: 
-                            break
-                        tasks.append(
-                            executor.submit(
-                                src_fun.find_targets,
-                                self._bv,
-                                lambda: self.cancelled
-                            )
+                # Submit tasks
+                tasks: List[futures.Future] = []
+                for src_fun in src_funs:
+                    if self.cancelled:
+                        break
+                    tasks.append(
+                        executor.submit(
+                            src_fun.find_targets, self._bv, lambda: self.cancelled
                         )
-                    # Wait for tasks to complete
-                    for cnt, _ in enumerate(futures.as_completed(tasks)):
-                        if self.cancelled: 
-                            break
-                        self.progress = f"Mole processes source {cnt+1:d}/{len(src_funs):d}"
+                    )
+                # Wait for tasks to complete
+                for cnt, _ in enumerate(futures.as_completed(tasks)):
+                    if self.cancelled:
+                        break
+                    self.progress = (
+                        f"Mole processes source {cnt + 1:d}/{len(src_funs):d}"
+                    )
             # Backward slice sink functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks
                 tasks: List[futures.Future] = []
                 for snk_fun in snk_funs:
-                    if self.cancelled: 
+                    if self.cancelled:
                         break
                     tasks.append(
                         executor.submit(
@@ -127,14 +126,14 @@ class MediumLevelILBackwardSlicer(BackgroundTask):
                             max_call_level,
                             max_slice_depth,
                             self._path_callback,
-                            lambda: self.cancelled
+                            lambda: self.cancelled,
                         )
                     )
                 # Wait for tasks to complete and collect paths
                 for cnt, task in enumerate(futures.as_completed(tasks)):
-                    if self.cancelled: 
+                    if self.cancelled:
                         break
-                    self.progress = f"Mole processes sink {cnt+1:d}/{len(snk_funs):d}"
+                    self.progress = f"Mole processes sink {cnt + 1:d}/{len(snk_funs):d}"
                     # Collect paths from task results
                     if task.done() and not task.exception():
                         paths = task.result()
@@ -142,7 +141,7 @@ class MediumLevelILBackwardSlicer(BackgroundTask):
                             self._paths.extend(paths)
         log.info(tag, "Backward slicing completed")
         return
-    
+
     def paths(self) -> List[Path]:
         """
         This method waits for the backward slicing to complete and returns all identified paths.

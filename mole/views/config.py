@@ -1,11 +1,11 @@
-from __future__   import annotations
-from typing       import Literal, Optional, TYPE_CHECKING
-import PySide6.QtCore    as qtc
+from __future__ import annotations
+from typing import Literal, Optional, TYPE_CHECKING
+import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
     from ..controllers.config import ConfigController
-    from ..core.data          import ComboboxSetting, SpinboxSetting
+    from ..core.data import ComboboxSetting, SpinboxSetting
 
 
 class ConfigView(qtw.QWidget):
@@ -64,8 +64,13 @@ class ConfigView(qtw.QWidget):
                     fun.checkbox.setChecked(fun.enabled)
                     fun.checkbox.setToolTip(fun.synopsis)
                     fun.checkbox.clicked.connect(
-                        lambda checked, lib_name=lib.name, cat_name=cat.name, fun_name=fun.name, fun_type=tab_name:
-                        self.signal_check_functions.emit(lib_name, cat_name, fun_name, fun_type, checked)
+                        lambda checked,
+                        lib_name=lib.name,
+                        cat_name=cat.name,
+                        fun_name=fun.name,
+                        fun_type=tab_name: self.signal_check_functions.emit(
+                            lib_name, cat_name, fun_name, fun_type, checked
+                        )
                     )
                     fun_lay.addRow(fun.checkbox)
                 fun_wid = qtw.QWidget()
@@ -73,13 +78,23 @@ class ConfigView(qtw.QWidget):
                 # Button widget
                 sel_but = qtw.QPushButton("Select All")
                 sel_but.clicked.connect(
-                    lambda _, lib_name=None, cat_name=cat.name, fun_name=None, fun_type=tab_name:
-                    self.signal_check_functions.emit(lib_name, cat_name, fun_name, fun_type, True)
+                    lambda _,
+                    lib_name=None,
+                    cat_name=cat.name,
+                    fun_name=None,
+                    fun_type=tab_name: self.signal_check_functions.emit(
+                        lib_name, cat_name, fun_name, fun_type, True
+                    )
                 )
                 dsl_but = qtw.QPushButton("Deselect All")
                 dsl_but.clicked.connect(
-                    lambda _, lib_name=None, cat_name=cat.name, fun_name=None, fun_type=tab_name:
-                    self.signal_check_functions.emit(lib_name, cat_name, fun_name, fun_type, False)
+                    lambda _,
+                    lib_name=None,
+                    cat_name=cat.name,
+                    fun_name=None,
+                    fun_type=tab_name: self.signal_check_functions.emit(
+                        lib_name, cat_name, fun_name, fun_type, False
+                    )
                 )
                 but_lay = qtw.QHBoxLayout()
                 but_lay.addWidget(sel_but)
@@ -102,7 +117,7 @@ class ConfigView(qtw.QWidget):
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid
-    
+
     def _init_cnf_set_tab(self) -> qtw.QWidget:
         """
         This method initializes the tab `Settings`.
@@ -118,8 +133,7 @@ class ConfigView(qtw.QWidget):
             setting.widget.setValue(setting.value)
             setting.widget.setToolTip(setting.help)
             setting.widget.valueChanged.connect(
-                lambda value, name=name:
-                self.signal_change_setting.emit(name, value)
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
             label = qtw.QLabel(f"{name:s}:")
             label.setToolTip(setting.help)
@@ -129,10 +143,10 @@ class ConfigView(qtw.QWidget):
         com_box_lay.addWidget(com_wid)
         com_box_wid = qtw.QGroupBox("Finding Paths:")
         com_box_wid.setLayout(com_box_lay)
-        
+
         pth_wid = qtw.QWidget()
         pth_lay = qtw.QFormLayout()
-        
+
         for name in ["highlight_color", "path_grouping"]:
             setting: ComboboxSetting = self.config_ctr.get_setting(name)
             if not setting:
@@ -143,17 +157,15 @@ class ConfigView(qtw.QWidget):
                 setting.widget.setCurrentText(setting.value)
             setting.widget.setToolTip(setting.help)
             setting.widget.currentTextChanged.connect(
-                lambda value, name=name:
-                self.signal_change_setting.emit(name, value)
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
             if name == "path_grouping":
                 setting.widget.currentTextChanged.connect(
-                    lambda value:
-                    self.signal_change_path_grouping.emit(value)
+                    lambda value: self.signal_change_path_grouping.emit(value)
                 )
             setting_lbl = qtw.QLabel(f"{name:s}:")
             pth_lay.addRow(setting_lbl, setting.widget)
-            
+
         pth_wid.setLayout(pth_lay)
         pth_box_lay = qtw.QVBoxLayout()
         pth_box_lay.addWidget(pth_wid)
@@ -165,34 +177,25 @@ class ConfigView(qtw.QWidget):
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid
-    
+
     def _init_cnf_but(self) -> qtw.QWidget:
         """
         This method initializes the buttons.
         """
         self._save_but = qtw.QPushButton("Save")
-        self._save_but.clicked.connect(
-            lambda _=None:
-            self.signal_save_config.emit()
-        )
+        self._save_but.clicked.connect(lambda _=None: self.signal_save_config.emit())
         self._reset_but = qtw.QPushButton("Reset")
-        self._reset_but.clicked.connect(
-            lambda _=None:
-            self.signal_reset_config.emit()
-        )
+        self._reset_but.clicked.connect(lambda _=None: self.signal_reset_config.emit())
         lay = qtw.QHBoxLayout()
         lay.addWidget(self._save_but)
         lay.addWidget(self._reset_but)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid
-    
+
     def give_feedback(
-            self,
-            button_type: Literal["Save", "Reset"],
-            text: str,
-            msec: int = 1000
-        ) -> None:
+        self, button_type: Literal["Save", "Reset"], text: str, msec: int = 1000
+    ) -> None:
         """
         This method gives user feedback by temporarily changing a button's text.
         """

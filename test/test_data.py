@@ -1,7 +1,7 @@
-from __future__           import annotations
-from mole.core.data       import Category, Configuration, Library
-from mole.core.data       import SinkFunction, SourceFunction
-from mole.core.data       import ComboboxSetting, SpinboxSetting
+from __future__ import annotations
+from mole.core.data import Category, Configuration, Library
+from mole.core.data import SinkFunction, SourceFunction
+from mole.core.data import ComboboxSetting, SpinboxSetting
 import tempfile
 import unittest
 import yaml
@@ -29,11 +29,11 @@ class TestData(unittest.TestCase):
                                     enabled=True,
                                     par_cnt="i == 1",
                                     par_dataflow="False",
-                                    par_slice="False"
+                                    par_slice="False",
                                 )
-                            }
+                            },
                         )
-                    }
+                    },
                 )
             },
             sinks={
@@ -50,11 +50,11 @@ class TestData(unittest.TestCase):
                                     enabled=True,
                                     par_cnt="i == 3",
                                     par_dataflow="False",
-                                    par_slice="True"
+                                    par_slice="True",
                                 )
-                            }
+                            },
                         )
-                    }
+                    },
                 )
             },
             settings={
@@ -63,21 +63,21 @@ class TestData(unittest.TestCase):
                     value=-1,
                     min_value=-1,
                     max_value=256,
-                    help="maximum number of worker thread that backward slicing uses"
+                    help="maximum number of worker thread that backward slicing uses",
                 ),
                 "max_call_level": SpinboxSetting(
                     name="max_call_level",
                     value=3,
                     min_value=-1,
                     max_value=99,
-                    help="backward slicing visits called functions up to the given level"
+                    help="backward slicing visits called functions up to the given level",
                 ),
                 "max_slice_depth": SpinboxSetting(
                     name="max_slice_depth",
                     value=-1,
                     min_value=-1,
                     max_value=9999,
-                    help="maximum slice depth to stop the search"
+                    help="maximum slice depth to stop the search",
                 ),
                 "highlight_color": ComboboxSetting(
                     name="highlight_color",
@@ -91,14 +91,14 @@ class TestData(unittest.TestCase):
                         "Yellow",
                         "Orange",
                         "White",
-                        "Black"
+                        "Black",
                     ],
-                    help="color used to highlight paths"
-                )
-            }
+                    help="color used to highlight paths",
+                ),
+            },
         )
         return
-    
+
     def test_serialize_configuration(self) -> None:
         config = self.config
         # Serialize
@@ -108,7 +108,7 @@ class TestData(unittest.TestCase):
             sort_keys=False,
             default_style=None,
             default_flow_style=None,
-            encoding="utf-8"
+            encoding="utf-8",
         )
         # Deserialize
         self.tf.seek(0)
@@ -116,7 +116,7 @@ class TestData(unittest.TestCase):
         # Assert
         self.assertEqual(ydoc, config, "Serialization error of 'Configuration'")
         return
-    
+
     def test_serialize_library(self) -> None:
         lib = self.config.sources["libc"]
         # Serialize
@@ -126,7 +126,7 @@ class TestData(unittest.TestCase):
             sort_keys=False,
             default_style=None,
             default_flow_style=None,
-            encoding="utf-8"
+            encoding="utf-8",
         )
         # Deserialize
         self.tf.seek(0)
@@ -134,7 +134,7 @@ class TestData(unittest.TestCase):
         # Assert
         self.assertEqual(ydoc, lib, "Serialization error of 'Library'")
         return
-    
+
     def test_serialize_category(self) -> None:
         category = self.config.sources["libc"].categories["Environment Accesses"]
         # Serialize
@@ -144,7 +144,7 @@ class TestData(unittest.TestCase):
             sort_keys=False,
             default_style=None,
             default_flow_style=None,
-            encoding="utf-8"
+            encoding="utf-8",
         )
         # Deserialize
         self.tf.seek(0)
@@ -152,9 +152,13 @@ class TestData(unittest.TestCase):
         # Assert
         self.assertEqual(ydoc, category, "Serialization error of 'Category'")
         return
-    
+
     def test_serialize_sources(self) -> None:
-        source = self.config.sources["libc"].categories["Environment Accesses"].functions["getenv"]
+        source = (
+            self.config.sources["libc"]
+            .categories["Environment Accesses"]
+            .functions["getenv"]
+        )
         # Serialize
         yaml.safe_dump(
             source.to_dict(),
@@ -162,7 +166,7 @@ class TestData(unittest.TestCase):
             sort_keys=False,
             default_style=None,
             default_flow_style=None,
-            encoding="utf-8"
+            encoding="utf-8",
         )
         # Deserialize
         self.tf.seek(0)
@@ -180,7 +184,7 @@ class TestData(unittest.TestCase):
             sort_keys=False,
             default_style=None,
             default_flow_style=None,
-            encoding="utf-8"
+            encoding="utf-8",
         )
         # Deserialize
         self.tf.seek(0)
@@ -188,12 +192,12 @@ class TestData(unittest.TestCase):
         # Assert
         self.assertEqual(ydoc, sink, "Serialization error of 'SinkFunction'")
         return
-    
+
     def test_serialize_spinbox_settings(self) -> None:
         settings = {
             "max_workers": self.config.settings["max_workers"].to_dict(),
             "max_call_level": self.config.settings["max_call_level"].to_dict(),
-            "max_slice_depth": self.config.settings["max_slice_depth"].to_dict()
+            "max_slice_depth": self.config.settings["max_slice_depth"].to_dict(),
         }
 
         # Serialize
@@ -203,7 +207,7 @@ class TestData(unittest.TestCase):
             sort_keys=False,
             default_style=None,
             default_flow_style=None,
-            encoding="utf-8"
+            encoding="utf-8",
         )
         # Deserialize
         self.tf.seek(0)
@@ -211,7 +215,7 @@ class TestData(unittest.TestCase):
         # Assert
         self.assertEqual(ydoc, settings, "Serialization error of 'SpinboxSetting'")
         return
-    
+
     def test_serialize_combobox_settings(self) -> None:
         setting = self.config.settings["highlight_color"]
         # Serialize
@@ -221,7 +225,7 @@ class TestData(unittest.TestCase):
             sort_keys=False,
             default_style=None,
             default_flow_style=None,
-            encoding="utf-8"
+            encoding="utf-8",
         )
         # Deserialize
         self.tf.seek(0)
@@ -229,7 +233,7 @@ class TestData(unittest.TestCase):
         # Assert
         self.assertEqual(ydoc, setting, "Serialization error of 'ComboboxSetting'")
         return
-    
+
     def tearDown(self) -> None:
         self.tf.close()
         return

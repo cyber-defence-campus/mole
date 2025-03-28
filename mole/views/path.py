@@ -1,11 +1,11 @@
-from __future__     import annotations
-from ..views.graph  import GraphWidget
-from .path_tree     import PathTreeView
-from typing         import Literal, Optional, Tuple, TYPE_CHECKING
-import binaryninja       as bn
-import binaryninjaui     as bnui
-import os                as os
-import PySide6.QtCore    as qtc
+from __future__ import annotations
+from ..views.graph import GraphWidget
+from .path_tree import PathTreeView
+from typing import Literal, Optional, Tuple, TYPE_CHECKING
+import binaryninja as bn
+import binaryninjaui as bnui
+import os as os
+import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ class PathView(bnui.SidebarWidget):
         self.path_ctr: Optional[PathController] = None
         self.path_tree_view: Optional[PathTreeView] = None
         return
-    
+
     def init(self, path_ctr: PathController) -> PathView:
         """
         This method sets the controller and initializes relevant UI widgets.
@@ -50,20 +50,20 @@ class PathView(bnui.SidebarWidget):
         self.setLayout(lay)
         self.signal_setup_path_tree.emit(self._bv, self.path_tree_view, self._wid)
         return self
-    
+
     def _init_path_tab(self) -> Tuple[qtw.QWidget, str]:
         """
         This method initializes the tab `Path`.
         """
         # Create the path tree view
         self.path_tree_view = PathTreeView()
-        
+
         # Create the layout for the tree
         res_lay = qtw.QVBoxLayout()
         res_lay.addWidget(self.path_tree_view)
         res_wid = qtw.QGroupBox("Interesting Paths:")
         res_wid.setLayout(res_lay)
-        
+
         # Create control buttons
         self._run_but = qtw.QPushButton("Find")
         self._run_but.clicked.connect(self.signal_find_paths.emit)
@@ -71,7 +71,7 @@ class PathView(bnui.SidebarWidget):
         self._load_but.clicked.connect(self.signal_load_paths.emit)
         self._save_but = qtw.QPushButton("Save")
         self._save_but.clicked.connect(self.signal_save_paths.emit)
-        
+
         # Set up button layout
         but_lay = qtw.QHBoxLayout()
         but_lay.addWidget(self._run_but)
@@ -79,25 +79,25 @@ class PathView(bnui.SidebarWidget):
         but_lay.addWidget(self._save_but)
         but_wid = qtw.QWidget()
         but_wid.setLayout(but_lay)
-        
+
         # Set up main layout
         lay = qtw.QVBoxLayout()
         lay.addWidget(res_wid)
         lay.addWidget(but_wid)
         wid = qtw.QWidget()
-        wid.setLayout(lay)       
-        
+        wid.setLayout(lay)
+
         return wid, "Path"
-    
+
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
         return GraphWidget(), "Graph"
-    
+
     def give_feedback(
-            self,
-            button_type: Optional[Literal["Find", "Load", "Save"]] = None,
-            button_text: str = "",
-            msec: int = 1000
-        ) -> None:
+        self,
+        button_type: Optional[Literal["Find", "Load", "Save"]] = None,
+        button_text: str = "",
+        msec: int = 1000,
+    ) -> None:
         """
         This method gives user feedback by temporarily changing a button's text.
         """
@@ -122,7 +122,7 @@ class PathView(bnui.SidebarWidget):
             button.setText(button_text)
             qtc.QTimer.singleShot(msec, lambda text=old_text: restore(text))
         return
-    
+
     def notifyViewChanged(self, vf: bnui.ViewFrame) -> None:
         """
         This method is a callback invoked when the active view in the Binary UI changes.

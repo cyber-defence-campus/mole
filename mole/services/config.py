@@ -1,12 +1,20 @@
-from __future__      import annotations
-from ..common.parse  import LogicalExpressionParser
-from ..core.data     import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting
-from ..grouping      import get_all_grouping_strategies
+from __future__ import annotations
+from ..common.parse import LogicalExpressionParser
+from ..core.data import (
+    Category,
+    ComboboxSetting,
+    Configuration,
+    Library,
+    SinkFunction,
+    SourceFunction,
+    SpinboxSetting,
+)
+from ..grouping import get_all_grouping_strategies
 from mole.common.log import log
-from typing          import Dict
+from typing import Dict
 import fnmatch as fn
-import os      as os
-import yaml    as yaml
+import os as os
+import yaml as yaml
 
 
 tag = "Mole.Config"
@@ -22,12 +30,11 @@ class ConfigService:
         This method initializes a configuration service.
         """
         self._config_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "../../conf/"
+            os.path.dirname(os.path.abspath(__file__)), "../../conf/"
         )
         self._parser = LogicalExpressionParser()
         return
-    
+
     def load_config(self) -> Configuration:
         """
         This method loads all configuration files and returns a complete `Configuration` object.
@@ -41,7 +48,7 @@ class ConfigService:
         main_config = self.load_main_config()
         self._update_config(config, main_config)
         return config
-    
+
     def load_custom_config(self) -> Configuration:
         """
         This method loads all custom configuration files.
@@ -49,8 +56,11 @@ class ConfigService:
         config = Configuration()
         for config_file in sorted(os.listdir(self._config_path)):
             if (
-                not (fn.fnmatch(config_file, "*.yml") or fn.fnmatch(config_file, "*.yaml")) or
-                config_file == "000-mole.yml"
+                not (
+                    fn.fnmatch(config_file, "*.yml")
+                    or fn.fnmatch(config_file, "*.yaml")
+                )
+                or config_file == "000-mole.yml"
             ):
                 continue
             # Open configuration file
@@ -60,14 +70,14 @@ class ConfigService:
             except Exception as e:
                 log.warn(
                     tag,
-                    f"Failed to open configuration file '{config_file:s}': '{str(e):s}'"
+                    f"Failed to open configuration file '{config_file:s}': '{str(e):s}'",
                 )
                 continue
             # Parse configuration file
             custom_config = self._parse_config(config_dict)
             self._update_config(config, custom_config)
         return config
-    
+
     def load_main_config(self) -> Configuration:
         """
         This method loads the main configuration file.
@@ -80,8 +90,7 @@ class ConfigService:
             return None
         except Exception as e:
             log.warn(
-                tag,
-                f"Failed to open configuration file '000-mole.yml': '{str(e):s}'"
+                tag, f"Failed to open configuration file '000-mole.yml': '{str(e):s}'"
             )
             return None
         # Parse configuration file
@@ -99,7 +108,7 @@ class ConfigService:
                 sort_keys=False,
                 default_style=None,
                 default_flow_style=False,
-                encoding="utf-8"
+                encoding="utf-8",
             )
         return
 
@@ -107,7 +116,7 @@ class ConfigService:
         """
         This method updates the `target` `Configuration` with data from `source` `Configuration`.
         """
-        if not source: 
+        if not source:
             return
         # Update sources and sinks
         for type in ["sources", "sinks"]:
@@ -144,12 +153,8 @@ class ConfigService:
         """
         This method parse the plain configuration `conf` into a `Configuration` instance.
         """
-        parsed_config = {
-            "sources": {},
-            "sinks": {},
-            "settings": {}
-        }
-        if not config: 
+        parsed_config = {"sources": {}, "sinks": {}, "settings": {}}
+        if not config:
             return Configuration(**parsed_config)
         try:
             # Parse sources and sinks
@@ -186,15 +191,17 @@ class ConfigService:
                 max_value = int(setting.get("max_value", None))
                 value = min(max(value, min_value), max_value)
                 help = setting.get("help", "")
-                parsed_config["settings"].update({
-                    name: SpinboxSetting(
-                        name=name,
-                        value=value,
-                        help=help,
-                        min_value=min_value,
-                        max_value=max_value
-                    )
-                })
+                parsed_config["settings"].update(
+                    {
+                        name: SpinboxSetting(
+                            name=name,
+                            value=value,
+                            help=help,
+                            min_value=min_value,
+                            max_value=max_value,
+                        )
+                    }
+                )
             for name in ["highlight_color", "path_grouping"]:
                 setting = settings.get(name, None)
                 if not setting:
@@ -205,17 +212,13 @@ class ConfigService:
                     items = get_all_grouping_strategies()
                 else:
                     items = setting.get("items", [])
-                parsed_config["settings"].update({
-                    name: ComboboxSetting(
-                        name=name,
-                        value=value,
-                        help=help,
-                        items=items
-                    )
-                })
+                parsed_config["settings"].update(
+                    {
+                        name: ComboboxSetting(
+                            name=name, value=value, help=help, items=items
+                        )
+                    }
+                )
         except Exception as e:
-            log.warn(
-                tag,
-                f"Failed to parse configuration file: '{str(e):s}'"
-            )
+            log.warn(tag, f"Failed to parse configuration file: '{str(e):s}'")
         return Configuration(**parsed_config)

@@ -1,22 +1,28 @@
-from __future__        import annotations
-from ..core.data       import ComboboxSetting, Function, Library, SpinboxSetting, WidgetSetting
-from ..models.config   import ConfigModel
+from __future__ import annotations
+from ..core.data import (
+    ComboboxSetting,
+    Function,
+    Library,
+    SpinboxSetting,
+    WidgetSetting,
+)
+from ..models.config import ConfigModel
 from ..services.config import ConfigService
-from ..views.config    import ConfigView
-from typing            import Dict, List, Literal, Optional
+from ..views.config import ConfigView
+from typing import Dict, List, Literal, Optional
 
 
 class ConfigController:
     """
     This class implements a controller to handle Mole's configuration.
     """
-    
+
     def __init__(
-            self,
-            config_service: ConfigService,
-            config_model: ConfigModel,
-            config_view: ConfigView
-        ) -> None:
+        self,
+        config_service: ConfigService,
+        config_model: ConfigModel,
+        config_view: ConfigView,
+    ) -> None:
         """
         This method initializes the configuration controller.
         """
@@ -30,7 +36,7 @@ class ConfigController:
         self.connect_signal_check_functions(self.check_functions)
         self.connect_signal_change_seting(self.change_setting)
         return
-    
+
     def connect_signal_save_config(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when the configuration should
@@ -38,7 +44,7 @@ class ConfigController:
         """
         self.config_view.signal_save_config.connect(slot)
         return
-    
+
     def connect_signal_reset_config(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when the configuration should
@@ -46,7 +52,7 @@ class ConfigController:
         """
         self.config_view.signal_reset_config.connect(slot)
         return
-    
+
     def connect_signal_check_functions(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when source/sink function
@@ -54,14 +60,14 @@ class ConfigController:
         """
         self.config_view.signal_check_functions.connect(slot)
         return
-    
+
     def connect_signal_change_seting(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when a setting changes.
         """
         self.config_view.signal_change_setting.connect(slot)
         return
-    
+
     def connect_signal_change_path_grouping(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when the path grouping
@@ -69,36 +75,37 @@ class ConfigController:
         """
         self.config_view.signal_change_path_grouping.connect(slot)
         return
-    
+
     def get_libraries(
-            self,
-            fun_type: Literal["Sources", "Sinks"]
-        ) -> Dict[str, Library]:
+        self, fun_type: Literal["Sources", "Sinks"]
+    ) -> Dict[str, Library]:
         """
         This method returns all libraries matching the given type.
         """
         return self.config_model.get_libraries(fun_type)
-    
+
     def get_functions(
-            self,
-            lib_name: str = None,
-            cat_name: str = None,
-            fun_name: str = None,
-            fun_type: Optional[Literal["Sources", "Sinks"]] = None,
-            fun_enabled: bool = None
-        ) -> List[Function]:
+        self,
+        lib_name: str = None,
+        cat_name: str = None,
+        fun_name: str = None,
+        fun_type: Optional[Literal["Sources", "Sinks"]] = None,
+        fun_enabled: bool = None,
+    ) -> List[Function]:
         """
         This method returns all functions matching the given attributes. An attribute of `None`
         indicates that this attribute is irrelevant and all functions should be included.
         """
-        return self.config_model.get_functions(lib_name, cat_name, fun_name, fun_type, fun_enabled)
-    
+        return self.config_model.get_functions(
+            lib_name, cat_name, fun_name, fun_type, fun_enabled
+        )
+
     def get_setting(self, name: str) -> Optional[WidgetSetting]:
         """
         This method returns the setting with name `name`.
         """
         return self.config_model.get_setting(name)
-    
+
     def save_config(self) -> None:
         """
         This method saves the configuration.
@@ -158,29 +165,31 @@ class ConfigController:
         # User feedback
         self.config_view.give_feedback("Reset", "Resetting...")
         return
-    
+
     def check_functions(
-            self,
-            lib_name: Optional[str] = None,
-            cat_name: Optional[str] = None,
-            fun_name: Optional[str] = None,
-            fun_type: Optional[str] = None,
-            fun_enabled: Optional[bool] = None
-        ) -> None:
+        self,
+        lib_name: Optional[str] = None,
+        cat_name: Optional[str] = None,
+        fun_name: Optional[str] = None,
+        fun_type: Optional[str] = None,
+        fun_enabled: Optional[bool] = None,
+    ) -> None:
         """
         This method sets the enabled attribute of all functions' checkboxes matching the given
         attributes. An attribute of `None` indicates that the corresponding attribute is irrelevant.
         In case `fun_enabled` is `None` the checkboxes enabled attribute is toggled, otherwise set
         to the given value `fun_enabled`.
         """
-        for fun in self.config_model.get_functions(lib_name, cat_name, fun_name, fun_type):
+        for fun in self.config_model.get_functions(
+            lib_name, cat_name, fun_name, fun_type
+        ):
             if fun_enabled is None:
                 fun.enabled = not fun.enabled
             else:
                 fun.enabled = fun_enabled
             fun.checkbox.setChecked(fun.enabled)
         return
-    
+
     def change_setting(self, name: str, value: object) -> None:
         """
         This method changes setting values.
