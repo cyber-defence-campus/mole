@@ -31,6 +31,7 @@ In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` poi
 
   # Development
   pip install -e .[develop]
+  pre-commit install
   ```
 - Lauch *Binary Ninja* outside the virtual environment:
   ```shell
