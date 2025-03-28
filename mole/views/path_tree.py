@@ -119,9 +119,9 @@ class PathTreeView(qtw.QTreeView):
         """
         return self.path_tree_model
     
-    def remove_all_paths(self) -> int:
+    def clear_all_paths(self) -> int:
         """
-        This method removes all paths from the model.
+        This method clears all paths from the model.
         """
         return self.path_tree_model.clear()
     
@@ -129,19 +129,18 @@ class PathTreeView(qtw.QTreeView):
         """
         This method returns the currently selected path rows.
         """
-        path_rows = []
+        path_rows = set()
         for index in self.selectionModel().selectedIndexes():
-            if index.column() != 0:  # Only process once per row
+            # Only process once per row
+            if index.column() != 0:
                 continue
-                
             # Map proxy index to source model index
             source_index = self.path_sort_proxy_model.mapToSource(index)
-            
             # Check if this is a path item (not a group header)
             path_id = self.path_tree_model.get_path_id_from_index(source_index)
             if path_id is not None:
-                path_rows.append(path_id)
-        return sorted(set(path_rows))
+                path_rows.add(path_id)
+        return sorted(path_rows)
     
     def remove_paths_at_rows(self, rows: List[int]) -> int:
         """
@@ -171,7 +170,7 @@ class PathTreeView(qtw.QTreeView):
             on_import_paths: Callable[[], None],
             on_export_paths: Callable[[List[int]], None],
             on_remove_selected: Callable[[List[int]], None],
-            on_remove_all: Callable[[], None],
+            on_clear_all: Callable[[], None],
             bv: bn.BinaryView = None
         ) -> None:
         """
@@ -230,8 +229,8 @@ class PathTreeView(qtw.QTreeView):
             # Remove actions
             remove_selected_action = self._add_menu_action(menu, "Remove selected", len(rows) > 0)
             remove_selected_action.triggered.connect(lambda: on_remove_selected(rows))
-            remove_all_action = self._add_menu_action(menu, "Remove all", self.path_tree_model.path_count > 0)
-            remove_all_action.triggered.connect(on_remove_all)
+            clear_all_action = self._add_menu_action(menu, "Clear all", self.path_tree_model.path_count > 0)
+            clear_all_action.triggered.connect(on_clear_all)
 
             # Execute menu
             menu.exec(self.viewport().mapToGlobal(pos))

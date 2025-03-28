@@ -174,7 +174,7 @@ class PathController:
             self.path_view.give_feedback("Load", "Other Task Running...")
             return
         # Remove all paths
-        self.path_tree_view.remove_all_paths()
+        self.path_tree_view.clear_all_paths()
         # Load paths in a background task
         def _load_paths() -> None:
             cnt_loaded_paths = 0
@@ -624,18 +624,18 @@ class PathController:
         log.info(tag, f"Removed {cnt:d} path(s)")
         return
     
-    def remove_all_paths(self) -> None:
+    def clear_all_paths(self) -> None:
         """
-        This method removes all paths from the view.
+        This method clears all paths from the view.
         """
         # Detect newly attached debuggers
         log.find_attached_debugger()
         # Ensure correct view
         if not self._validate_bv():
             return
-        # Remove all paths
-        cnt = self.path_tree_view.remove_all_paths()
-        log.info(tag, f"Removed {cnt:d} path(s)")
+        # Clear all paths
+        cnt = self.path_tree_view.clear_all_paths()
+        log.info(tag, f"Cleared {cnt:d} path(s)")
         return
 
     def setup_path_tree(
@@ -660,7 +660,7 @@ class PathController:
             on_import_paths=self.import_paths,
             on_export_paths=lambda rows: self.export_paths(rows),
             on_remove_selected=self.remove_selected_paths,
-            on_remove_all=self.remove_all_paths,
+            on_clear_all=self.clear_all_paths,
             bv=bv
         )
         # Set up navigation
