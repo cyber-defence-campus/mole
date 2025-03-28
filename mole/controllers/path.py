@@ -89,20 +89,20 @@ class PathController:
 
     def _validate_bv(
         self,
-        view_type: Optional[str] = None,
+        view_types: Optional[List[str]] = None,
         button_type: Optional[Literal["Find", "Load", "Save"]] = None,
     ) -> bool:
         """
-        This method ensures that the given views exist.
+        This method ensures that the given views exist and is not one in `view_types`.
         """
         if not self._bv:
             log.warn(tag, "No binary loaded")
             self.path_view.give_feedback(button_type, "No Binary Loaded...")
             return False
-        if view_type is not None and self._bv.view_type != view_type:
+        if view_types is not None and self._bv.view_type in view_types:
             log.warn(
                 tag,
-                f"Binary is in '{self._bv.view_type:s}' but must be in '{view_type:s}' view",
+                f"Binary is in '{self._bv.view_type:s}' but must not be one of '{', '.join(view_types):s}'",
             )
             self.path_view.give_feedback(button_type, "Incorrect Binary View")
             return False
@@ -136,7 +136,7 @@ class PathController:
         # Detect newly attached debuggers
         log.find_attached_debugger()
         # Ensure correct view
-        if not self._validate_bv("ELF", "Find"):
+        if not self._validate_bv(["Raw"], "Find"):
             return
         # Require previous background threads to have completed
         if self._thread and not self._thread.finished:
@@ -162,7 +162,7 @@ class PathController:
         # Detect newly attached debuggers
         log.find_attached_debugger()
         # Ensure correct view
-        if not self._validate_bv("ELF", "Load"):
+        if not self._validate_bv(["Raw"], "Load"):
             return
         # Require previous background threads to have completed
         if self._thread and not self._thread.finished:
@@ -226,7 +226,7 @@ class PathController:
         # Detect newly attached debuggers
         log.find_attached_debugger()
         # Ensure correct view
-        if not self._validate_bv("ELF", "Save"):
+        if not self._validate_bv(["Raw"], "Save"):
             return
         # Require previous background threads to have completed
         if self._thread and not self._thread.finished:
@@ -288,7 +288,7 @@ class PathController:
         # Detect newly attached debuggers
         log.find_attached_debugger()
         # Ensure correct view
-        if not self._validate_bv("ELF"):
+        if not self._validate_bv(["Raw"]):
             return
         # Open dialog to select file
         filepath = self._select_file()
@@ -359,7 +359,7 @@ class PathController:
         # Detect newly attached debuggers
         log.find_attached_debugger()
         # Ensure correct view
-        if not self._validate_bv("ELF"):
+        if not self._validate_bv(["Raw"]):
             return
         # Open dialog to select file
         filepath = self._select_file()
