@@ -1,11 +1,23 @@
 from __future__ import annotations
-from ..common.log   import Logger
 from ..common.parse import LogicalExpressionParser
-from ..core.data    import Category, ComboboxSetting, Configuration, Library, SinkFunction, SourceFunction, SpinboxSetting
-from typing         import Dict
+from ..core.data import (
+    Category,
+    ComboboxSetting,
+    Configuration,
+    Library,
+    SinkFunction,
+    SourceFunction,
+    SpinboxSetting,
+)
+from ..grouping import get_all_grouping_strategies
+from mole.common.log import log
+from typing import Dict
 import fnmatch as fn
-import os      as os
-import yaml    as yaml
+import os as os
+import yaml as yaml
+
+
+tag = "Mole.Config"
 
 
 class ConfigService:
@@ -13,42 +25,42 @@ class ConfigService:
     This class implements a service to handle Mole's configuration.
     """
 
-    def __init__(self, tag: str, log: Logger) -> None:
+    def __init__(self) -> None:
         """
         This method initializes a configuration service.
         """
-        self._tag = tag
-        self._log = log
         self._config_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "../../conf/"
+            os.path.dirname(os.path.abspath(__file__)), "../../conf/"
         )
-        self._parser = LogicalExpressionParser(tag, log)
+        self._parser = LogicalExpressionParser()
         return
-    
-    def load_configuration(self) -> Configuration:
+
+    def load_config(self) -> Configuration:
         """
         This method loads all configuration files and returns a complete `Configuration` object.
         """
         # Initialize empty configuration
         config = Configuration()
         # Load custom configuration files
-        custom_config = self.load_custom_configuration()
-        self._update_configuration(config, custom_config)
+        custom_config = self.load_custom_config()
+        self._update_config(config, custom_config)
         # Load main configuration file
-        main_config = self.load_main_configuration()
-        self._update_configuration(config, main_config)
+        main_config = self.load_main_config()
+        self._update_config(config, main_config)
         return config
-    
-    def load_custom_configuration(self) -> Configuration:
+
+    def load_custom_config(self) -> Configuration:
         """
         This method loads all custom configuration files.
         """
         config = Configuration()
         for config_file in sorted(os.listdir(self._config_path)):
             if (
-                not (fn.fnmatch(config_file, "*.yml") or fn.fnmatch(config_file, "*.yaml")) or
-                config_file == "000-mole.yml"
+                not (
+                    fn.fnmatch(config_file, "*.yml")
+                    or fn.fnmatch(config_file, "*.yaml")
+                )
+                or config_file == "000-mole.yml"
             ):
                 continue
             # Open configuration file
@@ -56,17 +68,17 @@ class ConfigService:
                 with open(os.path.join(self._config_path, config_file), "r") as f:
                     config_dict = yaml.safe_load(f)
             except Exception as e:
-                self._log.warn(
-                    self._tag,
-                    f"Failed to open configuration file '{config_file:s}': '{str(e):s}'"
+                log.warn(
+                    tag,
+                    f"Failed to open configuration file '{config_file:s}': '{str(e):s}'",
                 )
                 continue
             # Parse configuration file
-            custom_config = self._parse_conf(config_dict)
-            self._update_configuration(config, custom_config)
+            custom_config = self._parse_config(config_dict)
+            self._update_config(config, custom_config)
         return config
-    
-    def load_main_configuration(self) -> Configuration:
+
+    def load_main_config(self) -> Configuration:
         """
         This method loads the main configuration file.
         """
@@ -77,19 +89,17 @@ class ConfigService:
         except FileNotFoundError:
             return None
         except Exception as e:
-            if hasattr(self, '_log'):
-                self._log.warn(
-                        "Config",
-                        f"Failed to open configuration file '000-mole.yml': '{str(e):s}'"
-                    )
+            log.warn(
+                tag, f"Failed to open configuration file '000-mole.yml': '{str(e):s}'"
+            )
             return None
         # Parse configuration file
-        config = self._parse_conf(config_dict)
+        config = self._parse_config(config_dict)
         return config
 
-    def store_configuration(self, configuration: Configuration) -> None:
+    def save_config(self, configuration: Configuration) -> None:
         """
-        This method stores the main configuration file based on the provided `Configuration` object.
+        This method saves the main configuration file based on the provided `Configuration` object.
         """
         with open(os.path.join(self._config_path, "000-mole.yml"), "w") as f:
             yaml.safe_dump(
@@ -98,15 +108,15 @@ class ConfigService:
                 sort_keys=False,
                 default_style=None,
                 default_flow_style=False,
-                encoding="utf-8"
+                encoding="utf-8",
             )
         return
 
-    def _update_configuration(self, target: Configuration, source: Configuration) -> None:
+    def _update_config(self, target: Configuration, source: Configuration) -> None:
         """
         This method updates the `target` `Configuration` with data from `source` `Configuration`.
         """
-        if not source: 
+        if not source:
             return
         # Update sources and sinks
         for type in ["sources", "sinks"]:
@@ -139,16 +149,12 @@ class ConfigService:
             old_settings[new_setting_name] = new_setting
         return
 
-    def _parse_conf(self, config: Dict) -> Configuration:
+    def _parse_config(self, config: Dict) -> Configuration:
         """
         This method parse the plain configuration `conf` into a `Configuration` instance.
         """
-        parsed_config = {
-            "sources": {},
-            "sinks": {},
-            "settings": {}
-        }
-        if not config: 
+        parsed_config = {"sources": {}, "sinks": {}, "settings": {}}
+        if not config:
             return Configuration(**parsed_config)
         try:
             # Parse sources and sinks
@@ -185,32 +191,34 @@ class ConfigService:
                 max_value = int(setting.get("max_value", None))
                 value = min(max(value, min_value), max_value)
                 help = setting.get("help", "")
-                parsed_config["settings"].update({
-                    name: SpinboxSetting(
-                        name=name,
-                        value=value,
-                        help=help,
-                        min_value=min_value,
-                        max_value=max_value
-                    )
-                })
-            col_name = "highlight_color"
-            col_settings = settings.get(col_name, None)
-            if col_settings:
-                col_value = col_settings.get("value", "")
-                col_help = col_settings.get("help", "")
-                col_items = col_settings.get("items", [])
-                parsed_config["settings"].update({
-                    col_name: ComboboxSetting(
-                        name=col_name,
-                        value=col_value,
-                        help=col_help,
-                        items=col_items
-                    )
-                })
+                parsed_config["settings"].update(
+                    {
+                        name: SpinboxSetting(
+                            name=name,
+                            value=value,
+                            help=help,
+                            min_value=min_value,
+                            max_value=max_value,
+                        )
+                    }
+                )
+            for name in ["highlight_color", "path_grouping"]:
+                setting = settings.get(name, None)
+                if not setting:
+                    continue
+                value = setting.get("value", "")
+                help = setting.get("help", "")
+                if name == "path_grouping":
+                    items = get_all_grouping_strategies()
+                else:
+                    items = setting.get("items", [])
+                parsed_config["settings"].update(
+                    {
+                        name: ComboboxSetting(
+                            name=name, value=value, help=help, items=items
+                        )
+                    }
+                )
         except Exception as e:
-            self._log.warn(
-                self._tag,
-                f"Failed to parse configuration file: '{str(e):s}'"
-            )
+            log.warn(tag, f"Failed to parse configuration file: '{str(e):s}'")
         return Configuration(**parsed_config)

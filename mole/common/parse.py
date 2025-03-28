@@ -1,6 +1,9 @@
-from .log   import Logger
-from lark   import Lark, Token, Transformer, v_args
+from lark import Lark, Token, Transformer, v_args
+from mole.common.log import log
 from typing import Callable
+
+
+tag = "Mole.Parse"
 
 
 class LogicalExpressionParser:
@@ -36,36 +39,32 @@ class LogicalExpressionParser:
     %ignore WS
     """
 
-    def __init__(
-            self,
-            tag: str,
-            log: Logger
-        ) -> None:
+    def __init__(self) -> None:
         """
         This method initializes a parser for logical expressions.
         """
-        self._tag = tag
-        self._log = log
         self._parser = Lark(
             grammar=self.grammar,
             parser="lalr",
-            transformer=LogicalExpressionTransformer()
+            transformer=LogicalExpressionTransformer(),
         )
         return
-    
+
     def parse(self, expr: str) -> Callable[[int], bool]:
         """
         This method parses a logical exression.
         """
         try:
             e = self._parser.parse(expr).children[0]
+
             def f(i):
                 return eval(e)
+
             return f
         except Exception as e:
-            self._log.warn(self._tag, f"Failed to parse expression '{expr}': {str(e):s}")
+            log.warn(tag, f"Failed to parse expression '{expr}': {str(e):s}")
         return lambda i: False
-    
+
 
 @v_args(inline=True)
 class LogicalExpressionTransformer(Transformer):
@@ -132,7 +131,7 @@ class LogicalExpressionTransformer(Transformer):
         This method adds variables logic.
         """
         return "i"
-    
+
     def neg_number(self, t: Token) -> str:
         """
         This method adds numbers logic.
@@ -144,13 +143,13 @@ class LogicalExpressionTransformer(Transformer):
         This method adds numbers logic.
         """
         return f"{t.value:s}"
-    
+
     def true(self) -> str:
         """
         This method adds 'True' logic.
         """
         return "True"
-    
+
     def false(self) -> str:
         """
         This method adds 'False' logic.

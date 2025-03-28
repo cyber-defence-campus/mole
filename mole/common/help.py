@@ -1,6 +1,6 @@
 from __future__ import annotations
-from functools  import lru_cache
-from typing     import Dict, List, Optional, Set
+from functools import lru_cache
+from typing import Dict, List, Optional, Set
 import binaryninja as bn
 
 
@@ -8,13 +8,11 @@ class SymbolHelper:
     """
     This class provides helper functions with respect to symbols.
     """
-    
+
     @staticmethod
     def get_symbol_by_section(
-            bv: bn.BinaryView,
-            symbol_name: str,
-            section_name: str = ".plt"
-        ) -> Optional[bn.CoreSymbol]:
+        bv: bn.BinaryView, symbol_name: str, section_name: str = ".plt"
+    ) -> Optional[bn.CoreSymbol]:
         """
         This method returns the symbol with name `symbol_name` belonging to section `section_name`.
         """
@@ -28,10 +26,8 @@ class SymbolHelper:
 
     @staticmethod
     def get_code_refs(
-            bv: bn.BinaryView,
-            symbol_names: List[str],
-            symbol_types: List[bn.SymbolType]
-        ) -> Dict[str, Set[bn.MediumLevelILInstruction]]:
+        bv: bn.BinaryView, symbol_names: List[str], symbol_types: List[bn.SymbolType]
+    ) -> Dict[str, Set[bn.MediumLevelILInstruction]]:
         """
         This method determines code references for the provided `symbol_names`. Symbols having a
         type not included in `symbol_types` are ignored. The returned dictionary contains individual
@@ -41,7 +37,7 @@ class SymbolHelper:
         mlil_ssa_code_refs = {}
         for symbol_name in symbol_names:
             for symbol in bv.symbols.get(symbol_name, []):
-                if symbol.type not in symbol_types: 
+                if symbol.type not in symbol_types:
                     continue
                 mlil_insts = mlil_ssa_code_refs.get(symbol_name, set())
                 for code_ref in bv.get_code_refs(symbol.address):
@@ -59,18 +55,14 @@ class VariableHelper:
     """
 
     @staticmethod
-    def get_var_info(
-            var: bn.Variable
-        ) -> str:
+    def get_var_info(var: bn.Variable) -> str:
         """
         This method returns a string with information about the variable `var`.
         """
         return f"{var.name}"
-    
+
     @staticmethod
-    def get_ssavar_info(
-            var: bn.SSAVariable
-        ) -> str:
+    def get_ssavar_info(var: bn.SSAVariable) -> str:
         """
         This method returns a string with information about the SSA variable `var`.
         """
@@ -84,9 +76,7 @@ class InstructionHelper:
 
     @staticmethod
     @lru_cache(maxsize=None)
-    def format_inst(
-            inst: bn.MediumLevelILInstruction
-        ) -> str:
+    def format_inst(inst: bn.MediumLevelILInstruction) -> str:
         """
         This method replaces function addresses with their names.
         """
@@ -105,9 +95,8 @@ class InstructionHelper:
 
     @staticmethod
     def get_inst_info(
-            inst: bn.MediumLevelILInstruction,
-            with_class_name: bool = True
-        ) -> str:
+        inst: bn.MediumLevelILInstruction, with_class_name: bool = True
+    ) -> str:
         """
         This method returns a string with information about the instruction `inst`.
         """
@@ -115,7 +104,8 @@ class InstructionHelper:
         if with_class_name:
             info = f"{info:s} ({inst.__class__.__name__:s})"
         return info
-    
+
+
 class FunctionHelper:
     """
     This class provides helper functions with respect to functions.
@@ -123,8 +113,7 @@ class FunctionHelper:
 
     @staticmethod
     def get_func_info(
-        func: bn.MediumLevelILFunction,
-        with_class_name: bool = True
+        func: bn.MediumLevelILFunction, with_class_name: bool = True
     ) -> str:
         """
         This method returns a string with information about the function `func`.

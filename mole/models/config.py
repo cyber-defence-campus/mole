@@ -1,24 +1,24 @@
-from __future__  import annotations
+from __future__ import annotations
 from ..core.data import Configuration, Function, Library, WidgetSetting
-from typing      import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 
 class ConfigModel:
     """
     This class implements a model to handle Mole's configuration.
     """
-    
+
     def __init__(self, config: Configuration) -> None:
         """
         Initialize the configuration model with optional pre-loaded configuration.
-        
+
         Args:
             config: A Configuration object to initialize the model with.
                     If None, an empty configuration will be created.
         """
         self._config = config
         return
-    
+
     def get(self) -> Configuration:
         """
         This method returns the configuration.
@@ -31,11 +31,10 @@ class ConfigModel:
         """
         self._config = config
         return
-        
+
     def get_libraries(
-            self,
-            fun_type: Optional[Literal["Sources", "Sinks"]]
-        ) -> Dict[str, Library]:
+        self, fun_type: Optional[Literal["Sources", "Sinks"]]
+    ) -> Dict[str, Library]:
         """
         This method returns all libraries matching the given type.
         """
@@ -45,15 +44,15 @@ class ConfigModel:
             case "Sinks":
                 return self._config.sinks
         return {}
-    
+
     def get_functions(
-            self,
-            lib_name: str = None,
-            cat_name: str = None,
-            fun_name: str = None,
-            fun_type: Optional[Literal["Sources", "Sinks"]] = None,
-            fun_enabled: bool = None
-        ) -> List[Function]:
+        self,
+        lib_name: Optional[str] = None,
+        cat_name: Optional[str] = None,
+        fun_name: Optional[str] = None,
+        fun_type: Optional[Literal["Sources", "Sinks"]] = None,
+        fun_enabled: Optional[bool] = None,
+    ) -> List[Function]:
         """
         This method returns all functions matching the given attributes. An attribute of `None`
         indicates that the corresponding attribute is irrelevant.
@@ -75,7 +74,7 @@ class ConfigModel:
                                 if fun_enabled is None or fun.enabled == fun_enabled:
                                     funs.append(fun)
         return funs
-    
+
     def get_setting(self, name: str) -> Optional[WidgetSetting]:
         """
         This method returns the setting with name `name`.

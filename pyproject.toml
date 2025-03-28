@@ -7,7 +7,7 @@ packages = ["mole"]
 
 [project]
 name = "mole"
-version = "0.0.6"
+version = "0.0.7"
 description = "A Binary Ninja plugin for vulneraiblity discovery"
 authors = [
     {name = "Damian Pfammatter"},
@@ -15,6 +15,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "ijson==3.3.0",
     "lark==1.2.2",
     "networkx==3.4.2",
     "numpy==2.2.2",

@@ -16,3 +16,11 @@ venv/
 
 # Visual Studio Code
 .vscode
+
+# Custom YML Files
+conf/*.yml
+!conf/001-settings.yml
+!conf/002-libc.yml
+
+# Test Binaries
+test/bin/
