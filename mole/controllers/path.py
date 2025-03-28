@@ -620,8 +620,8 @@ class PathController:
         if not self._validate_bv():
             return
         # Remove selected paths  
-        self.path_tree_view.remove_paths_at_rows(rows)
-        log.info(tag, f"Removed {len(rows):d} path(s)")
+        cnt = self.path_tree_view.remove_paths_at_rows(rows)
+        log.info(tag, f"Removed {cnt:d} path(s)")
         return
     
     def remove_all_paths(self) -> None:
