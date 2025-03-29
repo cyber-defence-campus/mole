@@ -34,4 +34,4 @@ develop = [
 mole = "mole.cli.main:main"
 
 [tool.ruff.lint]
-extend-select = ["TID"]  # Add 'TID' rule to disallow relative imports
+extend-select = ["TID"]
