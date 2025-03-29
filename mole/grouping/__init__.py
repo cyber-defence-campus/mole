@@ -4,7 +4,7 @@ here to be discovered dynamically.
 """
 
 from __future__ import annotations
-from ..core.data import Path
+from mole.core.data import Path
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Type
 import importlib

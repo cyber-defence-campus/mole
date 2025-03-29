@@ -1,7 +1,7 @@
 from __future__ import annotations
-from ..core.data import Path, SourceFunction, SinkFunction
-from ..common.task import BackgroundTask
-from ..models.config import ConfigModel
+from mole.core.data import Path, SourceFunction, SinkFunction
+from mole.common.task import BackgroundTask
+from mole.models.config import ConfigModel
 from concurrent import futures
 from mole.common.log import log
 from typing import Callable, List, Optional

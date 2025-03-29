@@ -1,6 +1,6 @@
 from __future__ import annotations
-from ..common.help import InstructionHelper, SymbolHelper
-from .slice import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph
+from mole.common.help import InstructionHelper, SymbolHelper
+from mole.core.slice import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph
 from dataclasses import dataclass, field
 from mole.common.log import log
 from typing import Callable, Dict, List, Tuple

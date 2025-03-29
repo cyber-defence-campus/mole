@@ -1,6 +1,6 @@
 from __future__ import annotations
-from ..views.graph import GraphWidget
-from .path_tree import PathTreeView
+from mole.views.graph import GraphWidget
+from mole.views.path_tree import PathTreeView
 from typing import Literal, Optional, Tuple, TYPE_CHECKING
 import binaryninja as bn
 import binaryninjaui as bnui
@@ -9,7 +9,7 @@ import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
-    from ..controllers.path import PathController
+    from mole.controllers.path import PathController
 
 
 class PathView(bnui.SidebarWidget):

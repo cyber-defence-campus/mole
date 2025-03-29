@@ -3,8 +3,8 @@ This module implements a call graph grouping strategy.
 """
 
 from __future__ import annotations
-from ..core.data import Path
-from .source_sink import SourceSinkPathGrouper
+from mole.core.data import Path
+from mole.grouping.source_sink import SourceSinkPathGrouper
 
 
 class CallgraphPathGrouper(SourceSinkPathGrouper):

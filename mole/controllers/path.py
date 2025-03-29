@@ -1,11 +1,11 @@
 from __future__ import annotations
-from ..core.data import InstructionHelper, Path
-from ..common.task import BackgroundTask
-from ..services.slicer import MediumLevelILBackwardSlicer
-from ..views.graph import GraphWidget
-from ..views.path import PathView
-from ..views.path_tree import PathTreeView
-from .config import ConfigController
+from mole.core.data import InstructionHelper, Path
+from mole.common.task import BackgroundTask
+from mole.services.slicer import MediumLevelILBackwardSlicer
+from mole.views.graph import GraphWidget
+from mole.views.path import PathView
+from mole.views.path_tree import PathTreeView
+from mole.controllers.config import ConfigController
 from mole.common.log import log
 from typing import Dict, List, Literal, Tuple, Optional
 import binaryninja as bn

@@ -1,6 +1,6 @@
 from __future__ import annotations
-from ..core.data import Path
-from ..grouping import get_grouper
+from mole.core.data import Path
+from mole.grouping import get_grouper
 from typing import Dict, List, Optional, Tuple
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui

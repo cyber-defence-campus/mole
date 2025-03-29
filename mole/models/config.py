@@ -1,5 +1,5 @@
 from __future__ import annotations
-from ..core.data import Configuration, Function, Library, WidgetSetting
+from mole.core.data import Configuration, Function, Library, WidgetSetting
 from typing import Dict, List, Literal, Optional
 
 

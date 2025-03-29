@@ -32,3 +32,6 @@ develop = [
 
 [project.scripts]
 mole = "mole.cli.main:main"
+
+[tool.ruff.lint]
+extend-select = ["TID"]
