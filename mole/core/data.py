@@ -530,8 +530,8 @@ class Path:
             and self.snk_par_idx == other.snk_par_idx
             and self.snk_par_var == other.snk_par_var
             and self.sha1_hash == other.sha1_hash
-            and self.insts[1 : self.src_inst_idx - 1]
-            == other.insts[1 : other.src_inst_idx - 1]
+            and self.insts[: self.src_inst_idx - 1]
+            == other.insts[: other.src_inst_idx - 1]
         )
 
     def __str__(self) -> str:
