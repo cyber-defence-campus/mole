@@ -190,7 +190,7 @@ class SourceFunction(Function):
         """
         This method finds a set of target instructions that a static backward slice should hit on.
         """
-        custom_tag = f"Mole.Src.{self.name:s}"
+        custom_tag = f"{tag:s}.Src.{self.name:s}"
         self.target_insts.clear()
         code_refs = SymbolHelper.get_code_refs(
             bv,
@@ -293,7 +293,7 @@ class SinkFunction(Function):
         given `sources` using static backward slicing.
         """
         paths = []
-        custom_tag = f"Mole.Snk.{self.name:s}"
+        custom_tag = f"{tag:s}.Snk.{self.name:s}"
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         code_refs = SymbolHelper.get_code_refs(
             bv,
