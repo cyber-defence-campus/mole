@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.core.data import InstructionHelper, Path
 from mole.common.task import BackgroundTask
-from mole.services.slicer import MediumLevelILBackwardSlicer
+from mole.services.path import PathService
 from mole.views.graph import GraphWidget
 from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
@@ -37,7 +37,7 @@ class PathController:
         self.path_view = path_view
         self._bv: Optional[bn.BinaryView] = None
         self.path_tree_view: Optional[PathTreeView] = None
-        self._thread: Optional[MediumLevelILBackwardSlicer] = None
+        self._thread: Optional[PathService] = None
         self._paths_highlight: Tuple[
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
@@ -145,7 +145,7 @@ class PathController:
             return
         # Start background thread
         self.path_view.give_feedback("Find", "Finding Paths...")
-        self._thread = MediumLevelILBackwardSlicer(
+        self._thread = PathService(
             bv=self._bv,
             config_model=self.config_ctr.config_model,
             path_callback=self.add_path_to_view,

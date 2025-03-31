@@ -2,7 +2,7 @@ from __future__ import annotations
 from mole.core.data import Path
 from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
-from mole.services.slicer import MediumLevelILBackwardSlicer
+from mole.services.path import PathService
 from typing import List
 import binaryninja as bn
 import os as os
@@ -43,7 +43,7 @@ class TestCase(unittest.TestCase):
         """
         This method is a helper to find paths.
         """
-        slicer = MediumLevelILBackwardSlicer(
+        slicer = PathService(
             bv=bv,
             config_model=self._model,
             max_workers=max_workers,
