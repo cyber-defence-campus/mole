@@ -8,12 +8,13 @@ from typing import Callable, List, Optional
 import binaryninja as bn
 
 
-tag = "Mole.Slice"
+tag = "Mole.Path"
 
 
-class MediumLevelILBackwardSlicer(BackgroundTask):
+class PathService(BackgroundTask):
     """
-    This class implements a background task that backward slices MLIL instructions.
+    This class implements a background task that tries to find interesting code paths using static
+    backward slicing.
     """
 
     def __init__(

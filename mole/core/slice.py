@@ -157,11 +157,14 @@ class MediumLevelILBackwardSlicer:
     This class implements backward slicing for MLIL instructions.
     """
 
-    def __init__(self, bv: bn.BinaryView, max_call_level: int = -1) -> None:
+    def __init__(
+        self, bv: bn.BinaryView, custom_tag: str = "", max_call_level: int = -1
+    ) -> None:
         """
         This method initializes a backward slicer for for MLIL instructions.
         """
         self._bv: bn.BinaryView = bv
+        self._tag = custom_tag if custom_tag else tag
         self._max_call_level: int = max_call_level
         self._inst_visited: Set[bn.MediumLevelILInstruction] = set()
         self._inst_graph: MediumLevelILInstructionGraph = (
@@ -215,7 +218,8 @@ class MediumLevelILBackwardSlicer:
                     var_info = VariableHelper.get_ssavar_info(ssa_var)
                     cs_info = InstructionHelper.get_inst_info(cs_inst, False)
                     log.debug(
-                        tag, f"Follow parameter '{var_info:s}' to caller '{cs_info:s}'"
+                        self._tag,
+                        f"Follow parameter '{var_info:s}' to caller '{cs_info:s}'",
                     )
                     self._inst_graph.add_node(inst, call_level, caller_site)
                     self._inst_graph.add_node(cs_parm, call_level - 1, inst.function)
@@ -242,15 +246,15 @@ class MediumLevelILBackwardSlicer:
         info = InstructionHelper.get_inst_info(inst)
         # Maxium call level
         if self._max_call_level >= 0 and abs(call_level) > self._max_call_level:
-            log.debug(tag, f"Maximum call level {self._max_call_level:d} reached")
+            log.debug(self._tag, f"Maximum call level {self._max_call_level:d} reached")
             return
         # Instruction sliced before
         if inst in self._inst_visited:
-            log.debug(tag, f"Ignore instruction '{info:s}' since sliced before")
+            log.debug(self._tag, f"Ignore instruction '{info:s}' since sliced before")
             return
         # Slice instruction
         self._inst_visited.add(inst)
-        log.debug(tag, f"[{call_level:+d}] {info:s}")
+        log.debug(self._tag, f"[{call_level:+d}] {info:s}")
         match inst:
             # TODO: Support all instructions
             case (
@@ -268,7 +272,8 @@ class MediumLevelILBackwardSlicer:
                     )
                     if mem_def_inst in self._inst_visited:
                         log.debug(
-                            tag, f"Ignore '{mem_def_inst_info:s}' since sliced before"
+                            self._tag,
+                            f"Ignore '{mem_def_inst_info:s}' since sliced before",
                         )
                         continue
                     match mem_def_inst:
@@ -281,7 +286,7 @@ class MediumLevelILBackwardSlicer:
                                         constant=constant
                                     ) if constant == inst.constant:
                                         log.debug(
-                                            tag,
+                                            self._tag,
                                             f"Follow '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'",
                                         )
                                         self._inst_graph.add_node(
@@ -299,7 +304,7 @@ class MediumLevelILBackwardSlicer:
                                     break
                             if not followed:
                                 log.debug(
-                                    tag,
+                                    self._tag,
                                     f"Do not follow '{mem_def_inst_info:s}' since it not uses '0x{inst.constant:x}'",
                                 )
             case bn.MediumLevelILVarAliased() | bn.MediumLevelILAddressOf():
@@ -320,7 +325,8 @@ class MediumLevelILBackwardSlicer:
                     )
                     if mem_def_inst in self._inst_visited:
                         log.debug(
-                            tag, f"Ignore '{mem_def_inst_info:s}' since sliced before"
+                            self._tag,
+                            f"Ignore '{mem_def_inst_info:s}' since sliced before",
                         )
                         continue
                     match mem_def_inst:
@@ -334,7 +340,7 @@ class MediumLevelILBackwardSlicer:
                                     )
                                 )
                                 log.debug(
-                                    tag,
+                                    self._tag,
                                     f"Follow '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'",
                                 )
                                 self._inst_graph.add_node(inst, call_level, caller_site)
@@ -347,7 +353,7 @@ class MediumLevelILBackwardSlicer:
                                 )
                             else:
                                 log.debug(
-                                    tag,
+                                    self._tag,
                                     f"Do not follow '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'",
                                 )
             case (
@@ -453,7 +459,7 @@ class MediumLevelILBackwardSlicer:
                                                 func_inst, False
                                             )
                                             log.debug(
-                                                tag,
+                                                self._tag,
                                                 f"Follow return instruction '{ret_info:s}' of function '{call_info:s}'",
                                             )
                                             self._inst_graph.add_node(
@@ -487,7 +493,7 @@ class MediumLevelILBackwardSlicer:
                                                     )
                                                 )
                                                 log.debug(
-                                                    tag,
+                                                    self._tag,
                                                     f"Follow parameter {par_idx:d} '{par_info:s}' of imported function '{call_info:s}'",
                                                 )
                                                 self._inst_graph.add_node(
@@ -502,7 +508,7 @@ class MediumLevelILBackwardSlicer:
                                                 )
                                         else:
                                             log.warn(
-                                                tag,
+                                                self._tag,
                                                 f"Function '{call_info:s}' has an unexpected type '{str(symb.type):s}'",
                                             )
                         except Exception as _:
@@ -513,7 +519,7 @@ class MediumLevelILBackwardSlicer:
                         for par_idx, par in enumerate(inst.params):
                             par_info = InstructionHelper.get_inst_info(par, False)
                             log.debug(
-                                tag,
+                                self._tag,
                                 f"Follow parameter {par_idx:d} '{par_info:s}' of indirect function call '{call_info:s}'",
                             )
                             self._inst_graph.add_node(inst, call_level, caller_site)
@@ -522,7 +528,8 @@ class MediumLevelILBackwardSlicer:
                             self._slice_backwards(par, call_level, caller_site)
                     case _:
                         log.warn(
-                            tag, f"[{call_level:+d}] {dest_info:s}: Missing handler"
+                            self._tag,
+                            f"[{call_level:+d}] {dest_info:s}: Missing handler",
                         )
             case bn.MediumLevelILSyscallSsa():
                 for par in inst.params:
@@ -531,7 +538,7 @@ class MediumLevelILBackwardSlicer:
                     self._inst_graph.add_edge(inst, par)
                     self._slice_backwards(par, call_level, caller_site)
             case _:
-                log.warn(tag, f"[{call_level:+d}] {info:s}: Missing handler")
+                log.warn(self._tag, f"[{call_level:+d}] {info:s}: Missing handler")
         return
 
     def slice_backwards(self, inst: bn.MediumLevelILInstruction) -> None:

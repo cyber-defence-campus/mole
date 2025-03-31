@@ -2,7 +2,7 @@ from __future__ import annotations
 from mole.common.log import log
 from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
-from mole.services.slicer import MediumLevelILBackwardSlicer
+from mole.services.path import PathService
 from typing import Dict, List
 import argparse as ap
 import binaryninja as bn
@@ -64,7 +64,7 @@ def main() -> None:
         bv = bn.load(args["file"])
         bv.update_analysis_and_wait()
         # Analyze binary with Mole
-        slicer = MediumLevelILBackwardSlicer(
+        slicer = PathService(
             bv=bv,
             config_model=ConfigModel(ConfigService().load_config()),
             max_workers=args["max_workers"],
