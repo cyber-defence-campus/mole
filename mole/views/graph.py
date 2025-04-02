@@ -425,7 +425,7 @@ class GraphView(qtw.QGraphicsView):
         self, bv: bn.BinaryView, path: Path, path_id: int, show_all_nodes: bool = False
     ) -> None:
         self._bv = bv
-        self._graph = path.call_graph
+        self._graph = path.snk_call_graph
         self.setToolTip(f"Path {path_id:d}")
 
         self.scene().clear()

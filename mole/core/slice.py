@@ -2,7 +2,7 @@ from __future__ import annotations
 from mole.common.help import FunctionHelper, InstructionHelper, VariableHelper
 from functools import lru_cache
 from mole.common.log import log
-from typing import Any, Dict, Generator, List, Set, Tuple
+from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 import binaryninja as bn
 import networkx as nx
 
@@ -555,49 +555,92 @@ class MediumLevelILBackwardSlicer:
         """
         return self._inst_graph.nodes()
 
-    def find_paths(
+    def _get_call_graph(
+        self, path: List[bn.MediumLevelILInstruction]
+    ) -> MediumLevelILFunctionGraph:
+        """
+        This method returns a copy of the call graph with nodes and edges having a boolean attribute
+        `in_path` stating whether or not the corresponding node/edge is part of the path.
+        """
+        # Make a copy of the call graph
+        call_graph = self._call_graph.copy()
+        # Add attribute `in_path = False` to all nodes
+        for node in call_graph.nodes():
+            call_graph.nodes[node]["in_path"] = False
+        # Change attribute to `in_path = True` where functions are part of the path
+        for inst in path:
+            func = inst.function
+            if func in call_graph:
+                call_graph.nodes[func]["in_path"] = True
+        # Set `in_path` edge attribute to `True` where both nodes have `ìn_path == True`
+        for node_from, node_to in call_graph.edges():
+            call_graph[node_from][node_to]["in_path"] = (
+                call_graph.nodes[node_from]["in_path"]
+                and call_graph.nodes[node_to]["in_path"]
+            )
+        return call_graph
+
+    def find_shortest_path(
         self,
-        snk_inst: bn.MediumLevelILInstruction,
-        src_inst: bn.MediumLevelILInstruction,
+        from_inst: bn.MediumLevelILInstruction,
+        to_inst: bn.MediumLevelILInstruction,
+        return_call_graph: bool = True,
+    ) -> Tuple[List[bn.MediumLevelILInstruction], MediumLevelILFunctionGraph]:
+        """
+        This method finds the shortest path from `from_inst` to `to_inst`. The following is
+        returned: First, a list of instructions belonging to the path. And second, if
+        `return_call_graph` is `True`, a function call graph where nodes and edges belonging to the
+        path have an attribute `in_path` set to `True`.
+        """
+        # Find shortest path
+        try:
+            path: List[bn.MediumLevelILInstruction] = nx.shortest_path(
+                self._inst_graph, from_inst, to_inst
+            )
+        except (nx.NodeNotFound, nx.NetworkXNoPath):
+            return ([], None)
+        # Optionally get the call graph
+        if return_call_graph:
+            call_graph = self._get_call_graph(path)
+        else:
+            call_graph = None
+        return (path, call_graph)
+
+    def find_all_paths(
+        self,
+        from_inst: bn.MediumLevelILInstruction,
+        to_inst: bn.MediumLevelILInstruction,
         max_slice_depth: int,
-    ) -> List[Tuple[List[bn.MediumLevelILInstruction], MediumLevelILFunctionGraph]]:
+        return_call_graph: bool = True,
+    ) -> List[
+        Tuple[List[bn.MediumLevelILInstruction], Optional[MediumLevelILFunctionGraph]]
+    ]:
         """
-        This method finds all simple paths from `snk_inst` to `src_inst`, with optionally limiting
+        This method finds all simple paths from `from_inst` to `to_inst`, with optionally limiting
         path length by `max_slice_depth`. For each found path, the following is returned: First, a
-        list of instructions belonging to the path. And second, a function call graph, where nodes
-        and edges belonging to the path, have an attribute `in_path` set to `True`.
+        list of instructions belonging to the path. And second, if `return_call_graph` is `True`, a
+        function call graph where nodes and edges belonging to the path have an attribute `in_path`
+        set to `True`.
         """
-        paths = []
         # Find all simple paths
+        paths = []
         try:
             if max_slice_depth is not None and max_slice_depth < 0:
                 max_slice_depth = None
             simple_paths: List[List[bn.MediumLevelILInstruction]] = list(
                 nx.all_simple_paths(
-                    self._inst_graph, snk_inst, src_inst, max_slice_depth
+                    self._inst_graph, from_inst, to_inst, max_slice_depth
                 )
             )
         except (nx.NodeNotFound, nx.NetworkXNoPath):
             return paths
-
         # Process all simple paths
         for simple_path in simple_paths:
-            # Copy the call graph
-            call_graph = self._call_graph.copy()
-            # Add attribute `in_path = False` to all nodes
-            for node in call_graph.nodes():
-                call_graph.nodes[node]["in_path"] = False
-            # Change attribute to `in_path = True` where functions are part of the path
-            for inst in simple_path:
-                func = inst.function
-                if func in call_graph:
-                    call_graph.nodes[func]["in_path"] = True
-            # Add attribute `ìn_path` to edges where both nodes have `in_path = True`
-            for node_from, node_to in call_graph.edges():
-                call_graph[node_from][node_to]["in_path"] = (
-                    call_graph.nodes[node_from]["in_path"]
-                    and call_graph.nodes[node_to]["in_path"]
-                )
+            # Optionally get the call graph
+            if return_call_graph:
+                call_graph = self._get_call_graph(simple_path)
+            else:
+                call_graph = None
             # Add path and call graph
             paths.append((simple_path, call_graph))
         return paths
