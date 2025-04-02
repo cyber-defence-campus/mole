@@ -1,11 +1,16 @@
 from __future__ import annotations
-from mole.common.help import InstructionHelper, SymbolHelper
-from mole.core.slice import MediumLevelILBackwardSlicer, MediumLevelILFunctionGraph
+from mole.common.help import SymbolHelper
+from mole.core.slice import (
+    MediumLevelILBackwardSlicer,
+    MediumLevelILFunctionGraph,
+    MediumLevelILInstructionGraph,
+)
 from dataclasses import dataclass, field
 from mole.common.log import log
 from typing import Callable, Dict, List, Tuple
 import binaryninja as bn
 import hashlib
+import networkx as nx
 import PySide6.QtWidgets as qtw
 
 
@@ -174,13 +179,15 @@ class SourceFunction(Function):
     This class is a representation of the data associated with source functions.
     """
 
-    src_slicer_map: Dict[
+    src_map: Dict[
         Tuple[
-            int, str, bn.MediumLevelILInstruction
-        ],  # src_sym_addr, src_sym_name, src_inst
+            int,
+            str,
+            bn.MediumLevelILInstruction,  # src_sym_addr, src_sym_name, src_call_inst
+        ],
         Dict[
             Tuple[int, bn.MediumLevelILInstruction],  # src_par_idx, src_par_var
-            MediumLevelILBackwardSlicer,  # slicer
+            MediumLevelILInstructionGraph,  # src_inst_graph
         ],
     ] = field(default_factory=dict)
 
@@ -197,7 +204,7 @@ class SourceFunction(Function):
         This method finds a set of target instructions that a static backward slice should hit on.
         """
         custom_tag = f"{tag:s}.Src.{self.name:s}"
-        self.src_slicer_map.clear()
+        self.src_map.clear()
         code_refs = SymbolHelper.get_code_refs(
             bv,
             self.symbols,
@@ -219,18 +226,19 @@ class SourceFunction(Function):
                     src_inst, bn.MediumLevelILTailcallSsa
                 ):
                     continue
+                src_call_inst = src_inst
                 # Ignore calls with an invalid number of parameters
-                if not self.par_cnt_fun(len(src_inst.params)):
+                if not self.par_cnt_fun(len(src_call_inst.params)):
                     log.warn(
                         custom_tag,
                         f"0x{src_sym_addr:x} Ignore arguments of call '0x{src_sym_addr:x} {src_sym_name:s}' due to an unexpected amount",
                     )
                     continue
-                src_par_map = self.src_slicer_map.setdefault(
-                    (src_sym_addr, src_sym_name, src_inst), {}
+                src_par_map = self.src_map.setdefault(
+                    (src_sym_addr, src_sym_name, src_call_inst), {}
                 )
                 # Analyze parameters
-                for src_par_idx, src_par_var in enumerate(src_inst.params):
+                for src_par_idx, src_par_var in enumerate(src_call_inst.params):
                     if canceled():
                         break
                     src_par_idx += 1
@@ -265,14 +273,16 @@ class SourceFunction(Function):
                     src_par_map[(src_par_idx, src_par_var)] = None
                     if self.par_slice_fun(src_par_idx):
                         slicer = MediumLevelILBackwardSlicer(bv, custom_tag, 0)
-                        # TODO: Test this
-                        slicer._inst_graph.add_node(src_inst, 0, src_inst.function)
+                        # TODO: Rename `_inst_graph` to `inst_graph`
+                        slicer._inst_graph.add_node(
+                            src_call_inst, 0, src_call_inst.function
+                        )
                         slicer._inst_graph.add_node(
                             src_par_var, 0, src_par_var.function
                         )
-                        slicer._inst_graph.add_edge(src_inst, src_par_var)
+                        slicer._inst_graph.add_edge(src_call_inst, src_par_var)
                         slicer.slice_backwards(src_par_var)
-                        src_par_map[(src_par_idx, src_par_var)] = slicer
+                        src_par_map[(src_par_idx, src_par_var)] = slicer._inst_graph
         return
 
 
@@ -389,109 +399,140 @@ class SinkFunction(Function):
                                 src_sym_addr,
                                 src_sym_name,
                                 src_call_inst,
-                            ), src_par_map in source.src_slicer_map.items():
+                            ), src_par_map in source.src_map.items():
                                 if canceled():
                                     break
                                 for (
                                     src_par_idx,
                                     src_par_var,
-                                ), src_slicer in src_par_map.items():
+                                ), src_inst_graph in src_par_map.items():
                                     if canceled():
                                         break
-
-                                    for src_inst in src_slicer.get_insts():
-                                        for (
-                                            _snk_insts,
-                                            call_graph,
-                                        ) in snk_slicer.find_all_paths(
-                                            snk_call_inst, src_inst, max_slice_depth
+                                    # Empty source instruction graph
+                                    if not src_inst_graph:
+                                        continue
+                                    # Instruction graph from slicing the source (reversed)
+                                    src_inst_graph = MediumLevelILInstructionGraph(
+                                        [(v, u) for u, v in src_inst_graph.edges]
+                                    )
+                                    # Instruction graph from slicing the sink
+                                    snk_inst_graph = snk_slicer._inst_graph
+                                    # Merged instruction graph
+                                    merged_inst_graph: MediumLevelILInstructionGraph = (
+                                        nx.compose(src_inst_graph, snk_inst_graph)
+                                    )
+                                    # Find all simple paths in the merged instruction graph
+                                    try:
+                                        if (
+                                            max_slice_depth is not None
+                                            and max_slice_depth < 0
                                         ):
-                                            # Split between source and sink originating instructions
-                                            _old_snk_inst = None
-                                            while _snk_insts:
-                                                _snk_inst = _snk_insts.pop()
-                                                if (
-                                                    _snk_inst
-                                                    not in src_slicer.get_insts()
-                                                ):
-                                                    _snk_insts.append(_snk_inst)
-                                                    break
-                                                _old_snk_inst = _snk_inst
-                                            _src_insts, _ = (
-                                                src_slicer.find_shortest_path(
-                                                    src_call_inst, _old_snk_inst, False
-                                                )
-                                            )
-                                            # Create path
-                                            path = Path(
-                                                src_sym_addr=src_sym_addr,
-                                                snk_sym_addr=snk_sym_addr,
-                                                src_sym_name=src_sym_name,
-                                                snk_sym_name=snk_sym_name,
-                                                src_par_idx=src_par_idx,
-                                                snk_par_idx=snk_par_idx,
-                                                src_par_var=src_par_var,
-                                                snk_par_var=snk_par_var,
-                                                src_insts=_src_insts,
-                                                snk_insts=_snk_insts,
-                                                snk_call_graph=call_graph,
-                                                comment="",
-                                                sha1_hash=sha1_hash,
-                                            )
-                                            # Found the same path before
-                                            if path in paths:
-                                                continue
-                                            # Store path
-                                            paths.append(path)
-                                            if found_path:
-                                                found_path(path)
-                                            # Log path
-                                            t_log = f"Interesting path: {str(path):s}"
-                                            t_log = f"{t_log:s} [L:{len(path.snk_insts):d},P:{len(path.snk_phiis):d},B:{len(path.snk_bdeps):d}]!"
-                                            log.info(custom_tag, t_log)
-                                            log.debug(
-                                                custom_tag,
-                                                "--- Backward Slice: From Sink  ---",
-                                            )
-                                            basic_block = None
-                                            for inst in path.snk_insts:
-                                                if inst.il_basic_block != basic_block:
-                                                    basic_block = inst.il_basic_block
-                                                    fun_name = basic_block.function.name
-                                                    bb_addr = basic_block[0].address
-                                                    log.debug(
-                                                        custom_tag,
-                                                        f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}",
-                                                    )
-                                                log.debug(
-                                                    custom_tag,
-                                                    InstructionHelper.get_inst_info(
-                                                        inst
-                                                    ),
-                                                )
-                                            log.debug(
-                                                custom_tag,
-                                                "--- Forward Slice:  To Source  ---",
-                                            )
-                                            basic_block = None
-                                            for inst in reversed(path.src_insts):
-                                                if inst.il_basic_block != basic_block:
-                                                    basic_block = inst.il_basic_block
-                                                    fun_name = basic_block.function.name
-                                                    bb_addr = basic_block[0].address
-                                                    log.debug(
-                                                        custom_tag,
-                                                        f"- FUN: '{fun_name:s}', BB; 0x{bb_addr:x}",
-                                                    )
-                                                log.debug(
-                                                    custom_tag,
-                                                    InstructionHelper.get_inst_info(
-                                                        inst
-                                                    ),
-                                                )
-                                            log.debug(
-                                                custom_tag, "-----------------------"
-                                            )
+                                            max_slice_depth = None
+                                        simple_paths = nx.all_simple_paths(
+                                            merged_inst_graph,
+                                            snk_call_inst,
+                                            src_call_inst,
+                                            max_slice_depth,
+                                        )
+                                    except (nx.NodeNotFound, nx.NetworkXNoPath):
+                                        simple_paths = []
+                                    # TODO: Continue here
+                                    if not sha1_hash or not simple_paths:
+                                        log.debug(custom_tag, "TODO")
+
+                                    # for src_inst in src_slicer.get_insts():
+                                    #     for (
+                                    #         _snk_insts,
+                                    #         call_graph,
+                                    #     ) in snk_slicer.find_all_paths(
+                                    #         snk_call_inst, src_inst, max_slice_depth
+                                    #     ):
+                                    #         # Split between source and sink originating instructions
+                                    #         _old_snk_inst = None
+                                    #         while len(_snk_insts) > 1:
+                                    #             _snk_inst = _snk_insts.pop()
+                                    #             if (
+                                    #                 _snk_inst
+                                    #                 not in src_slicer.get_insts()
+                                    #             ):
+                                    #                 _snk_insts.append(_snk_inst)
+                                    #                 break
+                                    #             _old_snk_inst = _snk_inst
+                                    #         _src_insts, _ = (
+                                    #             src_slicer.find_shortest_path(
+                                    #                 src_call_inst, _old_snk_inst, False
+                                    #             )
+                                    #         )
+                                    #         # Create path
+                                    #         path = Path(
+                                    #             src_sym_addr=src_sym_addr,
+                                    #             snk_sym_addr=snk_sym_addr,
+                                    #             src_sym_name=src_sym_name,
+                                    #             snk_sym_name=snk_sym_name,
+                                    #             src_par_idx=src_par_idx,
+                                    #             snk_par_idx=snk_par_idx,
+                                    #             src_par_var=src_par_var,
+                                    #             snk_par_var=snk_par_var,
+                                    #             src_insts=_src_insts,
+                                    #             snk_insts=_snk_insts,
+                                    #             snk_call_graph=call_graph,
+                                    #             comment="",
+                                    #             sha1_hash=sha1_hash,
+                                    #         )
+                                    #         # Found the same path before
+                                    #         if path in paths:
+                                    #             continue
+                                    #         # Store path
+                                    #         paths.append(path)
+                                    #         if found_path:
+                                    #             found_path(path)
+                                    #         # Log path
+                                    #         t_log = f"Interesting path: {str(path):s}"
+                                    #         t_log = f"{t_log:s} [L:{len(path.snk_insts):d},P:{len(path.snk_phiis):d},B:{len(path.snk_bdeps):d}]!"
+                                    #         log.info(custom_tag, t_log)
+                                    #         log.debug(
+                                    #             custom_tag,
+                                    #             "--- Backward Slice: From Sink  ---",
+                                    #         )
+                                    #         basic_block = None
+                                    #         for inst in path.snk_insts:
+                                    #             if inst.il_basic_block != basic_block:
+                                    #                 basic_block = inst.il_basic_block
+                                    #                 fun_name = basic_block.function.name
+                                    #                 bb_addr = basic_block[0].address
+                                    #                 log.debug(
+                                    #                     custom_tag,
+                                    #                     f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}",
+                                    #                 )
+                                    #             log.debug(
+                                    #                 custom_tag,
+                                    #                 InstructionHelper.get_inst_info(
+                                    #                     inst
+                                    #                 ),
+                                    #             )
+                                    #         log.debug(
+                                    #             custom_tag,
+                                    #             "--- Forward Slice:  To Source  ---",
+                                    #         )
+                                    #         basic_block = None
+                                    #         for inst in reversed(path.src_insts):
+                                    #             if inst.il_basic_block != basic_block:
+                                    #                 basic_block = inst.il_basic_block
+                                    #                 fun_name = basic_block.function.name
+                                    #                 bb_addr = basic_block[0].address
+                                    #                 log.debug(
+                                    #                     custom_tag,
+                                    #                     f"- FUN: '{fun_name:s}', BB; 0x{bb_addr:x}",
+                                    #                 )
+                                    #             log.debug(
+                                    #                 custom_tag,
+                                    #                 InstructionHelper.get_inst_info(
+                                    #                     inst
+                                    #                 ),
+                                    #             )
+                                    #         log.debug(
+                                    #             custom_tag, "-----------------------"
+                                    #         )
 
                                     # for src_inst in src_slicer.get_insts():
                                     #     for insts, call_graph in snk_slicer.find_all_paths(
