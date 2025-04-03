@@ -366,6 +366,7 @@ class MediumLevelILBackwardSlicer:
                 bn.MediumLevelILNot()
                 | bn.MediumLevelILSx()
                 | bn.MediumLevelILZx()
+                | bn.MediumLevelILBoolToInt()
                 | bn.MediumLevelILLoadSsa()
                 | bn.MediumLevelILLoadStructSsa()
                 | bn.MediumLevelILLowPart()
