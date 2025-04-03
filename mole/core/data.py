@@ -286,6 +286,13 @@ class SourceFunction(Function):
                     # Perform backward slicing of the parameter
                     if self.par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
+                    # Reverse all edges of the instruction and call graphs
+                    src_slicer.inst_graph = MediumLevelILInstructionGraph(
+                        [(v, u) for u, v in src_slicer.inst_graph.edges]
+                    )
+                    src_slicer.call_graph = MediumLevelILFunctionGraph(
+                        [(v, u) for u, v in src_slicer.call_graph.edges]
+                    )
                     # Store the instruction graph
                     src_par_map[(src_par_idx, src_par_var)] = (
                         src_slicer.inst_graph,
@@ -425,22 +432,14 @@ class SinkFunction(Function):
                                 ) in src_par_map.items():
                                     if canceled():
                                         break
-                                    # Graphs from slicing the source parameter (reversed)
-                                    src_inst_graph = MediumLevelILInstructionGraph(
-                                        [(v, u) for u, v in src_inst_graph.edges]
-                                    )
-                                    src_call_graph = MediumLevelILFunctionGraph(
-                                        [(v, u) for u, v in src_call_graph.edges]
-                                    )
-                                    # Graphs from slicing the sink parameter
-                                    snk_inst_graph = snk_slicer.inst_graph
-                                    snk_call_graph = snk_slicer.call_graph
-                                    # Merge graphs
+                                    # Merge instruction and call graphs
                                     inst_graph: MediumLevelILInstructionGraph = (
-                                        nx.compose(src_inst_graph, snk_inst_graph)
+                                        nx.compose(
+                                            src_inst_graph, snk_slicer.inst_graph
+                                        )
                                     )
                                     call_graph: MediumLevelILFunctionGraph = nx.compose(
-                                        src_call_graph, snk_call_graph
+                                        src_call_graph, snk_slicer.call_graph
                                     )
                                     # Find all simple paths in the merged instruction graph
                                     simple_paths: List[
