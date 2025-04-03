@@ -11,7 +11,7 @@
 Testcase Description:
 - server example
 - disallow function inlining
-- generate duplicates path (phi in process_post_request)
+- generate duplicates path (phis in process_post_request)
 */
 
 
@@ -29,9 +29,6 @@ void send_response(int client_socket, const char *response);
 
 __attribute__ ((noinline)) 
 int create_server_socket(struct sockaddr_in *address);
-
-__attribute__ ((noinline)) 
-void handle_get_request(int client_socket);
 
 __attribute__ ((noinline)) 
 void handle_post_request(int client_socket);
@@ -68,9 +65,7 @@ void handle_client(int client_socket) {
         return;
     }
 
-    if (strncmp(method, "GET ", 4) == 0) {
-        handle_get_request(client_socket);
-    } else if (strncmp(method, "POST", 4) == 0) {
+    if (strncmp(method, "POST", 4) == 0) {
         handle_post_request(client_socket);
     } else {
         send_response(client_socket, "HTTP/1.1 405 Method Not Allowed\r\nContent-Type: text/plain\r\n\r\nMethod Not Allowed.\n");
@@ -78,21 +73,6 @@ void handle_client(int client_socket) {
     }
 
     free(method);
-}
-
-void handle_get_request(int client_socket) {
-    int size;
-    char *buffer = receive_data(client_socket, &size);
-
-    if (buffer == NULL) {
-        close(client_socket);
-        return;
-    }
-
-    execute_cgi_command(buffer);
-    send_response(client_socket, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nGET request received.\n");
-    close(client_socket);
-    free(buffer);
 }
 
 void process_post_request(int client_socket, const char *buffer) {
@@ -103,11 +83,21 @@ void process_post_request(int client_socket, const char *buffer) {
     } else {
         body = (char*)buffer;
     }
-    // for each line in body execute the command
-    char *line = strtok(body, "\r\n");
-    while (line != NULL) {
-        execute_cgi_command(line);
-        line = strtok(NULL, "\r\n");
+    while (1) {
+        
+        // for each line in body execute the command
+        char *line = strstr(body, "\r\n");
+        if(line == NULL) {
+            break;
+        }
+        char* cmd = strstr(line, "EXECUTE");
+        if (cmd) {
+            cmd += 8; // skip the "EXECUTE "
+        } else {
+            cmd = line;
+        }
+        execute_cgi_command(cmd);
+        
     }
 }
 
