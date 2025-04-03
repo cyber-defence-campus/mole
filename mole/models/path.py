@@ -187,13 +187,13 @@ class PathTreeModel(qtui.QStandardItemModel):
         )
         snk_parm_item.setData(True, IS_PATH_ITEM_ROLE)
 
-        inst_item = qtui.QStandardItem(str(len(path.snk_insts)))
+        inst_item = qtui.QStandardItem(str(len(path.insts)))
         inst_item.setData(True, IS_PATH_ITEM_ROLE)
 
-        phis_item = qtui.QStandardItem(str(len(path.snk_phiis)))
+        phis_item = qtui.QStandardItem(str(len(path.phiis)))
         phis_item.setData(True, IS_PATH_ITEM_ROLE)
 
-        bdeps_item = qtui.QStandardItem(str(len(path.snk_bdeps)))
+        bdeps_item = qtui.QStandardItem(str(len(path.bdeps)))
         bdeps_item.setData(True, IS_PATH_ITEM_ROLE)
 
         comment_item = qtui.QStandardItem(path.comment)
