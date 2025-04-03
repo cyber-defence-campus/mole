@@ -1,6 +1,7 @@
 from __future__ import annotations
-from mole.core.data import InstructionHelper, Path
+from mole.common.help import InstructionHelper
 from mole.common.task import BackgroundTask
+from mole.core.data import Path
 from mole.services.path import PathService
 from mole.views.graph import GraphWidget
 from mole.views.path import PathView
@@ -455,28 +456,22 @@ class PathController:
         if not path:
             return
         msg = f"Path {path_id:d}: {str(path):s}"
-        msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.snk_phiis):d},B:{len(path.snk_bdeps):d}]!"
+        msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         log.info(tag, msg)
         if reverse:
             log.debug(tag, "--- Forward  Slice ---")
-            src_inst_idx = len(path.insts) - path.src_inst_idx
             insts = reversed(path.insts)
         else:
             log.debug(tag, "--- Backward Slice ---")
-            src_inst_idx = path.src_inst_idx
             insts = path.insts
         basic_block = None
         for i, inst in enumerate(insts):
-            if (not reverse and i < src_inst_idx) or (reverse and i >= src_inst_idx):
-                custom_tag = f"{tag:s}.Snk"
-            else:
-                custom_tag = f"{tag:s}.Src"
             if inst.il_basic_block != basic_block:
                 basic_block = inst.il_basic_block
                 fun_name = basic_block.function.name
                 bb_addr = basic_block[0].address
-                log.debug(custom_tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
-            log.debug(custom_tag, InstructionHelper.get_inst_info(inst))
+                log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+            log.debug(tag, InstructionHelper.get_inst_info(inst))
         log.debug(tag, "----------------------")
         log.debug(tag, msg)
         return
@@ -517,11 +512,11 @@ class PathController:
         rgt_col = []
         diff = difflib.ndiff(path_0_insts, path_1_insts)
         path_0_msg = f"Path {path_0_id:d}: {str(path_0):s}"
-        path_0_msg = f"{path_0_msg:s} [L:{len(path_0.insts):d},P:{len(path_0.snk_phiis):d},B:{len(path_0.snk_bdeps):d}]!"
+        path_0_msg = f"{path_0_msg:s} [L:{len(path_0.insts):d},P:{len(path_0.phiis):d},B:{len(path_0.bdeps):d}]!"
         lft_col.append(path_0_msg)
         lft_col.append("----")
         path_1_msg = f"Path {path_1_id:d}: {str(path_1):s}"
-        path_1_msg = f"{path_1_msg:s} [L:{len(path_1.insts):d},P:{len(path_1.snk_phiis):d},B:{len(path_1.snk_bdeps):d}]!"
+        path_1_msg = f"{path_1_msg:s} [L:{len(path_1.insts):d},P:{len(path_1.phiis):d},B:{len(path_1.bdeps):d}]!"
         rgt_col.append(path_1_msg)
         rgt_col.append("----")
         for line in diff:
@@ -559,7 +554,7 @@ class PathController:
             return
         path_id = path_ids[0]
         msg = f"Path {path_id:d}: {str(path):s}"
-        msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.snk_phiis):d},B:{len(path.snk_bdeps):d}]!"
+        msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         log.info(tag, msg)
         if reverse:
             log.debug(tag, "--- Forward  Calls ---")

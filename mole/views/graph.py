@@ -425,7 +425,7 @@ class GraphView(qtw.QGraphicsView):
         self, bv: bn.BinaryView, path: Path, path_id: int, show_all_nodes: bool = False
     ) -> None:
         self._bv = bv
-        self._graph = path.snk_call_graph
+        self._graph = path.call_graph
         self.setToolTip(f"Path {path_id:d}")
 
         self.scene().clear()
@@ -452,9 +452,9 @@ class GraphView(qtw.QGraphicsView):
                 dest = self._nodes_map[b]
                 self.scene().addItem(Edge(source, dest, self.get_node_color))
 
-        # layout the graph
+        # Layout the graph
         self.layout()
-        # fit the view to the graph once animation is over
+        # Fit the view to the graph once animation is over
         self.animations.finished.connect(self.fit_to_window)
         return
 
