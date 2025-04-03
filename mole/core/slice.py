@@ -400,6 +400,7 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILFsub()
                 | bn.MediumLevelILFmul()
                 | bn.MediumLevelILFdiv()
+                | bn.MediumLevelILCmpUlt()
             ):
                 self._inst_graph.add_node(inst, call_level, caller_site)
                 self._inst_graph.add_node(inst.left, call_level, caller_site)
