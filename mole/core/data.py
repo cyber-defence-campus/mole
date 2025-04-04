@@ -7,7 +7,7 @@ from mole.core.slice import (
 )
 from dataclasses import dataclass, field
 from mole.common.log import log
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 import binaryninja as bn
 import hashlib
 import networkx as nx
@@ -279,24 +279,22 @@ class SourceFunction(Function):
                     src_slicer = MediumLevelILBackwardSlicer(bv, custom_tag, 0)
                     # Add edge between call and parameter instructions
                     src_slicer.inst_graph.add_node(
-                        src_call_inst, 0, src_call_inst.function
+                        src_call_inst, 0, src_call_inst.function, origin="src"
                     )
-                    src_slicer.inst_graph.add_node(src_par_var, 0, src_par_var.function)
+                    src_slicer.inst_graph.add_node(
+                        src_par_var, 0, src_par_var.function, origin="src"
+                    )
                     src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
                     # Perform backward slicing of the parameter
                     if self.par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Reverse all edges of the instruction and call graphs
-                    src_slicer.inst_graph = MediumLevelILInstructionGraph(
-                        [(v, u) for u, v in src_slicer.inst_graph.edges]
-                    )
-                    src_slicer.call_graph = MediumLevelILFunctionGraph(
-                        [(v, u) for u, v in src_slicer.call_graph.edges]
-                    )
+                    src_inst_graph = src_slicer.inst_graph.reverse()
+                    src_call_graph = src_slicer.call_graph.reverse()
                     # Store the instruction graph
                     src_par_map[(src_par_idx, src_par_var)] = (
-                        src_slicer.inst_graph,
-                        src_slicer.call_graph,
+                        src_inst_graph,
+                        src_call_graph,
                     )
         return
 
@@ -328,7 +326,7 @@ class SinkFunction(Function):
         This method tries to find paths, starting from the current sink and ending in one of the
         given `sources` using static backward slicing.
         """
-        paths = []
+        paths: List[Path] = []
         custom_tag = f"{tag:s}.Snk.{self.name:s}"
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
@@ -405,10 +403,10 @@ class SinkFunction(Function):
                         )
                         # Add edge between call and parameter instructions
                         snk_slicer.inst_graph.add_node(
-                            snk_call_inst, 0, snk_call_inst.function
+                            snk_call_inst, 0, snk_call_inst.function, origin="snk"
                         )
                         snk_slicer.inst_graph.add_node(
-                            snk_par_var, 0, snk_par_var.function
+                            snk_par_var, 0, snk_par_var.function, origin="snk"
                         )
                         snk_slicer.inst_graph.add_edge(snk_call_inst, snk_par_var)
                         # Backward slice the parameter instruction
@@ -461,24 +459,44 @@ class SinkFunction(Function):
                                         pass
                                     # Iterate found paths
                                     for simple_path in simple_paths:
+                                        # Find first instruction originating from slicing the source
+                                        src_inst_idx = len(simple_path)
+                                        for inst in reversed(simple_path):
+                                            origin = inst_graph.nodes[inst]["origin"]
+                                            if origin == "snk":
+                                                break
+                                            src_inst_idx -= 1
                                         # Create path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,
-                                            snk_sym_addr=snk_sym_addr,
                                             src_sym_name=src_sym_name,
-                                            snk_sym_name=snk_sym_name,
                                             src_par_idx=src_par_idx,
-                                            snk_par_idx=snk_par_idx,
                                             src_par_var=src_par_var,
+                                            src_inst_idx=src_inst_idx,
+                                            snk_sym_addr=snk_sym_addr,
+                                            snk_sym_name=snk_sym_name,
+                                            snk_par_idx=snk_par_idx,
                                             snk_par_var=snk_par_var,
                                             insts=simple_path,
                                             call_graph=call_graph,
                                             comment="",
                                             sha1_hash=sha1_hash,
                                         )
-                                        # Same path found before
-                                        if path in paths:
-                                            continue
+                                        # Check if an equal path was found before
+                                        try:
+                                            # Try to find an equal path in the list already found paths
+                                            idx = paths.index(path)
+                                            # Equal path found before
+                                            old_path = paths[idx]
+                                            # Delete old path if new path is shorter
+                                            if len(path.insts) < len(old_path.insts):
+                                                del paths[idx]
+                                            # Keep old path if new path is longer
+                                            else:
+                                                continue
+                                        except ValueError:
+                                            # Equal path not found before
+                                            pass
                                         # Add `in_path` node/edge attributes to call graph
                                         for node in path.call_graph.nodes():
                                             path.call_graph.nodes[node]["in_path"] = (
@@ -553,12 +571,13 @@ class Path:
     """
 
     src_sym_addr: int
-    snk_sym_addr: int
     src_sym_name: str
-    snk_sym_name: str
     src_par_idx: int
-    snk_par_idx: int
     src_par_var: bn.MediumLevelILInstruction
+    src_inst_idx: int
+    snk_sym_addr: int
+    snk_sym_name: str
+    snk_par_idx: int
     snk_par_var: bn.MediumLevelILInstruction
     insts: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
@@ -572,12 +591,13 @@ class Path:
     def __init__(
         self,
         src_sym_addr: int,
-        snk_sym_addr: int,
         src_sym_name: str,
-        snk_sym_name: str,
         src_par_idx: int,
-        snk_par_idx: int,
         src_par_var: bn.MediumLevelILInstruction,
+        src_inst_idx: int,
+        snk_sym_addr: int,
+        snk_sym_name: str,
+        snk_par_idx: int,
         snk_par_var: bn.MediumLevelILInstruction,
         insts: List[bn.MediumLevelILInstruction] = field(default_factory=list),
         call_graph: MediumLevelILFunctionGraph = field(
@@ -587,40 +607,39 @@ class Path:
         sha1_hash: str = "",
     ) -> None:
         self.src_sym_addr = src_sym_addr
-        self.snk_sym_addr = snk_sym_addr
         self.src_sym_name = src_sym_name
-        self.snk_sym_name = snk_sym_name
         self.src_par_idx = src_par_idx
-        self.snk_par_idx = snk_par_idx
         self.src_par_var = src_par_var
+        self.src_inst_idx = src_inst_idx
+        self.snk_sym_addr = snk_sym_addr
+        self.snk_sym_name = snk_sym_name
+        self.snk_par_idx = snk_par_idx
         self.snk_par_var = snk_par_var
         self.insts = insts
         self.call_graph = call_graph
         self.comment = comment
         self.sha1_hash = sha1_hash
-        self._init_metrics()
-        self._init_calls()
+        self._init()
         return
 
-    def _init_metrics(self) -> None:
+    def _init(self) -> None:
+        self.calls = []
         self.phiis = []
         self.bdeps = {}
         for inst in self.insts:
-            if isinstance(inst, bn.MediumLevelILVarPhi):
-                self.phiis.append(inst)
-            for bch_idx, bch_dep in inst.branch_dependence.items():
-                self.bdeps.setdefault(bch_idx, bch_dep)
-        return
-
-    def _init_calls(self) -> None:
-        self.calls = []
-        for inst in self.insts:
+            # Function calls
             func_name = inst.function.source_function.name
             if len(self.calls) == 0 or self.calls[-1][1] != func_name:
                 call_level = self.call_graph.nodes.get(inst.function, {}).get(
                     "call_level", 0
                 )
                 self.calls.append((inst.address, func_name, call_level))
+            # Phi-instructions
+            if isinstance(inst, bn.MediumLevelILVarPhi):
+                self.phiis.append(inst)
+            # Branch dependencies
+            for bch_idx, bch_dep in inst.branch_dependence.items():
+                self.bdeps.setdefault(bch_idx, bch_dep)
         return
 
     def __eq__(self, other: Path) -> bool:
@@ -631,14 +650,18 @@ class Path:
                 return False
         return (
             self.src_sym_addr == other.src_sym_addr
-            and self.snk_sym_addr == other.snk_sym_addr
             and self.src_sym_name == other.src_sym_name
-            and self.snk_sym_name == other.snk_sym_name
             and self.src_par_idx == other.src_par_idx
-            and self.snk_par_idx == other.snk_par_idx
             and self.src_par_var == other.src_par_var
+            and self.src_inst_idx == other.src_inst_idx
+            and self.snk_sym_addr == other.snk_sym_addr
+            and self.snk_sym_name == other.snk_sym_name
+            and self.snk_par_idx == other.snk_par_idx
             and self.snk_par_var == other.snk_par_var
-            and self.insts == other.insts
+            # Ignore all instructions originating from slicing the source, but the source call itself
+            and self.insts[: self.src_inst_idx - 1]
+            == other.insts[: self.src_inst_idx - 1]
+            and self.insts[-1] == other.insts[-1]
             and self.sha1_hash == other.sha1_hash
         )
 
@@ -656,10 +679,11 @@ class Path:
             insts.append((hex(inst.function.source_function.start), inst.expr_index))
         return {
             "src_sym_addr": hex(self.src_sym_addr),
-            "snk_sym_addr": hex(self.snk_sym_addr),
             "src_sym_name": self.src_sym_name,
-            "snk_sym_name": self.snk_sym_name,
             "src_par_idx": self.src_par_idx,
+            "src_inst_idx": self.src_inst_idx,
+            "snk_sym_addr": hex(self.snk_sym_addr),
+            "snk_sym_name": self.snk_sym_name,
             "snk_par_idx": self.snk_par_idx,
             "insts": insts,
             "call_graph": self.call_graph.to_dict(),
@@ -668,7 +692,7 @@ class Path:
         }
 
     @classmethod
-    def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Path | None:
+    def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Optional[Path]:
         # Deserialize instructions
         insts: List[bn.MediumLevelILInstruction] = []
         for func_addr, expr_idx in d["insts"]:
@@ -677,17 +701,18 @@ class Path:
             insts.append(inst)
         # Deserialize parameter variables
         src_par_idx = d["src_par_idx"]
-        snk_par_idx = d["snk_par_idx"]
         src_par_var = insts[-1].params[src_par_idx - 1]
+        snk_par_idx = d["snk_par_idx"]
         snk_par_var = insts[0].params[snk_par_idx - 1]
         path = cls(
             src_sym_addr=int(d["src_sym_addr"], 0),
-            snk_sym_addr=int(d["snk_sym_addr"], 0),
             src_sym_name=d["src_sym_name"],
-            snk_sym_name=d["snk_sym_name"],
             src_par_idx=src_par_idx,
-            snk_par_idx=snk_par_idx,
             src_par_var=src_par_var,
+            src_inst_idx=d["src_inst_idx"],
+            snk_sym_addr=int(d["snk_sym_addr"], 0),
+            snk_sym_name=d["snk_sym_name"],
+            snk_par_idx=snk_par_idx,
             snk_par_var=snk_par_var,
             insts=insts,
             call_graph=MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"]),

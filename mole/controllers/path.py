@@ -460,18 +460,24 @@ class PathController:
         log.info(tag, msg)
         if reverse:
             log.debug(tag, "--- Forward  Slice ---")
+            src_inst_idx = len(path.insts) - path.src_inst_idx
             insts = reversed(path.insts)
         else:
             log.debug(tag, "--- Backward Slice ---")
+            src_inst_idx = path.src_inst_idx
             insts = path.insts
         basic_block = None
         for i, inst in enumerate(insts):
+            if (not reverse and i < src_inst_idx) or (reverse and i >= src_inst_idx):
+                custom_tag = f"{tag:s}.snk"
+            else:
+                custom_tag = f"{tag:s}.src"
             if inst.il_basic_block != basic_block:
                 basic_block = inst.il_basic_block
                 fun_name = basic_block.function.name
                 bb_addr = basic_block[0].address
-                log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
-            log.debug(tag, InstructionHelper.get_inst_info(inst))
+                log.debug(custom_tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+            log.debug(custom_tag, InstructionHelper.get_inst_info(inst))
         log.debug(tag, "----------------------")
         log.debug(tag, msg)
         return

@@ -56,6 +56,20 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
         super().add_edge(from_inst, to_inst, **attr)
         return
 
+    def reverse(self) -> MediumLevelILInstructionGraph:
+        """
+        This method returns a copy of the graph with the directions of edges reversed. All node and
+        edge attributes are preserved.
+        """
+        reversed_graph = MediumLevelILInstructionGraph()
+        for from_node, to_node, edge_attrs in self.edges(data=True):
+            from_node_attrs = self.nodes[from_node]
+            to_node_attrs = self.nodes[to_node]
+            reversed_graph.add_node(from_node, **from_node_attrs)
+            reversed_graph.add_node(to_node, **to_node_attrs)
+            reversed_graph.add_edge(to_node, from_node, **edge_attrs)
+        return reversed_graph
+
 
 class MediumLevelILFunctionGraph(nx.DiGraph):
     """
@@ -99,13 +113,19 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         super().add_edge(from_call_site, to_call_site, **attr)
         return
 
-    def copy(self) -> MediumLevelILFunctionGraph:
+    def reverse(self) -> MediumLevelILFunctionGraph:
         """
-        This method returns a copy of the graph.
+        This method returns a copy of the graph with the directions of edges reversed. All node and
+        edge attributes are preserved.
         """
-        call_graph = MediumLevelILFunctionGraph()
-        call_graph.update(self)
-        return call_graph
+        reversed_graph = MediumLevelILFunctionGraph()
+        for from_node, to_node, edge_attrs in self.edges(data=True):
+            from_node_attrs = self.nodes[from_node]
+            to_node_attrs = self.nodes[to_node]
+            reversed_graph.add_node(from_node, **from_node_attrs)
+            reversed_graph.add_node(to_node, **to_node_attrs)
+            reversed_graph.add_edge(to_node, from_node, **edge_attrs)
+        return reversed_graph
 
     def to_dict(self) -> Dict:
         """
@@ -165,6 +185,11 @@ class MediumLevelILBackwardSlicer:
         """
         self._bv: bn.BinaryView = bv
         self._tag = custom_tag if custom_tag else tag
+        self._origin = None
+        if "src" in self._tag.lower():
+            self._origin = "src"
+        elif "snk" in self._tag.lower():
+            self._origin = "snk"
         self._max_call_level: int = max_call_level
         self._inst_visited: Set[bn.MediumLevelILInstruction] = set()
         self.inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
@@ -189,8 +214,10 @@ class MediumLevelILBackwardSlicer:
         # Try finding the definition withing the current function
         inst_def = inst.function.get_ssa_var_definition(ssa_var)
         if inst_def:
-            self.inst_graph.add_node(inst, call_level, caller_site)
-            self.inst_graph.add_node(inst_def, call_level, caller_site)
+            self.inst_graph.add_node(inst, call_level, caller_site, origin=self._origin)
+            self.inst_graph.add_node(
+                inst_def, call_level, caller_site, origin=self._origin
+            )
             self.inst_graph.add_edge(inst, inst_def)
             self._slice_backwards(inst_def, call_level, caller_site)
             return
@@ -219,8 +246,12 @@ class MediumLevelILBackwardSlicer:
                         self._tag,
                         f"Follow parameter '{var_info:s}' to caller '{cs_info:s}'",
                     )
-                    self.inst_graph.add_node(inst, call_level, caller_site)
-                    self.inst_graph.add_node(cs_parm, call_level - 1, inst.function)
+                    self.inst_graph.add_node(
+                        inst, call_level, caller_site, origin=self._origin
+                    )
+                    self.inst_graph.add_node(
+                        cs_parm, call_level - 1, inst.function, origin=self._origin
+                    )
                     self.inst_graph.add_edge(inst, cs_parm)
                     self.call_graph.add_node(cs_inst.function, call_level - 1)
                     self.call_graph.add_node(inst.function, call_level)
@@ -288,10 +319,16 @@ class MediumLevelILBackwardSlicer:
                                             f"Follow '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'",
                                         )
                                         self.inst_graph.add_node(
-                                            inst, call_level, caller_site
+                                            inst,
+                                            call_level,
+                                            caller_site,
+                                            origin=self._origin,
                                         )
                                         self.inst_graph.add_node(
-                                            mem_def_inst, call_level, caller_site
+                                            mem_def_inst,
+                                            call_level,
+                                            caller_site,
+                                            origin=self._origin,
                                         )
                                         self.inst_graph.add_edge(inst, mem_def_inst)
                                         self._slice_backwards(
@@ -341,9 +378,14 @@ class MediumLevelILBackwardSlicer:
                                     self._tag,
                                     f"Follow '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'",
                                 )
-                                self.inst_graph.add_node(inst, call_level, caller_site)
                                 self.inst_graph.add_node(
-                                    mem_def_inst, call_level, caller_site
+                                    inst, call_level, caller_site, origin=self._origin
+                                )
+                                self.inst_graph.add_node(
+                                    mem_def_inst,
+                                    call_level,
+                                    caller_site,
+                                    origin=self._origin,
                                 )
                                 self.inst_graph.add_edge(inst, mem_def_inst)
                                 self._slice_backwards(
@@ -371,8 +413,12 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILFneg()
                 | bn.MediumLevelILFloatConv()
             ):
-                self.inst_graph.add_node(inst, call_level, caller_site)
-                self.inst_graph.add_node(inst.src, call_level, caller_site)
+                self.inst_graph.add_node(
+                    inst, call_level, caller_site, origin=self._origin
+                )
+                self.inst_graph.add_node(
+                    inst.src, call_level, caller_site, origin=self._origin
+                )
                 self.inst_graph.add_edge(inst, inst.src)
                 self._slice_backwards(inst.src, call_level, caller_site)
             case (
@@ -400,18 +446,30 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILFdiv()
                 | bn.MediumLevelILCmpUlt()
             ):
-                self.inst_graph.add_node(inst, call_level, caller_site)
-                self.inst_graph.add_node(inst.left, call_level, caller_site)
+                self.inst_graph.add_node(
+                    inst, call_level, caller_site, origin=self._origin
+                )
+                self.inst_graph.add_node(
+                    inst.left, call_level, caller_site, origin=self._origin
+                )
                 self.inst_graph.add_edge(inst, inst.left)
                 self._slice_backwards(inst.left, call_level, caller_site)
-                self.inst_graph.add_node(inst, call_level, caller_site)
-                self.inst_graph.add_node(inst.right, call_level, caller_site)
+                self.inst_graph.add_node(
+                    inst, call_level, caller_site, origin=self._origin
+                )
+                self.inst_graph.add_node(
+                    inst.right, call_level, caller_site, origin=self._origin
+                )
                 self.inst_graph.add_edge(inst, inst.right)
                 self._slice_backwards(inst.right, call_level, caller_site)
             case bn.MediumLevelILRet():
                 for ret in inst.src:
-                    self.inst_graph.add_node(inst, call_level, caller_site)
-                    self.inst_graph.add_node(ret, call_level, caller_site)
+                    self.inst_graph.add_node(
+                        inst, call_level, caller_site, origin=self._origin
+                    )
+                    self.inst_graph.add_node(
+                        ret, call_level, caller_site, origin=self._origin
+                    )
                     self.inst_graph.add_edge(inst, ret)
                     self._slice_backwards(ret, call_level, caller_site)
             case (
@@ -421,8 +479,12 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILSetVarSsaField()
                 | bn.MediumLevelILSetVarSplitSsa()
             ):
-                self.inst_graph.add_node(inst, call_level, caller_site)
-                self.inst_graph.add_node(inst.src, call_level, caller_site)
+                self.inst_graph.add_node(
+                    inst, call_level, caller_site, origin=self._origin
+                )
+                self.inst_graph.add_node(
+                    inst.src, call_level, caller_site, origin=self._origin
+                )
                 self.inst_graph.add_edge(inst, inst.src)
                 self._slice_backwards(inst.src, call_level, caller_site)
             case bn.MediumLevelILVarSplitSsa():
@@ -463,10 +525,16 @@ class MediumLevelILBackwardSlicer:
                                                 f"Follow return instruction '{ret_info:s}' of function '{call_info:s}'",
                                             )
                                             self.inst_graph.add_node(
-                                                inst, call_level, caller_site
+                                                inst,
+                                                call_level,
+                                                caller_site,
+                                                origin=self._origin,
                                             )
                                             self.inst_graph.add_node(
-                                                func_inst, call_level + 1, inst.function
+                                                func_inst,
+                                                call_level + 1,
+                                                inst.function,
+                                                origin=self._origin,
                                             )
                                             self.inst_graph.add_edge(inst, func_inst)
                                             self.call_graph.add_node(
@@ -497,10 +565,16 @@ class MediumLevelILBackwardSlicer:
                                                     f"Follow parameter {par_idx:d} '{par_info:s}' of imported function '{call_info:s}'",
                                                 )
                                                 self.inst_graph.add_node(
-                                                    inst, call_level, caller_site
+                                                    inst,
+                                                    call_level,
+                                                    caller_site,
+                                                    origin=self._origin,
                                                 )
                                                 self.inst_graph.add_node(
-                                                    par, call_level, caller_site
+                                                    par,
+                                                    call_level,
+                                                    caller_site,
+                                                    origin=self._origin,
                                                 )
                                                 self.inst_graph.add_edge(inst, par)
                                                 self._slice_backwards(
@@ -522,8 +596,12 @@ class MediumLevelILBackwardSlicer:
                                 self._tag,
                                 f"Follow parameter {par_idx:d} '{par_info:s}' of indirect function call '{call_info:s}'",
                             )
-                            self.inst_graph.add_node(inst, call_level, caller_site)
-                            self.inst_graph.add_node(par, call_level, caller_site)
+                            self.inst_graph.add_node(
+                                inst, call_level, caller_site, origin=self._origin
+                            )
+                            self.inst_graph.add_node(
+                                par, call_level, caller_site, origin=self._origin
+                            )
                             self.inst_graph.add_edge(inst, par)
                             self._slice_backwards(par, call_level, caller_site)
                     case _:
@@ -533,8 +611,12 @@ class MediumLevelILBackwardSlicer:
                         )
             case bn.MediumLevelILSyscallSsa():
                 for par in inst.params:
-                    self.inst_graph.add_node(inst, call_level, caller_site)
-                    self.inst_graph.add_node(par, call_level, caller_site)
+                    self.inst_graph.add_node(
+                        inst, call_level, caller_site, origin=self._origin
+                    )
+                    self.inst_graph.add_node(
+                        par, call_level, caller_site, origin=self._origin
+                    )
                     self.inst_graph.add_edge(inst, par)
                     self._slice_backwards(par, call_level, caller_site)
             case _:
