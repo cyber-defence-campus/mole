@@ -619,12 +619,22 @@ class PathController:
         highlighted_path = path
         insts_colors = {}
         try:
-            setting = self.config_ctr.get_setting("highlight_color")
+            setting = self.config_ctr.get_setting("src_highlight_color")
             color_name = setting.widget.currentText().capitalize()
-            color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
+            src_color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
         except Exception as _:
-            color = bn.HighlightStandardColor.RedHighlightColor
-        for inst in path.insts:
+            src_color = bn.HighlightStandardColor.RedHighlightColor
+        try:
+            setting = self.config_ctr.get_setting("snk_highlight_color")
+            color_name = setting.widget.currentText().capitalize()
+            snk_color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
+        except Exception as _:
+            snk_color = bn.HighlightStandardColor.RedHighlightColor
+        for i, inst in enumerate(path.insts):
+            if i < path.src_inst_idx:
+                color = snk_color
+            else:
+                color = src_color
             func = inst.function.source_function
             addr = inst.address
             if addr not in insts_colors:

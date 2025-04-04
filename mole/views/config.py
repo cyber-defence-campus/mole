@@ -147,7 +147,7 @@ class ConfigView(qtw.QWidget):
         pth_wid = qtw.QWidget()
         pth_lay = qtw.QFormLayout()
 
-        for name in ["highlight_color", "path_grouping"]:
+        for name in ["src_highlight_color", "snk_highlight_color", "path_grouping"]:
             setting: ComboboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue

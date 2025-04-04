@@ -79,8 +79,8 @@ class TestData(unittest.TestCase):
                     max_value=9999,
                     help="maximum slice depth to stop the search",
                 ),
-                "highlight_color": ComboboxSetting(
-                    name="highlight_color",
+                "src_highlight_color": ComboboxSetting(
+                    name="src_highlight_color",
                     value="Red",
                     items=[
                         "Blue",
@@ -93,7 +93,23 @@ class TestData(unittest.TestCase):
                         "White",
                         "Black",
                     ],
-                    help="color used to highlight paths",
+                    help="color used to highlight instructions originating from slicing a source function",
+                ),
+                "snk_highlight_color": ComboboxSetting(
+                    name="snk_highlight_color",
+                    value="Red",
+                    items=[
+                        "Blue",
+                        "Green",
+                        "Cyan",
+                        "Red",
+                        "Magenta",
+                        "Yellow",
+                        "Orange",
+                        "White",
+                        "Black",
+                    ],
+                    help="color used to highlight instructions originating from slicing a sink function",
                 ),
             },
         )
@@ -217,21 +233,22 @@ class TestData(unittest.TestCase):
         return
 
     def test_serialize_combobox_settings(self) -> None:
-        setting = self.config.settings["highlight_color"]
-        # Serialize
-        yaml.safe_dump(
-            setting.to_dict(),
-            self.tf,
-            sort_keys=False,
-            default_style=None,
-            default_flow_style=None,
-            encoding="utf-8",
-        )
-        # Deserialize
-        self.tf.seek(0)
-        ydoc = yaml.safe_load(self.tf)
-        # Assert
-        self.assertEqual(ydoc, setting, "Serialization error of 'ComboboxSetting'")
+        for name in ["src_highlight_color", "snk_highlight_color"]:
+            setting = self.config.settings.get(name, None)
+            # Serialize
+            yaml.safe_dump(
+                setting.to_dict(),
+                self.tf,
+                sort_keys=False,
+                default_style=None,
+                default_flow_style=None,
+                encoding="utf-8",
+            )
+            # Deserialize
+            self.tf.seek(0)
+            ydoc = yaml.safe_load(self.tf)
+            # Assert
+            self.assertEqual(ydoc, setting, "Serialization error of 'ComboboxSetting'")
         return
 
     def tearDown(self) -> None:
