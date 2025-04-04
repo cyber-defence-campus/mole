@@ -469,9 +469,9 @@ class PathController:
         basic_block = None
         for i, inst in enumerate(insts):
             if (not reverse and i < src_inst_idx) or (reverse and i >= src_inst_idx):
-                custom_tag = f"{tag:s}.snk"
+                custom_tag = f"{tag}] [Snk"
             else:
-                custom_tag = f"{tag:s}.src"
+                custom_tag = f"{tag}] [Src"
             if inst.il_basic_block != basic_block:
                 basic_block = inst.il_basic_block
                 fun_name = basic_block.function.name
@@ -499,17 +499,27 @@ class PathController:
         if not path_0:
             return
         path_0_id = path_ids[0]
-        path_0_insts = [
-            InstructionHelper.get_inst_info(inst, False) for inst in path_0.insts
-        ]
+        path_0_insts = []
+        for i, inst in enumerate(path_0.insts):
+            if i < path_0.src_inst_idx:
+                ori = "[Snk]"
+            else:
+                ori = "[Src]"
+            info = InstructionHelper.get_inst_info(inst, False)
+            path_0_insts.append(f"{ori:s} {info}")
         # Get instructions of path 1
         path_1 = self.path_tree_view.get_path(path_ids[1])
         if not path_1:
             return
         path_1_id = path_ids[1]
-        path_1_insts = [
-            InstructionHelper.get_inst_info(inst, False) for inst in path_1.insts
-        ]
+        path_1_insts = []
+        for i, inst in enumerate(path_1.insts):
+            if i < path_1.src_inst_idx:
+                ori = "[Snk]"
+            else:
+                ori = "[Src]"
+            info = InstructionHelper.get_inst_info(inst, False)
+            path_1_insts.append(f"{ori:s} {info}")
         # Get terminal width and calculate column width
         ter_width = shu.get_terminal_size().columns
         col_width = ter_width // 2 - 2
