@@ -62,11 +62,9 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
         edge attributes are preserved.
         """
         reversed_graph = MediumLevelILInstructionGraph()
+        for node, attrs in self.nodes(data=True):
+            reversed_graph.add_node(node, **attrs)
         for from_node, to_node, edge_attrs in self.edges(data=True):
-            from_node_attrs = self.nodes[from_node]
-            to_node_attrs = self.nodes[to_node]
-            reversed_graph.add_node(from_node, **from_node_attrs)
-            reversed_graph.add_node(to_node, **to_node_attrs)
             reversed_graph.add_edge(to_node, from_node, **edge_attrs)
         return reversed_graph
 
@@ -113,19 +111,13 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         super().add_edge(from_call_site, to_call_site, **attr)
         return
 
-    def reverse(self) -> MediumLevelILFunctionGraph:
+    def copy(self) -> MediumLevelILFunctionGraph:
         """
-        This method returns a copy of the graph with the directions of edges reversed. All node and
-        edge attributes are preserved.
+        This method returns a copy of the graph.
         """
-        reversed_graph = MediumLevelILFunctionGraph()
-        for from_node, to_node, edge_attrs in self.edges(data=True):
-            from_node_attrs = self.nodes[from_node]
-            to_node_attrs = self.nodes[to_node]
-            reversed_graph.add_node(from_node, **from_node_attrs)
-            reversed_graph.add_node(to_node, **to_node_attrs)
-            reversed_graph.add_edge(to_node, from_node, **edge_attrs)
-        return reversed_graph
+        graph = MediumLevelILFunctionGraph()
+        graph.update(self)
+        return graph
 
     def to_dict(self) -> Dict:
         """

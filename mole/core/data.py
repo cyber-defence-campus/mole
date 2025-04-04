@@ -188,7 +188,6 @@ class SourceFunction(Function):
         Dict[
             Tuple[int, bn.MediumLevelILInstruction],  # src_par_idx, src_par_var
             MediumLevelILInstructionGraph,  # src_inst_graph
-            MediumLevelILFunctionGraph,  # src_call_graph
         ],
     ] = field(default_factory=dict)
 
@@ -288,14 +287,10 @@ class SourceFunction(Function):
                     # Perform backward slicing of the parameter
                     if self.par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
-                    # Reverse all edges of the instruction and call graphs
+                    # Reverse all edges of the instruction graph
                     src_inst_graph = src_slicer.inst_graph.reverse()
-                    src_call_graph = src_slicer.call_graph.reverse()
                     # Store the instruction graph
-                    src_par_map[(src_par_idx, src_par_var)] = (
-                        src_inst_graph,
-                        src_call_graph,
-                    )
+                    src_par_map[(src_par_idx, src_par_var)] = src_inst_graph
         return
 
 
@@ -425,19 +420,15 @@ class SinkFunction(Function):
                                     break
                                 # Iterate source instruction's parameters
                                 for (src_par_idx, src_par_var), (
-                                    src_inst_graph,
-                                    src_call_graph,
+                                    src_inst_graph
                                 ) in src_par_map.items():
                                     if canceled():
                                         break
-                                    # Merge instruction and call graphs
+                                    # Merge instruction graphs
                                     inst_graph: MediumLevelILInstructionGraph = (
                                         nx.compose(
                                             src_inst_graph, snk_slicer.inst_graph
                                         )
-                                    )
-                                    call_graph: MediumLevelILFunctionGraph = nx.compose(
-                                        src_call_graph, snk_slicer.call_graph
                                     )
                                     # Find all simple paths in the merged instruction graph
                                     simple_paths: List[
@@ -466,6 +457,24 @@ class SinkFunction(Function):
                                             if origin == "snk":
                                                 break
                                             src_inst_idx -= 1
+                                        # Copy the call graph
+                                        call_graph = snk_slicer.call_graph.copy()
+                                        # Add attribute `in_path = False` to all nodes
+                                        for node in call_graph.nodes():
+                                            call_graph.nodes[node]["in_path"] = False
+                                        # Change attribute to `in_path = True` where functions are part of the path
+                                        for inst in simple_path:
+                                            func = inst.function
+                                            if func in call_graph:
+                                                call_graph.nodes[func]["in_path"] = True
+                                        # Add attribute `in_path` to edges where both nodes have `in_path = True`
+                                        for from_node, to_node in call_graph.edges():
+                                            call_graph[from_node][to_node][
+                                                "in_path"
+                                            ] = (
+                                                call_graph.nodes[from_node]["in_path"]
+                                                and call_graph.nodes[to_node]["in_path"]
+                                            )
                                         # Create path
                                         path = Path(
                                             src_sym_addr=src_sym_addr,
