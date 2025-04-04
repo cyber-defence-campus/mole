@@ -658,19 +658,23 @@ class Path:
             except Exception as _:
                 return False
         return (
+            # Equal source
             self.src_sym_addr == other.src_sym_addr
             and self.src_sym_name == other.src_sym_name
             and self.src_par_idx == other.src_par_idx
             and self.src_par_var == other.src_par_var
-            and self.src_inst_idx == other.src_inst_idx
+            # Equal sink
             and self.snk_sym_addr == other.snk_sym_addr
             and self.snk_sym_name == other.snk_sym_name
             and self.snk_par_idx == other.snk_par_idx
             and self.snk_par_var == other.snk_par_var
-            # Ignore all instructions originating from slicing the source, but the source call itself
+            # Equal instructions (ignoring the ones originating from slicing the source, only
+            # considering the source's call instruction)
+            and self.src_inst_idx == other.src_inst_idx
             and self.insts[: self.src_inst_idx - 1]
             == other.insts[: self.src_inst_idx - 1]
             and self.insts[-1] == other.insts[-1]
+            # Equal binary
             and self.sha1_hash == other.sha1_hash
         )
 
