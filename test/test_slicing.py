@@ -69,8 +69,16 @@ class TestVarious(TestCase):
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
             self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction",
+                (
+                    isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                    or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                ),
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "source argument is a MLIL variable",
             )
             self.assertIn(path.snk_sym_name, ["gets"], "sink has symbol 'gets'")
             self.assertTrue(
@@ -83,7 +91,7 @@ class TestVarious(TestCase):
             self.assertEqual(path.snk_par_idx, 1, "arg1")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable",
+                "sink argument is a MLIL variable",
             )
             calls = [call[1] for call in path.calls]
             self.assertEqual(calls, ["main"], "calls")
@@ -106,8 +114,16 @@ class TestVarious(TestCase):
                 )
                 self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertTrue(
                     path.snk_sym_name in ["gets", "memcpy"],
@@ -139,8 +155,16 @@ class TestVarious(TestCase):
                     path.src_sym_name, ["getenv"], "source has symbol 'getenv'"
                 )
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertIn(
                     path.snk_sym_name,
@@ -157,7 +181,7 @@ class TestVarious(TestCase):
                 self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                    "argument is a MLIL variable",
+                    "sink argument is a MLIL variable",
                 )
                 calls = [call[1] for call in path.calls]
                 self.assertEqual(calls, ["main"], "calls")
@@ -177,8 +201,16 @@ class TestVarious(TestCase):
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction",
+                (
+                    isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                    or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                ),
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "source argument is a MLIL variable",
             )
             self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
@@ -191,7 +223,7 @@ class TestVarious(TestCase):
             self.assertEqual(path.snk_par_idx, 3, "arg3")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable",
+                "sink argument is a MLIL variable",
             )
             calls = [call[1] for call in path.calls]
             self.assertEqual(calls, ["main"], "calls")
@@ -215,8 +247,16 @@ class TestVarious(TestCase):
                     path.src_sym_name, ["getenv"], "source has symbol 'getenv'"
                 )
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
                 self.assertTrue(
@@ -229,7 +269,7 @@ class TestVarious(TestCase):
                 self.assertTrue(path.snk_par_idx in [2, 3], "arg2 or arg3")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                    "argument is a MLIL variable",
+                    "sink argument is a MLIL variable",
                 )
                 calls = [call[1] for call in path.calls]
                 self.assertEqual(calls, ["main"], "calls")
@@ -249,8 +289,16 @@ class TestVarious(TestCase):
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction",
+                (
+                    isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                    or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                ),
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "source argument is a MLIL variable",
             )
             self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
@@ -263,7 +311,7 @@ class TestVarious(TestCase):
             self.assertEqual(path.snk_par_idx, 1, "arg1")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable",
+                "sink argument is a MLIL variable",
             )
             calls = [call[1] for call in path.calls]
             self.assertEqual(calls, ["main"], "calls")
@@ -283,8 +331,16 @@ class TestVarious(TestCase):
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction",
+                (
+                    isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                    or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                ),
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "source argument is a MLIL variable",
             )
             self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
@@ -297,7 +353,7 @@ class TestVarious(TestCase):
             self.assertEqual(path.snk_par_idx, 3, "arg3")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable",
+                "sink argument is a MLIL variable",
             )
             calls = [call[1] for call in path.calls]
             self.assertEqual(calls, ["main", "my_getenv"], "calls")
@@ -321,8 +377,16 @@ class TestVarious(TestCase):
                     path.src_sym_name, ["getenv"], "source has symbol 'getenv'"
                 )
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
                 self.assertTrue(
@@ -335,7 +399,7 @@ class TestVarious(TestCase):
                 self.assertTrue(path.snk_par_idx in [2, 3], "arg2 or arg3")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                    "argument is a MLIL variable",
+                    "sink argument is a MLIL variable",
                 )
                 calls = [call[1] for call in path.calls]
                 self.assertEqual(calls, ["main", "my_getenv"], "calls")
@@ -392,8 +456,16 @@ class TestFunctionCalling(TestCase):
                     path.src_sym_name, ["getenv"], "source has symbol 'getenv'"
                 )
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
                 self.assertTrue(
@@ -406,7 +478,7 @@ class TestFunctionCalling(TestCase):
                 self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                    "argument is a MLIL variable",
+                    "sink argument is a MLIL variable",
                 )
                 calls = [call[1] for call in path.calls]
                 self.assertTrue("system_1b" not in calls, "system_1b not called")
@@ -434,8 +506,16 @@ class TestFunctionCalling(TestCase):
                     path.src_sym_name, ["getenv"], "source has symbol 'getenv'"
                 )
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
                 self.assertTrue(
@@ -448,7 +528,7 @@ class TestFunctionCalling(TestCase):
                 self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                    "argument is a MLIL variable",
+                    "sink argument is a MLIL variable",
                 )
                 calls = [call[1] for call in path.calls]
                 call_paths.append(calls)
@@ -488,8 +568,16 @@ class TestFunctionCalling(TestCase):
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction",
+                (
+                    isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                    or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                ),
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "source argument is a MLIL variable",
             )
             self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
             self.assertTrue(
@@ -502,7 +590,7 @@ class TestFunctionCalling(TestCase):
             self.assertEqual(path.snk_par_idx, 1, "arg1")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable",
+                "sink argument is a MLIL variable",
             )
             calls = [call[1] for call in path.calls]
             self.assertEqual(calls, ["main", "func", "main"], "calls")
@@ -550,8 +638,16 @@ class TestPointerAnalysis(TestCase):
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction",
+                (
+                    isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                    or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                ),
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "source argument is a MLIL variable",
             )
             self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
             self.assertTrue(
@@ -564,7 +660,7 @@ class TestPointerAnalysis(TestCase):
             self.assertEqual(path.snk_par_idx, 1, "arg1")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable",
+                "sink argument is a MLIL variable",
             )
             calls = [call[1] for call in path.calls]
             self.assertEqual(calls, ["main"], "calls")
@@ -600,8 +696,16 @@ class TestPointerAnalysis(TestCase):
                     path.src_sym_name, ["getenv"], "source has symbol 'getenv'"
                 )
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
                 self.assertTrue(
@@ -646,8 +750,16 @@ class TestPointerAnalysis(TestCase):
                     path.src_sym_name, ["getenv"], "source has symbol 'getenv'"
                 )
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
                 self.assertTrue(
@@ -674,8 +786,16 @@ class TestPointerAnalysis(TestCase):
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
             self.assertTrue(
-                isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                "source is a MLIL instruction",
+                (
+                    isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                    or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                ),
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "source argument is a MLIL variable",
             )
             self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'system'")
             self.assertTrue(
@@ -688,7 +808,7 @@ class TestPointerAnalysis(TestCase):
             self.assertEqual(path.snk_par_idx, 2, "arg2")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                "argument is a MLIL variable",
+                "sink argument is a MLIL variable",
             )
             calls = [call[1] for call in path.calls]
             self.assertEqual(calls, ["main", "my_getenv"], "calls")
@@ -730,8 +850,16 @@ class TestSimpleServer(TestCase):
                 )
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 2, "arg2")
+                self.assertTrue(
+                    isinstance(path.src_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
                 self.assertTrue(
@@ -744,7 +872,7 @@ class TestSimpleServer(TestCase):
                 self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                    "argument is a MLIL variable",
+                    "sink argument is a MLIL variable",
                 )
                 calls = [call[1] for call in path.calls]
                 call_paths.append(calls)
@@ -773,8 +901,16 @@ class TestSimpleServer(TestCase):
                 )
                 self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
                 self.assertTrue(
-                    isinstance(path.insts[-1], bn.MediumLevelILInstruction),
-                    "source is a MLIL instruction",
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 2, "arg2")
+                self.assertTrue(
+                    isinstance(path.src_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
                 )
                 self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
                 self.assertTrue(
@@ -787,7 +923,7 @@ class TestSimpleServer(TestCase):
                 self.assertEqual(path.snk_par_idx, 1, "arg1")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
-                    "argument is a MLIL variable",
+                    "sink argument is a MLIL variable",
                 )
                 calls = [call[1] for call in path.calls]
                 call_paths.append(calls)
@@ -799,6 +935,141 @@ class TestSimpleServer(TestCase):
                 ],
                 "calls",
             )
+            bv.file.close()
+        return
+
+    def test_simple_http_server_03(
+        self, filenames: List[str] = ["simple_http_server-03"]
+    ) -> None:
+        for file in TestCase.load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.get_paths(bv)
+            # Assert results
+            self.assertTrue(len(paths) == 4, "4 paths identified")
+            call_paths = []
+            for path in paths:
+                self.assertEqual(
+                    path, Path.from_dict(bv, path.to_dict()), "serialization"
+                )
+                self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
+                self.assertTrue(
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 2, "arg2")
+                self.assertTrue(
+                    isinstance(path.src_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
+                )
+                self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
+                self.assertTrue(
+                    (
+                        isinstance(path.insts[0], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "sink is a MLIL call instruction",
+                )
+                self.assertEqual(path.snk_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "sink argument is a MLIL variable",
+                )
+                calls = [call[1] for call in path.calls]
+                call_paths.append(calls)
+            self.assertCountEqual(
+                call_paths,
+                [
+                    [
+                        "execute_cgi_command",
+                        "wrap_and_execute",
+                        "process_request",
+                        "handle_get_request",
+                        "receive_data",
+                    ],
+                    [
+                        "execute_cgi_command",
+                        "wrap_and_execute",
+                        "process_request",
+                        "handle_post_request",
+                        "receive_data",
+                    ],
+                    [
+                        "execute_cgi_command",
+                        "wrap_and_execute",
+                        "process_request",
+                        "handle_put_request",
+                        "receive_data",
+                    ],
+                    [
+                        "execute_cgi_command",
+                        "wrap_and_execute",
+                        "process_request",
+                        "handle_delete_request",
+                        "receive_data",
+                    ],
+                ],
+                "calls",
+            )
+            bv.file.close()
+        return
+
+    def test_simple_http_server_04(
+        self, filenames: List[str] = ["simple_http_server-04"]
+    ) -> None:
+        for file in TestCase.load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.get_paths(bv)
+            # Assert results
+            self.assertTrue(len(paths) >= 1, "at least 1 path identified")
+            for path in paths:
+                self.assertEqual(
+                    path, Path.from_dict(bv, path.to_dict()), "serialization"
+                )
+                self.assertIn(path.src_sym_name, ["recv"], "source has symbol 'recv'")
+                self.assertTrue(
+                    (
+                        isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, 2, "arg2")
+                self.assertTrue(
+                    isinstance(path.src_par_var, bn.MediumLevelILVarSsa),
+                    "source argument is a MLIL variable",
+                )
+                self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
+                self.assertTrue(
+                    (
+                        isinstance(path.insts[0], bn.MediumLevelILCallSsa)
+                        or isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                    ),
+                    "sink is a MLIL call instruction",
+                )
+                self.assertEqual(path.snk_par_idx, 1, "arg1")
+                self.assertTrue(
+                    isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                    "sink argument is a MLIL variable",
+                )
+                calls = [call[1] for call in path.calls]
+                self.assertEqual(
+                    calls,
+                    [
+                        "execute_cgi_command",
+                        "process_post_request",
+                        "handle_post_request",
+                        "receive_data",
+                    ],
+                )
             bv.file.close()
         return
 
