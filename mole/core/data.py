@@ -287,11 +287,8 @@ class SourceFunction(Function):
                     # Perform backward slicing of the parameter
                     if self.par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
-                    # TODO: Can we do it without reversing?
-                    # Reverse all edges of the instruction graph
-                    src_inst_graph = src_slicer.inst_graph.reverse()
                     # Store the instruction graph
-                    src_par_map[(src_par_idx, src_par_var)] = src_inst_graph
+                    src_par_map[(src_par_idx, src_par_var)] = src_slicer.inst_graph
         return
 
 
@@ -427,9 +424,9 @@ class SinkFunction(Function):
                                 ) in src_par_map.items():
                                     if canceled():
                                         break
-                                    # Iterate source instructions (order of slicing)
+                                    # Iterate source instructions (order of backward slicing)
                                     for src_inst in src_inst_graph.nodes():
-                                        # Ignore source instructions that are not in the sink graph
+                                        # Ignore source instructions that were not sliced in the sink
                                         if src_inst not in snk_inst_graph:
                                             continue
                                         # Adjust negative `max_slice_depth` values
@@ -458,42 +455,17 @@ class SinkFunction(Function):
                                         src_path: List[bn.MediumLevelILInstruction] = []
                                         try:
                                             src_path = nx.shortest_path(
-                                                src_inst_graph, src_inst, src_call_inst
+                                                src_inst_graph, src_call_inst, src_inst
                                             )
                                         except (nx.NodeNotFound, nx.NetworkXNoPath):
                                             # Go to the next source instruction if no path found
                                             continue
+                                        # Reverse the source path so it can be appended to the sink path
+                                        src_path = list(reversed(src_path))
                                         # Iterate found paths
                                         for snk_path in snk_paths:
                                             # Copy the call graph
                                             call_graph = snk_call_graph.copy()
-                                            # Add attribute `in_path = False` to all nodes
-                                            for node in call_graph.nodes():
-                                                call_graph.nodes[node]["in_path"] = (
-                                                    False
-                                                )
-                                            # Change attribute to `in_path = True` where functions are part of the path
-                                            for inst in snk_path:
-                                                func = inst.function
-                                                if func in call_graph:
-                                                    call_graph.nodes[func][
-                                                        "in_path"
-                                                    ] = True
-                                            # Add attribute `in_path` to edges where both nodes have `in_path = True`
-                                            for (
-                                                from_node,
-                                                to_node,
-                                            ) in call_graph.edges():
-                                                call_graph[from_node][to_node][
-                                                    "in_path"
-                                                ] = (
-                                                    call_graph.nodes[from_node][
-                                                        "in_path"
-                                                    ]
-                                                    and call_graph.nodes[to_node][
-                                                        "in_path"
-                                                    ]
-                                                )
                                             # Create path
                                             path = Path(
                                                 src_sym_addr=src_sym_addr,
@@ -513,17 +485,19 @@ class SinkFunction(Function):
                                             # Ignore the path if it has been found before
                                             if path in paths:
                                                 continue
-                                            # Add `in_path` node/edge attributes to call graph
+                                            # Add attribute `in_path = False` to all nodes
                                             for node in path.call_graph.nodes():
                                                 path.call_graph.nodes[node][
                                                     "in_path"
                                                 ] = False
+                                            # Change attribute to `in_path = True` where functions are part of the path
                                             for inst in path.insts:
                                                 func = inst.function
                                                 if func in path.call_graph:
                                                     path.call_graph.nodes[func][
                                                         "in_path"
                                                     ] = True
+                                            # Add attribute `in_path` to edges where both nodes have `in_path = True`
                                             for (
                                                 from_node,
                                                 to_node,
@@ -534,7 +508,7 @@ class SinkFunction(Function):
                                                     path.call_graph.nodes[from_node][
                                                         "in_path"
                                                     ]
-                                                    and path.call_graph.nodes[to_node][
+                                                    and call_graph.nodes[to_node][
                                                         "in_path"
                                                     ]
                                                 )
