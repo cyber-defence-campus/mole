@@ -468,10 +468,11 @@ class PathController:
             insts = path.insts
         basic_block = None
         for i, inst in enumerate(insts):
+            call_level = path.call_graph.nodes[inst.function]["call_level"]
             if (not reverse and i < src_inst_idx) or (reverse and i >= src_inst_idx):
-                custom_tag = f"{tag}] [Snk"
+                custom_tag = f"{tag}] [Snk] [{call_level:+d}"
             else:
-                custom_tag = f"{tag}] [Src"
+                custom_tag = f"{tag}] [Src] [{call_level:+d}"
             if inst.il_basic_block != basic_block:
                 basic_block = inst.il_basic_block
                 fun_name = basic_block.function.name
@@ -501,10 +502,11 @@ class PathController:
         path_0_id = path_ids[0]
         path_0_insts = []
         for i, inst in enumerate(path_0.insts):
+            call_level = path_0.call_graph.nodes[inst.function]["call_level"]
             if i < path_0.src_inst_idx:
-                ori = "[Snk]"
+                ori = f"[Snk] [{call_level:+d}]"
             else:
-                ori = "[Src]"
+                ori = f"[Src] [{call_level:+d}]"
             info = InstructionHelper.get_inst_info(inst, False)
             path_0_insts.append(f"{ori:s} {info}")
         # Get instructions of path 1
@@ -514,10 +516,11 @@ class PathController:
         path_1_id = path_ids[1]
         path_1_insts = []
         for i, inst in enumerate(path_1.insts):
+            call_level = path_1.call_graph.nodes[inst.function]["call_level"]
             if i < path_1.src_inst_idx:
-                ori = "[Snk]"
+                ori = f"[Snk] [{call_level:+d}]"
             else:
-                ori = "[Src]"
+                ori = f"[Src] [{call_level:+d}]"
             info = InstructionHelper.get_inst_info(inst, False)
             path_1_insts.append(f"{ori:s} {info}")
         # Get terminal width and calculate column width
