@@ -373,7 +373,7 @@ class PathTreeView(qtw.QTreeView):
                 if col in [
                     PATH_COLS["Src Addr"],
                     PATH_COLS["Src Func"],
-                    [PATH_COLS["Src Parm"]],
+                    PATH_COLS["Src Parm"],
                 ]:
                     vf.navigate(bv, path.src_sym_addr)
                 # Navigate to sink address
