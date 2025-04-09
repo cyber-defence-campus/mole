@@ -464,9 +464,7 @@ class SinkFunction(Function):
                                         src_path = list(reversed(src_path))
                                         # Iterate found paths
                                         for snk_path in snk_paths:
-                                            # Copy the call graph
-                                            call_graph = snk_call_graph.copy()
-                                            # Create path
+                                            # Create a new path object
                                             path = Path(
                                                 src_sym_addr=src_sym_addr,
                                                 src_sym_name=src_sym_name,
@@ -478,60 +476,20 @@ class SinkFunction(Function):
                                                 snk_par_idx=snk_par_idx,
                                                 snk_par_var=snk_par_var,
                                                 insts=snk_path + src_path[1:],
-                                                call_graph=call_graph,
                                                 comment="",
                                                 sha1_hash=sha1_hash,
                                             )
-                                            # Ignore the path if it has been found before
+                                            # Ignore the path if we found it before
                                             if path in paths:
                                                 continue
-                                            # Add attribute `in_path = False` to all nodes
-                                            for node in path.call_graph.nodes():
-                                                path.call_graph.nodes[node][
-                                                    "in_path"
-                                                ] = False
-                                            # Change attribute to `in_path = True` where functions are part of the path
-                                            for inst in path.insts:
-                                                func = inst.function
-                                                if func in path.call_graph:
-                                                    path.call_graph.nodes[func][
-                                                        "in_path"
-                                                    ] = True
-                                            # Add attribute `in_path` to edges where both nodes have `in_path = True`
-                                            for (
-                                                from_node,
-                                                to_node,
-                                            ) in path.call_graph.edges():
-                                                path.call_graph[from_node][to_node][
-                                                    "in_path"
-                                                ] = (
-                                                    path.call_graph.nodes[from_node][
-                                                        "in_path"
-                                                    ]
-                                                    and call_graph.nodes[to_node][
-                                                        "in_path"
-                                                    ]
-                                                )
-                                            # Add `src` node attribute to call graph
-                                            if (
-                                                src_call_inst.function
-                                                in path.call_graph
-                                            ):
-                                                path.call_graph.nodes[
-                                                    src_call_inst.function
-                                                ][
-                                                    "src"
-                                                ] = f"src: {src_sym_name:s} | {str(src_par_var):s}"
-                                            # Add `snk` node attribute to call graph
-                                            if (
-                                                snk_call_inst.function
-                                                in path.call_graph
-                                            ):
-                                                path.call_graph.nodes[
-                                                    snk_call_inst.function
-                                                ][
-                                                    "snk"
-                                                ] = f"snk: {snk_sym_name:s} | {str(snk_par_var):s}"
+                                            # Fully initialize the path
+                                            path.init(
+                                                src_call_inst.function,
+                                                f"src: {src_sym_name:s} | {str(src_par_var):s}",
+                                                snk_call_inst.function,
+                                                f"snk: {snk_sym_name:s} | {str(snk_par_var):s}",
+                                                snk_call_graph,
+                                            )
                                             # Store the path
                                             paths.append(path)
                                             # Execute callback on a newly found path
@@ -586,6 +544,7 @@ class Path:
     insts: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
+    calls: List[Tuple[int, str, int]] = field(default_factory=list)
     call_graph: MediumLevelILFunctionGraph = field(
         default_factory=MediumLevelILFunctionGraph
     )
@@ -604,9 +563,7 @@ class Path:
         snk_par_idx: int,
         snk_par_var: bn.MediumLevelILInstruction,
         insts: List[bn.MediumLevelILInstruction] = field(default_factory=list),
-        call_graph: MediumLevelILFunctionGraph = field(
-            default_factory=MediumLevelILFunctionGraph
-        ),
+        call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph(),
         comment: str = "",
         sha1_hash: str = "",
     ) -> None:
@@ -623,27 +580,6 @@ class Path:
         self.call_graph = call_graph
         self.comment = comment
         self.sha1_hash = sha1_hash
-        self._init()
-        return
-
-    def _init(self) -> None:
-        self.calls = []
-        self.phiis = []
-        self.bdeps = {}
-        for inst in self.insts:
-            # Function calls
-            func_name = inst.function.source_function.name
-            if len(self.calls) == 0 or self.calls[-1][1] != func_name:
-                call_level = self.call_graph.nodes.get(inst.function, {}).get(
-                    "call_level", 0
-                )
-                self.calls.append((inst.address, func_name, call_level))
-            # Phi-instructions
-            if isinstance(inst, bn.MediumLevelILVarPhi):
-                self.phiis.append(inst)
-            # Branch dependencies
-            for bch_idx, bch_dep in inst.branch_dependence.items():
-                self.bdeps.setdefault(bch_idx, bch_dep)
         return
 
     def __eq__(self, other: Path) -> bool:
@@ -679,6 +615,62 @@ class Path:
         snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
         snk = f"{snk:s}(arg#{self.snk_par_idx:d}:{str(self.snk_par_var):s})"
         return f"{src:s} --> {snk:s}"
+
+    def init(
+        self,
+        src_func: bn.MediumLevelILFunction,
+        src_info: str,
+        snk_func: bn.MediumLevelILFunction,
+        snk_info: str,
+        call_graph: MediumLevelILFunctionGraph,
+    ) -> None:
+        self.phiis = []
+        self.bdeps = {}
+        self.calls = []
+        self.call_graph = MediumLevelILFunctionGraph()
+        # Copy all nodes with added attribute `in_path=False`
+        for node, attrs in call_graph.nodes(data=True):
+            new_attrs = {**attrs, "in_path": False}
+            self.call_graph.add_node(node, **new_attrs)
+        # Change node attribute to `in_path=True` where functions are in the path
+        old_func_name = None
+        for inst in self.insts:
+            # Phi-instructions
+            if isinstance(inst, bn.MediumLevelILVarPhi):
+                self.phiis.append(inst)
+            # Branch dependencies
+            for bch_idx, bch_dep in inst.branch_dependence.items():
+                self.bdeps.setdefault(bch_idx, bch_dep)
+            # Function information
+            func = inst.function
+            func_name = func.source_function.name
+            # Continue if the function does not change
+            if func_name == old_func_name:
+                continue
+            # Function calls
+            call_level = self.call_graph.nodes.get(func, {}).get("call_level", 0)
+            self.calls.append((inst.address, func_name, call_level))
+            # Function calls graph
+            if func in self.call_graph:
+                self.call_graph.nodes[func]["in_path"] = True
+            # Store old function name
+            old_func_name = func_name
+        # Copy all edges with added attribute `in_path` stating whether or not both nodes have
+        # `in_path == True`
+        for node_from, node_to, attrs in call_graph.edges(data=True):
+            in_path = (
+                self.call_graph.nodes[node_from]["in_path"]
+                and self.call_graph.nodes[node_to]["in_path"]
+            )
+            new_attrs = {**attrs, "in_path": in_path}
+            self.call_graph.add_edge(node_from, node_to, **new_attrs)
+        # Add `src` node attribute
+        if src_func in self.call_graph:
+            self.call_graph.nodes[src_func]["src"] = src_info
+        # Add `snk` node attribute
+        if snk_func in self.call_graph:
+            self.call_graph.nodes[snk_func]["snk"] = snk_info
+        return
 
     def to_dict(self) -> Dict:
         # Serialize instructions
