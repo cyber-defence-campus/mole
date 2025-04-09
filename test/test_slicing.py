@@ -797,7 +797,7 @@ class TestPointerAnalysis(TestCase):
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "source argument is a MLIL variable",
             )
-            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'system'")
+            self.assertIn(path.snk_sym_name, ["memcpy"], "sink has symbol 'memcpy'")
             self.assertTrue(
                 (
                     isinstance(path.insts[0], bn.MediumLevelILCallSsa)
@@ -829,6 +829,51 @@ class TestPointerAnalysis(TestCase):
         self, filenames: List[str] = ["pointer_analysis-10"]
     ) -> None:
         return self.test_pointer_analysis_01(filenames)
+
+    @unittest.expectedFailure
+    def test_pointer_analysis_11(
+        self, filenames: List[str] = ["pointer_analysis-11"]
+    ) -> None:
+        for file in TestCase.load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.get_paths(bv)
+            # Assert results
+            self.assertTrue(len(paths) == 1, "1 path identified")
+            path = paths[0]
+            self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
+            self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
+            self.assertTrue(
+                (
+                    isinstance(path.insts[-1], bn.MediumLevelILCallSsa)
+                    or isinstance(path.insts[-1], bn.MediumLevelILTailcallSsa)
+                ),
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "source argument is a MLIL variable",
+            )
+            self.assertIn(path.snk_sym_name, ["system"], "sink has symbol 'system'")
+            self.assertTrue(
+                (
+                    isinstance(path.insts[0], bn.MediumLevelILCallSsa)
+                    or isinstance(path.insts[0], bn.MediumLevelILTailcallSsa)
+                ),
+                "sink is a MLIL call instruction",
+            )
+            self.assertEqual(path.snk_par_idx, 1, "arg1")
+            self.assertTrue(
+                isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
+                "sink argument is a MLIL variable",
+            )
+            calls = [call[1] for call in path.calls]
+            self.assertEqual(calls, ["execute", "validate", "execute", "main"], "calls")
+            bv.file.close()
+        return
 
 
 class TestSimpleServer(TestCase):
