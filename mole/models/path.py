@@ -11,13 +11,14 @@ PATH_COLS = {
     "Id": 0,
     "Src Addr": 1,
     "Src Func": 2,
-    "Snk Addr": 3,
-    "Snk Func": 4,
-    "Snk Parm": 5,
-    "Insts": 6,
-    "Phis": 7,
-    "Branches": 8,
-    "Comment": 9,
+    "Src Parm": 3,
+    "Snk Addr": 4,
+    "Snk Func": 5,
+    "Snk Parm": 6,
+    "Insts": 7,
+    "Phis": 8,
+    "Branches": 9,
+    "Comment": 10,
 }
 
 # Custom roles for tree items
@@ -157,9 +158,9 @@ class PathTreeModel(qtui.QStandardItemModel):
             parent_item = self.group_items[internal_id]
 
         # Create path items
-        index_item = qtui.QStandardItem(f"{self.path_id:d}")
-        index_item.setData(self.path_id, PATH_ID_ROLE)
-        index_item.setData(True, IS_PATH_ITEM_ROLE)
+        id_item = qtui.QStandardItem(f"{self.path_id:d}")
+        id_item.setData(self.path_id, PATH_ID_ROLE)
+        id_item.setData(True, IS_PATH_ITEM_ROLE)
 
         # Only store hex values as UserRole data for proper sorting
         src_addr_item = qtui.QStandardItem(f"0x{path.src_sym_addr:x}")
@@ -168,6 +169,11 @@ class PathTreeModel(qtui.QStandardItemModel):
 
         src_func_item = qtui.QStandardItem(path.src_sym_name)
         src_func_item.setData(True, IS_PATH_ITEM_ROLE)
+
+        src_parm_item = qtui.QStandardItem(
+            f"arg#{path.src_par_idx:d}:{str(path.src_par_var):s}"
+        )
+        src_parm_item.setData(True, IS_PATH_ITEM_ROLE)
 
         snk_addr_item = qtui.QStandardItem(f"0x{path.snk_sym_addr:x}")
         snk_addr_item.setData(path.snk_sym_addr, qtc.Qt.UserRole)
@@ -181,8 +187,8 @@ class PathTreeModel(qtui.QStandardItemModel):
         )
         snk_parm_item.setData(True, IS_PATH_ITEM_ROLE)
 
-        insts_item = qtui.QStandardItem(str(len(path.insts)))
-        insts_item.setData(True, IS_PATH_ITEM_ROLE)
+        inst_item = qtui.QStandardItem(str(len(path.insts)))
+        inst_item.setData(True, IS_PATH_ITEM_ROLE)
 
         phis_item = qtui.QStandardItem(str(len(path.phiis)))
         phis_item.setData(True, IS_PATH_ITEM_ROLE)
@@ -195,13 +201,14 @@ class PathTreeModel(qtui.QStandardItemModel):
 
         # Set items as non-editable (except for comment)
         for item in [
-            index_item,
+            id_item,
             src_addr_item,
             src_func_item,
+            src_parm_item,
             snk_addr_item,
             snk_func_item,
             snk_parm_item,
-            insts_item,
+            inst_item,
             phis_item,
             bdeps_item,
         ]:
@@ -209,13 +216,14 @@ class PathTreeModel(qtui.QStandardItemModel):
 
         # Create path row and append to parent item (lowest level group)
         path_row = [
-            index_item,
+            id_item,
             src_addr_item,
             src_func_item,
+            src_parm_item,
             snk_addr_item,
             snk_func_item,
             snk_parm_item,
-            insts_item,
+            inst_item,
             phis_item,
             bdeps_item,
             comment_item,

@@ -1,6 +1,7 @@
 from __future__ import annotations
-from mole.core.data import InstructionHelper, Path
+from mole.common.help import InstructionHelper
 from mole.common.task import BackgroundTask
+from mole.core.data import Path
 from mole.services.path import PathService
 from mole.views.graph import GraphWidget
 from mole.views.path import PathView
@@ -459,18 +460,24 @@ class PathController:
         log.info(tag, msg)
         if reverse:
             log.debug(tag, "--- Forward  Slice ---")
+            src_inst_idx = len(path.insts) - path.src_inst_idx
             insts = reversed(path.insts)
         else:
             log.debug(tag, "--- Backward Slice ---")
+            src_inst_idx = path.src_inst_idx
             insts = path.insts
         basic_block = None
-        for inst in insts:
+        for i, inst in enumerate(insts):
+            if (not reverse and i < src_inst_idx) or (reverse and i >= src_inst_idx):
+                custom_tag = f"{tag}] [Snk"
+            else:
+                custom_tag = f"{tag}] [Src"
             if inst.il_basic_block != basic_block:
                 basic_block = inst.il_basic_block
                 fun_name = basic_block.function.name
                 bb_addr = basic_block[0].address
-                log.debug(tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
-            log.debug(tag, InstructionHelper.get_inst_info(inst))
+                log.debug(custom_tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+            log.debug(custom_tag, InstructionHelper.get_inst_info(inst))
         log.debug(tag, "----------------------")
         log.debug(tag, msg)
         return
@@ -492,17 +499,27 @@ class PathController:
         if not path_0:
             return
         path_0_id = path_ids[0]
-        path_0_insts = [
-            InstructionHelper.get_inst_info(inst, False) for inst in path_0.insts
-        ]
+        path_0_insts = []
+        for i, inst in enumerate(path_0.insts):
+            if i < path_0.src_inst_idx:
+                ori = "[Snk]"
+            else:
+                ori = "[Src]"
+            info = InstructionHelper.get_inst_info(inst, False)
+            path_0_insts.append(f"{ori:s} {info}")
         # Get instructions of path 1
         path_1 = self.path_tree_view.get_path(path_ids[1])
         if not path_1:
             return
         path_1_id = path_ids[1]
-        path_1_insts = [
-            InstructionHelper.get_inst_info(inst, False) for inst in path_1.insts
-        ]
+        path_1_insts = []
+        for i, inst in enumerate(path_1.insts):
+            if i < path_1.src_inst_idx:
+                ori = "[Snk]"
+            else:
+                ori = "[Src]"
+            info = InstructionHelper.get_inst_info(inst, False)
+            path_1_insts.append(f"{ori:s} {info}")
         # Get terminal width and calculate column width
         ter_width = shu.get_terminal_size().columns
         col_width = ter_width // 2 - 2
@@ -602,12 +619,22 @@ class PathController:
         highlighted_path = path
         insts_colors = {}
         try:
-            setting = self.config_ctr.get_setting("highlight_color")
+            setting = self.config_ctr.get_setting("src_highlight_color")
             color_name = setting.widget.currentText().capitalize()
-            color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
+            src_color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
         except Exception as _:
-            color = bn.HighlightStandardColor.RedHighlightColor
-        for inst in path.insts:
+            src_color = bn.HighlightStandardColor.RedHighlightColor
+        try:
+            setting = self.config_ctr.get_setting("snk_highlight_color")
+            color_name = setting.widget.currentText().capitalize()
+            snk_color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
+        except Exception as _:
+            snk_color = bn.HighlightStandardColor.RedHighlightColor
+        for i, inst in enumerate(path.insts):
+            if i < path.src_inst_idx:
+                color = snk_color
+            else:
+                color = src_color
             func = inst.function.source_function
             addr = inst.address
             if addr not in insts_colors:

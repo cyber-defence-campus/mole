@@ -370,7 +370,11 @@ class PathTreeView(qtw.QTreeView):
             path = self.get_path(path_id)
             if path:
                 # Navigate to source address
-                if col in [PATH_COLS["Src Addr"], PATH_COLS["Src Func"]]:
+                if col in [
+                    PATH_COLS["Src Addr"],
+                    PATH_COLS["Src Func"],
+                    PATH_COLS["Src Parm"],
+                ]:
                     vf.navigate(bv, path.src_sym_addr)
                 # Navigate to sink address
                 elif col in [

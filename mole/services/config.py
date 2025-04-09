@@ -202,7 +202,7 @@ class ConfigService:
                         )
                     }
                 )
-            for name in ["highlight_color", "path_grouping"]:
+            for name in ["src_highlight_color", "snk_highlight_color", "path_grouping"]:
                 setting = settings.get(name, None)
                 if not setting:
                     continue
