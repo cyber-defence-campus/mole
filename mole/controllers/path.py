@@ -17,7 +17,6 @@ import ijson as ijson
 import json as json
 import os as os
 import PySide6.QtWidgets as qtw
-import shutil as shu
 import yaml as yaml
 
 
@@ -495,6 +494,7 @@ class PathController:
         # Ensure expected number of selected paths
         if len(path_ids) != 2:
             return
+        max_msg_size = 0
         # Get instructions of path 0
         path_0 = self.path_tree_view.get_path(path_ids[0])
         if not path_0:
@@ -508,7 +508,9 @@ class PathController:
             else:
                 ori = f"[Src] [{call_level:+d}]"
             info = InstructionHelper.get_inst_info(inst, False)
-            path_0_insts.append(f"{ori:s} {info}")
+            msg = f"{ori:s} {info:s}"
+            max_msg_size = max(max_msg_size, len(msg))
+            path_0_insts.append(msg)
         # Get instructions of path 1
         path_1 = self.path_tree_view.get_path(path_ids[1])
         if not path_1:
@@ -522,10 +524,9 @@ class PathController:
             else:
                 ori = f"[Src] [{call_level:+d}]"
             info = InstructionHelper.get_inst_info(inst, False)
-            path_1_insts.append(f"{ori:s} {info}")
-        # Get terminal width and calculate column width
-        ter_width = shu.get_terminal_size().columns
-        col_width = ter_width // 2 - 2
+            msg = f"{ori:s} {info:s}"
+            max_msg_size = max(max_msg_size, len(msg))
+            path_1_insts.append(msg)
         # Compare paths
         lft_col = []
         rgt_col = []
@@ -533,11 +534,11 @@ class PathController:
         path_0_msg = f"Path {path_0_id:d}: {str(path_0):s}"
         path_0_msg = f"{path_0_msg:s} [L:{len(path_0.insts):d},P:{len(path_0.phiis):d},B:{len(path_0.bdeps):d}]!"
         lft_col.append(path_0_msg)
-        lft_col.append("----")
+        lft_col.append("-" * max_msg_size)
         path_1_msg = f"Path {path_1_id:d}: {str(path_1):s}"
         path_1_msg = f"{path_1_msg:s} [L:{len(path_1.insts):d},P:{len(path_1.phiis):d},B:{len(path_1.bdeps):d}]!"
         rgt_col.append(path_1_msg)
-        rgt_col.append("----")
+        rgt_col.append("-" * max_msg_size)
         for line in diff:
             if line.startswith("- "):
                 lft_col.append(line[2:])
@@ -550,9 +551,11 @@ class PathController:
             else:
                 lft_col.append(line[2:])
                 rgt_col.append(line[2:])
+        lft_col.append("-" * max_msg_size)
+        rgt_col.append("-" * max_msg_size)
         # Log differences side by side
         for lft, rgt in zip(lft_col, rgt_col):
-            log.debug(tag, f"{lft:<{col_width}} | {rgt:<{col_width}}")
+            log.debug(tag, f"{lft:<{max_msg_size}} | {rgt:<{max_msg_size}}")
         return
 
     def log_call(self, path_ids: List[int], reverse: bool = False) -> None:

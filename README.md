@@ -37,7 +37,6 @@ In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` poi
   ```shell
   $BINJA_BIN/binaryninja &
   ```
-**Note**: In *Binary Ninja*, consider setting the site-package directory to the one used by your virtual environment (`venv/mole/lib/python3.XX/site-packages`).
 
 ## Path Identification
 In the following we show an example log output as given by *Mole*. The listed path is identified when compiling unittest [memcpy-01.c](./test/src/memcpy-01.c) for `linux-armv7` and analyzing the resulting binary with *Mole*. At log level *INFO* we get the following entry:

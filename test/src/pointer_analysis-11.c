@@ -13,7 +13,6 @@ int execute(char *cmd) {
 }
 
 int main(int argc, char *argv[]) {
-    char *cmd;
-    cmd = getenv("CMD");
+    char *cmd = getenv("CMD");
     return execute(cmd);
 }
