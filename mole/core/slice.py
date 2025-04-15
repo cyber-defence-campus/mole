@@ -322,7 +322,11 @@ class MediumLevelILBackwardSlicer:
                                     self._tag,
                                     f"Do not follow '{mem_def_inst_info:s}' since it not uses '0x{inst.constant:x}'",
                                 )
-            case bn.MediumLevelILVarAliased() | bn.MediumLevelILAddressOf():
+            case (
+                bn.MediumLevelILVarAliased()
+                | bn.MediumLevelILAddressOf()
+                | bn.MediumLevelILAddressOfField()
+            ):
                 # Find all assignment instructions using the same variable as a source
                 var, var_addr_ass_insts = self.get_var_addr_assignments(inst)
                 var_info = VariableHelper.get_var_info(var)
@@ -654,8 +658,10 @@ class MediumLevelILBackwardSlicer:
             for inst in bb:
                 # Match assignments of variable addresses (e.g. `var_x = &var_y`)
                 match inst:
+                    # TODO: Should we consider the `offset` in MLIL_ADDRESS_OF_FIELD as well?
                     case bn.MediumLevelILSetVarSsa(
                         src=bn.MediumLevelILAddressOf(src=src)
+                        | bn.MediumLevelILAddressOfField(src=src)
                     ):
                         var_addr_assignments.setdefault(src, []).append(inst)
         return var_addr_assignments
@@ -673,8 +679,12 @@ class MediumLevelILBackwardSlicer:
             inst.function
         )
         match inst:
-            case bn.MediumLevelILAddressOf(src=src):
-                return src, var_addr_assignments.get(src, [])
             case bn.MediumLevelILVarAliased(src=src):
                 return src.var, var_addr_assignments.get(src.var, [])
+            # TODO: Should we consider the `offset` in MLIL_ADDRESS_OF_FIELD as well?
+            case (
+                bn.MediumLevelILAddressOf(src=src)
+                | bn.MediumLevelILAddressOfField(src=src)
+            ):
+                return src, var_addr_assignments.get(src, [])
         return (None, [])
