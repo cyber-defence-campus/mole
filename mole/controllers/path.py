@@ -274,19 +274,6 @@ class PathController:
         self._thread.start()
         return
 
-    def _select_file(self) -> Optional[str]:
-        """
-        This method shows a dialog and lets the user select a (JSON) file.
-        """
-        # Open dialog to select file
-        filepath, _ = qtw.QFileDialog.getOpenFileName(
-            caption="Open File", filter="JSON Files (*.json);;All Files (*)"
-        )
-        if not filepath:
-            return
-        # Expand file path
-        return os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
-
     def import_paths(self) -> None:
         """
         This method imports paths from a file.
@@ -297,10 +284,14 @@ class PathController:
         if not self._validate_bv(["Raw"]):
             return
         # Open dialog to select file
-        filepath = self._select_file()
+        filepath, _ = qtw.QFileDialog.getOpenFileName(
+            caption="Open File", filter="JSON Files (*.json);;All Files (*)"
+        )
         if not filepath:
             log.warn(tag, "No paths imported")
             return
+        # Expand file path
+        filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
         # Require previous background threads to have completed
         if self._thread and not self._thread.finished:
             log.warn(tag, "Wait for previous background thread to complete first")
@@ -370,10 +361,14 @@ class PathController:
         if not self._validate_bv(["Raw"]):
             return
         # Open dialog to select file
-        filepath = self._select_file()
+        filepath, _ = qtw.QFileDialog.getSaveFileName(
+            caption="Save As", filter="JSON Files (*.json);;All Files (*)"
+        )
         if not filepath:
             log.info(tag, "No paths exported")
             return
+        # Expand file path
+        filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
         # Require previous background threads to have completed
         if self._thread and not self._thread.finished:
             log.warn(tag, "Wait for previous background thread to complete first")
