@@ -56,18 +56,6 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
         super().add_edge(from_inst, to_inst, **attr)
         return
 
-    def reverse(self) -> MediumLevelILInstructionGraph:
-        """
-        This method returns a copy of the graph with the directions of edges reversed. All node and
-        edge attributes are preserved.
-        """
-        reversed_graph = MediumLevelILInstructionGraph()
-        for node, attrs in self.nodes(data=True):
-            reversed_graph.add_node(node, **attrs)
-        for from_node, to_node, edge_attrs in self.edges(data=True):
-            reversed_graph.add_edge(to_node, from_node, **edge_attrs)
-        return reversed_graph
-
 
 class MediumLevelILFunctionGraph(nx.DiGraph):
     """
