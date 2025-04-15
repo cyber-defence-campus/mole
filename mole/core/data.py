@@ -404,6 +404,7 @@ class SinkFunction(Function):
                             snk_par_var, 0, snk_par_var.function, origin="snk"
                         )
                         snk_inst_graph.add_edge(snk_call_inst, snk_par_var)
+                        snk_call_graph.add_node(snk_call_inst.function, call_level=0)
                         # Backward slice the parameter instruction
                         snk_slicer.slice_backwards(snk_par_var)
                         # Iterate sources
