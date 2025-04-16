@@ -546,7 +546,7 @@ class MediumLevelILBackwardSlicer:
                                                 )
                                                 log.debug(
                                                     self._tag,
-                                                    f"Follow parameter {par_idx:d} '{par_info:s}' of imported function '{call_info:s}'",
+                                                    f"Follow parameter {par_idx + 1:d} '{par_info:s}' of imported function '{call_info:s}'",
                                                 )
                                                 self.inst_graph.add_node(
                                                     inst,
@@ -578,7 +578,7 @@ class MediumLevelILBackwardSlicer:
                             par_info = InstructionHelper.get_inst_info(par, False)
                             log.debug(
                                 self._tag,
-                                f"Follow parameter {par_idx:d} '{par_info:s}' of indirect function call '{call_info:s}'",
+                                f"Follow parameter {par_idx + 1:d} '{par_info:s}' of indirect function call '{call_info:s}'",
                             )
                             self.inst_graph.add_node(
                                 inst, call_level, caller_site, origin=self._origin
