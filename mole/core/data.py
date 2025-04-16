@@ -210,7 +210,11 @@ class SourceFunction(Function):
         code_refs = SymbolHelper.get_code_refs(
             bv,
             self.symbols,
-            [bn.SymbolType.FunctionSymbol, bn.SymbolType.ImportedFunctionSymbol],
+            [
+                bn.SymbolType.FunctionSymbol,
+                bn.SymbolType.ImportedFunctionSymbol,
+                bn.SymbolType.SymbolicFunctionSymbol,
+            ],
         )
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
@@ -327,7 +331,11 @@ class SinkFunction(Function):
         code_refs = SymbolHelper.get_code_refs(
             bv,
             self.symbols,
-            [bn.SymbolType.FunctionSymbol, bn.SymbolType.ImportedFunctionSymbol],
+            [
+                bn.SymbolType.FunctionSymbol,
+                bn.SymbolType.ImportedFunctionSymbol,
+                bn.SymbolType.SymbolicFunctionSymbol,
+            ],
         )
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
