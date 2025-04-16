@@ -79,7 +79,7 @@ class ConfigView(qtw.QWidget):
                 sel_but = qtw.QPushButton("Select All")
                 sel_but.clicked.connect(
                     lambda _,
-                    lib_name=None,
+                    lib_name=lib.name,
                     cat_name=cat.name,
                     fun_name=None,
                     fun_type=tab_name: self.signal_check_functions.emit(
@@ -89,7 +89,7 @@ class ConfigView(qtw.QWidget):
                 dsl_but = qtw.QPushButton("Deselect All")
                 dsl_but.clicked.connect(
                     lambda _,
-                    lib_name=None,
+                    lib_name=lib.name,
                     cat_name=cat.name,
                     fun_name=None,
                     fun_type=tab_name: self.signal_check_functions.emit(
