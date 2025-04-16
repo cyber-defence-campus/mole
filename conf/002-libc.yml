@@ -350,6 +350,14 @@ sinks:
             par_cnt: i == 2
             par_dataflow: 'False'
             par_slice: 'True'
+          strlcpy:
+            name: strlcpy
+            symbols: [strlcpy, __builtin_strlcpy]
+            synopsis: size_t strlcpy(char* dst, const char* src, size_t size)
+            enabled: true
+            par_cnt: i == 3
+            par_dataflow: 'False'
+            par_slice: 'True'
           stpcpy:
             name: stpcpy
             symbols: [stpcpy, __builtin_stpcpy]
@@ -391,6 +399,14 @@ sinks:
             synopsis: char* strcat(char* s1, const char* s2)
             enabled: true
             par_cnt: i == 2
+            par_dataflow: 'False'
+            par_slice: 'True'
+          strlcat:
+            name: strlcat
+            symbols: [strlcat, __builtin_strlcat]
+            synopsis: size_t strlcat(char* dst, const char* src, size_t size)
+            enabled: true
+            par_cnt: i == 3
             par_dataflow: 'False'
             par_slice: 'True'
           strncat:
