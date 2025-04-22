@@ -5,81 +5,30 @@
   <img src="https://drive.google.com/uc?export=view&id=1oToYEJyJOJtT9fgl7Pm4DuVloZGod5MO" style="width: 256px; max-width: 100%; height: auto" alt="Mole Logo"/>
 </p>
 
-**_Mole_** is a *Binary Ninja* plugin designed to identify **interesting paths** in binaries. It performs **static backward slicing** on variables using *Binary Ninja*'s *Medium Level Intermediate Language* (*MLIL*) in its *Static Single Assignment* (*SSA*) form.
+**_Mole_** is a *Binary Ninja* plugin designed to identify **interesting paths** in binaries. It performs **static backward slicing** on variables using *Binary Ninja*'s [*Medium Level Intermediate Language* (*MLIL*)](https://docs.binary.ninja/dev/bnil-mlil.html) in its *Static Single Assignment* (*SSA*) form.
 
 A **path** refers to the flow of data between a defined source and sink. What constitutes an "interesting" path depends on the analysis goals. For instance, when searching for **vulnerabilities**, one might look for paths where untrusted inputs (sources) influence sensitive operations (sinks) in potentially dangerous ways.
 
 *Mole* can be used both within the **_Binary Ninja UI_**, as well as in **headless mode** for large-scale analysis.
 
-## Installation
-In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your *Binary Ninja*'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respectively. Use the following steps to install *Mole*:
+The following list highlights some of its current **features**:
+- **Inter-Procedural Variable Slicing**: *Mole* supports slicing *MLIL variables* across function boundaries - a task that presents several challenges. For instance, statically determining a function's effective caller(s) is often difficult or even impossible. As a result, the implemented approach is an approximation. While not perfect, it performs reasonably well across a wide range of practical scenarios.
+- **Basic Pointer Analysis**: *Mole* currently implements a simplified strategy for tracking pointer usage. Like inter-procedural slicing, this approach is an approximation with inherent limitations. Nevertheless, it performs well in many practical cases and is planned to be improved in future versions.
+- **Path Identification**:
+  - **Configuration**: *Mole* enables the definition of relevant source and sink functions in *YAML* configuration files (see TODO). This provides flexibility in selecting sources and sinks based on the specific usage scenario.
+  - **Exploration**: To better understand a path and examine its characteristics, all instructions along the path can be printed or visually highlighted within *Binary Ninja*. Additionally, a side-by-side comparison of two paths can be displayed to quickly identify differences. Similar to instructions, a path's sequence of function calls can be printed or even visualized as a graph.
+  - **Grouping**: To facilitate the identification of similar paths, *Mole* supports multiple grouping strategies. Currently, paths can be grouped based on matching source and sink functions, or by identical call sequences. New custom grouping strategies can easily be added to extend and customize this functionality (see TODO).
+  - **Persistence**: Discovered paths can be annotated for clarity or removed if deemed irrelevant. To preserve analysis progress, paths can be saved directly to the target binary's database (*Binary Ninja*'s `.bndb` format). Path can also be exported - for example, when performing headless analysis across many binaries on a file system, allowing identified paths to be later imported for easier exploration within *Binary Ninja*.
 
-- Clone the plugin to your *Binary Ninja*'s user folder:
-  ```shell
-  cd $BINJA_USR/plugins/
-  git clone https://github.com/pdamian/mole.git && cd mole/
-  ```
-- Create and activate a new Python virtual environment for *Mole* (optional, but recommended):
-  ```shell
-  python3 -m venv venv/mole
-  source venv/mole/bin/activate
-  ```
-- Install *Binary Ninja*'s Python [API](https://docs.binary.ninja/dev/batch.html#install-the-api):
-  ```shell
-  python $BINJA_BIN/scripts/install_api.py
-  ```
-- Install *Mole* either in standard or development mode:
-  ```shell
-  # Standard
-  pip install .
+## Documentation
+1. [Installation](./docs/01-Installation.md)
+2. [Usage](./docs/02-Usage.md)
+3. [Extension](./docs/03-Extension.md)
 
-  # Development
-  pip install -e .[develop]
-  pre-commit install
-  ```
-- Lauch *Binary Ninja* outside the virtual environment:
-  ```shell
-  $BINJA_BIN/binaryninja &
-  ```
+## Todo
+- Work in progress
+- Let us know your success stories
 
-## Path Identification
-In the following we show an example log output as given by *Mole*. The listed path is identified when compiling unittest [memcpy-01.c](./test/src/memcpy-01.c) for `linux-armv7` and analyzing the resulting binary with *Mole*. At log level *INFO* we get the following entry:
-```
-[...]
-Interesting path: 0x4c4 getenv --> 0x4e8 memcpy(arg#3:r2#1) [L:7,P:0,B:1]!
-[...]
-```
-The entry indicates that a potential path exists between source function `getenv` (at address `0x4c4`) and sink function `memcpy` (at address `0x4e8`). In addition, the entry tells us that the 3rd argument of `memcpy` (synopsis: `void* memcpy(void* dest, const void* src, size_t n)`) is the one being influenced by the source. Also we may learn that the path consists of 7 [MLIL](https://docs.binary.ninja/dev/bnil-mlil.html) instructions (`L:7`), contains 0 [PHI](https://api.binary.ninja/binaryninja.mediumlevelil-module.html#binaryninja.mediumlevelil.MediumLevelILVarPhi) instructions (`P:0`), and depends on 1 branch (`B:1`). These three metrics can give us a first intuition of how complex the identified path might be and in consequence some indication whether it is more or less likely to be a true positive.
-
-At log level *DEBUG*, we get a list of all the instructions in the identified path (starting at the sink - *backward slicing*):
-```
-[...]
---- Backward Slice  ---
-- FUN: 'main', BB: 0x4d4
-0x4e8 mem#5 = 0x430(r0#5, r1#1, r2#1) @ mem#4 (MediumLevelILCallSsa)
-0x4e8 r2#1 (MediumLevelILVarSsa)
-0x4e0 r2#1 = n#4 (MediumLevelILSetVarSsa)
-0x4e0 n#4 (MediumLevelILVarSsa)
-0x4d4 n#4, mem#4 = 0x478(str#1) @ mem#2 (MediumLevelILCallSsa)
-0x4d4 str#1 (MediumLevelILVarSsa)
---- Source Function ---
-- FUN: 'main', BB: 0x4b4
-0x4c4 str#1, mem#2 = 0x424("MEMCPY_SIZE") @ mem#1 (MediumLevelILCallSsa)
------------------------
-[...]
-```
-Note also that the output groups the instructions by basic blocks (*BB*). For example, the instructions 1-6 belong to the basic block starting at adddress `0x4d4` and to the function (*FUN*) named `main`. Instruction 7 to the BB at `0x4b4` and FUN `main`, and so on. This grouping especially helps when following along an identified path in *Binary Ninja*'s graph view.
-
-In addition to the previously mentioned log entries, *Mole* summarizes the identified paths in its *Run* tab (when used within the *Binary Ninja UI*). Right-clicking a path opens a context menu with various actions, such as displaying path details or highlighting a path's instructions. Alternatively, double-clicking a path highlights its instructions, while a second double-click removes the highlights. This visualization helps users better understand and verify paths.
-
-![Mole UI Interesting Paths](https://github.com/user-attachments/assets/dcc97248-af2e-46d9-9d46-f3e257434882)
-
-## Extending Path Grouping
-To implement a custom path grouping strategy:
-1. Create a new subclass of `PathGrouper` in the grouping package.
-2. Your strategy name will be dynamically detected, so no need to manually add it to the `001-settings.yml` file.
-3. Define your key tuple by specifying the following values:
-  - `display_name`: A `str` that users will see in the tree view.
-  - `internal_id`: A key for uniquely identifying each group.
-  - `level`: Determines the group's depth level in the tree view hierarchy.
-**Note**: You can inherit from existing strategies (see `CallgraphPathGrouper` for an example).
+## Contributors
+- [Damian Pfammatter](https://github.com/pdamian), [Cyber-Defense Campus (armasuisse S+T)](https://www.cydcampus.admin.ch/)
+- [Sergio Paganoni](https://github.com/wizche), [TODO]()
