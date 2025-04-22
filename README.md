@@ -12,7 +12,7 @@ In *Mole*, a **path** refers to the flow of data between a defined source and si
 The following list highlights some of *Mole*'s current **features**:
 - **Operation Mode**: *Mole* can be run either within *Binary Ninja*'s UI or in headless mode. Headless modes is particularly useful for scripted analysis across a large number of binaries. Conversely, using *Mole* within the UI is ideal for closely investigating detected paths.
 - **Path Identification**:
-  - **Configuration**: *Mole* enables the definition of relevant source and sink functions in *YAML* configuration files (see TODO). This provides flexibility in selecting sources and sinks based on the specific usage scenario.
+  - **Configuration**: *Mole* enables the definition of relevant source and sink functions in configuration files (see TODO). This provides flexibility in selecting sources and sinks based on the specific usage scenario.
   - **Exploration**: To better understand a path and examine its characteristics, all instructions along the path can be printed or visually highlighted within *Binary Ninja*. Additionally, a side-by-side comparison of two paths can be displayed to quickly identify differences. Similar to instructions, a path's sequence of function calls can be printed or even visualized as a graph.
   - **Grouping**: To facilitate the identification of similar paths, *Mole* supports multiple grouping strategies. Currently, paths can be grouped based on matching source and sink functions, or by identical call sequences. New custom grouping strategies can easily be added to extend and customize this functionality (see [Extension](./docs/03-Extension.md#path-grouping-strategy)).
   - **Persistence**: Discovered paths can be annotated for clarity or removed if deemed irrelevant. To preserve analysis progress, paths can be saved directly to the target binary's database (*Binary Ninja*'s `.bndb` format). Path can also be exported - for example, when performing headless analysis across many binaries on a file system, allowing identified paths to be later imported for easier exploration within *Binary Ninja*.
@@ -24,9 +24,10 @@ The following list highlights some of *Mole*'s current **features**:
 2. [Usage](./docs/02-Usage.md)
 3. [Extension](./docs/03-Extension.md)
 
-## Todo
-- Work in progress
-- Let us know your success stories
+## Contribute or Share Your Experience
+*Mole* is currently a **work in progress**. If you encounter a bug, have a useful new unit test that highlights a false positive or negative, or have a suggestion for a new feature, please consider opening an issue or contribute via pull request. Also note that the current [unit tests](./test/src/) have only been verified on `linux-x86_64` and `linux-armv7` binaries so far.
+
+If you have an interesting **success story** - such as finding a vulnerability with the help of *Mole* - we would love to hear about it! Feel free to share your experience with us.
 
 ## Contributors
 - [Damian Pfammatter](https://github.com/pdamian), [Cyber-Defense Campus (armasuisse S+T)](https://www.cydcampus.admin.ch/)
