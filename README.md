@@ -9,7 +9,7 @@
 
 A **path** refers to the flow of data between a defined source and sink. What constitutes an "interesting" path depends on the analysis goals. For instance, when searching for **vulnerabilities**, one might look for paths where untrusted inputs (sources) influence sensitive operations (sinks) in potentially dangerous ways.
 
-*Mole* can be used both within the *Binary Ninja UI*, as well as in headless mode for large-scale analysis.
+*Mole* can be used both within the **_Binary Ninja UI_**, as well as in **headless mode** for large-scale analysis.
 
 ## Installation
 In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your *Binary Ninja*'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respectively. Use the following steps to install *Mole*:
