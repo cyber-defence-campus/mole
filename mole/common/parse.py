@@ -54,15 +54,16 @@ class LogicalExpressionParser:
         """
         This method parses a logical exression.
         """
-        try:
-            e = self._parser.parse(expr).children[0]
+        if expr:
+            try:
+                e = self._parser.parse(expr).children[0]
 
-            def f(i):
-                return eval(e)
+                def f(i):
+                    return eval(e)
 
-            return f
-        except Exception as e:
-            log.warn(tag, f"Failed to parse expression '{expr}': {str(e):s}")
+                return f
+            except Exception as e:
+                log.warn(tag, f"Failed to parse expression '{expr}': {str(e):s}")
         return lambda i: False
 
 
