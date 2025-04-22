@@ -32,4 +32,4 @@ In addition to the previously mentioned log entries, *Mole* summarizes the ident
 
 ![Mole UI Interesting Paths](https://github.com/user-attachments/assets/dcc97248-af2e-46d9-9d46-f3e257434882)
 ----------------------------------------------------------------------------------------------------
-[Go-Back](../README.md)
+[Go-Back](../README.md#documentation)
