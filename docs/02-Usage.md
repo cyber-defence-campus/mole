@@ -1,4 +1,5 @@
 # Usage
+This section provides some guidance on how to use *Mole*.
 ## Configuration
 *Mole* is implemented as a *Binary Ninja* sidebar, with a dedicated **_Configure_** tab that contains all plugin settings. Within this tab, the *Sources* and *Sinks* sub-tabs allow you to enable or disable available source and sink functions, respectively. General settings can be configured in the *Settings* sub-tab.
 
