@@ -1,19 +1,23 @@
 # Usage
 ## Configuration
-*Mole* is implemented as a *Binary Ninja* sidebar, with a dedicated *Configuration* tab that contains all plugin settings. Within this tab, the *Sources* and *Sinks* sub-tabs allow you to enable or disable available source and sink functions, respectively. General settings can be configured in the *Settings* sub-tab.
+*Mole* is implemented as a *Binary Ninja* sidebar, with a dedicated **_Configure_** tab that contains all plugin settings. Within this tab, the *Sources* and *Sinks* sub-tabs allow you to enable or disable available source and sink functions, respectively. General settings can be configured in the *Settings* sub-tab.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/b79e089d-fc3f-4f75-bc13-59410e17c437" style="width: auto; max-width: 100%; height: auto" alt="Mole Configure Tab"/>
+</p>
 
 Clicking the *Save* button stores the current configuration and writes it to the file `conf/000-mole.yml` (see the table below). These saved values are also applied when *Mole* is run in headless mode, unless they are overwritten by command-line arguments. The *Reset* button restores all configuration options to their default values.
 
 All configuration files are located in the [`conf/`](../conf/) directory. The table below lists the purpose of each file:
 
-| File                    | Description / Purpose                                 |
-|-------------------------|-------------------------------------------------------|
-| `conf/000-mole.yml`     | File storing the effective configuration of *Mole     |
-| `conf/001-settings.yml` | Default values for general *Mole* settings            |
-| `conf/002-libc.yml`     | Example configuration for common `libc` sources/sinks |
-| `conf/003-xxx.yml`      | Custom file(s) for user-defined sources/sinks         |
+| File                    | Description / Purpose                                         |
+|-------------------------|---------------------------------------------------------------|
+| `conf/000-mole.yml`     | File storing the effective configuration of *Mole*            |
+| `conf/001-settings.yml` | Default values for general *Mole* settings                    |
+| `conf/002-libc.yml`     | Example configuration for common `libc` source/sink functions |
+| `conf/003-xxx.yml`      | Custom file(s) for user-defined source/sink functions         |
 
-To add your own source and sink functions, create a custom file like `conf/003-xxx.yml`. These will be automatically loaded and shown in *Mole*'s *Configuration* tab. For details on the expected format, see the next section.
+To add your own source and sink functions, create a custom file like `conf/003-xxx.yml`. These will be automatically loaded and shown in *Mole*'s *Configure* tab. For details on the expected format, see the next section.
 
 ### Definition of Source/Sink Functions
 ```YAML
