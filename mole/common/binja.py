@@ -1,30 +1,5 @@
 from typing import Optional
-from binaryninja import Function, HighLevelILFunction, MediumLevelILFunction
-
-try:
-    from binaryninja import ILException
-except ImportError:
-    ILException = Exception
-
-
-def get_hlil(func: Function) -> Optional[HighLevelILFunction]:
-    """
-    Get the HLIL for a function and return None if it doesn't exist.
-    """
-    try:
-        return func.hlil
-    except ILException:
-        return None
-
-
-def get_mlil(func: Function) -> Optional[MediumLevelILFunction]:
-    """
-    Get the HLIL for a function and return None if it doesn't exist.
-    """
-    try:
-        return func.mlil
-    except ILException:
-        return None
+from binaryninja import Function
 
 
 def get_pseudo_c(func):
@@ -56,7 +31,7 @@ def get_hlil_code(func: Function) -> Optional[str]:
     """
     Get the HLIL code representation of a function with addresses.
     """
-    hlil = get_hlil(func)
+    hlil = func.hlil
     if hlil is None:
         return None
 
@@ -79,7 +54,7 @@ def get_mlil_code(func: Function) -> Optional[str]:
     """
     Get the MLIL code representation of a function with addresses.
     """
-    mlil = get_mlil(func)
+    mlil = func.mlil
     if mlil is None:
         return None
     header = f"{func.start:x} | {str(func)}"
