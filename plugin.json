@@ -2,50 +2,34 @@
   "pluginmetadataversion": 2,
   "name": "Mole",
   "type": [
-    // "core",
     "ui",
-    // "architecture",
-    // "binaryview",
     "helper"
   ],
   "api": [
     "python3"
   ],
-  "description": "This is a short description meant to fit on one line.",
-  "longdescription": "",
+  "description": "Uncover critical code paths with backward slicing",
+  "longdescription": "# Mole\n\n<p align=\"center\">\n  <img src=\"https://drive.google.com/uc?export=view&id=1oToYEJyJOJtT9fgl7Pm4DuVloZGod5MO\" style=\"width: 256px; max-width: 100%; height: auto\" alt=\"Mole Logo\"/>\n</p>\n\n*Mole* is a *Binary Ninja* plugin that tries to identify **interesting paths** (from untrusted sources to sensitive sinks) using **static backward slicing**. The plugin can be run both in the *Binary Ninja UI* and in headless mode.\n\n## Installation\nIn the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your *Binary Ninja*'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respectively. Use the following steps to install *Mole*:\n\n- Clone the plugin to your *Binary Ninja*'s user folder:\n  ```shell\n  cd $BINJA_USR/plugins/\n  git clone https://github.com/pdamian/mole.git && cd mole/\n  ```\n- Create and activate a new Python virtual environment for *Mole* (optional, but recommended):\n  ```shell\n  python3 -m venv venv/mole\n  source venv/mole/bin/activate\n  ```\n- Install *Binary Ninja*'s Python [API](https://docs.binary.ninja/dev/batch.html#install-the-api):\n  ```shell\n  python $BINJA_BIN/scripts/install_api.py\n  ```\n- Install *Mole* either in standard or development mode:\n  ```shell\n  # Standard\n  pip install .\n\n  # Development\n  pip install -e .[develop]\n  pre-commit install\n  ```\n- Lauch *Binary Ninja* outside the virtual environment:\n  ```shell\n  $BINJA_BIN/binaryninja &\n  ```\n\n## Path Identification\nIn the following we show an example log output as given by *Mole*. The listed path is identified when compiling unittest [memcpy-01.c](./test/src/memcpy-01.c) for `linux-armv7` and analyzing the resulting binary with *Mole*. At log level *INFO* we get the following entry:\n```\n[...]\nInteresting path: 0x4c4 getenv --> 0x4e8 memcpy(arg#3:r2#1) [L:7,P:0,B:1]!\n[...]\n```\nThe entry indicates that a potential path exists between source function `getenv` (at address `0x4c4`) and sink function `memcpy` (at address `0x4e8`). In addition, the entry tells us that the 3rd argument of `memcpy` (synopsis: `void* memcpy(void* dest, const void* src, size_t n)`) is the one being influenced by the source. Also we may learn that the path consists of 7 [MLIL](https://docs.binary.ninja/dev/bnil-mlil.html) instructions (`L:7`), contains 0 [PHI](https://api.binary.ninja/binaryninja.mediumlevelil-module.html#binaryninja.mediumlevelil.MediumLevelILVarPhi) instructions (`P:0`), and depends on 1 branch (`B:1`). These three metrics can give us a first intuition of how complex the identified path might be and in consequence some indication whether it is more or less likely to be a true positive.\n\nAt log level *DEBUG*, we get a list of all the instructions in the identified path (starting at the sink - *backward slicing*):\n```\n[...]\n--- Backward Slice  ---\n- FUN: 'main', BB: 0x4d4\n0x4e8 mem#5 = 0x430(r0#5, r1#1, r2#1) @ mem#4 (MediumLevelILCallSsa)\n0x4e8 r2#1 (MediumLevelILVarSsa)\n0x4e0 r2#1 = n#4 (MediumLevelILSetVarSsa)\n0x4e0 n#4 (MediumLevelILVarSsa)\n0x4d4 n#4, mem#4 = 0x478(str#1) @ mem#2 (MediumLevelILCallSsa)\n0x4d4 str#1 (MediumLevelILVarSsa)\n--- Source Function ---\n- FUN: 'main', BB: 0x4b4\n0x4c4 str#1, mem#2 = 0x424(\"MEMCPY_SIZE\") @ mem#1 (MediumLevelILCallSsa)\n-----------------------\n[...]\n```\nNote also that the output groups the instructions by basic blocks (*BB*). For example, the instructions 1-6 belong to the basic block starting at adddress `0x4d4` and to the function (*FUN*) named `main`. Instruction 7 to the BB at `0x4b4` and FUN `main`, and so on. This grouping especially helps when following along an identified path in *Binary Ninja*'s graph view.\n\nIn addition to the previously mentioned log entries, *Mole* summarizes the identified paths in its *Run* tab (when used within the *Binary Ninja UI*). Right-clicking a path opens a context menu with various actions, such as displaying path details or highlighting a path's instructions. Alternatively, double-clicking a path highlights its instructions, while a second double-click removes the highlights. This visualization helps users better understand and verify paths.\n\n![Mole UI Interesting Paths](https://github.com/user-attachments/assets/dcc97248-af2e-46d9-9d46-f3e257434882)\n\n## Extending Path Grouping\nTo implement a custom path grouping strategy:\n1. Create a new subclass of `PathGrouper` in the grouping package.\n2. Your strategy name will be dynamically detected, so no need to manually add it to the `001-settings.yml` file.\n3. Define your key tuple by specifying the following values:\n  - `display_name`: A `str` that users will see in the tree view.\n  - `internal_id`: A key for uniquely identifying each group.\n  - `level`: Determines the group's depth level in the tree view hierarchy.\n**Note**: You can inherit from existing strategies (see `CallgraphPathGrouper` for an example).",
   "license": {
-    "name": "MIT",
-    "text": "Copyright (c) <year> <copyright holders>\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    "name": "Apache-2.0",
+    "text": "Copyright (c) 2025 Damian Pfammatter and Sergio Paganoni\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\nhttp://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License."
   },
   "platforms": [
     "Darwin",
     "Linux",
     "Windows"
   ],
-  "installinstructions": {
-    "Darwin": "Install the following pip packages: ...\n\nInstall the following brew packages: ...",
-    "Linux": "Install the following pip packages: ...\n\nInstall the following apt packages: ...",
-    "Windows": "Install the following pip packages: ...\n\nInstall the following libraries: ..."
-  },
   "dependencies": {
     "pip": [
-      // "array",
-      // "of",
-      // "pip",
-      // "dependencies"
-    ],
-    "apt": [
-      // "apt",
-      // "packages"
-    ],
-    "installers": [
-      // "https://bogus-domain/this-package.exe"
-    ],
-    "other": [
-      // "The sample plugin requires [this random package](https://bogus-domain/this-package/) be installed."
+      "PyYAML==6.0.2",
+      "ijson==3.3.0",
+      "lark==1.2.2",
+      "networkx==3.4.2",
+      "numpy==2.2.2",
+      "termcolor==2.4.0"
     ]
   },
-  "version": "0.0.1",
-  "author": "Damian Pfammatter",
-  "minimumbinaryninjaversion": 3164
+  "version": "1.0.0",
+  "author": "Damian Pfammatter and Sergio Paganoni",
+  "minimumbinaryninjaversion": 6455
 }
