@@ -172,6 +172,7 @@ class PathTreeView(qtw.QTreeView):
 
     def setup_context_menu(
         self,
+        on_ai_analyse: Callable[[List[int]], None],
         on_log_path: Callable[[List[int], bool], None],
         on_log_path_diff: Callable[[List[int]], None],
         on_log_call: Callable[[List[int], bool], None],
@@ -196,6 +197,12 @@ class PathTreeView(qtw.QTreeView):
             menu = qtw.QMenu(self)
 
             # Add menu actions with their enabled states and direct connections
+
+            # AI actions
+            ai_action = self._add_menu_action(menu, "🤖 Analyze (AI)", len(rows) == 1)
+            ai_action.triggered.connect(lambda: on_ai_analyse(rows))
+
+            menu.addSeparator()
 
             # Log actions
             log_path_action = self._add_menu_action(

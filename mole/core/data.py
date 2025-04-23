@@ -789,3 +789,23 @@ class ComboboxSetting(WidgetSetting):
         d = super().to_dict()
         d.update({"items": self.items})
         return d
+
+
+@dataclass
+class TextSetting(WidgetSetting):
+    """
+    This class is a representation of the data associated with a text input widget.
+    """
+
+    widget: qtw.QLineEdit = None
+
+    def __eq__(self, other: TextSetting) -> bool:
+        if not isinstance(other, TextSetting):
+            try:
+                other = TextSetting(**other)
+            except Exception as _:
+                return False
+        return super().__eq__(other)
+
+    def to_dict(self) -> Dict:
+        return super().to_dict()

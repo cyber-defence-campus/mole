@@ -49,3 +49,11 @@ settings:
     name: path_grouping
     help: Strategy used to group paths
     value: Call Graph
+  ai_api_url:
+    name: ai_api_url
+    help: LLM Base URL
+    value: "https://api.deepseek.com"
+  ai_api_key:
+    name: ai_api_key
+    help: LLM API key
+    value: ""

@@ -4,6 +4,7 @@ from mole.core.data import (
     Function,
     Library,
     SpinboxSetting,
+    TextSetting,
     WidgetSetting,
 )
 from mole.models.config import ConfigModel
@@ -161,6 +162,8 @@ class ConfigController:
             elif isinstance(setting, ComboboxSetting):
                 if setting.value in setting.items:
                     setting.widget.setCurrentText(setting.value)
+            elif isinstance(setting, TextSetting):
+                setting.widget.setText(setting.value)
         self.config_model.set(new_config)
         # User feedback
         self.config_view.give_feedback("Reset", "Resetting...")

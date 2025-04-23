@@ -8,6 +8,7 @@ from mole.core.data import (
     SinkFunction,
     SourceFunction,
     SpinboxSetting,
+    TextSetting,
 )
 from mole.grouping import get_all_grouping_strategies
 from mole.common.log import log
@@ -219,6 +220,18 @@ class ConfigService:
                         )
                     }
                 )
+
+            # Parse AI API settings
+            for name in ["ai_api_url", "ai_api_key"]:
+                setting = settings.get(name, None)
+                if not setting:
+                    continue
+                value = setting.get("value", "")
+                help = setting.get("help", "")
+                parsed_config["settings"].update(
+                    {name: TextSetting(name=name, value=value, help=help)}
+                )
+
         except Exception as e:
             log.warn(tag, f"Failed to parse configuration file: '{str(e):s}'")
         return Configuration(**parsed_config)

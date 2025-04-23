@@ -7,6 +7,7 @@ from mole.views.graph import GraphWidget
 from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
 from mole.controllers.config import ConfigController
+from mole.services.ai import AIService
 from mole.common.log import log
 from typing import Dict, List, Literal, Tuple, Optional
 import binaryninja as bn
@@ -28,11 +29,14 @@ class PathController:
     This class implements a controller to handle paths.
     """
 
-    def __init__(self, config_ctr: ConfigController, path_view: PathView) -> None:
+    def __init__(
+        self, ai_service: AIService, config_ctr: ConfigController, path_view: PathView
+    ) -> None:
         """
         This method initializes a controller (MVC pattern).
         """
         # Initialization
+        self.ai_service = ai_service
         self.config_ctr = config_ctr
         self.path_view = path_view
         self._bv: Optional[bn.BinaryView] = None
@@ -432,6 +436,26 @@ class PathController:
         self._thread.start()
         return
 
+    def ai_analyse(self, path_ids: List[int]) -> None:
+        """
+        This method analyzes a path using AI.
+        """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure correct view
+        if not self._validate_bv():
+            return
+        # Ensure expected number of selected paths
+        if len(path_ids) != 1:
+            return
+        path = self.path_tree_view.get_path(path_ids[0])
+        if not path:
+            return
+
+        # Start the AI analysis in a background task
+        log.info(tag, f"Starting AI analysis of path {path_ids[0]}")
+        self.ai_service.analyse(self._bv, path)
+
     def log_path(self, path_ids: List[int], reverse: bool = False) -> None:
         """
         This method logs information about a path.
@@ -462,6 +486,10 @@ class PathController:
             insts = path.insts
         basic_block = None
         for i, inst in enumerate(insts):
+            if inst.function not in path.call_graph.nodes:
+                log.warn(tag, f"Function {inst.function} not found in call graph.")
+                continue
+
             call_level = path.call_graph.nodes[inst.function]["call_level"]
             if (not reverse and i < src_inst_idx) or (reverse and i >= src_inst_idx):
                 custom_tag = f"{tag}] [Snk] [{call_level:+d}"
@@ -712,6 +740,7 @@ class PathController:
         self.path_tree_view = ptv
         # Set up context menu
         ptv.setup_context_menu(
+            on_ai_analyse=self.ai_analyse,
             on_log_path=self.log_path,
             on_log_path_diff=self.log_path_diff,
             on_log_call=self.log_call,

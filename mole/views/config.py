@@ -185,9 +185,56 @@ class ConfigView(qtw.QWidget):
         pth_box_lay.addWidget(pth_wid)
         pth_box_wid = qtw.QGroupBox("Analyzing Path:")
         pth_box_wid.setLayout(pth_box_lay)
+
+        # --- AI Group ---
+        ai_wid = qtw.QWidget()
+        ai_lay = qtw.QFormLayout()
+
+        # API URL field
+        ai_api_url_setting = self.config_ctr.get_setting("ai_api_url")
+        ai_api_url_edit = qtw.QLineEdit()
+        if ai_api_url_setting:
+            ai_api_url_edit.setText(ai_api_url_setting.value)
+            ai_api_url_edit.setToolTip(ai_api_url_setting.help)
+            ai_api_url_setting.widget = ai_api_url_edit
+            ai_api_url_edit.textChanged.connect(
+                lambda value, name="ai_api_url": self.signal_change_setting.emit(
+                    name, value
+                )
+            )
+        else:
+            ai_api_url_edit.setPlaceholderText("Enter AI API URL")
+        ai_api_url_label = qtw.QLabel("API URL:")
+        ai_lay.addRow(ai_api_url_label, ai_api_url_edit)
+
+        # API Key field
+        ai_api_key_setting = self.config_ctr.get_setting("ai_api_key")
+        ai_api_key_edit = qtw.QLineEdit()
+        ai_api_key_edit.setEchoMode(qtw.QLineEdit.EchoMode.Password)  # Mask the key
+        if ai_api_key_setting:
+            ai_api_key_edit.setText(ai_api_key_setting.value)
+            ai_api_key_edit.setToolTip(ai_api_key_setting.help)
+            ai_api_key_setting.widget = ai_api_key_edit
+            ai_api_key_edit.textChanged.connect(
+                lambda value, name="ai_api_key": self.signal_change_setting.emit(
+                    name, value
+                )
+            )
+        else:
+            ai_api_key_edit.setPlaceholderText("Enter AI API Key")
+        ai_api_key_label = qtw.QLabel("API Key:")
+        ai_lay.addRow(ai_api_key_label, ai_api_key_edit)
+
+        ai_wid.setLayout(ai_lay)
+        ai_box_lay = qtw.QVBoxLayout()
+        ai_box_lay.addWidget(ai_wid)
+        ai_box_wid = qtw.QGroupBox("AI:")
+        ai_box_wid.setLayout(ai_box_lay)
+
         lay = qtw.QVBoxLayout()
         lay.addWidget(com_box_wid)
         lay.addWidget(pth_box_wid)
+        lay.addWidget(ai_box_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid
