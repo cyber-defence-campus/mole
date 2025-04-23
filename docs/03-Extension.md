@@ -11,4 +11,4 @@ To implement a custom path grouping strategy, follow these steps:
 **Note**: You can also inherit from existing strategies. For an example, see [`CallgraphPathGrouper`](../mole/grouping/call_graph.py#L10).
 
 ----------------------------------------------------------------------------------------------------
-[Go-Back](../README.md#documentation)
+[Back-To-README](../README.md#documentation)

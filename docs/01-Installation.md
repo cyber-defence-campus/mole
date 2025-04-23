@@ -29,4 +29,4 @@ In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` poi
   $BINJA_BIN/binaryninja &
   ```
 ----------------------------------------------------------------------------------------------------
-[Go-Back](../README.md#documentation)
+[Back-To-README](../README.md#documentation)
