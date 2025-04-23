@@ -17,7 +17,7 @@ All configuration files are located in the [`conf/`](../conf/) directory. The ta
 | `conf/002-libc.yml`     | Example configuration file for common `libc` source/sink functions  |
 | `conf/003-yourlib.yml`  | Custom configuration file(s) for user-defined source/sink functions |
 
-To add your own source and sink functions, create a custom file like `conf/003-yourlib.yml`. *Mole* will automatically load and show them in its *Configure* tab. For details on the expected format, refer to the next section.
+To add your own source and sink functions, create a custom file like `conf/003-yourlib.yml`. *Mole* will automatically load and show them in its *Configure* tab. For details on the expected format, refer to the next subsection.
 
 ### Definition of Source and Sink Functions
 To define your own source or sink functions - such as those belonging to a custom third-party library - you can use [`conf/002-libc.yml`](../conf/002-libc.yml) as a starting point. Duplicate this file and rename it, for example, to `conf/003-yourlib.yml`. The expected format is described below:
@@ -32,12 +32,14 @@ sources:                                             # Collection of function so
           getenv:                                    # Function identifier
             name: getenv                             # Human-readable function name
             symbols: [getenv, __builtin_getenv]      # List of symbols to match the function
-            synopsis: char* getenv(const char* name) # Human-readable function signature for help
+            synopsis: char* getenv(const char* name) # Human-readable function signature for reference
             enabled: true                            # Whether the function is enabled by default
-            par_cnt: i == 1                          # Expression to validate the expected parameter count
+            par_cnt: i == 1                          # Expression to validate the correct number of parameters
             par_slice: 'False'                       # Expression specifying which parameter should be sliced
 ```
 **Note**: The grammar and syntax for expressions such as `par_cnt` and `par_slice` is defined [here](../mole/common/parse.py#L14).
+
+The `par_slice` expression specifies which function parameters should be included in the backward slice. The selection of parameters depends on your specific use case and analysis goals. For example, when identifying potential vulnerabilities, you should slice parameters of source functions that introduce untrusted input, as well as parameters of sink functions that could result in dangerous behavior. It's important to slice source function parameters because the backward slice from a sink might not always reach the source's call site directly - it may instead trace back to where the parameter is defined or used.
 
 ## Headless Mode
 Use *Mole* with the `-h` flag to display detailed usage information. The example below demonstrates how to run *Mole* on one of the unit tests (make sure to build them first by running `cd test/ && make`):
