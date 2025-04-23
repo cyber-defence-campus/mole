@@ -15,42 +15,30 @@ All configuration files are located in the [`conf/`](../conf/) directory. The ta
 | `conf/000-mole.yml`     | File storing the effective configuration of *Mole*                  |
 | `conf/001-settings.yml` | Default values for general *Mole* settings                          |
 | `conf/002-libc.yml`     | Example configuration file for common `libc` source/sink functions  |
-| `conf/003-xxx.yml`      | Custom configuration file(s) for user-defined source/sink functions |
+| `conf/003-yourlib.yml`  | Custom configuration file(s) for user-defined source/sink functions |
 
-To add your own source and sink functions, create a custom file like `conf/003-xxx.yml`. *Mole* will automatically load and show them in its *Configure* tab. For details on the expected format, refer to the next section.
+To add your own source and sink functions, create a custom file like `conf/003-yourlib.yml`. *Mole* will automatically load and show them in its *Configure* tab. For details on the expected format, refer to the next section.
 
-### Definition of Source/Sink Functions
+### Definition of Source and Sink Functions
+To define your own source or sink functions - such as those belonging to a custom third-party library - you can use [`conf/002-libc.yml`](../conf/002-libc.yml) as a starting point. Duplicate this file and rename it, for example, to `conf/003-yourlib.yml`. The expected format is described below:
 ```YAML
-sources:
-  libc:
-    name: libc
-    categories:
-      Environment Accesses:
-        name: Environment Accesses
-        functions:
-          getenv:
-            name: getenv
-            symbols: [getenv, __builtin_getenv]
-            synopsis: char* getenv(const char* name)
-            enabled: true
-            par_cnt: i == 1
-            par_slice: 'False'
-[...CUT...]
-sinks:
-  libc:
-    name: libc
-    categories:
-      Memory Copy:
-        name: Memory Copy
-        functions:
-          memcpy:
-            name: memcpy
-            symbols: [memcpy, __builtin_memcpy]
-            synopsis: void* memcpy(void* dest, const void* src, size_t n)
-            enabled: true
-            par_cnt: i == 3
-            par_slice: 'True'
+sources:                                             # Collection of function sources (or sinks)
+  libc:                                              # Library identifier
+    name: libc                                       # Human-readable name of the library
+    categories:                                      # Collection of function categories
+      Environment Accesses:                          # Category identifier
+        name: Environment Accesses                   # Human-readable category name
+        functions:                                   # Collection of functions
+          getenv:                                    # Function identifier
+            name: getenv                             # Human-readable function name
+            symbols: [getenv, __builtin_getenv]      # List of symbols to match the function
+            synopsis: char* getenv(const char* name) # Human-readable function signature for help
+            enabled: true                            # Whether the function is enabled by default
+            par_cnt: i == 1                          # Expression to validate the expected parameter count
+            par_slice: 'False'                       # Expression specifying which parameter should be sliced
 ```
+**Note**: The grammar and syntax for expressions such as `par_cnt` and `par_slice` is defined [here](../mole/common/parse.py#L14).
+
 ## Headless Mode
 Use *Mole* with the `-h` flag to display detailed usage information. The example below demonstrates how to run *Mole* on one of the unit tests (make sure to build them first by running `cd test/ && make`):
 ```

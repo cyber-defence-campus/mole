@@ -27,8 +27,8 @@ The following list highlights some of *Mole*'s current **features**:
 ## Contribute or Share Your Experience
 *Mole* is currently a **work in progress**. If you encounter a bug, have a useful new unit test that highlights a false positive or negative, or have a suggestion for a new feature, please consider opening an issue or contribute via pull request. Also note that the current [unit tests](./test/src/) have only been verified on `linux-x86_64` and `linux-armv7` binaries so far.
 
-If you have an interesting **success story** - such as finding a vulnerability with the help of *Mole* - we would love to hear about it! Feel free to share your experience with us (TODO).
+If you have an interesting **success story** - such as finding a vulnerability with the help of *Mole* - we would love to hear about it! Feel free to share your experience with us.
 
 ## Contributors
 - [Damian Pfammatter](https://github.com/pdamian), [Cyber-Defense Campus (armasuisse S+T)](https://www.cydcampus.admin.ch/en)
-- [Sergio Paganoni](https://github.com/wizche), [TODO]()
+- [Sergio Paganoni](https://github.com/wizche)
