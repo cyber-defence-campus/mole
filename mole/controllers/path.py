@@ -614,7 +614,8 @@ class PathController:
         # If the clicked path was already highlighted, just log and return (it's now unhighlighted)
         if path == highlighted_path:
             log.info(tag, f"Un-highlighted instructions of path {path_ids[0]:d}")
-            self._bv.forget_undo_actions(undo_action)
+            if hasattr(self._bv, "forget_undo_actions"):
+                self._bv.forget_undo_actions(undo_action)
             return
         # Add new path highlighting
         highlighted_path = path
@@ -643,7 +644,8 @@ class PathController:
             func.set_user_instr_highlight(addr, color)
         log.info(tag, f"Highlighted instructions of path {path_ids[0]:d}")
         self._paths_highlight = (highlighted_path, insts_colors)
-        self._bv.forget_undo_actions(undo_action)
+        if hasattr(self._bv, "forget_undo_actions"):
+            self._bv.forget_undo_actions(undo_action)
         return
 
     def show_call_graph(self, path_ids: List[int], wid: qtw.QTabWidget) -> None:
