@@ -51,6 +51,11 @@ sinks:
             par_cnt: i == 3
             par_slice: 'True'
 ```
+## Headless Mode
+Use *Mole* with the `-h` flag to display detailed usage information. The example below demonstrates how to run *Mole* on one of the unit tests (make sure to build them first by running `cd test/ && make`):
+```
+mole bin/memcpy-01 > ./memcpy-01.log 2>&1
+```
 ## Example
 In the following we show an example log output as given by *Mole*. The listed path is identified when compiling unittest [memcpy-01.c](./test/src/memcpy-01.c) for `linux-armv7` and analyzing the resulting binary with *Mole*. At log level *INFO* we get the following entry:
 ```
@@ -83,4 +88,4 @@ In addition to the previously mentioned log entries, *Mole* summarizes the ident
 
 ![Mole UI Interesting Paths](https://github.com/user-attachments/assets/dcc97248-af2e-46d9-9d46-f3e257434882)
 ----------------------------------------------------------------------------------------------------
-[Go-Back](../README.md#documentation)
+[Back-To-README](../README.md#documentation)
