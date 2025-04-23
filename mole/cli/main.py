@@ -18,8 +18,9 @@ def main() -> None:
     """
     # Parse arguments
     description = """
-    Mole is a Binary Ninja plugin that tries to identify interesting code paths using static
-    backward slicing. The plugin can be run both in Binary Ninja and in headless mode.
+    Mole is a Binary Ninja plugin designed to identify interesting paths in binaries. It performs
+    static backward slicing on variables using BN's MLIL in its SSA form. The plugin can be run
+    either in BN's UI or in headless mode.
     """
     parser = ap.ArgumentParser(
         description=description, formatter_class=ap.ArgumentDefaultsHelpFormatter
