@@ -2,13 +2,14 @@ import json
 import os
 
 
-def readme_to_json_string(readme_filename="README.md"):
+def readme_to_json_string(readme_filename="README.md", save_test_file=True):
     """
     Reads the README file and returns its content as a JSON-escaped string.
+    Skips the Documentation section.
 
     Args:
         readme_filename (str): The name of the README file.
-                               Assumes it's in the same directory as the script.
+        save_test_file (bool): Whether to save a test file with processed content.
 
     Returns:
         str: The JSON-escaped string content of the README file (including quotes),
@@ -25,19 +26,51 @@ def readme_to_json_string(readme_filename="README.md"):
     try:
         with open(readme_path, "r", encoding="utf-8") as f:
             content = f.read()
-        # Use json.dumps to correctly escape the string for JSON embedding
-        # This returns a string *including* the surrounding quotes.
-        # Find the first occurrence of '#' indicating a heading
+
+        # Find the first occurrence of '#' indicating a heading (the root heading)
         start_index = content.find("#")
-        print(f"Start index of first heading: {start_index}")
         if start_index != -1:
-            # Take content from the first heading onwards
-            filtered_content = content[start_index:]
+            # Find the end of the first heading (next newline)
+            end_of_first_heading = content.find("\n", start_index)
+            if end_of_first_heading != -1:
+                # Skip the root heading and start from the next line
+                filtered_content = content[end_of_first_heading + 1 :].lstrip()
+            else:
+                # If no newline after heading (unlikely), use original content
+                filtered_content = content
         else:
             # If no heading found, use the original content
             filtered_content = content
 
-        json_string = json.dumps(filtered_content)
+        # Skip the Documentation section
+        lines = filtered_content.split("\n")
+        processed_lines = []
+        skip_mode = False
+
+        for line in lines:
+            # Start skipping at Documentation section header
+            if line.strip().startswith("## Documentation"):
+                skip_mode = True
+                continue
+            # Stop skipping at the next section header
+            elif skip_mode and line.strip().startswith("##"):
+                skip_mode = False
+
+            # Add lines when not in skip mode
+            if not skip_mode:
+                processed_lines.append(line)
+
+        processed_content = "\n".join(processed_lines)
+
+        # Save the processed content to a test file if requested
+        if save_test_file:
+            test_file_path = os.path.join("/tmp", "processed_readme.md")
+            with open(test_file_path, "w", encoding="utf-8") as test_file:
+                test_file.write(processed_content)
+            print(f"Saved processed markdown to {test_file_path}")
+
+        # Use json.dumps to correctly escape the string for JSON embedding
+        json_string = json.dumps(processed_content)
         return json_string
     except Exception as e:
         print(f"Error reading or processing file {readme_path}: {e}")
@@ -82,7 +115,7 @@ def update_plugin_json(readme_content):
 
 
 if __name__ == "__main__":
-    json_escaped_readme_with_quotes = readme_to_json_string()
+    json_escaped_readme_with_quotes = readme_to_json_string(save_test_file=True)
 
     if json_escaped_readme_with_quotes:
         # We need the raw content *without* the extra quotes added by the first json.dumps

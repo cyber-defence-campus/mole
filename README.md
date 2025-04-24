@@ -3,7 +3,7 @@
 # Mole
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/e246bfe8-b871-42ff-88d7-a2ad9fbcf0ee" style="width: 256px; max-width: 100%; height: auto" alt="Mole Logo"/>
+  <img src="https://i.postimg.cc/mrcXH34C/image-1.png" alt="Mole Logo"/>
 </p>
 
 **_Mole_** is a *Binary Ninja* plugin designed to identify **interesting paths** in binaries. It performs **static backward slicing** on variables using *Binary Ninja*'s [*Medium Level Intermediate Language* (*MLIL*)](https://docs.binary.ninja/dev/bnil-mlil.html) in its *Static Single Assignment* (*SSA*) form.
