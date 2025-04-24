@@ -22,7 +22,7 @@ The following list highlights some of *Mole*'s current **features**:
 ## Documentation
 1. [Installation](./docs/01-Installation.md)
 2. [Usage](./docs/02-Usage.md)
-3. [Extension](./docs/03-Extension.md)
+3. [Customization](./docs/03-Customization.md)
 
 ## Contribute or Share Your Experience
 *Mole* is currently a **work in progress**. If you encounter a bug, have a useful new unit test that highlights a false positive or negative, or have a suggestion for a new feature, please consider opening an issue or contribute via pull request. Also note that the current [unit tests](./test/src/) have only been verified on `linux-x86_64` and `linux-armv7` binaries so far.
