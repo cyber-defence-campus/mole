@@ -11,7 +11,6 @@ sources:
             synopsis: char* getenv(const char* name)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           secure_getenv:
             name: secure_getenv
@@ -19,7 +18,6 @@ sources:
             synopsis: char* secure_getenv(const char* name)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
       Character Inputs:
         name: Character Inputs
@@ -30,7 +28,6 @@ sources:
             synopsis: int fgetc(FILE* stream)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           fgetwc:
             name: fgetwc
@@ -38,7 +35,6 @@ sources:
             synopsis: wint_t fgetwc(FILE *stream)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           fgetc_unlocked:
             name: fgetc_unlocked
@@ -46,7 +42,6 @@ sources:
             synopsis: int fgetc_unlocked(FILE *stream)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           fgetwc_unlocked:
             name: fgetwc_unlocked
@@ -54,7 +49,6 @@ sources:
             synopsis: wint_t fgetwc_unlocked(FILE *stream)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           getc:
             name: getc
@@ -62,7 +56,6 @@ sources:
             synopsis: int getc(FILE* stream)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           getwc:
             name: getwc
@@ -70,7 +63,6 @@ sources:
             synopsis: wint_t getwc(FILE* stream)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           getc_unlocked:
             name: getc_unlocked
@@ -78,7 +70,6 @@ sources:
             synopsis: int getc_unlocked(FILE* stream)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           getwc_unlocked:
             name: getwc_unlocked
@@ -86,7 +77,6 @@ sources:
             synopsis: wint_t getwc_unlocked(FILE* stream)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           getchar:
             name: getchar
@@ -94,7 +84,6 @@ sources:
             synopsis: int getchar(void)
             enabled: true
             par_cnt: i == 0
-            par_dataflow: 'False'
             par_slice: 'False'
           getwchar:
             name: getwchar
@@ -102,7 +91,6 @@ sources:
             synopsis: wint_t getwchar(void)
             enabled: true
             par_cnt: i == 0
-            par_dataflow: 'False'
             par_slice: 'False'
           getchar_unlocked:
             name: getchar_unlocked
@@ -110,7 +98,6 @@ sources:
             synopsis: int getchar_unlocked(void)
             enabled: true
             par_cnt: i == 0
-            par_dataflow: 'False'
             par_slice: 'False'
           getwchar_unlocked:
             name: getwchar_unlocked
@@ -118,7 +105,6 @@ sources:
             synopsis: wint_t getwchar_unlocked(void)
             enabled: true
             par_cnt: i == 0
-            par_dataflow: 'False'
             par_slice: 'False'
           getw:
             name: getw
@@ -126,7 +112,6 @@ sources:
             synopsis: int getw(FILE* stream)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
       Line Inputs:
         name: Line Inputs
@@ -137,7 +122,6 @@ sources:
             synopsis: ssize_t getline(char** lineptr, size_t* n, FILE* stream)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: i == 1
           getdelim:
             name: getdelim
@@ -145,7 +129,6 @@ sources:
             synopsis: ssize_t getdelim(char** lineptr, size_t* n, int delimiter, FILE* stream)
             enabled: true
             par_cnt: i == 4
-            par_dataflow: 'False'
             par_slice: i == 1
           fgets:
             name: fgets
@@ -153,7 +136,6 @@ sources:
             synopsis: char* fgets(char* s, int n, FILE* stream)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: i == 1
           fgetws:
             name: fgetws
@@ -161,7 +143,6 @@ sources:
             synopsis: wchar_t* fgetws(wchar_t* ws, int n, FILE* stream)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: i == 1
           fgets_unlocked:
             name: fgets_unlocked
@@ -169,7 +150,6 @@ sources:
             synopsis: char* fgets_unlocked(char* s, int n, FILE* stream)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: i == 1
           fgetws_unlocked:
             name: fgetws_unlocked
@@ -177,7 +157,6 @@ sources:
             synopsis: wchar_t* fgetws_unlocked(wchar_t* ws, int n, FILE* stream)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: i == 1
           gets:
             name: gets
@@ -185,7 +164,6 @@ sources:
             synopsis: char* gets(char* s)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'True'
       Formatted Inputs:
         name: Formatted Inputs
@@ -196,7 +174,6 @@ sources:
             synopsis: int scanf(const char* format, ...)
             enabled: true
             par_cnt: i >= 1
-            par_dataflow: 'False'
             par_slice: i >= 2
           wscanf:
             name: wscanf
@@ -204,7 +181,6 @@ sources:
             synopsis: int wscanf(const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 1
-            par_dataflow: 'False'
             par_slice: i >= 2
           fscanf:
             name: fscanf
@@ -212,7 +188,6 @@ sources:
             synopsis: int fscanf(FILE* stream, const char* format, ...)
             enabled: true
             par_cnt: i >= 2
-            par_dataflow: 'False'
             par_slice: i >= 3
           fwscanf:
             name: fwscanf
@@ -220,7 +195,6 @@ sources:
             synopsis: int fwscanf(FILE* stream, const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 2
-            par_dataflow: 'False'
             par_slice: i >= 3
           vscanf:
             name: vscanf
@@ -228,7 +202,6 @@ sources:
             synopsis: int vscanf(const char* format, va_list ap)
             enabled: true
             par_cnt: i == 2
-            par_dataflow: 'False'
             par_slice: i > 1
           vfscanf:
             name: vfscanf
@@ -236,7 +209,6 @@ sources:
             synopsis: int vfscanf(FILE* stream, const char* format, va_list ap)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: i > 2
       Files and Directories:
         name: Files and Directories
@@ -247,7 +219,6 @@ sources:
             synopsis: FILE* fopen(const char* pathname, const char* mode)
             enabled: true
             par_cnt: i == 2
-            par_dataflow: 'False'
             par_slice: 'False'
           freopen:
             name: freopen
@@ -255,7 +226,6 @@ sources:
             synopsis: FILE* freopen(const char* pathname, const char* mode, FILE* stream)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'False'
           fdopen:
             name: fdopen
@@ -263,7 +233,6 @@ sources:
             synopsis: FILE* fdopen(int fd, const char* mode)
             enabled: true
             par_cnt: i == 2
-            par_dataflow: 'False'
             par_slice: 'False'
           opendir:
             name: opendir
@@ -271,7 +240,6 @@ sources:
             synopsis: DIR* opendir(const char* name)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
           fdopendir:
             name: fdopendir
@@ -279,8 +247,14 @@ sources:
             synopsis: DIR* fdopendir(int fd)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'False'
+          fread:
+            name: fread
+            symbols: [fread]
+            synopsis: size_t fread(void* ptr, size_t size, size_t n, FILE* stream)
+            enabled: true
+            par_cnt: i == 4
+            par_slice: i == 1
       Networks:
         name: Networks
         functions:
@@ -290,7 +264,6 @@ sources:
             synopsis: ssize_t recv(int sockfd, void* buf, size_t len, int flags)
             enabled: true
             par_cnt: i == 4
-            par_dataflow: 'False'
             par_slice: i == 2
           recvfrom:
             name: recvfrom
@@ -298,7 +271,6 @@ sources:
             synopsis: ssize_t recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t* addrlen)
             enabled: true
             par_cnt: i == 6
-            par_dataflow: 'False'
             par_slice: i == 2
           recvmsg:
             name: recvmsg
@@ -306,7 +278,6 @@ sources:
             synopsis: ssize_t recvmsg(int sockfd, struct msghdr* msg, int flags)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: i == 2
 sinks:
   libc:
@@ -321,7 +292,6 @@ sinks:
             synopsis: void* memcpy(void* dest, const void* src, size_t n)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
           wmemcpy:
             name: wmemcpy
@@ -329,7 +299,6 @@ sinks:
             synopsis: wchar_t* wmemcpy(wchar_t* dest, const wchar_t* src, size_t n)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
           memmove:
             name: memmove
@@ -337,7 +306,6 @@ sinks:
             synopsis: void* memmove(void* dest, const void* src, size_t n)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
       String Copy:
         name: String Copy
@@ -348,7 +316,6 @@ sinks:
             synopsis: char* strcpy(char* dst, const char* src)
             enabled: true
             par_cnt: i == 2
-            par_dataflow: 'False'
             par_slice: 'True'
           strlcpy:
             name: strlcpy
@@ -356,7 +323,6 @@ sinks:
             synopsis: size_t strlcpy(char* dst, const char* src, size_t size)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
           stpcpy:
             name: stpcpy
@@ -364,7 +330,6 @@ sinks:
             synopsis: char* stpcpy(char* dst, const char* src)
             enabled: true
             par_cnt: i == 2
-            par_dataflow: 'False'
             par_slice: 'True'
           wcscpy:
             name: wcscpy
@@ -372,7 +337,6 @@ sinks:
             synopsis: wchar_t* wcscpy(wchar_t* dest, const wchar_t* src)
             enabled: true
             par_cnt: i == 2
-            par_dataflow: 'False'
             par_slice: 'True'
           wcsncpy:
             name: wcsncpy
@@ -380,7 +344,6 @@ sinks:
             synopsis: wchar_t* wcsncpy(wchar_t* dest, const wchar_t* src, size_t n)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
           strncpy:
             name: strncpy
@@ -388,7 +351,6 @@ sinks:
             synopsis: char* strncpy(char* s1, const char* s2, size_t n)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
       String Concatenation:
         name: String Concatenation
@@ -399,7 +361,6 @@ sinks:
             synopsis: char* strcat(char* s1, const char* s2)
             enabled: true
             par_cnt: i == 2
-            par_dataflow: 'False'
             par_slice: 'True'
           strlcat:
             name: strlcat
@@ -407,7 +368,6 @@ sinks:
             synopsis: size_t strlcat(char* dst, const char* src, size_t size)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
           strncat:
             name: strncat
@@ -415,7 +375,6 @@ sinks:
             synopsis: char* strncat(char* dst, const char* src, size_t ssize)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
           wcscat:
             name: wcscat
@@ -423,7 +382,6 @@ sinks:
             synopsis: wchar_t* wcscat(wchar_t* dest, const wchar_t* src)
             enabled: true
             par_cnt: i == 2
-            par_dataflow: 'False'
             par_slice: 'True'
           wcsncat:
             name: wcsncat
@@ -431,7 +389,6 @@ sinks:
             synopsis: wchar_t* wcsncat(wchar_t* dest, const wchar_t* src, size_t n)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
       String Format Conversion:
         name: String Format Conversion
@@ -442,7 +399,6 @@ sinks:
             synopsis: int sscanf(const char* str, const char* format, ...)
             enabled: true
             par_cnt: i >= 2
-            par_dataflow: 'False'
             par_slice: 'True'
           swscanf:
             name: swscanf
@@ -450,7 +406,6 @@ sinks:
             synopsis: int sscanf(const wchar_t* ws, const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 2
-            par_dataflow: 'False'
             par_slice: 'True'
           vsscanf:
             name: vsscanf
@@ -458,7 +413,6 @@ sinks:
             synopsis: int vsscanf(const char* s, const char* format, va_list arg)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: 'True'
           sprintf:
             name: sprintf
@@ -466,7 +420,6 @@ sinks:
             synopsis: int sprintf(char* s, const char* format, ...)
             enabled: true
             par_cnt: i >= 2
-            par_dataflow: 'False'
             par_slice: i >= 2
           swprintf:
             name: swprintf
@@ -474,7 +427,6 @@ sinks:
             synopsis: int swprintf(wchar_t* ws, size_t n, const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 3
-            par_dataflow: 'False'
             par_slice: i >= 2
           vsprintf:
             name: vsprintf
@@ -482,7 +434,6 @@ sinks:
             synopsis: int vsprintf(char* s, const char* format, va_list ap)
             enabled: true
             par_cnt: i == 3
-            par_dataflow: 'False'
             par_slice: i >= 2
           vswprintf:
             name: vswprintf
@@ -490,7 +441,6 @@ sinks:
             synopsis: int vswprintf(wchar_t* ws, size_t n, const wchar_t* format, va_list arg)
             enabled: true
             par_cnt: i == 4
-            par_dataflow: 'False'
             par_slice: i >= 2
       Others:
         name: Others
@@ -501,7 +451,6 @@ sinks:
             synopsis: char* gets(char* s)
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'True'
           popen:
             name: popen
@@ -509,7 +458,6 @@ sinks:
             synopsis: FILE* popen(const char *command, const char *type)
             enabled: true
             par_cnt: i == 2
-            par_dataflow: 'False'
             par_slice: i == 1
           system:
             name: system
@@ -517,5 +465,4 @@ sinks:
             synopsis: int system(const char *command);
             enabled: true
             par_cnt: i == 1
-            par_dataflow: 'False'
             par_slice: 'True'
