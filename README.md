@@ -1,4 +1,5 @@
 [![Publish Release](https://github.com/pdamian/mole/actions/workflows/release.yml/badge.svg)](https://github.com/pdamian/mole/actions/workflows/release.yml)
+[![Release](https://img.shields.io/github/v/release/cyber-defence-campus/mole)](https://img.shields.io/github/v/release/cyber-defence-campus/mole)
 # Mole
 
 <p align="center">
