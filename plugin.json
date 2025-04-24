@@ -19,6 +19,11 @@
     "Linux",
     "Windows"
   ],
+  "installinstructions": {
+    "Darwin": "",
+    "Linux": "",
+    "Windows": ""
+  },
   "dependencies": {
     "pip": [
       "PyYAML==6.0.2",
