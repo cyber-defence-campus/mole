@@ -89,7 +89,7 @@ Beyond the textual log output, *Mole* also summarizes identified paths in the *R
 These features help users better inspect and validate identified paths during analysis.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/dcc97248-af2e-46d9-9d46-f3e257434882" style="width: auto; max-width: 100%; height: auto" alt="Mole UI Interesting Path"/>
+  <img src="https://github.com/user-attachments/assets/53ab2e81-91ce-42f7-ac5e-fb09eac9a1cc" style="width: auto; max-width: 100%; height: auto" alt="Mole UI Interesting Path"/>
 </p>
 
 ----------------------------------------------------------------------------------------------------
