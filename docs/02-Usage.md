@@ -80,12 +80,13 @@ At log level *DEBUG*, a full listing of the instructions along the path is shown
 [...]
 ```
 
-Instructions are grouped by *basic block* (*BB*) and *function* (*FUN*). For instance, instructions 1-6 belong to the basic block starting at address `0x104d4` within the `main` function, while instruction 7 belongs to the basic block at `0x104b4`, also within `main`. This grouping is particularly useful for following the path in *Binary Ninja*'s graph view.
+Instructions are grouped by *function* (*FUN*) and *basic block* (*BB*). For instance, instructions 1-6 belong to the basic block starting at address `0x104d4` within the `main` function, while instruction 7 belongs to the basic block at `0x104b4`, also within `main`. This grouping is particularly useful for following the path in *Binary Ninja*'s graph view.
 
 Beyond the textual log output, *Mole* also summarizes identified paths in the *Run* tab when used within *Binary Ninja*'s UI. Right-clicking on a path opens a context menu with several actions such as:
 - Viewing detailed path information
 - Highlighting instructions in the path
 - Visualizing the call flow as a graph
+
 These features help users better inspect and validate identified paths during analysis.
 
 <p align="center">
