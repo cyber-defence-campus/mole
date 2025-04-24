@@ -64,24 +64,33 @@ def update_plugin_json(plugin_json_path, dependencies):
         print(f"Error updating plugin.json: {e}")
 
 
+def create_requirements_txt(requirements_path, dependencies):
+    """Create a requirements.txt file from the dependencies"""
+    try:
+        with open(requirements_path, "w") as f:
+            for dep in dependencies:
+                f.write(f"{dep}\n")
+        print(f"Created requirements.txt at {requirements_path}")
+    except Exception as e:
+        print(f"Error creating requirements.txt: {e}")
+
+
 def main():
     # Get the directory of the current script
     script_dir = Path(os.path.dirname(os.path.abspath(__file__)))
     # pyproject.toml and plugin.json are in the parent folder of the script
     parent_dir = script_dir.parent
     pyproject_path = parent_dir / "pyproject.toml"
-    plugin_json_path = parent_dir / "plugin.json"
+    requirements_path = parent_dir / "requirements.txt"
 
     if not pyproject_path.exists():
         print("Error: pyproject.toml not found")
         return
 
-    if not plugin_json_path.exists():
-        print("Error: plugin.json not found")
-        return
-
     dependencies = extract_dependencies(pyproject_path)
-    update_plugin_json(plugin_json_path, dependencies)
+
+    # Create requirements.txt
+    create_requirements_txt(requirements_path, dependencies)
 
 
 if __name__ == "__main__":

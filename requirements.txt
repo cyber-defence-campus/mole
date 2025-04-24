@@ -1,0 +1,5 @@
+PyYAML==6.0.2
+ijson==3.3.0
+lark==1.2.2
+networkx==3.4.2
+termcolor==2.4.0
