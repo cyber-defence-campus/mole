@@ -28,7 +28,7 @@
       "termcolor==2.4.0"
     ]
   },
-  "version": "0.0.7",
+  "version": "0.1.0",
   "author": "Damian Pfammatter and Sergio Paganoni",
   "minimumbinaryninjaversion": 6455
 }

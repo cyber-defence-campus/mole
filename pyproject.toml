@@ -7,7 +7,7 @@ packages = ["mole"]
 
 [project]
 name = "mole"
-version = "0.0.7"
+version = "0.1.0"
 description = "A Binary Ninja plugin to identify interesting paths using static backward slicing"
 authors = [
     {name = "Damian Pfammatter"},
