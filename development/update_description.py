@@ -1,6 +1,7 @@
 from typing import Optional
 import json
 import os
+import re
 
 
 def readme_to_json_string(
@@ -8,7 +9,7 @@ def readme_to_json_string(
 ) -> Optional[str]:
     """
     Reads the README file and returns its content as a JSON-escaped string.
-    Skips the Documentation section.
+    Only keeps the first section content and removes all other sections.
 
     Args:
         readme_filename (str): The name of the README file.
@@ -46,25 +47,17 @@ def readme_to_json_string(
             # If no heading found, use the original content
             filtered_content = content
 
-        # Skip the Documentation section
-        lines = filtered_content.split("\n")
-        processed_lines = []
-        skip_mode = False
+        # Find the second heading (which marks the end of first section)
+        second_heading_index = filtered_content.find("\n#")
+        if second_heading_index != -1:
+            # Only keep content up to the second heading
+            processed_content = filtered_content[:second_heading_index].strip()
+        else:
+            # If no second heading, keep all content
+            processed_content = filtered_content
 
-        for line in lines:
-            # Start skipping at Documentation section header
-            if line.strip().startswith("## Documentation"):
-                skip_mode = True
-                continue
-            # Stop skipping at the next section header
-            elif skip_mode and line.strip().startswith("##"):
-                skip_mode = False
-
-            # Add lines when not in skip mode
-            if not skip_mode:
-                processed_lines.append(line)
-
-        processed_content = "\n".join(processed_lines)
+        # Replace markdown links [text](url) with just the text
+        processed_content = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", processed_content)
 
         # Save the processed content to a test file if requested
         if save_test_file:
