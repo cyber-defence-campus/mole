@@ -1,17 +1,17 @@
+from typing import List
 import json
 import os
-from pathlib import Path
+import pathlib
+import tomli
 
-import tomli  # For parsing TOML files
 
-
-def extract_dependencies(pyproject_path):
+def extract_dependencies(pyproject_path: pathlib.Path) -> List[str]:
     """Extract pip dependencies from pyproject.toml file."""
     with open(pyproject_path, "rb") as f:
         try:
             pyproject_data = tomli.load(f)
         except Exception as e:
-            print(f"Error parsing pyproject.toml: {e}")
+            print(f"Error parsing pyproject.toml: {str(e):s}")
             return []
 
     # Check for dependencies in different possible locations
@@ -28,9 +28,9 @@ def extract_dependencies(pyproject_path):
         for pkg, version in poetry_deps.items():
             if pkg != "python":
                 if isinstance(version, str):
-                    dependencies.append(f"{pkg}=={version}")
+                    dependencies.append(f"{pkg:s}=={version:s}")
                 elif isinstance(version, dict) and "version" in version:
-                    dependencies.append(f"{pkg}=={version['version']}")
+                    dependencies.append(f"{pkg:s}=={version['version']:s}")
                 else:
                     dependencies.append(pkg)
 
@@ -43,7 +43,7 @@ def extract_dependencies(pyproject_path):
     return sorted(dependencies)
 
 
-def update_plugin_json(plugin_json_path, dependencies):
+def update_plugin_json(plugin_json_path: pathlib.Path, dependencies: List[str]) -> None:
     """Update the dependencies field in plugin.json"""
     try:
         with open(plugin_json_path, "r") as f:
@@ -59,29 +59,32 @@ def update_plugin_json(plugin_json_path, dependencies):
         with open(plugin_json_path, "w") as f:
             json.dump(plugin_data, f, indent=2)
 
-        print(f"Updated dependencies in {plugin_json_path}")
+        print(f"Updated dependencies in '{str(plugin_json_path):s}'")
     except Exception as e:
-        print(f"Error updating plugin.json: {e}")
+        print(f"Error updating plugin.json: {str(e):s}")
+    return
 
 
-def create_requirements_txt(requirements_path, dependencies):
+def create_requirements_txt(
+    requirements_path: pathlib.Path, dependencies: List[str]
+) -> None:
     """Create a requirements.txt file from the dependencies"""
     try:
         with open(requirements_path, "w") as f:
             for dep in dependencies:
-                f.write(f"{dep}\n")
-        print(f"Created requirements.txt at {requirements_path}")
+                f.write(f"{dep:s}\n")
+        print(f"Created requirements.txt at '{str(requirements_path):s}'")
     except Exception as e:
-        print(f"Error creating requirements.txt: {e}")
+        print(f"Error creating requirements.txt: {str(e):s}")
+    return
 
 
-def main():
+def main() -> None:
     # Get the directory of the current script
-    script_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+    script_dir = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))
     # pyproject.toml and plugin.json are in the parent folder of the script
-    parent_dir = script_dir.parent
-    pyproject_path = parent_dir / "pyproject.toml"
-    requirements_path = parent_dir / "requirements.txt"
+    pyproject_path = script_dir.parent / "pyproject.toml"
+    requirements_path = script_dir.parent / "requirements.txt"
 
     if not pyproject_path.exists():
         print("Error: pyproject.toml not found")
@@ -91,6 +94,7 @@ def main():
 
     # Create requirements.txt
     create_requirements_txt(requirements_path, dependencies)
+    return
 
 
 if __name__ == "__main__":
