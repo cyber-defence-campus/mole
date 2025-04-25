@@ -4,7 +4,7 @@ This section provides some guidance on how to use *Mole*.
 *Mole* is implemented as a *Binary Ninja* sidebar, with a dedicated **_Configure_** tab that contains all plugin settings. Within this tab, the *Sources* and *Sinks* sub-tabs allow you to enable or disable available source and sink functions, respectively. General settings can be configured in the *Settings* sub-tab.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/b79e089d-fc3f-4f75-bc13-59410e17c437" style="width: auto; max-width: 100%; height: auto" alt="Mole Configure Tab"/>
+  <img src="https://i.postimg.cc/65ZC1MJW/configure-tab.png" alt="Mole Configure Tab"/>
 </p>
 
 Clicking the *Save* button stores the current configuration and writes it to the file `conf/000-mole.yml` (see the table below). These saved values are also applied when *Mole* is run in [headless mode](02-Usage.md#headless-mode), unless they are overwritten by command-line arguments. The *Reset* button restores all configuration options to their default values.
@@ -90,7 +90,7 @@ Beyond the textual log output, *Mole* also summarizes identified paths in the *R
 These features help users better inspect and validate identified paths during analysis.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/53ab2e81-91ce-42f7-ac5e-fb09eac9a1cc" style="width: auto; max-width: 100%; height: auto" alt="Mole UI Interesting Path"/>
+  <img src="https://i.postimg.cc/7YLLQVCC/interesting-paths.png" alt="Mole UI Paths"/>
 </p>
 
 ----------------------------------------------------------------------------------------------------

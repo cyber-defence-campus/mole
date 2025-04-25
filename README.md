@@ -1,8 +1,9 @@
 [![Publish Release](https://github.com/pdamian/mole/actions/workflows/release.yml/badge.svg)](https://github.com/pdamian/mole/actions/workflows/release.yml)
+[![Release](https://img.shields.io/github/v/release/cyber-defence-campus/mole)](https://img.shields.io/github/v/release/cyber-defence-campus/mole)
 # Mole
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/e246bfe8-b871-42ff-88d7-a2ad9fbcf0ee" style="width: 256px; max-width: 100%; height: auto" alt="Mole Logo"/>
+  <img src="https://i.postimg.cc/mrcXH34C/image-1.png" alt="Mole Logo"/>
 </p>
 
 **_Mole_** is a *Binary Ninja* plugin designed to identify **interesting paths** in binaries. It performs **static backward slicing** on variables using *Binary Ninja*'s [*Medium Level Intermediate Language* (*MLIL*)](https://docs.binary.ninja/dev/bnil-mlil.html) in its *Static Single Assignment* (*SSA*) form.
@@ -12,7 +13,7 @@ In *Mole*, a **path** refers to the flow of data between a defined source and si
 The following list highlights some of *Mole*'s current **features**:
 - **Operation Mode**: *Mole* can be run either within *Binary Ninja*'s UI or in headless mode. Headless mode is particularly useful for scripted analysis across a large number of binaries. Conversely, using *Mole* within the UI is ideal for closely investigating detected paths.
 - **Path Identification**:
-  - **Configuration**: *Mole* enables the definition of relevant source and sink functions in configuration files (see TODO). This provides flexibility in selecting sources and sinks based on the specific usage scenario.
+  - **Configuration**: *Mole* enables the definition of relevant source and sink functions in configuration files (see [Usage](./docs/02-Usage.md#definition-of-source-and-sink-functions)). This provides flexibility in selecting sources and sinks based on the specific usage scenario.
   - **Exploration**: To better understand a path and examine its characteristics, all instructions along the path can be printed or visually highlighted within *Binary Ninja*. Additionally, a side-by-side comparison of two paths can be displayed to quickly identify differences. Similar to instructions, a path's sequence of function calls can be printed or even visualized as a graph.
   - **Grouping**: To facilitate the identification of similar paths, *Mole* supports multiple grouping strategies. Currently, paths can be grouped based on matching source and sink functions, or by identical call sequences. New custom grouping strategies can easily be added to extend and customize this functionality (see [Customization](./docs/03-Customization.md#path-grouping-strategy)).
   - **Persistence**: Discovered paths can be annotated for clarity or removed if deemed irrelevant. To preserve analysis progress, paths can be saved directly to the target binary's database (*Binary Ninja*'s `.bndb` format). Paths can also be exported - for example, when performing headless analysis across many binaries on a file system, allowing identified paths to be later imported for easier exploration within *Binary Ninja*.

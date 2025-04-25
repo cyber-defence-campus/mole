@@ -7,8 +7,8 @@ packages = ["mole"]
 
 [project]
 name = "mole"
-version = "0.0.7"
-description = "A Binary Ninja plugin for vulneraiblity discovery"
+version = "0.1.0"
+description = "A Binary Ninja plugin to identify interesting paths using static backward slicing"
 authors = [
     {name = "Damian Pfammatter"},
     {name = "Sergio Paganoni"}
@@ -17,8 +17,7 @@ requires-python = ">=3.10"
 dependencies = [
     "ijson==3.3.0",
     "lark==1.2.2",
-    "networkx==3.4.2",
-    "numpy==2.2.2",
+    "networkx[default]==3.4.2",
     "PyYAML==6.0.2",
     "termcolor==2.4.0",
 ]
@@ -27,7 +26,8 @@ dependencies = [
 develop = [
     "debugpy==1.8.1",
     "pre_commit==4.2.0",
-    "ruff==0.9.9"
+    "ruff==0.9.9",
+    "tomli==2.2.1"
 ]
 
 [project.scripts]
