@@ -64,7 +64,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
+            self.assertEqual(len(paths), 1, "1 path identified")
             path = paths[0]
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["gets"], "source has symbol 'gets'")
@@ -106,7 +106,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 2, "2 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             # call_paths = []
             for path in paths:
                 self.assertEqual(
@@ -146,7 +146,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
+            self.assertEqual(len(paths), 1, "1 path identified")
             for path in paths:
                 self.assertEqual(
                     path, Path.from_dict(bv, path.to_dict()), "serialization"
@@ -196,7 +196,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
+            self.assertEqual(len(paths), 1, "1 path identified")
             path = paths[0]
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
@@ -238,7 +238,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 2, "2 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             for path in paths:
                 self.assertEqual(
                     path, Path.from_dict(bv, path.to_dict()), "serialization"
@@ -284,7 +284,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
+            self.assertEqual(len(paths), 1, "1 path identified")
             path = paths[0]
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
@@ -326,7 +326,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
+            self.assertEqual(len(paths), 1, "1 path identified")
             path = paths[0]
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
@@ -368,7 +368,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 2, "2 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             for path in paths:
                 self.assertEqual(
                     path, Path.from_dict(bv, path.to_dict()), "serialization"
@@ -414,7 +414,7 @@ class TestVarious(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 0, "0 paths identified")
+            self.assertEqual(len(paths), 0, "0 paths identified")
             bv.file.close()
         return
 
@@ -445,7 +445,7 @@ class TestFunctionCalling(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 2, "2 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             for path in paths:
                 self.assertEqual(
                     path, Path.from_dict(bv, path.to_dict()), "serialization"
@@ -494,7 +494,7 @@ class TestFunctionCalling(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 2, "2 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             call_paths = []
             for path in paths:
                 self.assertEqual(
@@ -561,7 +561,7 @@ class TestFunctionCalling(TestCase):
             # Analyze test binary
             paths = paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
+            self.assertEqual(len(paths), 1, "1 path identified")
             path = paths[0]
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
@@ -610,7 +610,7 @@ class TestFunctionCalling(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 0, "0 paths identified")
+            self.assertEqual(len(paths), 0, "0 paths identified")
             bv.file.close()
         return
 
@@ -631,7 +631,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
+            self.assertEqual(len(paths), 1, "1 path identified")
             path = paths[0]
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
@@ -685,7 +685,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 2, "2 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             for path in paths:
                 self.assertEqual(
                     path, Path.from_dict(bv, path.to_dict()), "serialization"
@@ -725,7 +725,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 0, "0 paths identified")
+            self.assertEqual(len(paths), 0, "0 paths identified")
             bv.file.close()
         return
 
@@ -739,7 +739,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 2, "2 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             for path in paths:
                 self.assertEqual(
                     path, Path.from_dict(bv, path.to_dict()), "serialization"
@@ -779,7 +779,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
+            self.assertEqual(len(paths), 1, "1 path identified")
             path = paths[0]
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
@@ -838,7 +838,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 1, "1 path identified")
+            self.assertEqual(len(paths), 1, "1 path identified")
             path = paths[0]
             self.assertEqual(path, Path.from_dict(bv, path.to_dict()), "serialization")
             self.assertIn(path.src_sym_name, ["getenv"], "source has symbol 'getenv'")
@@ -884,7 +884,7 @@ class TestSimpleServer(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 2, "2 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             call_paths = []
             for path in paths:
                 self.assertEqual(
@@ -935,7 +935,7 @@ class TestSimpleServer(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 2, "2 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             call_paths = []
             for path in paths:
                 self.assertEqual(
@@ -990,7 +990,7 @@ class TestSimpleServer(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertTrue(len(paths) == 4, "4 paths identified")
+            self.assertEqual(len(paths), 4, "4 paths identified")
             call_paths = []
             for path in paths:
                 self.assertEqual(
