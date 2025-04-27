@@ -20,6 +20,10 @@ The following list highlights some of *Mole*'s current **features**:
 - **Inter-Procedural Variable Slicing**: *Mole* supports slicing *MLIL variables* across function boundaries - a task that presents several challenges. For instance, statically determining a function's effective caller(s) is often difficult or even impossible. As a result, the implemented approach is an approximation. While not perfect, it performs reasonably well across a wide range of practical scenarios.
 - **Basic Pointer Analysis**: *Mole* currently implements a simplified strategy for tracking pointer usage. Like inter-procedural slicing, this approach is a simplification with inherent limitations. Nevertheless, it performs well in many practical cases and is planned to be improved in future versions.
 
+<p align="center">
+  <img src="https://i.postimg.cc/VkHKm1R6/uhttpd-usage.gif" alt="Mole Usage Example"/>
+</p>
+
 ## Documentation
 1. [Installation](./docs/01-Installation.md)
 2. [Usage](./docs/02-Usage.md)
