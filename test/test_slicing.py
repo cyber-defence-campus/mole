@@ -421,14 +421,12 @@ class TestVarious(TestCase):
     def test_memcpy_07(self, filenames: List[str] = ["memcpy-07"]) -> None:
         return self.test_memcpy_02(filenames)
 
-    @unittest.expectedFailure
     def test_memcpy_08(self, filenames: List[str] = ["memcpy-08"]) -> None:
         return self.test_memcpy_06(filenames)
 
     def test_memcpy_09(self, filenames: List[str] = ["memcpy-09"]) -> None:
         return self.test_memcpy_06(filenames)
 
-    @unittest.expectedFailure
     def test_memcpy_10(self, filenames: List[str] = ["memcpy-10"]) -> None:
         return self.test_memcpy_06(filenames)
 
@@ -830,7 +828,6 @@ class TestPointerAnalysis(TestCase):
     ) -> None:
         return self.test_pointer_analysis_01(filenames)
 
-    @unittest.expectedFailure
     def test_pointer_analysis_11(
         self, filenames: List[str] = ["pointer_analysis-11"]
     ) -> None:
