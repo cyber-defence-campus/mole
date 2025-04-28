@@ -1,10 +1,12 @@
 import json
+import traceback
 from types import SimpleNamespace
 from typing import Literal
 
 from binaryninja import BinaryView
 from openai import OpenAI
 from pydantic import BaseModel
+from pprint import pformat
 
 from mole.ai.tools import call_function, tools
 from mole.common.help import InstructionHelper
@@ -84,6 +86,25 @@ class AIService:
         # Return client with configured settings
         return OpenAI(api_key=api_key, base_url=base_url)
 
+    def _log_message(self, messages):
+        short_messages = []
+        for m in messages:
+            content = "EMPTY CONTENT"
+            content_length = 0
+            if m["content"] is not None:
+                content = m["content"][:50]
+                content_length = len(m["content"])
+
+            msg_info = {
+                "role": m["role"],
+                "content": f"{content} ({content_length} chars)",
+            }
+            if "tool_calls" in m and m["tool_calls"]:
+                tool_names = [tool["function"]["name"] for tool in m["tool_calls"]]
+                msg_info["tool_calls"] = tool_names
+            short_messages.append(msg_info)
+        log.debug(tag, f"Sending messages to AI: \n{pformat(short_messages)}")
+
     def _send_messages(self, messages, task: BackgroundTask):
         """
         Send a conversation to the AI using streaming and get the aggregated response.
@@ -101,6 +122,8 @@ class AIService:
             if task and task.cancelled:
                 log.info(tag, "AI analysis cancelled just before sending request")
                 return None
+
+            # self._log_message(messages)
 
             with client.beta.chat.completions.stream(
                 model="gpt-4.1-mini",
@@ -189,10 +212,56 @@ class AIService:
                 log.info(tag, "AI analysis cancelled during exception handling.")
                 return None
             else:
-                log.error(tag, f"Error processing AI stream or request: {str(e)}")
+                error_details = traceback.format_exc()
+                log.error(
+                    tag,
+                    f"Error processing AI stream or request: {str(e)}\nCallstack:\n{error_details}",
+                )
                 if task:
                     task.progress = f"Error in AI service: {str(e)}"
                 return None
+
+    def _check_cancelled(self, task: BackgroundTask):
+        if task.cancelled:
+            log.info(tag, "AI analysis cancelled.")
+            raise RuntimeError("cancelled")
+
+    def _process_tool_calls(
+        self, tool_calls, binary_view, task: BackgroundTask
+    ) -> list:
+        results = []
+        for idx, tool in enumerate(tool_calls):
+            # unify cancellation check
+            self._check_cancelled(task)
+            task.progress = f"Processing tool call {idx + 1}/{len(tool_calls)}: {tool.function.name}"
+            if tool.type != "function":
+                log.warn(tag, f"Skipping non-function tool call: {tool.type}")
+                results.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool.id,
+                        "content": "Error: Tool type not supported.",
+                    }
+                )
+                continue
+            try:
+                args = json.loads(tool.function.arguments)
+                args["binary_view"] = binary_view
+                output_data = call_function(tool.function.name, args)
+                # check again after long call
+                self._check_cancelled(task)
+                content = (
+                    str(output_data)
+                    if output_data is not None
+                    else f"Error: Function '{tool.function.name}' returned no output."
+                )
+            except Exception as e:
+                log.error(tag, f"Error processing tool call {tool.id}: {e}")
+                content = f"Error: {e}"
+            results.append(
+                {"role": "tool", "tool_call_id": tool.id, "content": content}
+            )
+        return results
 
     def _analyse_in_background(self, binary_view: BinaryView, path: Path):
         """Run the AI analysis in a background thread."""
@@ -324,91 +393,20 @@ class AIService:
                 )
                 tool_calls = message.tool_calls
                 tool_count = len(tool_calls)
+                total_tool_calls_processed += tool_count
+
                 log.info(
                     tag,
                     f"Request {request_num}/{max_turns}: Received {tool_count} tool calls",
                 )
                 task.progress = f"Processing {tool_count} tool calls (request {request_num}/{max_turns})..."
 
-                tool_results = []  # Store results to append after processing all tools
-                for tool_index, tool in enumerate(tool_calls):
-                    # Check for cancellation before processing each tool
-                    if task.cancelled:
-                        log.info(
-                            tag,
-                            f"AI analysis cancelled before processing tool {tool_index + 1}/{tool_count} (turn {request_num}/{max_turns})",
-                        )
-                        # Progress updated by BackgroundTask cancellation handler
-                        return None  # Return None on cancellation
-
-                    # Update progress with current tool call info
-                    task.progress = f"Processing tool call {tool_index + 1}/{tool_count} (turn {request_num}/{max_turns}): {tool.function.name}..."
-
-                    if tool.type != "function":
-                        log.warn(tag, f"Skipping non-function tool call: {tool.type}")
-                        tool_results.append(
-                            {
-                                "role": "tool",
-                                "tool_call_id": tool.id,
-                                "content": "Error: Tool type not supported.",
-                            }
-                        )
-                        continue
-
-                    name = tool.function.name
-                    arguments_str = tool.function.arguments
-                    output = f"Error: Tool '{name}' execution failed."  # Default error message
-                    try:
-                        args = json.loads(arguments_str)
-                        args["binary_view"] = binary_view  # Inject binary view context
-
-                        log.info(
-                            tag, f"Executing tool {tool.id}: {name}({arguments_str})"
-                        )
-                        # --- Potentially long operation ---
-                        output_data = call_function(name, args)
-                        # --- Check cancellation again after potentially long call ---
-                        if task.cancelled:
-                            log.info(
-                                tag,
-                                f"AI analysis cancelled after executing tool {name}",
-                            )
-                            return None  # Return None on cancellation
-
-                        if output_data is None:
-                            log.error(
-                                tag, f"Tool call {tool.id} ({name}) returned None."
-                            )
-                            output = f"Error: Function '{name}' returned no output."
-                        else:
-                            # Ensure output is string for the API message
-                            output = str(output_data)
-
-                    except json.JSONDecodeError:
-                        log.error(
-                            tag,
-                            f"Failed to decode JSON arguments for tool {tool.id}: {arguments_str}",
-                        )
-                        output = "Error: Invalid JSON arguments."
-                    except Exception as e:
-                        log.error(
-                            tag, f"Error processing tool call {tool.id} ({name}): {e}"
-                        )
-                        output = f"Error: Exception during tool execution: {e}"
-                        # Check cancellation again in case exception was due to interruption
-                        if task.cancelled:
-                            log.info(
-                                tag,
-                                f"AI analysis cancelled during tool exception handling for {name}",
-                            )
-                            return None  # Return None on cancellation
-
-                    tool_results.append(
-                        {"role": "tool", "tool_call_id": tool.id, "content": output}
+                tool_results = self._process_tool_calls(tool_calls, binary_view, task)
+                if len(tool_results) != tool_count:
+                    log.warn(
+                        tag,
+                        f"Tool call processing failed: expected {tool_count} results, got {len(tool_results)}.",
                     )
-                    total_tool_calls_processed += 1
-
-                # Append all tool results to messages
                 messages.extend(tool_results)
                 turns += 1  # Increment turn count after processing tool calls
 
