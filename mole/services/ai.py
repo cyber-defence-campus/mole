@@ -1,8 +1,10 @@
 import json
 from types import SimpleNamespace
+from typing import Literal
 
 from binaryninja import BinaryView
 from openai import OpenAI
+from pydantic import BaseModel
 
 from mole.ai.tools import call_function, tools
 from mole.common.help import InstructionHelper
@@ -12,6 +14,31 @@ from mole.core.data import Path
 from mole.services.config import ConfigService
 
 tag = "Mole.AI"
+
+
+class VulnerabilityReport(BaseModel):
+    falsePositive: bool
+    vulnerabilityClass: Literal[
+        "Out-of-Bounds Write",
+        "Command Injection",
+        "Out-of-Bounds Read",
+        "Use-After-Free",
+        "File Inclusion",
+        "Resource Leak",
+        "Null Pointer Dereference",
+        "Buffer Overflow",
+        "Integer Overflow",
+        "Directory Traversal",
+        "SQL Injection",
+        "Cross-Site Scripting (XSS)",
+        "Cross-Site Request Forgery (CSRF)",
+        "Information Disclosure",
+        "Other",
+    ]
+    explanation: str
+    severityLevel: Literal["Critical", "High", "Medium", "Low"]
+    exploitabilityScore: float
+    inputExample: str
 
 
 class AIService:
@@ -40,16 +67,6 @@ class AIService:
     8.  **Craft Example Input:** **Crucially, use your understanding of the surrounding code logic (conditions, checks, data formats obtained via tools) *and* the conditions imposed by callers to create a realistic input example that could trigger the vulnerability.** If the input is binary data, provide it in hexdump format. If it's text (like JSON or command arguments), format it appropriately. The example must aim to satisfy the conditions needed to reach the sink via the identified path, considering the full function and call chain context.
 
     **Your Goal:** Go beyond the slice itself. Use the tools proactively to understand the neighbourhood of the code path *and* its upstream callers function code to provide a well-reasoned analysis, assess true reachability, and craft a *plausible* triggering input based on that broader context.
-
-**Output JSON Format:**
-{
-  "is_false_positive": false,
-  "vulnerability_type": "Command Injection",
-  "explanation": "The input buffer from the source function 'process_request', reachable via the '/api/cmd' endpoint, is used directly in a command executed by the sink 'execute_command' without proper sanitization. Caller 'handle_connection' does not impose restrictions beyond checking for authentication.",
-  "severity_level": "Critical",
-  "exploitability_score": 9.5,
-  "input_example": "POST /api/cmd HTTP/1.1\\nHost: example.com\\nContent-Type: application/json\\n\\n{\\n\"cmd\": \"echo 'malicious_command' > /tmp/pwned\"\\n}"
-}
 """
 
     def _get_openai_client(self):
@@ -74,11 +91,10 @@ class AIService:
         """
         client = self._get_openai_client()
         stream = None
-        full_response_content = ""
-        # Stores aggregated tool call data: {index: {"id": str, "type": "function", "function": {"name": str, "arguments": str}}}
-        tool_calls_aggregator = {}
-        role = "assistant"  # Default role
         chunk_count = 0
+        final_tool_calls = []
+        role = "assistant"  # Default role
+        parsed_content = None  # Store the parsed structured response
 
         try:
             # --- Start of cancellable section ---
@@ -86,61 +102,42 @@ class AIService:
                 log.info(tag, "AI analysis cancelled just before sending request")
                 return None
 
-            stream = client.chat.completions.create(
-                model="deepseek-chat",
+            with client.beta.chat.completions.stream(
+                model="gpt-4.1-mini",
                 messages=messages,
                 tools=tools,
                 temperature=0.0,
-                stream=True,
                 max_tokens=1024,
-                # Consider adding a timeout if the API supports it via extra_body or similar
-                # timeout=30.0 # Example: httpx timeout
-            )
+                response_format=VulnerabilityReport,
+            ) as stream:
+                log.debug(tag, "Streaming response from AI...")
 
-            log.debug(tag, "Streaming response from AI...")
-            for chunk in stream:
-                chunk_count += 1
-                if task and task.cancelled:
-                    log.info(tag, "AI analysis cancelled during streaming response")
-                    log.info(tag, "Received answer so far: \n" + full_response_content)
-                    return None
+                for event in stream:
+                    chunk_count += 1
+                    if task and task.cancelled:
+                        log.info(tag, "AI analysis cancelled during streaming response")
+                        return None
 
-                if task and chunk_count % 5 == 0:
-                    task.progress = f"Receiving AI response (chunk {chunk_count})..."
+                    if task and chunk_count % 5 == 0:
+                        task.progress = (
+                            f"Receiving AI response (chunk {chunk_count})..."
+                        )
 
-                delta = chunk.choices[0].delta
-                if delta is None:
-                    continue
+                    # Handle different event types
+                    if event.type == "content.delta":
+                        if event.parsed is not None:
+                            # Store structured parsed response
+                            parsed_content = event.parsed
 
-                if delta.role:
-                    role = delta.role
+                    elif event.type == "tool_calls.delta":
+                        # Tool calls are tracked by the stream object
+                        pass
 
-                if delta.content:
-                    full_response_content += delta.content
-
-                if delta.tool_calls:
-                    for tc_chunk in delta.tool_calls:
-                        index = tc_chunk.index
-                        if index not in tool_calls_aggregator:
-                            # Initialize tool call entry if it's the first chunk for this index
-                            tool_calls_aggregator[index] = {
-                                "id": tc_chunk.id,  # ID usually comes first
-                                "type": "function",
-                                "function": {"name": "", "arguments": ""},
-                            }
-                            # Update ID if it arrives later (though usually first)
-                            if tc_chunk.id:
-                                tool_calls_aggregator[index]["id"] = tc_chunk.id
-                        # Aggregate name and arguments
-                        if tc_chunk.function:
-                            if tc_chunk.function.name:
-                                tool_calls_aggregator[index]["function"]["name"] = (
-                                    tc_chunk.function.name
-                                )
-                            if tc_chunk.function.arguments:
-                                tool_calls_aggregator[index]["function"][
-                                    "arguments"
-                                ] += tc_chunk.function.arguments
+                    elif event.type == "error":
+                        log.error(tag, f"Error in stream: {event.error}")
+                        if task:
+                            task.progress = f"Error in AI service: {event.error}"
+                        return None
 
             # --- End of cancellable section (streaming loop) ---
             log.debug(tag, f"Finished streaming after {chunk_count} chunks.")
@@ -150,39 +147,39 @@ class AIService:
                 log.info(tag, "AI analysis cancelled immediately after stream finished")
                 return None
 
-            # Assemble the final tool calls list from the aggregated data
+            # Get the final completion from the stream
+            final_completion = stream.get_final_completion()
+
+            # Extract role, content, and tool calls from the final completion
+            role = "assistant"
+            content = final_completion.choices[0].message.content
+            tool_calls = final_completion.choices[0].message.tool_calls
+
+            # Get the parsed structured response if available
+            if hasattr(final_completion.choices[0].message, "parsed"):
+                parsed_content = final_completion.choices[0].message.parsed
+
+            # Convert tool calls to SimpleNamespace for compatibility with existing code
             final_tool_calls = []
-            if tool_calls_aggregator:
-                for index in sorted(tool_calls_aggregator.keys()):
-                    tc_data = tool_calls_aggregator[index]
-                    # Ensure all parts are present before creating the SimpleNamespace
-                    if (
-                        tc_data.get("id")
-                        and tc_data.get("type") == "function"
-                        and tc_data["function"].get("name") is not None
-                        and tc_data["function"].get("arguments") is not None
-                    ):
-                        final_tool_calls.append(
-                            SimpleNamespace(
-                                id=tc_data["id"],
-                                type=tc_data["type"],
-                                function=SimpleNamespace(
-                                    name=tc_data["function"]["name"],
-                                    arguments=tc_data["function"]["arguments"],
-                                ),
-                            )
+            if tool_calls:
+                for tc in tool_calls:
+                    final_tool_calls.append(
+                        SimpleNamespace(
+                            id=tc.id,
+                            type=tc.type,
+                            function=SimpleNamespace(
+                                name=tc.function.name,
+                                arguments=tc.function.arguments,
+                            ),
                         )
-                    else:
-                        log.warn(
-                            tag,
-                            f"Incomplete tool call data aggregated for index {index}: {tc_data}",
-                        )
+                    )
 
             # Construct the final message object
             final_message = SimpleNamespace(
                 role=role,
-                content=full_response_content if full_response_content else None,
+                content=content,
                 tool_calls=final_tool_calls if final_tool_calls else None,
+                parsed=parsed_content,
             )
             return final_message
 
@@ -196,103 +193,6 @@ class AIService:
                 if task:
                     task.progress = f"Error in AI service: {str(e)}"
                 return None
-        finally:
-            # Ensure the stream is closed if it was opened
-            if stream is not None:
-                try:
-                    stream.close()
-                except Exception as e:
-                    log.warn(tag, f"Error closing AI stream: {e}")
-
-    def _parse_final_response(self, content: str, task: BackgroundTask):
-        """
-        Attempts to parse the final AI response content as JSON,
-        extracting the last ```json block if present.
-        """
-        if not content:
-            log.warn(tag, "Final AI response content is empty.")
-            return {"error": "Empty response from AI."}
-
-        extracted_json_str = None
-        # Find the start of the last ```json block
-        last_json_block_start = content.rfind("```json")
-        if last_json_block_start != -1:
-            # Find the end of this block (the next ``` after the start)
-            end_marker = content.find(
-                "```", last_json_block_start + 7
-            )  # Start search after ```json
-            if end_marker != -1:
-                # Extract the content between ```json and ```
-                extracted_json_str = content[
-                    last_json_block_start + 7 : end_marker
-                ].strip()
-                log.debug(tag, "Extracted content from last ```json block.")
-            else:
-                # Malformed block (```json without closing ```), try using content after marker
-                extracted_json_str = content[last_json_block_start + 7 :].strip()
-                log.warn(
-                    tag,
-                    "Found ```json marker but no closing ```, attempting parse anyway.",
-                )
-        else:
-            # Fallback: Check for generic ``` blocks if ```json wasn't found
-            last_block_end = content.rfind("```")
-            if last_block_end != -1:
-                # Find the start of this last block (the ``` before the end marker)
-                last_block_start = content.rfind("```", 0, last_block_end)
-                if last_block_start != -1:
-                    extracted_json_str = content[
-                        last_block_start + 3 : last_block_end
-                    ].strip()
-                    log.debug(tag, "Extracted content from last generic ``` block.")
-                else:
-                    # Only one ``` found, might be the start, try using content after it
-                    extracted_json_str = content[last_block_end + 3 :].strip()
-                    log.warn(
-                        tag,
-                        "Found only one closing ``` marker, attempting parse content after it.",
-                    )
-
-        # If we extracted something, try parsing it. Otherwise, parse the original content.
-        content_to_parse = (
-            extracted_json_str if extracted_json_str is not None else content.strip()
-        )
-
-        if not content_to_parse:
-            log.warn(tag, "After attempting extraction, content to parse is empty.")
-            return {
-                "error": "Failed to extract parsable content from AI response.",
-                "raw_content": content,  # Return original content in error
-            }
-
-        try:
-            parsed_json = json.loads(content_to_parse)
-            log.info(tag, "Successfully parsed final AI response as JSON.")
-            # If extraction happened, add original content for context if needed
-            if extracted_json_str is not None:
-                parsed_json["_raw_ai_response"] = content
-            return parsed_json
-        except json.JSONDecodeError as e:
-            log.error(tag, f"Failed to parse final AI response as JSON: {e}")
-            log.debug(tag, f"Content that failed parsing:\n{content_to_parse}")
-            log.debug(tag, f"Original AI content was:\n{content}")
-            if task:
-                task.progress = "Error: Failed to parse AI response."
-            # Return an error structure with the content that failed parsing
-            return {
-                "error": f"Failed to parse AI response JSON: {e}",
-                "parsing_attempted_content": content_to_parse,
-                "raw_ai_response": content,
-            }
-        except Exception as e:
-            log.error(tag, f"An unexpected error occurred during JSON parsing: {e}")
-            if task:
-                task.progress = "Error: Unexpected error parsing AI response."
-            return {
-                "error": f"Unexpected error parsing AI response: {e}",
-                "parsing_attempted_content": content_to_parse,
-                "raw_ai_response": content,
-            }
 
     def _analyse_in_background(self, binary_view: BinaryView, path: Path):
         """Run the AI analysis in a background thread."""
@@ -536,47 +436,43 @@ class AIService:
                     tag,
                     f"AI analysis completed after {request_num} requests and {total_tool_calls_processed} tool calls. No further tool calls requested.",
                 )
+                # Use the parsed field directly instead of calling _parse_final_response
                 final_content = (
-                    message.content
-                    if message and message.content
-                    else "Analysis complete but no final content received."
+                    message.parsed if message and hasattr(message, "parsed") else None
                 )
+
                 task.progress = f"Analysis finished ({request_num} requests, {total_tool_calls_processed} tools)."
-                log.info(tag, f"Final content received:\n{final_content}")
-                # Break the loop to parse the final content
+                log.info(tag, f"Final content received: {type(final_content)}")
+                # Break the loop to use the final content
                 break
 
         # --- End of while loop ---
 
-        # If the loop finished, try to parse the final_content
+        # If the loop finished, use the final_content
         if final_content:
-            parsed_result = self._parse_final_response(final_content, task)
-            # Pretty-print the full JSON result for detailed logging
-            log.debug(
-                tag, f"Full AI analysis result:\n{json.dumps(parsed_result, indent=4)}"
-            )
+            # The response is already a VulnerabilityReport Pydantic model
+            vuln: VulnerabilityReport = final_content
+
+            # Pretty-print the model for detailed logging
+            try:
+                log.debug(
+                    tag, f"Full AI analysis result:\n{vuln.model_dump_json(indent=4)}"
+                )
+            except Exception as e:
+                log.debug(tag, f"Failed to serialize result: {e}\n{vuln}")
 
             # Generate and log a summary paragraph
-            if "error" in parsed_result:
-                summary = f"AI analysis failed: {parsed_result['error']}"
-                log.error(tag, summary)
-            elif parsed_result.get("is_false_positive"):
+            if vuln.falsePositive:
                 summary = "AI analysis concluded the path is likely a false positive."
-                log.info(tag, summary)
             else:
-                vuln_type = parsed_result.get("vulnerability_type", "N/A")
-                severity = parsed_result.get("severity_level", "N/A")
-                explanation = parsed_result.get("explanation", "N/A")
-                score = parsed_result.get("exploitability_score", "N/A")
-                input_example = parsed_result.get("input_example", "N/A")
                 summary = (
-                    f"\nAI analysis confirms a potential '{vuln_type}' vulnerability "
-                    f"with '{severity}' severity and an exploitability score of {score}.\n"
-                    f"Explanation: {explanation}.\n"
-                    f"Example input: {input_example}.\n"
+                    f"\nAI analysis confirms a potential {vuln.severityLevel} {vuln.vulnerabilityClass} vulnerability "
+                    f"with exploitability score of {vuln.exploitabilityScore}.\n"
+                    f"Explanation: {vuln.explanation}.\n"
+                    f"Example input: {vuln.inputExample}.\n"
                 )
-                log.info(tag, summary)
-            return parsed_result
+            log.info(tag, summary)
+            return vuln
         elif task.cancelled:
             # Should have returned None earlier, but double-check
             log.info(
