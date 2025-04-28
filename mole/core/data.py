@@ -207,16 +207,7 @@ class SourceFunction(Function):
         # Clear map
         self.src_map.clear()
         # Get code references of symbols
-        code_refs = SymbolHelper.get_code_refs(
-            bv,
-            self.symbols,
-            [
-                bn.SymbolType.FunctionSymbol,
-                bn.SymbolType.ImportAddressSymbol,
-                bn.SymbolType.ImportedFunctionSymbol,
-                bn.SymbolType.SymbolicFunctionSymbol,
-            ],
-        )
+        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
             if canceled():
@@ -279,10 +270,6 @@ class SourceFunction(Function):
                                 f"0x{src_sym_addr:x} Ignore dataflow determined argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
                             )
                             continue
-                    # Perform backward slicing only if the parameter is set to be sliced
-                    if not self.par_slice_fun(src_par_idx):
-                        continue
-                
                     # Create backward slicer
                     src_slicer = MediumLevelILBackwardSlicer(bv, custom_tag, 0)
                     # Add edge between call and parameter instructions
@@ -293,8 +280,9 @@ class SourceFunction(Function):
                         src_par_var, 0, src_par_var.function, origin="src"
                     )
                     src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
-
-                    src_slicer.slice_backwards(src_par_var)
+                    # Perform backward slicing of the parameter
+                    if self.par_slice_fun(src_par_idx):
+                        src_slicer.slice_backwards(src_par_var)
                     # Store the instruction graph
                     src_par_map[(src_par_idx, src_par_var)] = src_slicer.inst_graph
         return
@@ -332,16 +320,7 @@ class SinkFunction(Function):
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         # Get code references of symbols
-        code_refs = SymbolHelper.get_code_refs(
-            bv,
-            self.symbols,
-            [
-                bn.SymbolType.FunctionSymbol,
-                bn.SymbolType.ImportAddressSymbol,
-                bn.SymbolType.ImportedFunctionSymbol,
-                bn.SymbolType.SymbolicFunctionSymbol,
-            ],
-        )
+        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
             if canceled():
