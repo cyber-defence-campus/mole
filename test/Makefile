@@ -8,8 +8,7 @@ SRC_DIR := ./src
 BIN_DIR := ./bin
 
 # Files
-ALL_SRC_FILES := $(wildcard $(SRC_DIR)/*.c)
-SRC_FILES := $(filter-out $(SRC_DIR)/win-%.c, $(ALL_SRC_FILES))
+SRC_FILES := $(wildcard $(SRC_DIR)/*.c)
 BIN_FILES := $(patsubst $(SRC_DIR)/%.c, $(BIN_DIR)/%$(EXT), $(SRC_FILES))
 
 # Ensure directory bin/ exists
