@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Literal, Optional, TYPE_CHECKING
+import os
 import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
@@ -35,6 +36,18 @@ class ConfigView(qtw.QWidget):
         """
         # Set controller
         self.config_ctr = config_ctr
+        # Initialize conf dir
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        cnf_dir = os.path.abspath(os.path.join(script_dir, "../../conf/"))
+        cnf_lbl = qtw.QLabel("Config Dir:")
+        cnf_lin = FullSelectLineEdit(cnf_dir)
+        cnf_lin.setReadOnly(True)
+        cnf_lin.setStyleSheet("background-color: transparent; border: none;")
+        cnf_lay = qtw.QHBoxLayout()
+        cnf_lay.addWidget(cnf_lbl)
+        cnf_lay.addWidget(cnf_lin)
+        cnf_dir = qtw.QWidget()
+        cnf_dir.setLayout(cnf_lay)
         # Initialize UI widgets
         tab = qtw.QTabWidget()
         tab.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
@@ -42,6 +55,7 @@ class ConfigView(qtw.QWidget):
         tab.addTab(self._init_cnf_set_tab(), "Settings")
         but = self._init_cnf_but()
         lay = qtw.QVBoxLayout()
+        lay.addWidget(cnf_dir)
         lay.addWidget(tab)
         lay.addWidget(but)
         self.setLayout(lay)
@@ -216,3 +230,13 @@ class ConfigView(qtw.QWidget):
             button.setText(text)
             qtc.QTimer.singleShot(msec, lambda text=old_text: restore(text))
         return
+
+
+class FullSelectLineEdit(qtw.QLineEdit):
+    """
+    This class implements a `qtw.QLineEdit` that selects all its text when
+    double-clicked.
+    """
+
+    def mouseDoubleClickEvent(self, event: any) -> None:
+        return self.selectAll()
