@@ -161,7 +161,7 @@ class TestVarious(TestCase):
                     ),
                     "source is a MLIL call instruction",
                 )
-                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertEqual(path.src_par_idx, None, "hit call instruction")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "source argument is a MLIL variable",
@@ -207,7 +207,7 @@ class TestVarious(TestCase):
                 ),
                 "source is a MLIL call instruction",
             )
-            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertEqual(path.src_par_idx, None, "hit call instruction")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "source argument is a MLIL variable",
@@ -253,7 +253,7 @@ class TestVarious(TestCase):
                     ),
                     "source is a MLIL call instruction",
                 )
-                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertEqual(path.src_par_idx, None, "hit call instruction")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "source argument is a MLIL variable",
@@ -295,7 +295,7 @@ class TestVarious(TestCase):
                 ),
                 "source is a MLIL call instruction",
             )
-            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertEqual(path.src_par_idx, None, "hit call instruction")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "source argument is a MLIL variable",
@@ -337,7 +337,7 @@ class TestVarious(TestCase):
                 ),
                 "source is a MLIL call instruction",
             )
-            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertEqual(path.src_par_idx, None, "hit call instruction")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "source argument is a MLIL variable",
@@ -383,7 +383,7 @@ class TestVarious(TestCase):
                     ),
                     "source is a MLIL call instruction",
                 )
-                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertEqual(path.src_par_idx, None, "hit call instruction")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "source argument is a MLIL variable",
@@ -462,7 +462,7 @@ class TestFunctionCalling(TestCase):
                     ),
                     "source is a MLIL call instruction",
                 )
-                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertEqual(path.src_par_idx, None, "hit call instruction")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "source argument is a MLIL variable",
@@ -512,7 +512,7 @@ class TestFunctionCalling(TestCase):
                     ),
                     "source is a MLIL call instruction",
                 )
-                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertEqual(path.src_par_idx, None, "hit call instruction")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "source argument is a MLIL variable",
@@ -574,7 +574,7 @@ class TestFunctionCalling(TestCase):
                 ),
                 "source is a MLIL call instruction",
             )
-            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertEqual(path.src_par_idx, None, "hit call instruction")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "source argument is a MLIL variable",
@@ -644,7 +644,7 @@ class TestPointerAnalysis(TestCase):
                 ),
                 "source is a MLIL call instruction",
             )
-            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertEqual(path.src_par_idx, None, "hit call instruction")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "source argument is a MLIL variable",
@@ -702,7 +702,7 @@ class TestPointerAnalysis(TestCase):
                     ),
                     "source is a MLIL call instruction",
                 )
-                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertEqual(path.src_par_idx, None, "hit call instruction")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "source argument is a MLIL variable",
@@ -756,7 +756,7 @@ class TestPointerAnalysis(TestCase):
                     ),
                     "source is a MLIL call instruction",
                 )
-                self.assertEqual(path.src_par_idx, 1, "arg1")
+                self.assertEqual(path.src_par_idx, None, "hit call instruction")
                 self.assertTrue(
                     isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                     "source argument is a MLIL variable",
@@ -792,7 +792,7 @@ class TestPointerAnalysis(TestCase):
                 ),
                 "source is a MLIL call instruction",
             )
-            self.assertEqual(path.src_par_idx, 1, "arg1")
+            self.assertEqual(path.src_par_idx, None, "hit call instruction")
             self.assertTrue(
                 isinstance(path.snk_par_var, bn.MediumLevelILVarSsa),
                 "source argument is a MLIL variable",

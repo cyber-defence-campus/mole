@@ -1,9 +1,15 @@
 #include <windows.h>
 #include <stdio.h>
 
+/*
+Testcase Description:
+- Windows heap allocation
+*/
+
 typedef struct _MY_STRUCT {
     PBYTE ValueInfo;
 } MY_STRUCT, *PMY_STRUCT;
+
 
 int main() {
     PMY_STRUCT myStruct = NULL;
