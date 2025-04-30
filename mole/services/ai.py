@@ -37,7 +37,7 @@ class VulnerabilityReport(BaseModel):
         "Information Disclosure",
         "Other",
     ]
-    explanation: str
+    shortExplanation: str
     severityLevel: Literal["Critical", "High", "Medium", "Low"]
     exploitabilityScore: float
     inputExample: str
@@ -63,7 +63,7 @@ class AIService:
         *   Note any size limitations, character restrictions, or other constraints on the user input
     3.  **Validate the Path:** Based on your contextual analysis (both local and global), determine if the path from source to sink is logically valid, reachable from an appropriate entry point, and not a false positive. Consider constraints or sanitization routines that might exist nearby or in callers.
     4.  **Identify Vulnerability:** If the path is valid and reachable, identify the potential vulnerability type (e.g., Out-of-Bounds Write, Command Injection, Use-After-Free).
-    5.  **Explain Concisely:** Provide a clear explanation of why the vulnerability exists, referencing specific code patterns (or lack thereof) identified during your analysis of the slice, surrounding code, and caller context. Explain *how* the path can be triggered, considering caller conditions.
+    5.  **Explain Concisely:** Provide a clear and short explanation of why the vulnerability exists, referencing specific code patterns (or lack thereof) identified during your analysis of the slice, surrounding code, and caller context. Explain *how* the path can be triggered, considering caller conditions.
     6.  **Assess Severity:** Assign a severity level (Critical, High, Medium, Low) based on the potential impact.
     7.  **Score Exploitability:** Provide an exploitability score (0-10), justifying it based on the complexity of triggering the path (considering caller constraints) and controlling the vulnerable operation. Your contextual analysis using the tools is key here.
     8.  **Craft Example Input:** **Crucially, use your understanding of the surrounding code logic (conditions, checks, data formats obtained via tools) *and* the conditions imposed by callers to create a realistic input example that could trigger the vulnerability.** If the input is binary data, provide it in hexdump format. If it's text (like JSON or command arguments), format it appropriately. The example must aim to satisfy the conditions needed to reach the sink via the identified path, considering the full function and call chain context.
@@ -125,15 +125,21 @@ class AIService:
 
             # self._log_message(messages)
 
+            config = self._config_service.load_config()
+            if "ai_model" not in config.settings:
+                raise ValueError("Missing AI model in configuration.")
+
+            ai_model = config.settings["ai_model"].value
+
             with client.beta.chat.completions.stream(
-                model="gpt-4.1-mini",
+                model=ai_model,
                 messages=messages,
                 tools=tools,
-                temperature=0.0,
-                max_tokens=1024,
+                # temperature=0.0,
+                max_completion_tokens=4096,
                 response_format=VulnerabilityReport,
             ) as stream:
-                log.debug(tag, "Streaming response from AI...")
+                log.debug(tag, f"[{ai_model}] Streaming response from AI...")
 
                 for event in stream:
                     chunk_count += 1
@@ -163,7 +169,9 @@ class AIService:
                         return None
 
             # --- End of cancellable section (streaming loop) ---
-            log.debug(tag, f"Finished streaming after {chunk_count} chunks.")
+            log.debug(
+                tag, f"[{ai_model}] Finished streaming after {chunk_count} chunks."
+            )
 
             # Check if task was cancelled *just* after the stream finished
             if task and task.cancelled:
@@ -247,6 +255,7 @@ class AIService:
             try:
                 args = json.loads(tool.function.arguments)
                 args["binary_view"] = binary_view
+                log.info(tag, f"Calling tool {tool.function.name} with args: {args}")
                 output_data = call_function(tool.function.name, args)
                 # check again after long call
                 self._check_cancelled(task)
@@ -466,7 +475,7 @@ class AIService:
                 summary = (
                     f"\nAI analysis confirms a potential {vuln.severityLevel} {vuln.vulnerabilityClass} vulnerability "
                     f"with exploitability score of {vuln.exploitabilityScore}.\n"
-                    f"Explanation: {vuln.explanation}.\n"
+                    f"Explanation: {vuln.shortExplanation}.\n"
                     f"Example input: {vuln.inputExample}.\n"
                 )
             log.info(tag, summary)

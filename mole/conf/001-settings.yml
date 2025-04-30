@@ -52,8 +52,12 @@ settings:
   ai_api_url:
     name: ai_api_url
     help: LLM Base URL
-    value: "https://api.deepseek.com"
+    value: "https://api.openai.com/v1"
   ai_api_key:
     name: ai_api_key
     help: LLM API key
     value: ""
+  ai_model:
+    name: ai_model
+    help: LLM Model
+    value: "o4-mini"

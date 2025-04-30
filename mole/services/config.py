@@ -222,7 +222,7 @@ class ConfigService:
                 )
 
             # Parse AI API settings
-            for name in ["ai_api_url", "ai_api_key"]:
+            for name in ["ai_api_url", "ai_api_key", "ai_model"]:
                 setting = settings.get(name, None)
                 if not setting:
                     continue
