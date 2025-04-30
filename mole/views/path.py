@@ -61,12 +61,6 @@ class PathView(bnui.SidebarWidget):
         # Create the path tree view
         self.path_tree_view = PathTreeView()
 
-        # Create header
-        hdr_lay = qtw.QHBoxLayout()
-        hdr_lay.addWidget(qtw.QLabel("Interesting Paths:"))
-        hdr_wid = qtw.QWidget()
-        hdr_wid.setLayout(hdr_lay)
-
         # Create control buttons
         self._run_but = qtw.QPushButton("Find")
         self._run_but.clicked.connect(self.signal_find_paths.emit)
@@ -85,13 +79,12 @@ class PathView(bnui.SidebarWidget):
 
         # Set up main layout
         lay = qtw.QVBoxLayout()
-        lay.addWidget(hdr_wid)
         lay.addWidget(self.path_tree_view)
         lay.addWidget(but_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
 
-        return wid, "Path"
+        return wid, "Paths"
 
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
         return GraphWidget(), "Graph"
