@@ -55,8 +55,8 @@ class ConfigView(qtw.QWidget):
         tab.addTab(self._init_cnf_set_tab(), "Settings")
         but = self._init_cnf_but()
         lay = qtw.QVBoxLayout()
-        lay.addWidget(cnf_dir)
         lay.addWidget(tab)
+        lay.addWidget(cnf_dir)
         lay.addWidget(but)
         self.setLayout(lay)
         return self
