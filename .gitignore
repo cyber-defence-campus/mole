@@ -18,9 +18,9 @@ venv/
 .vscode
 
 # Custom YML Files
-conf/*.yml
-!conf/001-settings.yml
-!conf/002-libc.yml
+mole/conf/*.yml
+!mole/conf/001-settings.yml
+!mole/conf/002-libc.yml
 
 # Test Binaries
 test/bin/
