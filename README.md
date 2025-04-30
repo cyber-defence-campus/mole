@@ -36,5 +36,5 @@ See *Mole* in action as it exposes [CVE-2021-4045](https://www.hacefresko.com/po
 If you have an interesting **success story** - such as finding a vulnerability with the help of *Mole* - we would love to hear about it! Feel free to share your experience with us.
 
 ## Contributors
-- [Damian Pfammatter](https://github.com/pdamian), [Cyber-Defense Campus (armasuisse S+T)](https://www.cydcampus.admin.ch/en)
+- [Damian Pfammatter](https://github.com/pdamian), [Cyber-Defence Campus (armasuisse S+T)](https://www.cydcampus.admin.ch/en)
 - [Sergio Paganoni](https://github.com/wizche)

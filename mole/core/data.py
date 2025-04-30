@@ -207,15 +207,7 @@ class SourceFunction(Function):
         # Clear map
         self.src_map.clear()
         # Get code references of symbols
-        code_refs = SymbolHelper.get_code_refs(
-            bv,
-            self.symbols,
-            [
-                bn.SymbolType.FunctionSymbol,
-                bn.SymbolType.ImportedFunctionSymbol,
-                bn.SymbolType.SymbolicFunctionSymbol,
-            ],
-        )
+        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
             if canceled():
@@ -328,15 +320,7 @@ class SinkFunction(Function):
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         # Get code references of symbols
-        code_refs = SymbolHelper.get_code_refs(
-            bv,
-            self.symbols,
-            [
-                bn.SymbolType.FunctionSymbol,
-                bn.SymbolType.ImportedFunctionSymbol,
-                bn.SymbolType.SymbolicFunctionSymbol,
-            ],
-        )
+        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
             if canceled():
@@ -433,6 +417,10 @@ class SinkFunction(Function):
                                 ) in src_par_map.items():
                                     if canceled():
                                         break
+                                    # Source parameter was not sliced
+                                    if not source.par_slice_fun(src_par_idx):
+                                        src_par_idx = None
+                                        src_par_var = None
                                     # Iterate source instructions (order of backward slicing)
                                     for src_inst in src_inst_graph.nodes():
                                         # Ignore source instructions that were not sliced in the sink
@@ -536,8 +524,8 @@ class Path:
 
     src_sym_addr: int
     src_sym_name: str
-    src_par_idx: int
-    src_par_var: bn.MediumLevelILInstruction
+    src_par_idx: Optional[int]
+    src_par_var: Optional[bn.MediumLevelILInstruction]
     src_inst_idx: int
     snk_sym_addr: int
     snk_sym_name: str
@@ -555,8 +543,8 @@ class Path:
         self,
         src_sym_addr: int,
         src_sym_name: str,
-        src_par_idx: int,
-        src_par_var: bn.MediumLevelILInstruction,
+        src_par_idx: Optional[int],
+        src_par_var: Optional[bn.MediumLevelILInstruction],
         src_inst_idx: int,
         snk_sym_addr: int,
         snk_sym_name: str,
@@ -624,7 +612,9 @@ class Path:
         # Add `src` node attribute
         src_func = self.insts[-1].function
         if src_func in self.call_graph:
-            src_info = f"src: {self.src_sym_name:s} | {str(self.src_par_var):s}"
+            src_info = f"src: {self.src_sym_name:s}"
+            if self.src_par_var:
+                src_info = f"{src_info:s} | {str(self.src_par_var):s}"
             self.call_graph.nodes[src_func]["src"] = src_info
         # Add `snk` node attribute
         snk_func = self.insts[0].function
@@ -643,15 +633,23 @@ class Path:
             # Equal source
             self.src_sym_addr == other.src_sym_addr
             and self.src_sym_name == other.src_sym_name
-            and self.src_par_idx == other.src_par_idx
-            and self.src_par_var == other.src_par_var
+            and (
+                self.src_par_idx is None
+                or other.src_par_idx is None
+                or self.src_par_idx == other.src_par_idx
+            )
+            and (
+                self.src_par_var is None
+                or other.src_par_var is None
+                or self.src_par_var == other.src_par_var
+            )
             # Equal sink
             and self.snk_sym_addr == other.snk_sym_addr
             and self.snk_sym_name == other.snk_sym_name
             and self.snk_par_idx == other.snk_par_idx
             and self.snk_par_var == other.snk_par_var
-            # Equal instructions (ignoring the ones originating from slicing the source, only
-            # considering the source's call instruction)
+            # Equal instructions (ignoring the ones originating from slicing the
+            # source, only considering the source's call instruction)
             and self.src_inst_idx == other.src_inst_idx
             and self.insts[: self.src_inst_idx - 1]
             == other.insts[: self.src_inst_idx - 1]
@@ -662,7 +660,10 @@ class Path:
 
     def __str__(self) -> str:
         src = f"0x{self.src_sym_addr:x} {self.src_sym_name:s}"
-        src = f"{src:s}(arg#{self.src_par_idx:d}:{str(self.src_par_var):s})"
+        if self.src_par_idx and self.src_par_var:
+            src = f"{src:s}(arg#{self.src_par_idx:d}:{str(self.src_par_var):s})"
+        else:
+            src = f"{src:s}()"
         snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
         snk = f"{snk:s}(arg#{self.snk_par_idx:d}:{str(self.snk_par_var):s})"
         return f"{src:s} --> {snk:s}"
@@ -696,7 +697,10 @@ class Path:
             insts.append(inst)
         # Deserialize parameter variables
         src_par_idx = d["src_par_idx"]
-        src_par_var = insts[-1].params[src_par_idx - 1]
+        if src_par_idx:
+            src_par_var = insts[-1].params[src_par_idx - 1]
+        else:
+            src_par_var = None
         snk_par_idx = d["snk_par_idx"]
         snk_par_var = insts[0].params[snk_par_idx - 1]
         path: Path = cls(

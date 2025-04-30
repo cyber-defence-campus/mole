@@ -170,9 +170,11 @@ class PathTreeModel(qtui.QStandardItemModel):
         src_func_item = qtui.QStandardItem(path.src_sym_name)
         src_func_item.setData(True, IS_PATH_ITEM_ROLE)
 
-        src_parm_item = qtui.QStandardItem(
-            f"arg#{path.src_par_idx:d}:{str(path.src_par_var):s}"
-        )
+        if path.src_par_idx and path.src_par_var:
+            src_parm_label = f"arg#{path.src_par_idx:d}:{str(path.src_par_var):s}"
+        else:
+            src_parm_label = ""
+        src_parm_item = qtui.QStandardItem(src_parm_label)
         src_parm_item.setData(True, IS_PATH_ITEM_ROLE)
 
         snk_addr_item = qtui.QStandardItem(f"0x{path.snk_sym_addr:x}")

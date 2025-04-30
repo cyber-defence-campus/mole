@@ -45,8 +45,11 @@ class PathView(bnui.SidebarWidget):
         self._wid.addTab(*self._init_path_tab())
         self._wid.addTab(*self._init_graph_tab())
         self._wid.addTab(self.path_ctr.config_ctr.config_view, "Configure")
+        scr = qtw.QScrollArea()
+        scr.setWidget(self._wid)
+        scr.setWidgetResizable(True)
         lay = qtw.QVBoxLayout()
-        lay.addWidget(self._wid)
+        lay.addWidget(scr)
         self.setLayout(lay)
         self.signal_setup_path_tree.emit(self._bv, self.path_tree_view, self._wid)
         return self
@@ -57,12 +60,6 @@ class PathView(bnui.SidebarWidget):
         """
         # Create the path tree view
         self.path_tree_view = PathTreeView()
-
-        # Create the layout for the tree
-        res_lay = qtw.QVBoxLayout()
-        res_lay.addWidget(self.path_tree_view)
-        res_wid = qtw.QGroupBox("Interesting Paths:")
-        res_wid.setLayout(res_lay)
 
         # Create control buttons
         self._run_but = qtw.QPushButton("Find")
@@ -82,12 +79,12 @@ class PathView(bnui.SidebarWidget):
 
         # Set up main layout
         lay = qtw.QVBoxLayout()
-        lay.addWidget(res_wid)
+        lay.addWidget(self.path_tree_view)
         lay.addWidget(but_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
 
-        return wid, "Path"
+        return wid, "Paths"
 
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
         return GraphWidget(), "Graph"
