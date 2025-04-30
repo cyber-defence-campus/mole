@@ -7,7 +7,7 @@ where = ["."]
 include = ["mole*"]
 
 [tool.setuptools.package-data]
-"mole" = ["conf/*"]
+"mole" = ["conf/*", "resources/*"]
 
 [project]
 name = "mole"
