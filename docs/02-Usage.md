@@ -9,7 +9,7 @@ This section provides some guidance on how to use *Mole*.
 
 Clicking the *Save* button stores the current configuration and writes it to the file `conf/000-mole.yml` (see the table below). These saved values are also applied when *Mole* is run in [headless mode](02-Usage.md#headless-mode), unless they are overwritten by command-line arguments. The *Reset* button restores all configuration options to their default values.
 
-All configuration files are located in the [`conf/`](../conf/) directory. The table below lists the purpose of each file:
+All configuration files are located in the [`conf/`](../mole/conf/) directory. The table below lists the purpose of each file:
 
 | File                    | Description / Purpose                                               |
 |-------------------------|---------------------------------------------------------------------|
@@ -21,7 +21,7 @@ All configuration files are located in the [`conf/`](../conf/) directory. The ta
 To add your own source and sink functions, create a custom file like `conf/003-yourlib.yml`. *Mole* will automatically load and show them in its *Configure* tab. For details on the expected format, refer to the next subsection.
 
 ### Definition of Source and Sink Functions
-To define your own source or sink functions - such as those belonging to a custom third-party library - you can use [`conf/002-libc.yml`](../conf/002-libc.yml) as a starting point. Duplicate this file and rename it, for example, to `conf/003-yourlib.yml`. The expected format is described below:
+To define your own source or sink functions - such as those belonging to a custom third-party library - you can use [`conf/002-libc.yml`](../mole/conf/002-libc.yml) as a starting point. Duplicate this file and rename it, for example, to `conf/003-yourlib.yml`. The expected format is described below:
 ```YAML
 sources:                                             # Collection of function sources (or sinks)
   libc:                                              # Library identifier
