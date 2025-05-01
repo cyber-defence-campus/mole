@@ -4,7 +4,7 @@ In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` poi
 - Clone the plugin to your *Binary Ninja*'s user folder:
   ```shell
   cd $BINJA_USR/plugins/
-  git clone https://github.com/pdamian/mole.git Mole && cd Mole/
+  git clone https://github.com/pdamian/mole.git mole-plugin && cd mole-plugin/
   ```
 - Create and activate a new Python virtual environment for *Mole* (optional, but recommended):
   ```shell
