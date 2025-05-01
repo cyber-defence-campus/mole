@@ -24,9 +24,6 @@ In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` poi
   pip install -e .[develop]
   pre-commit install
   ```
-- Lauch *Binary Ninja* outside the virtual environment:
-  ```shell
-  $BINJA_BIN/binaryninja &
-  ```
+- If you are using a virtual environment, consider configuring the corresponding `site-packages` directory in *Binary Ninja*'s settings.
 ----------------------------------------------------------------------------------------------------
 [Back-To-README](../README.md#documentation)
