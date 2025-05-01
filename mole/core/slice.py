@@ -440,31 +440,7 @@ class MediumLevelILBackwardSlicer:
                 )
                 self.inst_graph.add_edge(inst, inst.src)
                 self._slice_backwards(inst.src, call_level, caller_site)
-            case (
-                bn.MediumLevelILAdd()
-                | bn.MediumLevelILAdc()
-                | bn.MediumLevelILSub()
-                | bn.MediumLevelILSbb()
-                | bn.MediumLevelILAnd()
-                | bn.MediumLevelILOr()
-                | bn.MediumLevelILXor()
-                | bn.MediumLevelILLsl()
-                | bn.MediumLevelILLsr()
-                | bn.MediumLevelILAsr()
-                | bn.MediumLevelILRor()
-                | bn.MediumLevelILMul()
-                | bn.MediumLevelILMuluDp()
-                | bn.MediumLevelILMulsDp()
-                | bn.MediumLevelILDivu()
-                | bn.MediumLevelILDivuDp()
-                | bn.MediumLevelILDivs()
-                | bn.MediumLevelILDivsDp()
-                | bn.MediumLevelILFadd()
-                | bn.MediumLevelILFsub()
-                | bn.MediumLevelILFmul()
-                | bn.MediumLevelILFdiv()
-                | bn.MediumLevelILCmpUlt()
-            ):
+            case bn.MediumLevelILBinaryBase() | bn.MediumLevelILCarryBase():
                 self.inst_graph.add_node(
                     inst, call_level, caller_site, origin=self._origin
                 )
