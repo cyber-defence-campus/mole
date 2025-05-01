@@ -2,8 +2,12 @@
 requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["mole"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mole*"]
+
+[tool.setuptools.package-data]
+"mole" = ["conf/*", "resources/*"]
 
 [project]
 name = "mole"

@@ -38,7 +38,7 @@ class ConfigView(qtw.QWidget):
         self.config_ctr = config_ctr
         # Initialize conf dir
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        cnf_dir = os.path.abspath(os.path.join(script_dir, "../../conf/"))
+        cnf_dir = os.path.abspath(os.path.join(script_dir, "../conf/"))
         cnf_lbl = qtw.QLabel("Config Dir:")
         cnf_lin = FullSelectLineEdit(cnf_dir)
         cnf_lin.setReadOnly(True)

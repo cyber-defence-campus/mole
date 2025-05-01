@@ -30,7 +30,7 @@ class ConfigService:
         This method initializes a configuration service.
         """
         self._config_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "../../conf/"
+            os.path.dirname(os.path.abspath(__file__)), "../conf/"
         )
         self._parser = LogicalExpressionParser()
         return
