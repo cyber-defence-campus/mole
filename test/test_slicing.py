@@ -25,8 +25,7 @@ class TestCase(unittest.TestCase):
     def load_files(names: List[str]) -> List[str]:
         """
         This method returns all files in the `testcases` directory matching
-        `name` but ignoring the
-        file extension.
+        `name` but ignoring the file extension.
         """
         directory = os.path.join(os.path.dirname(__file__), "bin")
         files = []
