@@ -38,6 +38,26 @@ class Test_x86_64(TestMediumLevelILInstruction):
         self.plat = self.arch.standalone_platform
         return
 
+    def test_mlil_store(self) -> None:
+        # Assembly code
+        code = b"\xc7\x00\xef\xbe\xad\xde"
+        # Binary view
+        bv = bn.BinaryView.new(code)
+        bv.platform = self.plat
+        bv.add_function(0, self.plat)
+        bv.update_analysis_and_wait()
+        # Slice instruction
+        slicer = MediumLevelILBackwardSlicer(bv)
+        func = bv.get_function_at(0)
+        for inst in func.mlil.ssa_form.instructions:
+            if isinstance(inst, bn.MediumLevelILStoreSsa):
+                slicer._slice_backwards(inst)
+                break
+        # Assert results
+        self.assertEqual(len(slicer.inst_graph.nodes), 2, "count inst nodes")
+        self.assertEqual(len(slicer.inst_graph.edges), 1, "count inst edges")
+        return
+
     def test_mlil_store_struct(self, filenames: List[str] = ["struct-01"]) -> None:
         # Define structure name and type
         struct_name = "MyStruct"
@@ -46,6 +66,7 @@ class Test_x86_64(TestMediumLevelILInstruction):
         struct_type.append(bn.Type.int(4), "field_b")
 
         for file in TestMediumLevelILInstruction.load_files(filenames):
+            # TODO: Does not yet lead to a MLIL_STORE_STRUCT instruction
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -71,24 +92,4 @@ class Test_x86_64(TestMediumLevelILInstruction):
                 bv.arch, bn.Type.named_type_from_registered_type(bv, struct_name)
             )
             func.create_user_var(rdi_var, my_struct_ptr_type, "rdi")
-        return
-
-    def test_mlil_store(self) -> None:
-        # Assembly code
-        code = b"\xc7\x00\xef\xbe\xad\xde"
-        # Binary view
-        bv = bn.BinaryView.new(code)
-        bv.platform = self.plat
-        bv.add_function(0, self.plat)
-        bv.update_analysis_and_wait()
-        # Slice instruction
-        slicer = MediumLevelILBackwardSlicer(bv)
-        func = bv.get_function_at(0)
-        for inst in func.mlil.ssa_form.instructions:
-            if isinstance(inst, bn.MediumLevelILStoreSsa):
-                slicer._slice_backwards(inst)
-                break
-        # Assert results
-        self.assertEqual(len(slicer.inst_graph.nodes), 2, "count inst nodes")
-        self.assertEqual(len(slicer.inst_graph.edges), 1, "count inst edges")
         return
