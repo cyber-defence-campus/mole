@@ -528,12 +528,7 @@ class MediumLevelILBackwardSlicer:
                             self._tag,
                             f"[{call_level:+d}] {dest_info:s}: Missing handler",
                         )
-            case (
-                bn.MediumLevelILSyscall()
-                | bn.MediumLevelILSyscallSsa()
-                | bn.MediumLevelILIntrinsic()
-                | bn.MediumLevelILIntrinsicSsa()
-            ):
+            case bn.MediumLevelILSyscallSsa() | bn.MediumLevelILIntrinsicSsa():
                 for par in inst.params:
                     self.inst_graph.add_node(
                         inst, call_level, caller_site, origin=self._origin
@@ -548,7 +543,6 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILNop()
                 | bn.MediumLevelILBp()
                 | bn.MediumLevelILTrap()
-                | bn.MediumLevelILFreeVarSlot()
                 | bn.MediumLevelILFreeVarSlotSsa()
                 | bn.MediumLevelILUndef()
                 | bn.MediumLevelILUnimpl()
