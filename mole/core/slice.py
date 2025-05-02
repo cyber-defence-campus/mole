@@ -553,6 +553,8 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILBoolToInt()
                 | bn.MediumLevelILLoadSsa()
                 | bn.MediumLevelILLoadStructSsa()
+                | bn.MediumLevelILStoreSsa()
+                | bn.MediumLevelILStoreStructSsa()
             ):
                 self.inst_graph.add_node(
                     inst, call_level, caller_site, origin=self._origin
