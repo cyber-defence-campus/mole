@@ -1,9 +1,6 @@
-from keystone import Ks, KS_ARCH_X86, KS_MODE_64
 from mole.common.log import log
 from mole.core.slice import MediumLevelILBackwardSlicer
-from typing import List
 import binaryninja as bn
-import os
 import unittest
 
 
@@ -15,36 +12,9 @@ class TestMediumLevelILInstruction(unittest.TestCase):
     def setUp(self) -> None:
         # Logger properties
         log.change_properties(level="debug", runs_headless=True)
-        return
-
-    @staticmethod
-    def load_files(names: List[str]) -> List[str]:
-        """
-        This method returns all files in the `testcases` directory matching
-        `name` but ignoring the file extension.
-        """
-        directory = os.path.join(os.path.dirname(__file__), "bin")
-        files = []
-        for dirpath, _, filenames in os.walk(directory):
-            for filename in filenames:
-                if os.path.splitext(filename)[0] in names:
-                    files.append(os.path.join(dirpath, filename))
-        return files
-
-
-class Test_x86_64(TestMediumLevelILInstruction):
-    """
-    This class implements unit tests to test the slicing of MLIL instructions on the x86_64
-    architecture.
-    """
-
-    def setUp(self) -> None:
-        super().setUp()
         # Architecture and platform
         self.arch = bn.Architecture["x86_64"]
         self.plat = self.arch.standalone_platform
-        # Keystone assembler
-        self.ks = Ks(KS_ARCH_X86, KS_MODE_64)
         return
 
     def create_bv(self, size: int = 1024) -> bn.BinaryView:
