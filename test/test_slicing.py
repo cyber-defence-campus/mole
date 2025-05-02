@@ -1,4 +1,5 @@
 from __future__ import annotations
+from mole.common.log import log
 from mole.core.data import Path
 from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
@@ -16,6 +17,7 @@ class TestCase(unittest.TestCase):
     """
 
     def setUp(self) -> None:
+        log.change_properties(level="debug", runs_headless=True)
         self._model = ConfigModel(ConfigService().load_config())
         return
 
