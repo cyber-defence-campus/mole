@@ -588,7 +588,6 @@ class MediumLevelILBackwardSlicer:
                 )
                 self.inst_graph.add_edge(inst, inst.right)
                 self._slice_backwards(inst.right, call_level, caller_site)
-<<<<<<< HEAD
             case bn.MediumLevelILJump() | bn.MediumLevelILJumpTo():
                 self.inst_graph.add_node(
                     inst, call_level, caller_site, origin=self._origin
@@ -598,8 +597,6 @@ class MediumLevelILBackwardSlicer:
                 )
                 self.inst_graph.add_edge(inst, inst.dest)
                 self._slice_backwards(inst.dest, call_level, caller_site)
-=======
->>>>>>> 43c57d5 (Using ConstBase and UnaryBase)
             case _:
                 log.warn(self._tag, f"[{call_level:+d}] {info:s}: Missing handler")
         return
