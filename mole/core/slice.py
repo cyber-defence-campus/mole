@@ -413,6 +413,7 @@ class MediumLevelILBackwardSlicer:
                 bn.MediumLevelILVarSsa()
                 | bn.MediumLevelILVarAliasedField()
                 | bn.MediumLevelILVarSsaField()
+                | bn.MediumLevelILUnimplMem()
             ):
                 self._slice_ssa_var_definition(inst.src, inst, call_level, caller_site)
             case bn.MediumLevelILRet():
@@ -537,7 +538,12 @@ class MediumLevelILBackwardSlicer:
                             self._tag,
                             f"[{call_level:+d}] {dest_info:s}: Missing handler for function call",
                         )
-            case bn.MediumLevelILSyscallSsa():
+            case (
+                bn.MediumLevelILSyscall()
+                | bn.MediumLevelILSyscallSsa()
+                | bn.MediumLevelILIntrinsic()
+                | bn.MediumLevelILIntrinsicSsa()
+            ):
                 for par in inst.params:
                     self.inst_graph.add_node(
                         inst, call_level, caller_site, origin=self._origin
@@ -547,7 +553,16 @@ class MediumLevelILBackwardSlicer:
                     )
                     self.inst_graph.add_edge(inst, par)
                     self._slice_backwards(par, call_level, caller_site)
-            case bn.MediumLevelILConstBase():
+            case (
+                bn.MediumLevelILConstBase()
+                | bn.MediumLevelILNop()
+                | bn.MediumLevelILBp()
+                | bn.MediumLevelILTrap()
+                | bn.MediumLevelILFreeVarSlot()
+                | bn.MediumLevelILFreeVarSlotSsa()
+                | bn.MediumLevelILUndef()
+                | bn.MediumLevelILUnimpl()
+            ):
                 pass
             case (
                 bn.MediumLevelILUnaryBase()
