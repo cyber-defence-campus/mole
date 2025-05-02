@@ -11,7 +11,8 @@ import unittest as unittest
 
 class TestCase(unittest.TestCase):
     """
-    This class implements unit tests to test backward slicing for finding interesting code paths.
+    This class implements unit tests to test backward slicing for finding
+    interesting code paths.
     """
 
     def setUp(self) -> None:
@@ -21,7 +22,8 @@ class TestCase(unittest.TestCase):
     @staticmethod
     def load_files(names: List[str]) -> List[str]:
         """
-        This method returns all files in the `testcases` directory matching `name` but ignoring the
+        This method returns all files in the `testcases` directory matching
+        `name` but ignoring the
         file extension.
         """
         directory = os.path.join(os.path.dirname(__file__), "bin")
