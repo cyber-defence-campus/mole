@@ -426,21 +426,6 @@ class MediumLevelILBackwardSlicer:
                     )
                     self.inst_graph.add_edge(inst, ret)
                     self._slice_backwards(ret, call_level, caller_site)
-            case (
-                bn.MediumLevelILSetVarSsa()
-                | bn.MediumLevelILSetVarAliased()
-                | bn.MediumLevelILSetVarAliasedField()
-                | bn.MediumLevelILSetVarSsaField()
-                | bn.MediumLevelILSetVarSplitSsa()
-            ):
-                self.inst_graph.add_node(
-                    inst, call_level, caller_site, origin=self._origin
-                )
-                self.inst_graph.add_node(
-                    inst.src, call_level, caller_site, origin=self._origin
-                )
-                self.inst_graph.add_edge(inst, inst.src)
-                self._slice_backwards(inst.src, call_level, caller_site)
             case bn.MediumLevelILVarSplitSsa():
                 self._slice_ssa_var_definition(inst.high, inst, call_level, caller_site)
                 self._slice_ssa_var_definition(inst.low, inst, call_level, caller_site)
@@ -559,7 +544,12 @@ class MediumLevelILBackwardSlicer:
             ):
                 pass
             case (
-                bn.MediumLevelILUnaryBase()
+                bn.MediumLevelILSetVarSsa()
+                | bn.MediumLevelILSetVarAliased()
+                | bn.MediumLevelILSetVarAliasedField()
+                | bn.MediumLevelILSetVarSsaField()
+                | bn.MediumLevelILSetVarSplitSsa()
+                | bn.MediumLevelILUnaryBase()
                 | bn.MediumLevelILBoolToInt()
                 | bn.MediumLevelILLoadSsa()
                 | bn.MediumLevelILLoadStructSsa()
