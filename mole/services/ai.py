@@ -327,6 +327,7 @@ class AIService:
             indent = call_level - min_call_level
             msg += f"{'>' * indent:s} 0x{call_addr:x} {call_name:s}\n"
         msg += "\n"
+        return msg
 
     def _analyse_path(
         self, binary_view: BinaryView, path: Path, progress: ProgressCallback
@@ -565,5 +566,6 @@ class AIService:
         """Analyze potential vulnerability paths in the binary using a progress/cancellation callback."""
         for path_id, path in paths:
             vuln = self._analyse_path(binary_view, path, progress)
-            vuln.path_id = path_id
-            progress.new_result(vuln)
+            if vuln is not None:
+                vuln.path_id = path_id
+                progress.new_result(vuln)
