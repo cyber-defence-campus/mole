@@ -8,6 +8,7 @@ from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
 from mole.controllers.config import ConfigController
 from mole.services.ai import AIService
+from mole.models.ai import AiVulnerabilityReport
 from mole.common.log import log
 from typing import Dict, List, Literal, Tuple, Optional
 import binaryninja as bn
@@ -462,16 +463,45 @@ class PathController:
             run=self.ai_service.analyse,
         )
 
+        def on_result_handler(result: AiVulnerabilityReport):
+            log.info(
+                tag,
+                f"AI analysis result for path {result.path_id}: "
+                f"{'False positive' if result.falsePositive else result.vulnerabilityClass} "
+                f"(score: {result.exploitabilityScore})",
+            )
+
+            # Update the path tree model with the analysis result
+            self._update_path_analysis_result(result)
+
         self.ai_task.set_args(
             binary_view=self._bv,
             paths=paths,
             progress=BackgroundTaskProgress(
                 self.ai_task,
-                on_result=lambda result: log.info(tag, f"AI analysis result: {result}"),
+                on_result=on_result_handler,
             ),
         )
 
         self.ai_task.start()
+
+    def _update_path_analysis_result(self, result: AiVulnerabilityReport) -> None:
+        """
+        This method updates the path tree model with an AI analysis result.
+
+        Args:
+            result: The AI vulnerability report object
+        """
+        # Make sure path_tree_view is available
+        if not self.path_tree_view:
+            log.warn(tag, "Path tree view not available, can't update analysis result")
+            return
+
+        path_id = result.path_id
+        success = self.path_tree_view.model.update_analysis_result(path_id, result)
+
+        if not success:
+            log.warn(tag, f"Failed to update analysis result for path {path_id}")
 
     def log_path(self, path_ids: List[int], reverse: bool = False) -> None:
         """

@@ -1,15 +1,15 @@
 import json
 import traceback
 from types import SimpleNamespace
-from typing import Literal
 import random
 
 from binaryninja import BinaryView
 from openai import OpenAI
-from pydantic import BaseModel
 from pprint import pformat
 
 from mole.ai.tools import call_function, tools
+from mole.models.ai import AiVulnerabilityReport, VulnerabilityReport
+
 from mole.common.help import InstructionHelper
 from mole.common.log import log
 from mole.common.task import ProgressCallback
@@ -20,38 +20,6 @@ from mole.services.config import ConfigService
 MOCK_AI = False
 
 tag = "Mole.AI"
-
-
-class VulnerabilityReport(BaseModel):
-    falsePositive: bool
-    vulnerabilityClass: Literal[
-        "Out-of-Bounds Write",
-        "Command Injection",
-        "Out-of-Bounds Read",
-        "Use-After-Free",
-        "File Inclusion",
-        "Resource Leak",
-        "Null Pointer Dereference",
-        "Buffer Overflow",
-        "Integer Overflow",
-        "Directory Traversal",
-        "SQL Injection",
-        "Cross-Site Scripting (XSS)",
-        "Cross-Site Request Forgery (CSRF)",
-        "Information Disclosure",
-        "Other",
-    ]
-    shortExplanation: str
-    severityLevel: Literal["Critical", "High", "Medium", "Low"]
-    exploitabilityScore: float
-    inputExample: str
-
-
-class AiVulnerabilityReport(VulnerabilityReport):
-    path_id: int
-    model: str
-    tool_calls: int
-    turns: int
 
 
 class AIService:
@@ -352,7 +320,7 @@ class AIService:
             # fake some time consumption
             import time
 
-            time.sleep(1)
+            time.sleep(0.25)
 
             return AiVulnerabilityReport(
                 falsePositive=random.choice(
