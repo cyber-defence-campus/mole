@@ -1,6 +1,6 @@
 from __future__ import annotations
 from mole.common.help import InstructionHelper
-from mole.common.task import BackgroundTask
+from mole.common.task import BackgroundTask, BackgroundTaskProgress
 from mole.core.data import Path
 from mole.services.path import PathService
 from mole.views.graph import GraphWidget
@@ -448,11 +448,30 @@ class PathController:
         # Ensure expected number of selected paths
         if len(path_ids) <= 0:
             return
-        paths = [self.path_tree_view.get_path(path_id) for path_id in path_ids]
+
+        paths = [
+            (path_id, self.path_tree_view.get_path(path_id)) for path_id in path_ids
+        ]
 
         # Start the AI analysis in a background task
         log.info(tag, f"Starting AI analysis of {len(paths):d} path(s)")
-        self.ai_service.analyse(self._bv, paths)
+
+        self.ai_task = BackgroundTask(
+            initial_progress_text="Starting AI analysis...",
+            can_cancel=True,
+            run=self.ai_service.analyse,
+        )
+
+        self.ai_task.set_args(
+            binary_view=self._bv,
+            paths=paths,
+            progress=BackgroundTaskProgress(
+                self.ai_task,
+                on_result=lambda result: log.info(tag, f"AI analysis result: {result}"),
+            ),
+        )
+
+        self.ai_task.start()
 
     def log_path(self, path_ids: List[int], reverse: bool = False) -> None:
         """

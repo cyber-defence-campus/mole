@@ -12,11 +12,12 @@ from pprint import pformat
 from mole.ai.tools import call_function, tools
 from mole.common.help import InstructionHelper
 from mole.common.log import log
-from mole.common.task import BackgroundTask
+from mole.common.task import ProgressCallback
+
 from mole.core.data import Path
 from mole.services.config import ConfigService
 
-MOCK_AI = True
+MOCK_AI = False
 
 tag = "Mole.AI"
 
@@ -46,12 +47,18 @@ class VulnerabilityReport(BaseModel):
     inputExample: str
 
 
+class AiVulnerabilityReport(VulnerabilityReport):
+    path_id: int
+    model: str
+    tool_calls: int
+    turns: int
+
+
 class AIService:
     """Service for handling AI-based vulnerability analysis."""
 
     def __init__(self, config_service: ConfigService):
         self._config_service = config_service
-        self._current_task = None
         # self._cancel_event = threading.Event() # BackgroundTask handles cancellation signal
         self.system_prompt = """You are an expert vulnerability research assistant specializing in sink-source analysis using Binary Ninja's MLIL SSA form.
     Your task is to evaluate potential vulnerability paths identified by static backward analysis. For a given path:
@@ -108,10 +115,10 @@ class AIService:
             short_messages.append(msg_info)
         log.debug(tag, f"Sending messages to AI: \n{pformat(short_messages)}")
 
-    def _send_messages(self, messages, task: BackgroundTask):
+    def _send_messages(self, ai_model: str, messages, progress: ProgressCallback):
         """
         Send a conversation to the AI using streaming and get the aggregated response.
-        Checks for cancellation during the stream. Updates task progress.
+        Checks for cancellation during the stream. Updates progress.
         """
         client = self._get_openai_client()
         stream = None
@@ -122,18 +129,11 @@ class AIService:
 
         try:
             # --- Start of cancellable section ---
-            if task and task.cancelled:
+            if progress and progress.cancelled():
                 log.info(tag, "AI analysis cancelled just before sending request")
                 return None
 
             # self._log_message(messages)
-
-            config = self._config_service.load_config()
-            if "ai_model" not in config.settings:
-                raise ValueError("Missing AI model in configuration.")
-
-            ai_model = config.settings["ai_model"].value
-
             with client.beta.chat.completions.stream(
                 model=ai_model,
                 messages=messages,
@@ -147,12 +147,12 @@ class AIService:
 
                 for event in stream:
                     chunk_count += 1
-                    if task and task.cancelled:
+                    if progress and progress.cancelled():
                         log.info(tag, "AI analysis cancelled during streaming response")
                         return None
 
-                    if task and chunk_count % 5 == 0:
-                        task.progress = (
+                    if progress and chunk_count % 5 == 0:
+                        progress.progress(
                             f"Receiving AI response (chunk {chunk_count})..."
                         )
 
@@ -168,8 +168,8 @@ class AIService:
 
                     elif event.type == "error":
                         log.error(tag, f"Error in stream: {event.error}")
-                        if task:
-                            task.progress = f"Error in AI service: {event.error}"
+                        if progress:
+                            progress.progress(f"Error in AI service: {event.error}")
                         return None
 
             # --- End of cancellable section (streaming loop) ---
@@ -177,8 +177,8 @@ class AIService:
                 tag, f"[{ai_model}] Finished streaming after {chunk_count} chunks."
             )
 
-            # Check if task was cancelled *just* after the stream finished
-            if task and task.cancelled:
+            # Check if cancelled *just* after the stream finished
+            if progress and progress.cancelled():
                 log.info(tag, "AI analysis cancelled immediately after stream finished")
                 return None
 
@@ -220,7 +220,7 @@ class AIService:
 
         except Exception as e:
             # Check for cancellation again in case the exception was due to cancellation interrupting IO
-            if task and task.cancelled:
+            if progress and progress.cancelled():
                 log.info(tag, "AI analysis cancelled during exception handling.")
                 return None
             else:
@@ -229,23 +229,25 @@ class AIService:
                     tag,
                     f"Error processing AI stream or request: {str(e)}\nCallstack:\n{error_details}",
                 )
-                if task:
-                    task.progress = f"Error in AI service: {str(e)}"
+                if progress:
+                    progress.progress(f"Error in AI service: {str(e)}")
                 return None
 
-    def _check_cancelled(self, task: BackgroundTask):
-        if task.cancelled:
+    def _check_cancelled(self, progress: ProgressCallback):
+        if progress.cancelled():
             log.info(tag, "AI analysis cancelled.")
             raise RuntimeError("cancelled")
 
     def _process_tool_calls(
-        self, tool_calls, binary_view, task: BackgroundTask
+        self, tool_calls, binary_view, progress: ProgressCallback
     ) -> list:
         results = []
         for idx, tool in enumerate(tool_calls):
             # unify cancellation check
-            self._check_cancelled(task)
-            task.progress = f"Processing tool call {idx + 1}/{len(tool_calls)}: {tool.function.name}"
+            self._check_cancelled(progress)
+            progress.progress(
+                f"Processing tool call {idx + 1}/{len(tool_calls)}: {tool.function.name}"
+            )
             if tool.type != "function":
                 log.warn(tag, f"Skipping non-function tool call: {tool.type}")
                 results.append(
@@ -262,7 +264,7 @@ class AIService:
                 log.info(tag, f"Calling tool {tool.function.name} with args: {args}")
                 output_data = call_function(tool.function.name, args)
                 # check again after long call
-                self._check_cancelled(task)
+                self._check_cancelled(progress)
                 content = (
                     str(output_data)
                     if output_data is not None
@@ -276,41 +278,7 @@ class AIService:
             )
         return results
 
-    def _analyse_path(self, binary_view: BinaryView, path: Path, task: BackgroundTask):
-        if MOCK_AI:
-            log.info(tag, "Mock AI mode enabled. Skipping actual analysis.")
-            task.progress = "Mock AI mode: analysis skipped."
-
-            # Get the list of vulnerability class literals from the model
-            vulnerability_classes = list(
-                VulnerabilityReport.model_fields[
-                    "vulnerabilityClass"
-                ].annotation.__args__
-            )
-            severity_levels = list(
-                VulnerabilityReport.model_fields["severityLevel"].annotation.__args__
-            )
-
-            # fake some time consumption
-            import time
-
-            time.sleep(1)
-
-            return VulnerabilityReport(
-                falsePositive=random.choice(
-                    [True, False, False, False]
-                ),  # 25% chance of false positive
-                vulnerabilityClass=random.choice(vulnerability_classes),
-                shortExplanation="Mock analysis: Found potential issue.",
-                severityLevel=random.choice(severity_levels),
-                exploitabilityScore=round(random.uniform(4.0, 9.8), 1),
-                inputExample=f"0x{random.getrandbits(32):08x}",
-            )
-
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-        ]
-
+    def _generate_first_message(self, binary_view: BinaryView, path: Path) -> str:
         filename = (
             binary_view.file.filename.replace(".bndb", "")
             if binary_view.file.filename
@@ -360,7 +328,58 @@ class AIService:
             msg += f"{'>' * indent:s} 0x{call_addr:x} {call_name:s}\n"
         msg += "\n"
 
-        messages.append({"role": "user", "content": msg})
+    def _analyse_path(
+        self, binary_view: BinaryView, path: Path, progress: ProgressCallback
+    ) -> AiVulnerabilityReport | None:
+        if MOCK_AI:
+            log.info(tag, "Mock AI mode enabled. Skipping actual analysis.")
+            progress.progress("Mock AI mode: analysis skipped.")
+
+            # Get the list of vulnerability class literals from the model
+            vulnerability_classes = list(
+                VulnerabilityReport.model_fields[
+                    "vulnerabilityClass"
+                ].annotation.__args__
+            )
+            severity_levels = list(
+                VulnerabilityReport.model_fields["severityLevel"].annotation.__args__
+            )
+
+            if progress.cancelled():
+                return None
+
+            # fake some time consumption
+            import time
+
+            time.sleep(1)
+
+            return AiVulnerabilityReport(
+                falsePositive=random.choice(
+                    [True, False, False, False]
+                ),  # 25% chance of false positive
+                vulnerabilityClass=random.choice(vulnerability_classes),
+                shortExplanation="Mock analysis: Found potential issue.",
+                severityLevel=random.choice(severity_levels),
+                exploitabilityScore=round(random.uniform(4.0, 9.8), 1),
+                inputExample=f"0x{random.getrandbits(32):08x}",
+                path_id=random.randint(1, 1000),
+                model="mockgpt-4",
+                tool_calls=random.randint(1, 5),
+                turns=random.randint(1, 5),
+            )
+
+        messages = [
+            {"role": "system", "content": self.system_prompt},
+        ]
+
+        first_msg = self._generate_first_message(binary_view, path)
+        messages.append({"role": "user", "content": first_msg})
+
+        config = self._config_service.load_config()
+        if "ai_model" not in config.settings:
+            raise ValueError("Missing AI model in configuration.")
+
+        ai_model = config.settings["ai_model"].value
 
         turns = 0
         max_turns = 5  # Maximum number of conversation turns (requests)
@@ -372,29 +391,31 @@ class AIService:
 
         while turns < max_turns:
             # Check for cancellation at the start of each loop iteration
-            if task.cancelled:
+            if progress.cancelled():
                 log.info(
                     tag, f"AI analysis cancelled before processing turn {turns + 1}"
                 )
-                # Progress updated by BackgroundTask cancellation handler
+                # Progress updated by ProgressCallback cancellation handler
                 return None  # Return None on cancellation
 
             request_num = turns + 1
-            task.progress = f"Sending request {request_num}/{max_turns} to AI service (Turn {turns + 1})..."
+            progress.progress(
+                f"Sending request {request_num}/{max_turns} to AI service (Turn {turns + 1})..."
+            )
 
             # Send messages and get streamed/aggregated response
-            message = self._send_messages(messages, task)
+            message = self._send_messages(ai_model, messages, progress)
 
             # Handle cancellation or error during _send_messages
             if message is None:
-                if task.cancelled:
+                if progress.cancelled():
                     log.info(
                         tag, f"AI analysis cancelled during request {request_num}."
                     )
-                    # Progress updated by BackgroundTask cancellation handler or _send_messages
+                    # Progress updated by ProgressCallback cancellation handler or _send_messages
                 else:
                     log.error(tag, f"Failed to get response for request {request_num}.")
-                    task.progress = f"Error during AI request {request_num}."
+                    progress.progress(f"Error during AI request {request_num}.")
                 return None  # Stop analysis, return None on error/cancellation
 
             log.debug(
@@ -429,9 +450,13 @@ class AIService:
                     tag,
                     f"Request {request_num}/{max_turns}: Received {tool_count} tool calls",
                 )
-                task.progress = f"Processing {tool_count} tool calls (request {request_num}/{max_turns})..."
+                progress.progress(
+                    f"Processing {tool_count} tool calls (request {request_num}/{max_turns})..."
+                )
 
-                tool_results = self._process_tool_calls(tool_calls, binary_view, task)
+                tool_results = self._process_tool_calls(
+                    tool_calls, binary_view, progress
+                )
                 if len(tool_results) != tool_count:
                     log.warn(
                         tag,
@@ -452,7 +477,9 @@ class AIService:
                         if message and message.content
                         else "Analysis incomplete: reached maximum conversation turns after tool execution."
                     )
-                    task.progress = f"Analysis finished (max turns {max_turns} reached, {total_tool_calls_processed} tools processed)."
+                    progress.progress(
+                        f"Analysis finished (max turns {max_turns} reached, {total_tool_calls_processed} tools processed)."
+                    )
                     # Break the loop to parse the final content
                     break
 
@@ -469,7 +496,9 @@ class AIService:
                     message.parsed if message and hasattr(message, "parsed") else None
                 )
 
-                task.progress = f"Analysis finished ({request_num} requests, {total_tool_calls_processed} tools)."
+                progress.progress(
+                    f"Analysis finished ({request_num} requests, {total_tool_calls_processed} tools)."
+                )
                 log.info(tag, f"Final content received: {type(final_content)}")
                 # Break the loop to use the final content
                 break
@@ -500,8 +529,14 @@ class AIService:
                     f"Example input: {vuln.inputExample}.\n"
                 )
             log.info(tag, summary)
-            return vuln
-        elif task.cancelled:
+            return AiVulnerabilityReport(
+                path_id=0,  # Placeholder, will be set in the caller
+                model=ai_model,
+                tool_calls=total_tool_calls_processed,
+                turns=turns,
+                **vuln.model_dump(),
+            )
+        elif progress.cancelled():
             # Should have returned None earlier, but double-check
             log.info(
                 tag, "Analysis was cancelled before final content could be processed."
@@ -513,36 +548,22 @@ class AIService:
                 tag,
                 f"AI analysis loop finished after {turns} turns (max: {max_turns}) without definitive final content.",
             )
-            task.progress = f"Analysis finished (max turns {max_turns} reached, {total_tool_calls_processed} tools processed), but no final content."
+            progress.progress(
+                f"Analysis finished (max turns {max_turns} reached, {total_tool_calls_processed} tools processed), but no final content."
+            )
             return {
                 "error": "Analysis incomplete: maximum conversation turns reached or no final content received.",
                 "raw_content": None,  # No content to provide
             }
 
-    def _analyse_in_background(self, binary_view: BinaryView, paths: list[Path]):
-        """Run the AI analysis in a background thread."""
-        task = self._current_task
-        if not task:  # Should not happen if called via analyse()
-            log.error(tag, "Analysis started without a valid task context.")
-            return None
-
-        task.progress = f"Starting analysis of {len(paths)} paths..."
-
-        for path in paths:
-            self._analyse_path(binary_view, path, task)
-
-    def analyse(self, binary_view: BinaryView, paths: list[Path]):
-        """Analyze a potential vulnerability path in the binary in a background task."""
-        if self._current_task and not self._current_task.finished:
-            log.warn(tag, "Another AI analysis task is already running")
-            return self._current_task  # Return existing task
-
-        self._current_task = BackgroundTask(
-            initial_progress_text="Starting AI analysis...",
-            can_cancel=True,
-            run=self._analyse_in_background,
-            binary_view=binary_view,
-            paths=paths,
-        )
-        self._current_task.start()
-        return self._current_task
+    def analyse(
+        self,
+        binary_view: BinaryView,
+        paths: list[tuple[int, Path]],
+        progress: ProgressCallback[AiVulnerabilityReport],
+    ) -> None:
+        """Analyze potential vulnerability paths in the binary using a progress/cancellation callback."""
+        for path_id, path in paths:
+            vuln = self._analyse_path(binary_view, path, progress)
+            vuln.path_id = path_id
+            progress.new_result(vuln)
