@@ -2,6 +2,7 @@ import json
 import traceback
 from types import SimpleNamespace
 from typing import Literal
+import random
 
 from binaryninja import BinaryView
 from openai import OpenAI
@@ -14,6 +15,8 @@ from mole.common.log import log
 from mole.common.task import BackgroundTask
 from mole.core.data import Path
 from mole.services.config import ConfigService
+
+MOCK_AI = True
 
 tag = "Mole.AI"
 
@@ -71,7 +74,7 @@ class AIService:
     **Your Goal:** Go beyond the slice itself. Use the tools proactively to understand the neighbourhood of the code path *and* its upstream callers function code to provide a well-reasoned analysis, assess true reachability, and craft a *plausible* triggering input based on that broader context.
 """
 
-    def _get_openai_client(self):
+    def _get_openai_client(self) -> OpenAI:
         """
         Create and return an OpenAI client using API settings from configuration.
         """
@@ -135,7 +138,8 @@ class AIService:
                 model=ai_model,
                 messages=messages,
                 tools=tools,
-                # temperature=0.0,
+                # temperature=0.6,
+                # top_p=0.95,
                 max_completion_tokens=4096,
                 response_format=VulnerabilityReport,
             ) as stream:
@@ -272,19 +276,36 @@ class AIService:
             )
         return results
 
-    def _analyse_in_background(self, binary_view: BinaryView, path: Path):
-        """Run the AI analysis in a background thread."""
-        task = self._current_task
-        if not task:  # Should not happen if called via analyse()
-            log.error(tag, "Analysis started without a valid task context.")
-            return None
-        task.progress = "Preparing path analysis data..."
+    def _analyse_path(self, binary_view: BinaryView, path: Path, task: BackgroundTask):
+        if MOCK_AI:
+            log.info(tag, "Mock AI mode enabled. Skipping actual analysis.")
+            task.progress = "Mock AI mode: analysis skipped."
 
-        # Check for early cancellation
-        if task.cancelled:
-            log.info(tag, "AI analysis cancelled before starting.")
-            task.progress = "Analysis cancelled."
-            return None
+            # Get the list of vulnerability class literals from the model
+            vulnerability_classes = list(
+                VulnerabilityReport.model_fields[
+                    "vulnerabilityClass"
+                ].annotation.__args__
+            )
+            severity_levels = list(
+                VulnerabilityReport.model_fields["severityLevel"].annotation.__args__
+            )
+
+            # fake some time consumption
+            import time
+
+            time.sleep(1)
+
+            return VulnerabilityReport(
+                falsePositive=random.choice(
+                    [True, False, False, False]
+                ),  # 25% chance of false positive
+                vulnerabilityClass=random.choice(vulnerability_classes),
+                shortExplanation="Mock analysis: Found potential issue.",
+                severityLevel=random.choice(severity_levels),
+                exploitabilityScore=round(random.uniform(4.0, 9.8), 1),
+                inputExample=f"0x{random.getrandbits(32):08x}",
+            )
 
         messages = [
             {"role": "system", "content": self.system_prompt},
@@ -498,7 +519,19 @@ class AIService:
                 "raw_content": None,  # No content to provide
             }
 
-    def analyse(self, binary_view: BinaryView, path: Path):
+    def _analyse_in_background(self, binary_view: BinaryView, paths: list[Path]):
+        """Run the AI analysis in a background thread."""
+        task = self._current_task
+        if not task:  # Should not happen if called via analyse()
+            log.error(tag, "Analysis started without a valid task context.")
+            return None
+
+        task.progress = f"Starting analysis of {len(paths)} paths..."
+
+        for path in paths:
+            self._analyse_path(binary_view, path, task)
+
+    def analyse(self, binary_view: BinaryView, paths: list[Path]):
         """Analyze a potential vulnerability path in the binary in a background task."""
         if self._current_task and not self._current_task.finished:
             log.warn(tag, "Another AI analysis task is already running")
@@ -509,7 +542,7 @@ class AIService:
             can_cancel=True,
             run=self._analyse_in_background,
             binary_view=binary_view,
-            path=path,
+            paths=paths,
         )
         self._current_task.start()
         return self._current_task

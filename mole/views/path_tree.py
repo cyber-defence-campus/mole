@@ -199,7 +199,7 @@ class PathTreeView(qtw.QTreeView):
             # Add menu actions with their enabled states and direct connections
 
             # AI actions
-            ai_action = self._add_menu_action(menu, "🤖 Analyze (AI)", len(rows) == 1)
+            ai_action = self._add_menu_action(menu, "🤖 Analyze (AI)", len(rows) >= 1)
             ai_action.triggered.connect(lambda: on_ai_analyse(rows))
 
             menu.addSeparator()

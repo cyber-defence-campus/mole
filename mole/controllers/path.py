@@ -446,15 +446,13 @@ class PathController:
         if not self._validate_bv():
             return
         # Ensure expected number of selected paths
-        if len(path_ids) != 1:
+        if len(path_ids) <= 0:
             return
-        path = self.path_tree_view.get_path(path_ids[0])
-        if not path:
-            return
+        paths = [self.path_tree_view.get_path(path_id) for path_id in path_ids]
 
         # Start the AI analysis in a background task
-        log.info(tag, f"Starting AI analysis of path {path_ids[0]}")
-        self.ai_service.analyse(self._bv, path)
+        log.info(tag, f"Starting AI analysis of {len(paths):d} path(s)")
+        self.ai_service.analyse(self._bv, paths)
 
     def log_path(self, path_ids: List[int], reverse: bool = False) -> None:
         """
