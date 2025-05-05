@@ -7,6 +7,7 @@ from mole.views.graph import GraphWidget
 from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
 from mole.controllers.config import ConfigController
+from mole.controllers.ai import AiController
 from mole.services.ai import AIService
 from mole.models.ai import AiVulnerabilityReport
 from mole.common.log import log
@@ -31,7 +32,11 @@ class PathController:
     """
 
     def __init__(
-        self, ai_service: AIService, config_ctr: ConfigController, path_view: PathView
+        self,
+        ai_service: AIService,
+        config_ctr: ConfigController,
+        ai_ctr: AiController,
+        path_view: PathView,
     ) -> None:
         """
         This method initializes a controller (MVC pattern).
@@ -39,6 +44,7 @@ class PathController:
         # Initialization
         self.ai_service = ai_service
         self.config_ctr = config_ctr
+        self.ai_ctr = ai_ctr
         self.path_view = path_view
         self._bv: Optional[bn.BinaryView] = None
         self.path_tree_view: Optional[PathTreeView] = None
@@ -46,11 +52,13 @@ class PathController:
         self._paths_highlight: Tuple[
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
+
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
         self.connect_signal_load_paths(self.load_paths)
         self.connect_signal_save_paths(self.save_paths)
         self.connect_signal_setup_paths_tree(self.setup_path_tree)
+        self.connect_signal_show_ai_result(self.show_ai_result)
         self.config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
         return
 
@@ -80,6 +88,13 @@ class PathController:
         This method allows connecting to the signal that is triggered when the Binary View changes.
         """
         self.path_view.signal_setup_path_tree.connect(slot)
+        return
+
+    def connect_signal_show_ai_result(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when AI results should be shown.
+        """
+        self.path_view.signal_show_ai_result.connect(slot)
         return
 
     def _change_path_grouping(self, new_strategy: str) -> None:
@@ -435,6 +450,25 @@ class PathController:
             run=_export_paths,
         )
         self._thread.start()
+        return
+
+    def show_ai_result(self, path_id: int) -> None:
+        """
+        This method shows AI analysis results for a path.
+        """
+        # Get the analysis result
+        if not self.path_tree_view:
+            return
+
+        result = self.path_tree_view.model.get_analysis_result(path_id)
+        if result:
+            # Show the result in the AI view
+            self.ai_ctr.show_result(path_id, result)
+            # Switch to the AI Result tab
+            self.path_view.show_ai_result_tab()
+        else:
+            log.warn(tag, f"No AI analysis result available for path {path_id}")
+            self.ai_ctr.clear_result()
         return
 
     def ai_analyse(self, path_ids: List[int]) -> None:
@@ -797,8 +831,11 @@ class PathController:
             on_export_paths=lambda rows: self.export_paths(rows),
             on_remove_selected=self.remove_selected_paths,
             on_clear_all=self.clear_all_paths,
+            on_show_ai_details=self.show_ai_result,
             bv=bv,
         )
+        # Connect the show AI details signal
+        ptv.signal_show_ai_details.connect(self.show_ai_result)
         # Set up navigation
         ptv.setup_navigation(bv)
         # Expand all nodes by default

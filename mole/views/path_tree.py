@@ -19,6 +19,8 @@ class PathTreeView(qtw.QTreeView):
     This class implements a tree view for displaying paths grouped by source, sink and call graph.
     """
 
+    signal_show_ai_details = qtc.Signal(int)
+
     def __init__(self, parent=None) -> None:
         """
         This method initializes the path tree view.
@@ -182,6 +184,7 @@ class PathTreeView(qtw.QTreeView):
         on_export_paths: Callable[[List[int]], None],
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
+        on_show_ai_details: Callable[[int], None] = None,
         bv: bn.BinaryView = None,
     ) -> None:
         """
@@ -201,6 +204,18 @@ class PathTreeView(qtw.QTreeView):
             # AI actions
             ai_action = self._add_menu_action(menu, "🤖 Analyze (AI)", len(rows) >= 1)
             ai_action.triggered.connect(lambda: on_ai_analyse(rows))
+
+            # Add AI details menu option if we have exactly one selected row with an analysis result
+            if len(rows) == 1:
+                path_id = rows[0]
+                result = self.path_tree_model.get_analysis_result(path_id)
+                if result is not None:
+                    ai_details_action = self._add_menu_action(
+                        menu, "🔍 AI Score Details", True
+                    )
+                    ai_details_action.triggered.connect(
+                        lambda: on_show_ai_details(path_id)
+                    )
 
             menu.addSeparator()
 
@@ -376,6 +391,14 @@ class PathTreeView(qtw.QTreeView):
             # Navigate based on column
             path = self.get_path(path_id)
             if path:
+                # Check if this is the AI Score column
+                if col == PATH_COLS["AI Score"]:
+                    # Check if we have an AI result for this path
+                    result = self.path_tree_model.get_analysis_result(path_id)
+                    if result is not None:
+                        self.signal_show_ai_details.emit(path_id)
+                    return
+
                 # Navigate to source address
                 if col in [
                     PATH_COLS["Src Addr"],

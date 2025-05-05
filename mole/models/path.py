@@ -450,18 +450,18 @@ class PathTreeModel(qtui.QStandardItemModel):
             # Apply color formatting based on the score
             if score_value is not None:
                 if score_value >= 8.0:
-                    # High score - red
-                    score_item.setForeground(qtui.QBrush(qtui.QColor(255, 0, 0)))
+                    # High score - critical
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FF5252")))
                     score_item.setFont(qtui.QFont("", -1, qtui.QFont.Bold))
                 elif score_value >= 5.0:
-                    # Medium score - orange
-                    score_item.setForeground(qtui.QBrush(qtui.QColor(255, 165, 0)))
+                    # Medium score - high
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FF9800")))
                 elif score_value > 0:
-                    # Low score - yellow
-                    score_item.setForeground(qtui.QBrush(qtui.QColor(255, 255, 0)))
+                    # Low score - medium
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FFC107")))
                 else:
-                    # False positive (0) - gray
-                    score_item.setForeground(qtui.QBrush(qtui.QColor(128, 128, 128)))
+                    # False positive (0) - low/safe
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#8BC34A")))
 
             return True
         return False
