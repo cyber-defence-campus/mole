@@ -106,8 +106,6 @@ class AIService:
                 model=ai_model,
                 messages=messages,
                 tools=tools,
-                # temperature=0.6,
-                # top_p=0.95,
                 max_completion_tokens=4096,
                 response_format=VulnerabilityReport,
             ) as stream:

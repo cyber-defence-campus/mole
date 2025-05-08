@@ -174,7 +174,6 @@ class PathTreeView(qtw.QTreeView):
 
     def setup_context_menu(
         self,
-        on_ai_analyse: Callable[[List[int]], None],
         on_log_path: Callable[[List[int], bool], None],
         on_log_path_diff: Callable[[List[int]], None],
         on_log_call: Callable[[List[int], bool], None],
@@ -184,6 +183,8 @@ class PathTreeView(qtw.QTreeView):
         on_export_paths: Callable[[List[int]], None],
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
+        on_ai_analyse: Callable[[List[int]], None],
+        is_ai_enabled: Callable[[], bool],
         on_show_ai_details: Callable[[int], None] = None,
         bv: bn.BinaryView = None,
     ) -> None:
@@ -204,6 +205,13 @@ class PathTreeView(qtw.QTreeView):
             # AI actions
             ai_action = self._add_menu_action(menu, "🤖 Analyze (AI)", len(rows) >= 1)
             ai_action.triggered.connect(lambda: on_ai_analyse(rows))
+            if is_ai_enabled():
+                ai_action.setEnabled(True)
+            else:
+                ai_action.setEnabled(False)
+                ai_action.setToolTip(
+                    "AI Analysis requires API key, URL and model to be configured"
+                )
 
             # Add AI details menu option if we have exactly one selected row with an analysis result
             if len(rows) == 1:

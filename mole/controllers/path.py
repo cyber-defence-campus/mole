@@ -819,9 +819,9 @@ class PathController:
         # Store references
         self._bv = bv
         self.path_tree_view = ptv
+
         # Set up context menu
         ptv.setup_context_menu(
-            on_ai_analyse=self.ai_analyse,
             on_log_path=self.log_path,
             on_log_path_diff=self.log_path_diff,
             on_log_call=self.log_call,
@@ -831,6 +831,8 @@ class PathController:
             on_export_paths=lambda rows: self.export_paths(rows),
             on_remove_selected=self.remove_selected_paths,
             on_clear_all=self.clear_all_paths,
+            on_ai_analyse=self.ai_analyse,
+            is_ai_enabled=self.ai_ctr.is_ai_configured,
             on_show_ai_details=self.show_ai_result,
             bv=bv,
         )
