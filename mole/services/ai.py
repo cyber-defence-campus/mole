@@ -19,7 +19,7 @@ from mole.common.task import ProgressCallback
 from mole.core.data import Path
 from mole.services.config import ConfigService
 
-MOCK_AI = True
+MOCK_AI = False
 
 tag = "Mole.AI"
 
