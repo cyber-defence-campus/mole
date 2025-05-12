@@ -179,7 +179,7 @@ class AIService:
             return final_message
 
         except LengthFinishReasonError as length_error:
-            log.warning(
+            log.warn(
                 tag,
                 f"Response exceeded length limits. Will attempt to use partial content. Error: {str(length_error)}",
             )
