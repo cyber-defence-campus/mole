@@ -7,7 +7,7 @@ sources:
         functions:
           getenv:
             name: getenv
-            symbols: [getenv, __builtin_getenv]
+            symbols: [getenv, _getenv, __builtin_getenv]
             synopsis: char* getenv(const char* name)
             enabled: true
             par_cnt: i == 1
@@ -260,7 +260,7 @@ sources:
         functions:
           recv:
             name: recv
-            symbols: [recv, __builtin_recv]
+            symbols: [recv, _recv, __builtin_recv]
             synopsis: ssize_t recv(int sockfd, void* buf, size_t len, int flags)
             enabled: true
             par_cnt: i == 4
@@ -461,7 +461,7 @@ sinks:
             par_slice: i == 1
           system:
             name: system
-            symbols: [system, __builtin_system]
+            symbols: [system, _system, __builtin_system]
             synopsis: int system(const char *command);
             enabled: true
             par_cnt: i == 1

@@ -1,7 +1,9 @@
 from __future__ import annotations
 from mole.core.data import Path
 from mole.grouping import get_grouper
+from mole.services.ai import AiVulnerabilityReport
 from typing import Dict, List, Optional, Tuple
+
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 
@@ -18,7 +20,8 @@ PATH_COLS = {
     "Insts": 7,
     "Phis": 8,
     "Branches": 9,
-    "Comment": 10,
+    "AI Score": 10,
+    "Comment": 11,
 }
 
 # Custom roles for tree items
@@ -198,6 +201,12 @@ class PathTreeModel(qtui.QStandardItemModel):
         bdeps_item = qtui.QStandardItem(str(len(path.bdeps)))
         bdeps_item.setData(True, IS_PATH_ITEM_ROLE)
 
+        # Add score item (initially empty)
+        score_item = qtui.QStandardItem("")
+        score_item.setData(True, IS_PATH_ITEM_ROLE)
+        # Store None as user role data for proper sorting
+        score_item.setData(None, qtc.Qt.UserRole)
+
         comment_item = qtui.QStandardItem(path.comment)
         comment_item.setData(True, IS_PATH_ITEM_ROLE)
 
@@ -213,6 +222,7 @@ class PathTreeModel(qtui.QStandardItemModel):
             inst_item,
             phis_item,
             bdeps_item,
+            score_item,
         ]:
             item.setFlags(item.flags() & ~qtc.Qt.ItemIsEditable)
 
@@ -228,6 +238,7 @@ class PathTreeModel(qtui.QStandardItemModel):
             inst_item,
             phis_item,
             bdeps_item,
+            score_item,
             comment_item,
         ]
         parent_item.appendRow(path_row)
@@ -387,3 +398,82 @@ class PathTreeModel(qtui.QStandardItemModel):
         for path in paths:
             self.add_path(path, path_grouping)
         return
+
+    def update_analysis_result(
+        self, path_id: int, result: AiVulnerabilityReport
+    ) -> bool:
+        """
+        This method updates the analysis result for a path and updates the score display.
+
+        Args:
+            path_id: The ID of the path to update
+            result: The analysis result object
+
+        Returns:
+            bool: True if the update was successful, False otherwise
+        """
+        if path_id not in self.path_map:
+            return False
+
+        # Update the path with the new analysis result
+        self.path_map[path_id].ai_report = result
+
+        # Find the path item to update its score
+        parent_item, child_item, child_row = self.find_path_item(path_id)
+        if child_item is None:
+            return False
+
+        # Determine the score value to display - access attributes directly
+        score_value = None
+        if result is None:
+            # No score available
+            score_display = ""
+        elif result.falsePositive:
+            # Set to 0 for false positives
+            score_value = 0.0
+            score_display = "0.0"
+        else:
+            score_value = result.exploitabilityScore
+            score_display = f"{score_value:.1f}"
+
+        # Find the score column item for this path row
+        if parent_item:
+            score_item = parent_item.child(child_row, PATH_COLS["AI Score"])
+        else:
+            score_item = self.item(child_row, PATH_COLS["AI Score"])
+
+        if score_item:
+            score_item.setText(score_display)
+            score_item.setData(score_value, qtc.Qt.UserRole)  # For sorting
+
+            # Apply color formatting based on the score
+            if score_value is not None:
+                if score_value >= 8.0:
+                    # High score - critical
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FF5252")))
+                    score_item.setFont(qtui.QFont("", -1, qtui.QFont.Bold))
+                elif score_value >= 5.0:
+                    # Medium score - high
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FF9800")))
+                elif score_value > 0:
+                    # Low score - medium
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FFC107")))
+                else:
+                    # False positive (0) - low/safe
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#8BC34A")))
+
+            return True
+        return False
+
+    def get_analysis_result(self, path_id: int) -> Optional[AiVulnerabilityReport]:
+        """
+        This method returns the analysis result object for a path.
+
+        Args:
+            path_id: The ID of the path
+
+        Returns:
+            The analysis result object or None if not available
+        """
+        path = self.path_map.get(path_id)
+        return path.ai_report if path else None

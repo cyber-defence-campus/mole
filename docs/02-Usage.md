@@ -93,5 +93,45 @@ These features help users better inspect and validate identified paths during an
   <img src="https://i.postimg.cc/7YLLQVCC/interesting-paths.png" alt="Mole UI Paths"/>
 </p>
 
+## AI Analysis Mode
+*Mole* includes an AI-powered analysis mode that provides deeper insights into identified paths. This feature leverages Large Language Models to analyze potential vulnerabilities, assess their severity, and even suggest payloads that might trigger the code paths.
+
+<p>
+  <img src="https://i.postimg.cc/9FH1Pm2B/ai-results.png" alt="Mole AI Settings Configuration"/>
+</p>
+
+
+### Configuration
+To use the AI Analysis mode, you must first configure an OpenAI-compatible endpoint in the *Settings* sub-tab under the *Configure* tab:
+
+1. **API URL**: Enter the URL of your OpenAI-compatible API endpoint (e.g., `https://api.openai.com/v1`)
+2. **API Key**: Provide your API key for authentication
+3. **API Model**: Specify which model to use (e.g., `o4-mini`)
+
+<p>
+  <img src="https://i.postimg.cc/tT0y2G7H/ai-config.png" alt="Mole AI Settings Configuration"/>
+</p>
+
+From our initial tests, the OpenAI `o4-mini` model provided the best balance of quality results and cost efficiency. However, you can use any model or provider of your choice, as long as it supports function calling and structured output capabilities.
+
+> **Cost Disclaimer:** Using the AI Analysis feature may incur charges from your LLM provider based on their pricing structure for API usage. The costs vary depending on the model selected, the complexity and length of each analysis, and the number of paths analyzed. Please be aware of your LLM provider's pricing model before performing bulk analyses on multiple paths.
+
+
+### Running AI Analysis
+Once configured, you can trigger AI analysis by right-clicking on any path (or a selection of paths) in the *Run* tab and selecting "Analyze (AI)" from the context menu.
+
+The AI analysis process may take a few moments depending on the complexity of the paths and the selected model. By default, only an AI score will be displayed in the path tree view. For additional details, you can select "AI Score Details" from the context menu or double-click the AI Score. This detailed view provides:
+
+- Vulnerability type and classification
+- Severity rating (from Low to Critical)
+- Exploitation potential assessment
+- Possible triggering payload examples
+- Metadata about the AI generation (model used, token count, timestamp, etc.)
+
+<p>
+  <img src="https://i.postimg.cc/NMybDLLd/ai-result-details.png" alt="Mole AI Analysis Results"/>
+</p>
+
+
 ----------------------------------------------------------------------------------------------------
 [Back-To-README](../README.md#documentation)

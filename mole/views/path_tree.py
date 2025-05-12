@@ -19,6 +19,8 @@ class PathTreeView(qtw.QTreeView):
     This class implements a tree view for displaying paths grouped by source, sink and call graph.
     """
 
+    signal_show_ai_details = qtc.Signal(int)
+
     def __init__(self, parent=None) -> None:
         """
         This method initializes the path tree view.
@@ -181,6 +183,9 @@ class PathTreeView(qtw.QTreeView):
         on_export_paths: Callable[[List[int]], None],
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
+        on_ai_analyse: Callable[[List[int]], None],
+        is_ai_enabled: Callable[[], bool],
+        on_show_ai_details: Callable[[int], None] = None,
         bv: bn.BinaryView = None,
     ) -> None:
         """
@@ -196,6 +201,31 @@ class PathTreeView(qtw.QTreeView):
             menu = qtw.QMenu(self)
 
             # Add menu actions with their enabled states and direct connections
+
+            # AI actions
+            ai_action = self._add_menu_action(menu, "🤖 Analyze (AI)", len(rows) >= 1)
+            ai_action.triggered.connect(lambda: on_ai_analyse(rows))
+            if is_ai_enabled():
+                ai_action.setEnabled(True)
+            else:
+                ai_action.setEnabled(False)
+                ai_action.setToolTip(
+                    "AI Analysis requires API key, URL and model to be configured"
+                )
+
+            # Add AI details menu option if we have exactly one selected row with an analysis result
+            if len(rows) == 1:
+                path_id = rows[0]
+                path = self.path_tree_model.get_path(path_id)
+                if path and path.ai_report is not None:
+                    ai_details_action = self._add_menu_action(
+                        menu, "🔍 AI Score Details", True
+                    )
+                    ai_details_action.triggered.connect(
+                        lambda: on_show_ai_details(path_id)
+                    )
+
+            menu.addSeparator()
 
             # Log actions
             log_path_action = self._add_menu_action(
@@ -369,6 +399,11 @@ class PathTreeView(qtw.QTreeView):
             # Navigate based on column
             path = self.get_path(path_id)
             if path:
+                if col == PATH_COLS["AI Score"]:
+                    if path.ai_report is not None:
+                        self.signal_show_ai_details.emit(path_id)
+                    return
+
                 # Navigate to source address
                 if col in [
                     PATH_COLS["Src Addr"],

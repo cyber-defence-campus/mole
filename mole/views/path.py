@@ -21,6 +21,7 @@ class PathView(bnui.SidebarWidget):
     signal_load_paths = qtc.Signal()
     signal_save_paths = qtc.Signal()
     signal_setup_path_tree = qtc.Signal(object, object, object)
+    signal_show_ai_result = qtc.Signal(int)
 
     def __init__(self) -> None:
         """
@@ -44,6 +45,7 @@ class PathView(bnui.SidebarWidget):
         self._wid = qtw.QTabWidget()
         self._wid.addTab(*self._init_path_tab())
         self._wid.addTab(*self._init_graph_tab())
+        self._wid.addTab(self.path_ctr.ai_ctr.ai_view, "AI Result")
         self._wid.addTab(self.path_ctr.config_ctr.config_view, "Configure")
         scr = qtw.QScrollArea()
         scr.setWidget(self._wid)
@@ -128,4 +130,14 @@ class PathView(bnui.SidebarWidget):
         if new_bv != self._bv:
             self._bv = new_bv
             self.signal_setup_path_tree.emit(new_bv, self.path_tree_view, self._wid)
+        return
+
+    def show_ai_result_tab(self) -> None:
+        """
+        This method switches to the AI Result tab.
+        """
+        for i in range(self._wid.count()):
+            if self._wid.tabText(i) == "AI Result":
+                self._wid.setCurrentIndex(i)
+                break
         return

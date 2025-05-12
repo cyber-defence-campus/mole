@@ -1,12 +1,15 @@
 from __future__ import annotations
 from mole.common.help import InstructionHelper
-from mole.common.task import BackgroundTask
+from mole.common.task import BackgroundTask, BackgroundTaskProgress
 from mole.core.data import Path
 from mole.services.path import PathService
 from mole.views.graph import GraphWidget
 from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
 from mole.controllers.config import ConfigController
+from mole.controllers.ai import AiController
+from mole.services.ai import AIService
+from mole.models.ai import AiVulnerabilityReport
 from mole.common.log import log
 from typing import Dict, List, Literal, Tuple, Optional
 import binaryninja as bn
@@ -28,12 +31,20 @@ class PathController:
     This class implements a controller to handle paths.
     """
 
-    def __init__(self, config_ctr: ConfigController, path_view: PathView) -> None:
+    def __init__(
+        self,
+        ai_service: AIService,
+        config_ctr: ConfigController,
+        ai_ctr: AiController,
+        path_view: PathView,
+    ) -> None:
         """
         This method initializes a controller (MVC pattern).
         """
         # Initialization
+        self.ai_service = ai_service
         self.config_ctr = config_ctr
+        self.ai_ctr = ai_ctr
         self.path_view = path_view
         self._bv: Optional[bn.BinaryView] = None
         self.path_tree_view: Optional[PathTreeView] = None
@@ -41,11 +52,13 @@ class PathController:
         self._paths_highlight: Tuple[
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
+
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
         self.connect_signal_load_paths(self.load_paths)
         self.connect_signal_save_paths(self.save_paths)
         self.connect_signal_setup_paths_tree(self.setup_path_tree)
+        self.connect_signal_show_ai_result(self.show_ai_result)
         self.config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
         return
 
@@ -75,6 +88,13 @@ class PathController:
         This method allows connecting to the signal that is triggered when the Binary View changes.
         """
         self.path_view.signal_setup_path_tree.connect(slot)
+        return
+
+    def connect_signal_show_ai_result(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when AI results should be shown.
+        """
+        self.path_view.signal_show_ai_result.connect(slot)
         return
 
     def _change_path_grouping(self, new_strategy: str) -> None:
@@ -124,6 +144,10 @@ class PathController:
                 path_grouping = setting.value
             # Update the model
             self.path_tree_view.model.add_path(path, path_grouping)
+            if path.ai_report:
+                self.path_tree_view.model.update_analysis_result(
+                    path.ai_report.path_id, path.ai_report
+                )
             return
 
         bn.execute_on_main_thread(update_paths_view)
@@ -432,6 +456,78 @@ class PathController:
         self._thread.start()
         return
 
+    def show_ai_result(self, path_id: int) -> None:
+        """
+        This method shows AI analysis results for a path.
+        """
+        # Get the path and its analysis result
+        if not self.path_tree_view:
+            return
+
+        path = self.path_tree_view.get_path(path_id)
+        if not path:
+            return
+
+        result = path.ai_report
+        if result:
+            # Show the result in the AI view
+            self.ai_ctr.show_result(path_id, result)
+            # Switch to the AI Result tab
+            self.path_view.show_ai_result_tab()
+        else:
+            log.warn(tag, f"No AI analysis result available for path {path_id}")
+            self.ai_ctr.clear_result()
+        return
+
+    def ai_analyse(self, path_ids: List[int]) -> None:
+        """
+        This method analyzes a path using AI.
+        """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure correct view
+        if not self._validate_bv():
+            return
+        # Ensure expected number of selected paths
+        if len(path_ids) <= 0:
+            return
+
+        paths = [
+            (path_id, self.path_tree_view.get_path(path_id)) for path_id in path_ids
+        ]
+
+        # Start the AI analysis in a background task
+        log.info(tag, f"Starting AI analysis of {len(paths):d} path(s)")
+
+        self.ai_task = BackgroundTask(
+            initial_progress_text="Starting AI analysis...",
+            can_cancel=True,
+            run=self.ai_service.analyse,
+        )
+
+        def on_result_handler(result: AiVulnerabilityReport):
+            log.info(
+                tag,
+                f"AI analysis result for path {result.path_id}: "
+                f"{'False positive' if result.falsePositive else result.vulnerabilityClass} "
+                f"(score: {result.exploitabilityScore})",
+            )
+
+            # Update the path tree model with the analysis result
+            if result and self.path_tree_view:
+                self.path_tree_view.model.update_analysis_result(result.path_id, result)
+
+        self.ai_task.set_args(
+            binary_view=self._bv,
+            paths=paths,
+            progress=BackgroundTaskProgress(
+                self.ai_task,
+                on_result=on_result_handler,
+            ),
+        )
+
+        self.ai_task.start()
+
     def log_path(self, path_ids: List[int], reverse: bool = False) -> None:
         """
         This method logs information about a path.
@@ -462,6 +558,10 @@ class PathController:
             insts = path.insts
         basic_block = None
         for i, inst in enumerate(insts):
+            if inst.function not in path.call_graph.nodes:
+                log.warn(tag, f"Function {inst.function} not found in call graph.")
+                continue
+
             call_level = path.call_graph.nodes[inst.function]["call_level"]
             if (not reverse and i < src_inst_idx) or (reverse and i >= src_inst_idx):
                 custom_tag = f"{tag}] [Snk] [{call_level:+d}"
@@ -710,6 +810,7 @@ class PathController:
         # Store references
         self._bv = bv
         self.path_tree_view = ptv
+
         # Set up context menu
         ptv.setup_context_menu(
             on_log_path=self.log_path,
@@ -721,8 +822,12 @@ class PathController:
             on_export_paths=lambda rows: self.export_paths(rows),
             on_remove_selected=self.remove_selected_paths,
             on_clear_all=self.clear_all_paths,
+            on_ai_analyse=self.ai_analyse,
+            is_ai_enabled=self.ai_ctr.is_ai_configured,
+            on_show_ai_details=self.show_ai_result,
             bv=bv,
         )
+        ptv.signal_show_ai_details.connect(self.show_ai_result)
         # Set up navigation
         ptv.setup_navigation(bv)
         # Expand all nodes by default
