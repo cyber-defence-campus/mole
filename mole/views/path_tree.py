@@ -399,11 +399,8 @@ class PathTreeView(qtw.QTreeView):
             # Navigate based on column
             path = self.get_path(path_id)
             if path:
-                # Check if this is the AI Score column
                 if col == PATH_COLS["AI Score"]:
-                    # Check if we have an AI result for this path
-                    result = self.path_tree_model.get_analysis_result(path_id)
-                    if result is not None:
+                    if path.ai_report is not None:
                         self.signal_show_ai_details.emit(path_id)
                     return
 

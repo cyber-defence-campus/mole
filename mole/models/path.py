@@ -477,11 +477,3 @@ class PathTreeModel(qtui.QStandardItemModel):
         """
         path = self.path_map.get(path_id)
         return path.ai_report if path else None
-
-    def _handle_comment_edit(self, index_model_index):
-        """
-        Updated to handle the comment column being moved.
-        """
-        # ...existing code...
-        # Handle the comment edits with the new column position
-        # ...existing code...
