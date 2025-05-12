@@ -144,6 +144,7 @@ class PathController:
                 path_grouping = setting.value
             # Update the model
             self.path_tree_view.model.add_path(path, path_grouping)
+            self._update_path_analysis_result(path.ai_report)
             return
 
         bn.execute_on_main_thread(update_paths_view)
@@ -456,11 +457,15 @@ class PathController:
         """
         This method shows AI analysis results for a path.
         """
-        # Get the analysis result
+        # Get the path and its analysis result
         if not self.path_tree_view:
             return
 
-        result = self.path_tree_view.model.get_analysis_result(path_id)
+        path = self.path_tree_view.get_path(path_id)
+        if not path:
+            return
+
+        result = path.ai_report
         if result:
             # Show the result in the AI view
             self.ai_ctr.show_result(path_id, result)
@@ -526,6 +531,9 @@ class PathController:
         Args:
             result: The AI vulnerability report object
         """
+        if result is None:
+            return
+
         # Make sure path_tree_view is available
         if not self.path_tree_view:
             log.warn(tag, "Path tree view not available, can't update analysis result")
@@ -836,7 +844,6 @@ class PathController:
             on_show_ai_details=self.show_ai_result,
             bv=bv,
         )
-        # Connect the show AI details signal
         ptv.signal_show_ai_details.connect(self.show_ai_result)
         # Set up navigation
         ptv.setup_navigation(bv)

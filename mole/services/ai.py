@@ -2,6 +2,7 @@ import json
 import traceback
 from types import SimpleNamespace
 import random
+from datetime import datetime
 
 from binaryninja import BinaryView
 from openai import OpenAI
@@ -18,7 +19,7 @@ from mole.common.task import ProgressCallback
 from mole.core.data import Path
 from mole.services.config import ConfigService
 
-MOCK_AI = False
+MOCK_AI = True
 
 tag = "Mole.AI"
 
@@ -333,6 +334,7 @@ class AIService:
                 prompt_tokens=random.randint(50, 150),
                 completion_tokens=random.randint(50, 150),
                 total_tokens=random.randint(100, 300),
+                timestamp=datetime.now(),
             )
 
         messages = [
@@ -502,6 +504,7 @@ class AIService:
                     prompt_tokens=token_usage["prompt_tokens"],
                     completion_tokens=token_usage["completion_tokens"],
                     total_tokens=token_usage["total_tokens"],
+                    timestamp=datetime.now(),
                     **vuln.model_dump(),
                 )
             else:

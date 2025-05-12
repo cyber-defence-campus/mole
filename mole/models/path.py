@@ -91,7 +91,6 @@ class PathTreeModel(qtui.QStandardItemModel):
         super().__init__(parent)
         self.path_id = 0
         self.path_map: Dict[int, Path] = {}
-        self.ai_analysis_results: Dict[int, AiVulnerabilityReport] = {}
         self.setHorizontalHeaderLabels(PATH_COLS.keys())
         # Store group items instead of specific source, sink, callgraph items
         # Each level of grouping can have its own items
@@ -416,8 +415,8 @@ class PathTreeModel(qtui.QStandardItemModel):
         if path_id not in self.path_map:
             return False
 
-        # Store the analysis result object directly
-        self.ai_analysis_results[path_id] = result
+        # Update the path with the new analysis result
+        self.path_map[path_id].ai_report = result
 
         # Find the path item to update its score
         parent_item, child_item, child_row = self.find_path_item(path_id)
@@ -476,7 +475,8 @@ class PathTreeModel(qtui.QStandardItemModel):
         Returns:
             The analysis result object or None if not available
         """
-        return self.ai_analysis_results.get(path_id)
+        path = self.path_map.get(path_id)
+        return path.ai_report if path else None
 
     def _handle_comment_edit(self, index_model_index):
         """

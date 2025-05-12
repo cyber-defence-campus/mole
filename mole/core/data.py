@@ -8,6 +8,7 @@ from mole.core.slice import (
 from dataclasses import dataclass, field
 from mole.common.log import log
 from typing import Callable, Dict, List, Optional, Tuple
+from mole.models.ai import AiVulnerabilityReport
 import binaryninja as bn
 import hashlib
 import networkx as nx
@@ -538,6 +539,7 @@ class Path:
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     calls: List[Tuple[int, str, int]] = field(default_factory=list)
     call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
+    ai_report: Optional[AiVulnerabilityReport] = None
 
     def __init__(
         self,
@@ -553,6 +555,7 @@ class Path:
         insts: List[bn.MediumLevelILInstruction],
         comment: str = "",
         sha1_hash: str = "",
+        ai_report: Optional[AiVulnerabilityReport] = None,
     ) -> None:
         self.src_sym_addr = src_sym_addr
         self.src_sym_name = src_sym_name
@@ -570,6 +573,7 @@ class Path:
         self.bdeps = {}
         self.calls = []
         self.call_graph = MediumLevelILFunctionGraph()
+        self.ai_report = ai_report
         return
 
     def init(self, call_graph: MediumLevelILFunctionGraph) -> None:
@@ -673,7 +677,7 @@ class Path:
         insts: List[Tuple[int, int]] = []
         for inst in self.insts:
             insts.append((hex(inst.function.source_function.start), inst.expr_index))
-        return {
+        d = {
             "src_sym_addr": hex(self.src_sym_addr),
             "src_sym_name": self.src_sym_name,
             "src_par_idx": self.src_par_idx,
@@ -686,6 +690,13 @@ class Path:
             "comment": self.comment,
             "sha1_hash": self.sha1_hash,
         }
+        if self.ai_report:
+            d["ai_report"] = (
+                self.ai_report.model_dump()
+                if hasattr(self.ai_report, "model_dump")
+                else self.ai_report.dict()
+            )
+        return d
 
     @classmethod
     def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Optional[Path]:
@@ -703,6 +714,9 @@ class Path:
             src_par_var = None
         snk_par_idx = d["snk_par_idx"]
         snk_par_var = insts[0].params[snk_par_idx - 1]
+        ai_report = None
+        if "ai_report" in d and d["ai_report"]:
+            ai_report = AiVulnerabilityReport(**d["ai_report"])
         path: Path = cls(
             src_sym_addr=int(d["src_sym_addr"], 0),
             src_sym_name=d["src_sym_name"],
@@ -716,6 +730,7 @@ class Path:
             insts=insts,
             comment=d["comment"],
             sha1_hash=d["sha1_hash"],
+            ai_report=ai_report,
         )
         path.init(MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"]))
         return path

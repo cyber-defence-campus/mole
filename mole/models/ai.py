@@ -1,5 +1,6 @@
 from typing import Literal
 from pydantic import BaseModel
+from datetime import datetime
 
 
 class VulnerabilityReport(BaseModel):
@@ -35,3 +36,11 @@ class AiVulnerabilityReport(VulnerabilityReport):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+    timestamp: datetime = None
+
+    def model_dump(self):
+        data = super().model_dump()
+        # Convert datetime to ISO format string if it exists
+        if data["timestamp"] is not None:
+            data["timestamp"] = data["timestamp"].isoformat()
+        return data

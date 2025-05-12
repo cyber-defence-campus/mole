@@ -77,10 +77,12 @@ class AiResultView(qtw.QWidget):
         self._tool_calls_label = qtw.QLabel("N/A")
         self._turns_label = qtw.QLabel("N/A")
         self._token_usage_label = qtw.QLabel("N/A")
+        self._timestamp_label = qtw.QLabel("N/A")
         model_form.addRow("Model:", self._model_label)
         model_form.addRow("Tool Calls:", self._tool_calls_label)
         model_form.addRow("Conversation Turns:", self._turns_label)
         model_form.addRow("Token Usage:", self._token_usage_label)
+        model_form.addRow("Analysis Timestamp:", self._timestamp_label)
         model_group = qtw.QGroupBox("AI Details")
         model_group.setLayout(model_form)
 
@@ -172,6 +174,14 @@ class AiResultView(qtw.QWidget):
         # Set token usage information
         token_text = f"Prompt: {result.prompt_tokens}, Completion: {result.completion_tokens}, Total: {result.total_tokens}"
         self._token_usage_label.setText(token_text)
+
+        # Set timestamp
+        if result.timestamp:
+            self._timestamp_label.setText(
+                result.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            )
+        else:
+            self._timestamp_label.setText("N/A")
 
         # Switch to the result view
         self._stack.setCurrentIndex(1)

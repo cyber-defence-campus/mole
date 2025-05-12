@@ -216,8 +216,8 @@ class PathTreeView(qtw.QTreeView):
             # Add AI details menu option if we have exactly one selected row with an analysis result
             if len(rows) == 1:
                 path_id = rows[0]
-                result = self.path_tree_model.get_analysis_result(path_id)
-                if result is not None:
+                path = self.path_tree_model.get_path(path_id)
+                if path and path.ai_report is not None:
                     ai_details_action = self._add_menu_action(
                         menu, "🔍 AI Score Details", True
                     )
