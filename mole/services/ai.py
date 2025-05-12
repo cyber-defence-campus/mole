@@ -48,6 +48,8 @@ class AIService:
 
     **Your Goal:** Go beyond the slice itself. Use the tools proactively to understand the neighbourhood of the code path *and* its upstream callers function code to provide a well-reasoned analysis, assess true reachability, and craft a *plausible* triggering input based on that broader context.
 """
+        # Maximum number of conversation turns (requests)
+        self.max_turns = 6
 
     def _get_openai_client(self) -> OpenAI:
         """
@@ -83,7 +85,9 @@ class AIService:
             short_messages.append(msg_info)
         log.debug(tag, f"Sending messages to AI: \n{pformat(short_messages)}")
 
-    def _send_messages(self, ai_model: str, messages, progress: ProgressCallback):
+    def _send_messages(
+        self, ai_model: str, messages, progress: ProgressCallback, token_usage: dict
+    ):
         """
         Send a conversation to the AI using streaming and get the aggregated response.
         Checks for cancellation during the stream. Updates progress.
@@ -107,6 +111,9 @@ class AIService:
                 messages=messages,
                 tools=tools,
                 max_completion_tokens=4096,
+                stream_options={
+                    "include_usage": True,
+                },
                 response_format=VulnerabilityReport,
             ) as stream:
                 log.debug(tag, f"[{ai_model}] Streaming response from AI...")
@@ -160,6 +167,18 @@ class AIService:
             if hasattr(final_completion.choices[0].message, "parsed"):
                 parsed_content = final_completion.choices[0].message.parsed
 
+            # Track token usage if available in the completion
+            if hasattr(final_completion, "usage") and final_completion.usage:
+                usage = final_completion.usage
+                token_usage["prompt_tokens"] += usage.prompt_tokens
+                token_usage["completion_tokens"] += usage.completion_tokens
+                token_usage["total_tokens"] += usage.total_tokens
+                log.debug(
+                    tag,
+                    f"Token usage for this request: {usage.prompt_tokens} prompt, "
+                    + f"{usage.completion_tokens} completion, {usage.total_tokens} total",
+                )
+
             # Convert tool calls to SimpleNamespace for compatibility with existing code
             final_tool_calls = []
             if tool_calls:
@@ -205,14 +224,14 @@ class AIService:
             raise RuntimeError("cancelled")
 
     def _process_tool_calls(
-        self, tool_calls, binary_view, progress: ProgressCallback
+        self, tool_calls, binary_view, progress: ProgressCallback, path_info=""
     ) -> list:
         results = []
         for idx, tool in enumerate(tool_calls):
             # unify cancellation check
             self._check_cancelled(progress)
             progress.progress(
-                f"Processing tool call {idx + 1}/{len(tool_calls)}: {tool.function.name}"
+                f"{path_info}Tool call {idx + 1}/{len(tool_calls)}: {tool.function.name}"
             )
             if tool.type != "function":
                 log.warn(tag, f"Skipping non-function tool call: {tool.type}")
@@ -296,11 +315,15 @@ class AIService:
         return msg
 
     def _analyse_path(
-        self, binary_view: BinaryView, path: Path, progress: ProgressCallback
+        self,
+        binary_view: BinaryView,
+        path: Path,
+        progress: ProgressCallback,
+        path_info="",
     ) -> AiVulnerabilityReport | None:
         if MOCK_AI:
             log.info(tag, "Mock AI mode enabled. Skipping actual analysis.")
-            progress.progress("Mock AI mode: analysis skipped.")
+            progress.progress(f"{path_info}Mock AI mode: analysis skipped.")
 
             # Get the list of vulnerability class literals from the model
             vulnerability_classes = list(
@@ -333,6 +356,9 @@ class AIService:
                 model="mockgpt-4",
                 tool_calls=random.randint(1, 5),
                 turns=random.randint(1, 5),
+                prompt_tokens=random.randint(50, 150),
+                completion_tokens=random.randint(50, 150),
+                total_tokens=random.randint(100, 300),
             )
 
         messages = [
@@ -349,45 +375,48 @@ class AIService:
         ai_model = config.settings["ai_model"].value
 
         turns = 0
-        max_turns = 5  # Maximum number of conversation turns (requests)
-        total_tool_calls_processed = 0  # Keep track across turns
-        message = None  # Initialize message variable
-        final_content = None  # Store the final content string
+        # Keep track across turns
+        total_tool_calls_processed = 0
+        message = None
+        final_content = None
+        token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-        log.info(tag, "Starting AI analysis conversation")
+        log.info(tag, f"{path_info}Starting AI analysis conversation")
 
-        while turns < max_turns:
-            # Check for cancellation at the start of each loop iteration
+        while turns < self.max_turns:
             if progress.cancelled():
                 log.info(
-                    tag, f"AI analysis cancelled before processing turn {turns + 1}"
+                    tag,
+                    f"{path_info}AI analysis cancelled before processing turn {turns + 1}",
                 )
-                # Progress updated by ProgressCallback cancellation handler
-                return None  # Return None on cancellation
+                return None
 
             request_num = turns + 1
             progress.progress(
-                f"Sending request {request_num}/{max_turns} to AI service (Turn {turns + 1})..."
+                f"{path_info}Turn {request_num}/{self.max_turns} to AI service..."
             )
 
-            # Send messages and get streamed/aggregated response
-            message = self._send_messages(ai_model, messages, progress)
+            message = self._send_messages(ai_model, messages, progress, token_usage)
 
-            # Handle cancellation or error during _send_messages
             if message is None:
                 if progress.cancelled():
                     log.info(
-                        tag, f"AI analysis cancelled during request {request_num}."
+                        tag,
+                        f"{path_info}AI analysis cancelled during request {request_num}.",
                     )
-                    # Progress updated by ProgressCallback cancellation handler or _send_messages
                 else:
-                    log.error(tag, f"Failed to get response for request {request_num}.")
-                    progress.progress(f"Error during AI request {request_num}.")
-                return None  # Stop analysis, return None on error/cancellation
+                    log.error(
+                        tag,
+                        f"{path_info}Failed to get response for request {request_num}.",
+                    )
+                    progress.progress(
+                        f"{path_info}Error during AI request {request_num}."
+                    )
+                return None
 
             log.debug(
                 tag,
-                f"Received response for turn {turns + 1}: Content: {bool(message.content)}, Tools: {len(message.tool_calls) if message.tool_calls else 0}",
+                f"{path_info}Received response for turn {turns + 1}: Content: {bool(message.content)}, Tools: {len(message.tool_calls) if message.tool_calls else 0}",
             )
 
             # Check if the response contains tool calls
@@ -395,8 +424,8 @@ class AIService:
                 messages.append(
                     {
                         "role": message.role,
-                        "content": message.content,  # Include content even if there are tool calls
-                        "tool_calls": [  # Convert back to dict format for API
+                        "content": message.content,
+                        "tool_calls": [
                             {
                                 "id": tc.id,
                                 "type": tc.type,
@@ -415,28 +444,28 @@ class AIService:
 
                 log.info(
                     tag,
-                    f"Request {request_num}/{max_turns}: Received {tool_count} tool calls",
+                    f"{path_info}Request {request_num}/{self.max_turns}: Received {tool_count} tool calls",
                 )
                 progress.progress(
-                    f"Processing {tool_count} tool calls (request {request_num}/{max_turns})..."
+                    f"{path_info}Processing {tool_count} tool calls (request {request_num}/{self.max_turns})..."
                 )
 
                 tool_results = self._process_tool_calls(
-                    tool_calls, binary_view, progress
+                    tool_calls, binary_view, progress, path_info
                 )
                 if len(tool_results) != tool_count:
                     log.warn(
                         tag,
-                        f"Tool call processing failed: expected {tool_count} results, got {len(tool_results)}.",
+                        f"{path_info}Tool call processing failed: expected {tool_count} results, got {len(tool_results)}.",
                     )
                 messages.extend(tool_results)
                 turns += 1  # Increment turn count after processing tool calls
 
                 # Check if max turns reached after processing tools
-                if turns >= max_turns:
+                if turns >= self.max_turns:
                     log.warn(
                         tag,
-                        f"Reached max conversation turns ({max_turns}) after processing tools. Finishing analysis.",
+                        f"{path_info}Reached max conversation turns ({self.max_turns}) after processing tools. Finishing analysis.",
                     )
                     # Use content from the message that *requested* the tools
                     final_content = (
@@ -445,18 +474,14 @@ class AIService:
                         else "Analysis incomplete: reached maximum conversation turns after tool execution."
                     )
                     progress.progress(
-                        f"Analysis finished (max turns {max_turns} reached, {total_tool_calls_processed} tools processed)."
+                        f"{path_info}Analysis finished (max turns {self.max_turns} reached, {total_tool_calls_processed} tools processed)."
                     )
-                    # Break the loop to parse the final content
                     break
-
-                # Continue to the next turn (will send another request)
-
             else:
                 # No tool calls in the response, analysis should be complete
                 log.info(
                     tag,
-                    f"AI analysis completed after {request_num} requests and {total_tool_calls_processed} tool calls. No further tool calls requested.",
+                    f"{path_info}AI analysis completed after {request_num} requests and {total_tool_calls_processed} tool calls. No further tool calls requested.",
                 )
                 # Use the parsed field directly instead of calling _parse_final_response
                 final_content = (
@@ -464,45 +489,73 @@ class AIService:
                 )
 
                 progress.progress(
-                    f"Analysis finished ({request_num} requests, {total_tool_calls_processed} tools)."
+                    f"{path_info}Analysis finished ({request_num} requests, {total_tool_calls_processed} tools)."
                 )
-                log.info(tag, f"Final content received: {type(final_content)}")
+                log.info(
+                    tag, f"{path_info}Final content received: {type(final_content)}"
+                )
                 # Break the loop to use the final content
                 break
 
-        # --- End of while loop ---
+        log.info(
+            tag,
+            f"{path_info}Total token usage for this analysis: {token_usage['prompt_tokens']} prompt, "
+            f"{token_usage['completion_tokens']} completion, "
+            f"{token_usage['total_tokens']} total tokens",
+        )
 
         # If the loop finished, use the final_content
         if final_content:
-            # The response is already a VulnerabilityReport Pydantic model
-            vuln: VulnerabilityReport = final_content
+            # Check if final_content is already a VulnerabilityReport Pydantic model
+            if isinstance(final_content, VulnerabilityReport):
+                vuln: VulnerabilityReport = final_content
 
-            # Pretty-print the model for detailed logging
-            try:
-                log.debug(
-                    tag, f"Full AI analysis result:\n{vuln.model_dump_json(indent=4)}"
+                # Pretty-print the model for detailed logging
+                try:
+                    log.debug(
+                        tag,
+                        f"Full AI analysis result:\n{vuln.model_dump_json(indent=4)}",
+                    )
+                except Exception as e:
+                    log.debug(tag, f"Failed to serialize result: {e}\n{vuln}")
+
+                # Generate and log a summary paragraph
+                if vuln.falsePositive:
+                    summary = (
+                        "AI analysis concluded the path is likely a false positive."
+                    )
+                else:
+                    summary = (
+                        f"\nAI analysis confirms a potential {vuln.severityLevel} {vuln.vulnerabilityClass} vulnerability "
+                        f"with exploitability score of {vuln.exploitabilityScore}.\n"
+                        f"Explanation: {vuln.shortExplanation}.\n"
+                        f"Example input: {vuln.inputExample}.\n"
+                    )
+                log.info(tag, summary)
+                return AiVulnerabilityReport(
+                    path_id=0,  # Placeholder, will be set in the caller
+                    model=ai_model,
+                    tool_calls=total_tool_calls_processed,
+                    turns=turns,
+                    prompt_tokens=token_usage["prompt_tokens"],
+                    completion_tokens=token_usage["completion_tokens"],
+                    total_tokens=token_usage["total_tokens"],
+                    **vuln.model_dump(),
                 )
-            except Exception as e:
-                log.debug(tag, f"Failed to serialize result: {e}\n{vuln}")
-
-            # Generate and log a summary paragraph
-            if vuln.falsePositive:
-                summary = "AI analysis concluded the path is likely a false positive."
             else:
-                summary = (
-                    f"\nAI analysis confirms a potential {vuln.severityLevel} {vuln.vulnerabilityClass} vulnerability "
-                    f"with exploitability score of {vuln.exploitabilityScore}.\n"
-                    f"Explanation: {vuln.shortExplanation}.\n"
-                    f"Example input: {vuln.inputExample}.\n"
+                # Handle non-VulnerabilityReport responses (error cases, strings, dictionaries)
+                error_msg = (
+                    f"Analysis returned invalid result type: {type(final_content)}"
                 )
-            log.info(tag, summary)
-            return AiVulnerabilityReport(
-                path_id=0,  # Placeholder, will be set in the caller
-                model=ai_model,
-                tool_calls=total_tool_calls_processed,
-                turns=turns,
-                **vuln.model_dump(),
-            )
+                if isinstance(final_content, dict) and "error" in final_content:
+                    error_msg = final_content["error"]
+                elif isinstance(final_content, str):
+                    error_msg = final_content
+
+                log.error(tag, f"{path_info}Invalid analysis result: {error_msg}")
+                progress.progress(f"{path_info}Analysis failed: {error_msg}")
+                return None
+
         elif progress.cancelled():
             # Should have returned None earlier, but double-check
             log.info(
@@ -513,15 +566,13 @@ class AIService:
             # Handle cases where loop finished unexpectedly or no content was ever received
             log.warn(
                 tag,
-                f"AI analysis loop finished after {turns} turns (max: {max_turns}) without definitive final content.",
+                f"AI analysis loop finished after {turns} turns (max: {self.max_turns}) without definitive final content.",
             )
             progress.progress(
-                f"Analysis finished (max turns {max_turns} reached, {total_tool_calls_processed} tools processed), but no final content."
+                f"{path_info}Analysis finished (max turns {self.max_turns} reached, {total_tool_calls_processed} tools processed), but no final content."
             )
-            return {
-                "error": "Analysis incomplete: maximum conversation turns reached or no final content received.",
-                "raw_content": None,  # No content to provide
-            }
+            log.error(tag, f"{path_info}Analysis incomplete: no final content received")
+            return None
 
     def analyse(
         self,
@@ -530,8 +581,16 @@ class AIService:
         progress: ProgressCallback[AiVulnerabilityReport],
     ) -> None:
         """Analyze potential vulnerability paths in the binary using a progress/cancellation callback."""
-        for path_id, path in paths:
-            vuln = self._analyse_path(binary_view, path, progress)
+        total_paths = len(paths)
+
+        for idx, (path_id, path) in enumerate(paths):
+            # Only add path_info prefix if we have multiple paths
+            path_info = "" if total_paths == 1 else f"[Path {idx + 1}/{total_paths}] "
+
+            progress.progress(f"{path_info}Starting analysis of path {path_id}...")
+
+            vuln = self._analyse_path(binary_view, path, progress, path_info)
+
             if vuln is not None:
                 vuln.path_id = path_id
                 progress.new_result(vuln)

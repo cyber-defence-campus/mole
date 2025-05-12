@@ -32,3 +32,6 @@ class AiVulnerabilityReport(VulnerabilityReport):
     model: str
     tool_calls: int
     turns: int
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
