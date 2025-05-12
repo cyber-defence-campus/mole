@@ -144,7 +144,10 @@ class PathController:
                 path_grouping = setting.value
             # Update the model
             self.path_tree_view.model.add_path(path, path_grouping)
-            self._update_path_analysis_result(path.ai_report)
+            if path.ai_report:
+                self.path_tree_view.model.update_analysis_result(
+                    path.ai_report.path_id, path.ai_report
+                )
             return
 
         bn.execute_on_main_thread(update_paths_view)
@@ -511,7 +514,8 @@ class PathController:
             )
 
             # Update the path tree model with the analysis result
-            self._update_path_analysis_result(result)
+            if result and self.path_tree_view:
+                self.path_tree_view.model.update_analysis_result(result.path_id, result)
 
         self.ai_task.set_args(
             binary_view=self._bv,
@@ -523,27 +527,6 @@ class PathController:
         )
 
         self.ai_task.start()
-
-    def _update_path_analysis_result(self, result: AiVulnerabilityReport) -> None:
-        """
-        This method updates the path tree model with an AI analysis result.
-
-        Args:
-            result: The AI vulnerability report object
-        """
-        if result is None:
-            return
-
-        # Make sure path_tree_view is available
-        if not self.path_tree_view:
-            log.warn(tag, "Path tree view not available, can't update analysis result")
-            return
-
-        path_id = result.path_id
-        success = self.path_tree_view.model.update_analysis_result(path_id, result)
-
-        if not success:
-            log.warn(tag, f"Failed to update analysis result for path {path_id}")
 
     def log_path(self, path_ids: List[int], reverse: bool = False) -> None:
         """
