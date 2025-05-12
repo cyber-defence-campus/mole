@@ -5,6 +5,7 @@ import random
 
 from binaryninja import BinaryView
 from openai import OpenAI
+from openai.lib.streaming.chat._completions import LengthFinishReasonError
 from pprint import pformat
 
 from mole.ai.tools import call_function, tools
@@ -27,29 +28,21 @@ class AIService:
 
     def __init__(self, config_service: ConfigService):
         self._config_service = config_service
-        # self._cancel_event = threading.Event() # BackgroundTask handles cancellation signal
-        self.system_prompt = """You are an expert vulnerability research assistant specializing in sink-source analysis using Binary Ninja's MLIL SSA form.
-    Your task is to evaluate potential vulnerability paths identified by static backward analysis. For a given path:
-
-    1.  **Analyze the Path Context and Reachability:** The provided trace shows instructions directly involved in the data flow from source to sink. However, understanding the *full context* and *reachability* is crucial.
-        *   **Local Context:** **Actively use the available tools (`get_function_containing_address`, `get_function_by_name`) to retrieve the code (e.g., Pseudo_C) of the functions involved in the path.** Examine the instructions *before and after* the sliced instructions within their basic blocks and functions. Look for conditional checks, loops, data transformations, or other logic that affects whether the path is truly reachable and exploitable *within* those functions.
-        *   **Global Reachability:** **Use the caller analysis tools (`get_callers_by_address`, `get_callers_by_name`) to investigate how the source function (or functions higher in the call stack provided) are invoked.** Determine if the path originates from a location reachable by external input or an untrusted source. Analyze the conditions or checks imposed by these callers that might prevent the path from being triggered. Understanding this call chain context is essential to determine if the vulnerability is practically exploitable.
-    2.  **Identify User-Controlled Variables:** Determine precisely which variables and conditions in the path are user-controlled.
-        *   Trace each variable back to its origin to determine if and how it can be influenced by external inputs
-        *   Specify the exact form of user control (e.g., direct command-line argument, HTTP request parameter, file content, network packet data)
-        *   Identify any transformations or validations that occur between the user input and its use in the vulnerable path
-        *   Note any size limitations, character restrictions, or other constraints on the user input
-    3.  **Validate the Path:** Based on your contextual analysis (both local and global), determine if the path from source to sink is logically valid, reachable from an appropriate entry point, and not a false positive. Consider constraints or sanitization routines that might exist nearby or in callers.
-    4.  **Identify Vulnerability:** If the path is valid and reachable, identify the potential vulnerability type (e.g., Out-of-Bounds Write, Command Injection, Use-After-Free).
-    5.  **Explain Concisely:** Provide a clear and short explanation of why the vulnerability exists, referencing specific code patterns (or lack thereof) identified during your analysis of the slice, surrounding code, and caller context. Explain *how* the path can be triggered, considering caller conditions.
-    6.  **Assess Severity:** Assign a severity level (Critical, High, Medium, Low) based on the potential impact.
-    7.  **Score Exploitability:** Provide an exploitability score (0-10), justifying it based on the complexity of triggering the path (considering caller constraints) and controlling the vulnerable operation. Your contextual analysis using the tools is key here.
-    8.  **Craft Example Input:** **Crucially, use your understanding of the surrounding code logic (conditions, checks, data formats obtained via tools) *and* the conditions imposed by callers to create a realistic input example that could trigger the vulnerability.** If the input is binary data, provide it in hexdump format. If it's text (like JSON or command arguments), format it appropriately. The example must aim to satisfy the conditions needed to reach the sink via the identified path, considering the full function and call chain context.
-
-    **Your Goal:** Go beyond the slice itself. Use the tools proactively to understand the neighbourhood of the code path *and* its upstream callers function code to provide a well-reasoned analysis, assess true reachability, and craft a *plausible* triggering input based on that broader context.
-"""
         # Maximum number of conversation turns (requests)
-        self.max_turns = 6
+        self.max_turns = 10
+        self.system_prompt = f"""You are an expert vulnerability research assistant specializing in sink-source analysis using Binary Ninja's MLIL SSA form.
+    Your task is to evaluate potential vulnerability paths identified by static backward analysis.
+    1. Analyze the Path Context and Reachability: Use tools (`get_function_containing_address`, `get_function_by_name`) to retrieve function code involved in the path. Examine instructions before and after the sliced instructions. Use caller analysis tools (`get_callers_by_address`, `get_callers_by_name`) to investigate reachability.
+    2. Identify User-Controlled Variables: Determine which variables are user-controlled, their origins, and any transformations or validations.
+    3. Validate the Path: Determine if the path is logically valid, reachable, and not a false positive.
+    4. Identify Vulnerability: If valid, identify the potential vulnerability type.
+    5. Explain Concisely: Provide a clear explanation of why the vulnerability exists.
+    6. Assess Severity: Assign a severity level (Critical, High, Medium, Low).
+    7. Score Exploitability: Provide an exploitability score (0-10).
+    8. Craft Example Input: Create a realistic input example that could trigger the vulnerability.
+
+    Use the tools proactively to understand the code path and its upstream callers to provide a well-reasoned analysis, assess true reachability, and craft a plausible triggering input. You have a maximum of {self.max_turns} conversation turns to complete this analysis.
+"""
 
     def _get_openai_client(self) -> OpenAI:
         """
@@ -96,11 +89,11 @@ class AIService:
         stream = None
         chunk_count = 0
         final_tool_calls = []
-        role = "assistant"  # Default role
-        parsed_content = None  # Store the parsed structured response
+        # Store the parsed structured response
+        parsed_content = None
+        content = None
 
         try:
-            # --- Start of cancellable section ---
             if progress and progress.cancelled():
                 log.info(tag, "AI analysis cancelled just before sending request")
                 return None
@@ -124,42 +117,23 @@ class AIService:
                         log.info(tag, "AI analysis cancelled during streaming response")
                         return None
 
-                    if progress and chunk_count % 5 == 0:
-                        progress.progress(
-                            f"Receiving AI response (chunk {chunk_count})..."
+                    if chunk_count % 5 == 0:
+                        log.debug(
+                            tag,
+                            f"[{ai_model}] Receiving AI response (chunk {chunk_count})...",
                         )
-
-                    # Handle different event types
-                    if event.type == "content.delta":
-                        if event.parsed is not None:
-                            # Store structured parsed response
-                            parsed_content = event.parsed
-
-                    elif event.type == "tool_calls.delta":
-                        # Tool calls are tracked by the stream object
-                        pass
-
                     elif event.type == "error":
-                        log.error(tag, f"Error in stream: {event.error}")
-                        if progress:
-                            progress.progress(f"Error in AI service: {event.error}")
+                        log.error(tag, f"[{ai_model}] Error in stream: {event.error}")
                         return None
 
-            # --- End of cancellable section (streaming loop) ---
-            log.debug(
+            log.info(
                 tag, f"[{ai_model}] Finished streaming after {chunk_count} chunks."
             )
-
-            # Check if cancelled *just* after the stream finished
-            if progress and progress.cancelled():
-                log.info(tag, "AI analysis cancelled immediately after stream finished")
-                return None
 
             # Get the final completion from the stream
             final_completion = stream.get_final_completion()
 
             # Extract role, content, and tool calls from the final completion
-            role = "assistant"
             content = final_completion.choices[0].message.content
             tool_calls = final_completion.choices[0].message.tool_calls
 
@@ -175,7 +149,7 @@ class AIService:
                 token_usage["total_tokens"] += usage.total_tokens
                 log.debug(
                     tag,
-                    f"Token usage for this request: {usage.prompt_tokens} prompt, "
+                    f"[{ai_model}] Token usage for this request: {usage.prompt_tokens} prompt, "
                     + f"{usage.completion_tokens} completion, {usage.total_tokens} total",
                 )
 
@@ -196,12 +170,21 @@ class AIService:
 
             # Construct the final message object
             final_message = SimpleNamespace(
-                role=role,
+                role="assistant",
                 content=content,
                 tool_calls=final_tool_calls if final_tool_calls else None,
                 parsed=parsed_content,
             )
             return final_message
+
+        except LengthFinishReasonError as length_error:
+            log.warning(
+                tag,
+                f"Response exceeded length limits. Will attempt to use partial content. Error: {str(length_error)}",
+            )
+
+            # TODO: handle partial content (e.g. `length_error.completion`)
+            return None
 
         except Exception as e:
             # Check for cancellation again in case the exception was due to cancellation interrupting IO
@@ -218,18 +201,11 @@ class AIService:
                     progress.progress(f"Error in AI service: {str(e)}")
                 return None
 
-    def _check_cancelled(self, progress: ProgressCallback):
-        if progress.cancelled():
-            log.info(tag, "AI analysis cancelled.")
-            raise RuntimeError("cancelled")
-
     def _process_tool_calls(
         self, tool_calls, binary_view, progress: ProgressCallback, path_info=""
     ) -> list:
         results = []
         for idx, tool in enumerate(tool_calls):
-            # unify cancellation check
-            self._check_cancelled(progress)
             progress.progress(
                 f"{path_info}Tool call {idx + 1}/{len(tool_calls)}: {tool.function.name}"
             )
@@ -248,8 +224,6 @@ class AIService:
                 args["binary_view"] = binary_view
                 log.info(tag, f"Calling tool {tool.function.name} with args: {args}")
                 output_data = call_function(tool.function.name, args)
-                # check again after long call
-                self._check_cancelled(progress)
                 content = (
                     str(output_data)
                     if output_data is not None
@@ -393,7 +367,7 @@ class AIService:
 
             request_num = turns + 1
             progress.progress(
-                f"{path_info}Turn {request_num}/{self.max_turns} to AI service..."
+                f"{path_info}Sending request {request_num}/{self.max_turns} to AI service..."
             )
 
             message = self._send_messages(ai_model, messages, progress, token_usage)
@@ -459,7 +433,7 @@ class AIService:
                         f"{path_info}Tool call processing failed: expected {tool_count} results, got {len(tool_results)}.",
                     )
                 messages.extend(tool_results)
-                turns += 1  # Increment turn count after processing tool calls
+                turns += 1
 
                 # Check if max turns reached after processing tools
                 if turns >= self.max_turns:
@@ -483,7 +457,6 @@ class AIService:
                     tag,
                     f"{path_info}AI analysis completed after {request_num} requests and {total_tool_calls_processed} tool calls. No further tool calls requested.",
                 )
-                # Use the parsed field directly instead of calling _parse_final_response
                 final_content = (
                     message.parsed if message and hasattr(message, "parsed") else None
                 )
@@ -506,20 +479,9 @@ class AIService:
 
         # If the loop finished, use the final_content
         if final_content:
-            # Check if final_content is already a VulnerabilityReport Pydantic model
             if isinstance(final_content, VulnerabilityReport):
                 vuln: VulnerabilityReport = final_content
 
-                # Pretty-print the model for detailed logging
-                try:
-                    log.debug(
-                        tag,
-                        f"Full AI analysis result:\n{vuln.model_dump_json(indent=4)}",
-                    )
-                except Exception as e:
-                    log.debug(tag, f"Failed to serialize result: {e}\n{vuln}")
-
-                # Generate and log a summary paragraph
                 if vuln.falsePositive:
                     summary = (
                         "AI analysis concluded the path is likely a false positive."
@@ -555,21 +517,11 @@ class AIService:
                 log.error(tag, f"{path_info}Invalid analysis result: {error_msg}")
                 progress.progress(f"{path_info}Analysis failed: {error_msg}")
                 return None
-
-        elif progress.cancelled():
-            # Should have returned None earlier, but double-check
-            log.info(
-                tag, "Analysis was cancelled before final content could be processed."
-            )
-            return None
         else:
             # Handle cases where loop finished unexpectedly or no content was ever received
             log.warn(
                 tag,
                 f"AI analysis loop finished after {turns} turns (max: {self.max_turns}) without definitive final content.",
-            )
-            progress.progress(
-                f"{path_info}Analysis finished (max turns {self.max_turns} reached, {total_tool_calls_processed} tools processed), but no final content."
             )
             log.error(tag, f"{path_info}Analysis incomplete: no final content received")
             return None
