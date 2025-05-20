@@ -413,6 +413,7 @@ class MediumLevelILBackwardSlicer:
                 bn.MediumLevelILVarSsa()
                 | bn.MediumLevelILVarAliasedField()
                 | bn.MediumLevelILVarSsaField()
+                | bn.MediumLevelILVarField()
                 | bn.MediumLevelILUnimplMem()
             ):
                 self._slice_ssa_var_definition(inst.src, inst, call_level, caller_site)
