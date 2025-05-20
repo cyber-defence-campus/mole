@@ -58,9 +58,9 @@ class Test_x86_64(TestMediumLevelILInstruction):
         self.assertEqual(len(slicer.inst_graph.edges), 1, "count inst edges")
         return
 
-    def test_mlil_store_struct(self, filenames: List[str] = ["struct-01"]) -> None:
+    def test_mlil_store_struct(self, filenames: List[str] = ["struct-02"]) -> None:
         # Define structure name and type
-        struct_name = "MyStruct"
+        struct_name = "my_struct"
         struct = bn.StructureBuilder.create()
         struct.append(bn.Type.int(4), "field_a")
         struct.append(bn.Type.int(4), "field_b")
@@ -69,20 +69,20 @@ class Test_x86_64(TestMediumLevelILInstruction):
 
         for file in TestMediumLevelILInstruction.load_files(filenames):
             # TODO: Does not yet lead to a MLIL_STORE_STRUCT instruction
+            # TODO: Revise comments
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
-            # Manually add _start symbol and get the function
-            bv.define_user_symbol(
-                bn.Symbol(bn.SymbolType.FunctionSymbol, bv.entry_point, "_start")
-            )
-            func = bv.get_functions_by_name("_start")[0]
+            # Get _start function
+            func = list(bv.functions)[0]
             # Create struct type
             bv.define_user_type(struct_name, struct_type)
+            struct_named_type = bn.Type.named_type_from_registered_type(bv, struct_name)
             # Create data variable with the struct type
-            my_struct_addr = bv.get_symbol_by_raw_name("my_struct").address
-            my_struct_type = bn.Type.named_type_from_registered_type(bv, struct_name)
-            bv.define_user_data_var(my_struct_addr, my_struct_type)
+            s1_addr = bv.get_symbol_by_raw_name("s1").address
+            bv.define_user_data_var(s1_addr, struct_named_type)
+            s2_addr = bv.get_symbol_by_raw_name("s2").address
+            bv.define_user_data_var(s2_addr, struct_named_type)
             # Define pointer type at use site
             # Create variable representing rdi
             rdi_id = bv.arch.get_reg_index("rdi")
@@ -90,10 +90,11 @@ class Test_x86_64(TestMediumLevelILInstruction):
                 func, bn.VariableSourceType.RegisterVariableSourceType, 0, rdi_id
             )
             # Create pointer to structure type
-            my_struct_ptr_type = bn.Type.pointer(
-                bv.arch, bn.Type.named_type_from_registered_type(bv, struct_name)
-            )
+            my_struct_ptr_type = bn.Type.pointer(bv.arch, struct_named_type)
             func.create_user_var(rdi_var, my_struct_ptr_type, "rdi")
+            # func = current_function
+            # var = func.get_var_at(Architecture['x86_64'], "rdi")
+            # func.create_user_var(var, Type.pointer(Architecture['x86_64'], Type.named_type_from_registered_type(bv, "my_struct")), "my_struct_ptr")
             # Reanalyze the _start function
             func.reanalyze()
         return

@@ -1,9 +1,9 @@
-; nasm -f elf64 src/struct-01.asm -o bin/struct-01.o
-; ld bin/struct-01.o -o bin/struct-01.linux_x86_64
+; nasm -f elf64 -g -F dwarf src/struct-01.asm -o bin/struct-01.o
+; ld bin/struct-01.o -o bin/struct-01.linux-x86_64
 ; rm bin/struct-01.o
 
 section .data
-    my_struct:                  ; Structure with two integers
+    my_struct:                  ; Structure with three integers
         dd 0                    ; field_a (4 bytes)
         dd 0                    ; field_b (4 bytes)
         dd 0                    ; field_c (4 bytes)
