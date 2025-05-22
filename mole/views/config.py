@@ -252,7 +252,11 @@ class ConfigView(qtw.QWidget):
         lay.addWidget(ai_box_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
-        return wid
+
+        scr = qtw.QScrollArea()
+        scr.setWidgetResizable(True)
+        scr.setWidget(wid)
+        return scr
 
     def _init_cnf_but(self) -> qtw.QWidget:
         """
