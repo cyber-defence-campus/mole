@@ -37,22 +37,25 @@ class PathView(bnui.SidebarWidget):
 
     def init(self, path_ctr: PathController) -> PathView:
         """
-        This method sets the controller and initializes relevant UI widgets.
+        This method sets the controller and initializes relevant UI components.
         """
         # Set controller
         self.path_ctr = path_ctr
-        # Initialize UI widgets
+        # Tab widget
         self._wid = qtw.QTabWidget()
         self._wid.addTab(*self._init_path_tab())
         self._wid.addTab(*self._init_graph_tab())
-        self._wid.addTab(self.path_ctr.ai_ctr.ai_view, "AI Result")
+        self._wid.addTab(self.path_ctr.ai_ctr.ai_view, "AI Report")
         self._wid.addTab(self.path_ctr.config_ctr.config_view, "Configure")
-        scr = qtw.QScrollArea()
-        scr.setWidget(self._wid)
-        scr.setWidgetResizable(True)
-        lay = qtw.QVBoxLayout()
-        lay.addWidget(scr)
-        self.setLayout(lay)
+        # Scroll widget
+        scr_wid = qtw.QScrollArea()
+        scr_wid.setWidgetResizable(True)
+        scr_wid.setWidget(self._wid)
+        # Main layout
+        main_lay = qtw.QVBoxLayout()
+        main_lay.addWidget(scr_wid)
+        self.setLayout(main_lay)
+        # Setup path tree
         self.signal_setup_path_tree.emit(self._bv, self.path_tree_view, self._wid)
         return self
 
@@ -132,12 +135,12 @@ class PathView(bnui.SidebarWidget):
             self.signal_setup_path_tree.emit(new_bv, self.path_tree_view, self._wid)
         return
 
-    def show_ai_result_tab(self) -> None:
+    def show_ai_report_tab(self) -> None:
         """
-        This method switches to the AI Result tab.
+        This method switches to the AI Report tab.
         """
         for i in range(self._wid.count()):
-            if self._wid.tabText(i) == "AI Result":
+            if self._wid.tabText(i) == "AI Report":
                 self._wid.setCurrentIndex(i)
                 break
         return

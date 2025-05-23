@@ -1,7 +1,6 @@
 from __future__ import annotations
 from mole.models.ai import AiVulnerabilityReport
 from typing import Optional, TYPE_CHECKING
-
 import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
@@ -9,188 +8,183 @@ if TYPE_CHECKING:
     from mole.controllers.ai import AiController
 
 
-class AiResultView(qtw.QWidget):
+class AiView(qtw.QWidget):
     """
-    This class implements a view for displaying AI vulnerability analysis results.
+    This class implements a view to display AI-generated vulnerability reports.
     """
 
     def __init__(self) -> None:
         """
-        This method initializes the AI result view.
+        This method initializes the AI view.
         """
         super().__init__()
         self.ai_ctr: Optional[AiController] = None
-        self._current_path_id: Optional[int] = None
-        self._init_ui()
+        self._stack_wid: Optional[qtw.QStackedWidget] = None
+        self._path_id_lbl: qtw.QLabel = qtw.QLabel("")
+        self._vuln_type_lbl: qtw.QLabel = qtw.QLabel("")
+        self._true_positive_lbl: qtw.QLabel = qtw.QLabel("")
+        self._severity_lbl: qtw.QLabel = qtw.QLabel("")
+        self._score_lbl: qtw.QLabel = qtw.QLabel("")
+        self._explanation_txt: qtw.QPlainTextEdit = qtw.QPlainTextEdit(readOnly=True)
+        self._input_example_txt: qtw.QPlainTextEdit = qtw.QPlainTextEdit(readOnly=True)
+        self._model_lbl: qtw.QLabel = qtw.QLabel("")
+        self._tool_calls_lbl: qtw.QLabel = qtw.QLabel("")
+        self._turns: qtw.QLabel = qtw.QLabel("")
+        self._token_usage_lbl: qtw.QLabel = qtw.QLabel("")
+        self._timestamp_lbl: qtw.QLabel = qtw.QLabel("")
         return
 
-    def init(self, ai_ctr: AiController) -> AiResultView:
+    def init(self, ai_ctr: AiController) -> AiView:
         """
-        This method sets the controller.
+        This method sets the controller and initializes relevant UI components.
         """
+        # Set controller
         self.ai_ctr = ai_ctr
+        # Summary layout
+        summary_lay = qtw.QGridLayout()
+        summary_lay.addWidget(qtw.QLabel("Path ID:"), 0, 0)
+        summary_lay.addWidget(self._path_id_lbl, 0, 1)
+        summary_lay.addWidget(qtw.QLabel(""), 0, 2)
+        summary_lay.addWidget(qtw.QLabel("Vulnerability Type:"), 1, 0)
+        summary_lay.addWidget(self._vuln_type_lbl, 1, 1)
+        summary_lay.addWidget(qtw.QLabel(""), 1, 2)
+        summary_lay.addWidget(qtw.QLabel("True Positive:"), 2, 0)
+        summary_lay.addWidget(self._true_positive_lbl, 2, 1)
+        summary_lay.addWidget(qtw.QLabel("[Yes, No]"), 2, 2)
+        summary_lay.addWidget(qtw.QLabel("Severity Level:"), 3, 0)
+        summary_lay.addWidget(self._severity_lbl, 3, 1)
+        summary_lay.addWidget(qtw.QLabel("[High, Medium, Low]"), 3, 2)
+        summary_lay.addWidget(qtw.QLabel("Exploitability Score:"), 4, 0)
+        summary_lay.addWidget(self._score_lbl, 4, 1)
+        summary_lay.addWidget(qtw.QLabel("[0-10]"), 4, 2)
+        # Summary widget
+        summary_wid = qtw.QWidget()
+        summary_wid.setLayout(summary_lay)
+        # Summary box layout
+        summary_box_lay = qtw.QVBoxLayout()
+        summary_box_lay.addWidget(summary_wid)
+        # Summary box widget
+        summary_box_wid = qtw.QGroupBox("Summary:")
+        summary_box_wid.setLayout(summary_box_lay)
+        # Explanation box layout
+        explanation_box_lay = qtw.QVBoxLayout()
+        explanation_box_lay.addWidget(self._explanation_txt)
+        # Explanation box widget
+        explanation_box_wid = qtw.QGroupBox("Explanation:")
+        explanation_box_wid.setLayout(explanation_box_lay)
+        # Input box layout
+        input_box_lay = qtw.QVBoxLayout()
+        input_box_lay.addWidget(self._input_example_txt)
+        # Input box widget
+        input_box_wid = qtw.QGroupBox("Input Example:")
+        input_box_wid.setLayout(input_box_lay)
+        # Information layout
+        info_lay = qtw.QGridLayout()
+        info_lay.addWidget(qtw.QLabel("Model:"), 0, 0)
+        info_lay.addWidget(self._model_lbl, 0, 1)
+        info_lay.addWidget(qtw.QLabel("Tool Calls:"), 1, 0)
+        info_lay.addWidget(self._tool_calls_lbl, 1, 1)
+        info_lay.addWidget(qtw.QLabel("Conversation Turns:"), 2, 0)
+        info_lay.addWidget(self._turns, 2, 1)
+        info_lay.addWidget(qtw.QLabel("Token Usage:"), 3, 0)
+        info_lay.addWidget(self._token_usage_lbl, 3, 1)
+        info_lay.addWidget(qtw.QLabel("Timestamp:"), 4, 0)
+        info_lay.addWidget(self._timestamp_lbl, 4, 1)
+        # Information widget
+        info_wid = qtw.QWidget()
+        info_wid.setLayout(info_lay)
+        # Information box layout
+        info_box_lay = qtw.QVBoxLayout()
+        info_box_lay.addWidget(info_wid)
+        # Information box widget
+        info_box_wid = qtw.QGroupBox("Information:")
+        info_box_wid.setLayout(info_box_lay)
+        # Report layout
+        report_lay = qtw.QVBoxLayout()
+        report_lay.addWidget(summary_box_wid)
+        report_lay.addWidget(explanation_box_wid)
+        report_lay.addWidget(input_box_wid)
+        report_lay.addWidget(info_box_wid)
+        # Widget to display an AI-generated vulnerability report
+        report_wid = qtw.QWidget()
+        report_wid.setLayout(report_lay)
+        # Widget to display when a result is available
+        result_wid = qtw.QScrollArea()
+        result_wid.setWidgetResizable(True)
+        result_wid.setWidget(report_wid)
+        # Widget to display when no result is available
+        no_result_wid = qtw.QLabel("No AI-generated vulnerability report available.")
+        no_result_wid.setAlignment(qtc.Qt.AlignCenter)
+        # Widget to switch based on result availability
+        self._stack_wid = qtw.QStackedWidget()
+        self._stack_wid.addWidget(no_result_wid)
+        self._stack_wid.addWidget(result_wid)
+        self._stack_wid.setCurrentIndex(0)
+        # Main layout
+        main_lay = qtw.QVBoxLayout()
+        main_lay.addWidget(self._stack_wid)
+        self.setLayout(main_lay)
         return self
 
-    def _init_ui(self) -> None:
+    def show_report(self, path_id: int, report: AiVulnerabilityReport) -> None:
         """
-        This method initializes the UI components.
+        This method displays an AI-generated vulnerability report.
         """
-        # Create main layout
-        main_layout = qtw.QVBoxLayout()
-
-        # Create form layout for detailed information
-        form_layout = qtw.QFormLayout()
-
-        # Create widgets for displaying AI analysis results
-        self._path_id_label = qtw.QLabel("N/A")
-        self._vulnerability_class_label = qtw.QLabel("N/A")
-        self._false_positive_label = qtw.QLabel("N/A")
-        self._severity_label = qtw.QLabel("N/A")
-        self._score_label = qtw.QLabel("N/A")
-
-        # Add widgets to form layout with descriptive labels
-        form_layout.addRow("Path ID:", self._path_id_label)
-        form_layout.addRow("Vulnerability Type:", self._vulnerability_class_label)
-        form_layout.addRow("False Positive:", self._false_positive_label)
-        form_layout.addRow("Severity Level:", self._severity_label)
-        form_layout.addRow("Exploitability Score:", self._score_label)
-
-        # Create explanation text area
-        self._explanation_text = qtw.QTextEdit()
-        self._explanation_text.setReadOnly(True)
-        explanation_group = qtw.QGroupBox("Explanation")
-        explanation_layout = qtw.QVBoxLayout()
-        explanation_layout.addWidget(self._explanation_text)
-        explanation_group.setLayout(explanation_layout)
-
-        # Create example input text area
-        self._input_example_text = qtw.QTextEdit()
-        self._input_example_text.setReadOnly(True)
-        input_example_group = qtw.QGroupBox("Input Example")
-        input_example_layout = qtw.QVBoxLayout()
-        input_example_layout.addWidget(self._input_example_text)
-        input_example_group.setLayout(input_example_layout)
-
-        # Add model info section
-        model_form = qtw.QFormLayout()
-        self._model_label = qtw.QLabel("N/A")
-        self._tool_calls_label = qtw.QLabel("N/A")
-        self._turns_label = qtw.QLabel("N/A")
-        self._token_usage_label = qtw.QLabel("N/A")
-        self._timestamp_label = qtw.QLabel("N/A")
-        model_form.addRow("Model:", self._model_label)
-        model_form.addRow("Tool Calls:", self._tool_calls_label)
-        model_form.addRow("Conversation Turns:", self._turns_label)
-        model_form.addRow("Token Usage:", self._token_usage_label)
-        model_form.addRow("Analysis Timestamp:", self._timestamp_label)
-        model_group = qtw.QGroupBox("AI Details")
-        model_group.setLayout(model_form)
-
-        # Create "no result" message widget
-        self._no_result_widget = qtw.QLabel(
-            "No AI analysis result available.\nSelect a path with AI analysis or run analysis on a path."
+        warning_txt = "--- WARNING ---\n"
+        warning_txt += "This report has been identified as a FALSE POSITIVE. Its severity, exploitability score, and related details might be inaccurate.\n"
+        warning_txt += "---------------\n\n"
+        # Summary
+        self._path_id_lbl.setText(str(path_id))
+        self._vuln_type_lbl.setText(report.vulnerabilityClass)
+        self._true_positive_lbl.setText("Yes" if report.truePositive else "No")
+        self._true_positive_lbl.setStyleSheet(
+            "color: red;" if report.truePositive else "color: green;"
         )
-        self._no_result_widget.setAlignment(qtc.Qt.AlignCenter)
-        self._no_result_widget.setStyleSheet("color: gray; font-size: 14px;")
-
-        # Create stacked widget to switch between "no result" and "result" views
-        self._stack = qtw.QStackedWidget()
-
-        # Create the result widget and add components to it
-        result_widget = qtw.QWidget()
-        result_layout = qtw.QVBoxLayout()
-        result_layout.addLayout(form_layout)
-        result_layout.addWidget(explanation_group, 1)
-        result_layout.addWidget(input_example_group, 1)
-        result_layout.addWidget(model_group)
-        result_widget.setLayout(result_layout)
-
-        # Add both widgets to stack
-        self._stack.addWidget(self._no_result_widget)  # Index 0
-        self._stack.addWidget(result_widget)  # Index 1
-
-        # Start with "no result" view
-        self._stack.setCurrentIndex(0)
-
-        # Add the stack to the main layout
-        main_layout.addWidget(self._stack)
-
-        # Set the main layout
-        self.setLayout(main_layout)
+        self._severity_lbl.setText(report.severityLevel)
+        match report.severityLevel:
+            case "High":
+                self._severity_lbl.setStyleSheet("color: red;")
+            case "Medium":
+                self._severity_lbl.setStyleSheet("color: orange;")
+            case _:
+                self._severity_lbl.setStyleSheet("color: green;")
+        self._score_lbl.setText(f"{report.exploitabilityScore:.1f}")
+        if report.exploitabilityScore >= 7.0:
+            self._score_lbl.setStyleSheet("color: red;")
+        elif report.exploitabilityScore >= 4.0:
+            self._score_lbl.setStyleSheet("color: orange;")
+        else:
+            self._score_lbl.setStyleSheet("color: green;")
+        # Explanation
+        msg_txt = report.shortExplanation
+        if not report.truePositive:
+            msg_txt = warning_txt + msg_txt
+        self._explanation_txt.setPlainText(msg_txt)
+        # Input example
+        msg_txt = report.inputExample
+        if not report.truePositive:
+            msg_txt = warning_txt + msg_txt
+        self._input_example_txt.setPlainText(msg_txt)
+        # Information
+        self._model_lbl.setText(report.model)
+        self._tool_calls_lbl.setText(str(report.tool_calls))
+        self._turns.setText(str(report.turns))
+        token_usage_txt = f"Prompt: {str(report.prompt_tokens):s}, "
+        token_usage_txt += f"Completion: {str(report.completion_tokens):s}, "
+        token_usage_txt += f"Total: {str(report.total_tokens):s}"
+        self._token_usage_lbl.setText(token_usage_txt)
+        if report.timestamp:
+            timestamp_txt = report.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            timestamp_txt = "N/A"
+        self._timestamp_lbl.setText(timestamp_txt)
+        # Switch to the report available widget
+        self._stack_wid.setCurrentIndex(1)
         return
 
-    def show_result(self, path_id: int, result: AiVulnerabilityReport) -> None:
+    def clear_report(self) -> None:
         """
-        This method displays an AI analysis result.
+        This method switches to the no report available widget.
         """
-        self._current_path_id = path_id
-        self._path_id_label.setText(str(path_id))
-
-        self._vulnerability_class_label.setText(result.vulnerabilityClass)
-
-        # Set false positive status
-        self._false_positive_label.setText("Yes" if result.falsePositive else "No")
-        self._false_positive_label.setStyleSheet(
-            "color: #FF5252;" if result.falsePositive else "color: #8BC34A;"
-        )
-
-        # Set severity level with color coding
-        self._severity_label.setText(result.severityLevel)
-        if result.severityLevel == "Critical":
-            self._severity_label.setStyleSheet("color: #FF5252; font-weight: bold;")
-        elif result.severityLevel == "High":
-            self._severity_label.setStyleSheet("color: #FF9800; font-weight: bold;")
-        elif result.severityLevel == "Medium":
-            self._severity_label.setStyleSheet("color: #FFC107;")
-        else:  # Low
-            self._severity_label.setStyleSheet("color: #8BC34A;")
-
-        # Set exploitability score with color coding
-        self._score_label.setText(f"{result.exploitabilityScore:.1f}")
-        if result.exploitabilityScore >= 8.0:
-            self._score_label.setStyleSheet("color: #FF5252; font-weight: bold;")
-        elif result.exploitabilityScore >= 5.0:
-            self._score_label.setStyleSheet("color: #FF9800;")
-        elif result.exploitabilityScore > 0:
-            self._score_label.setStyleSheet("color: #FFC107;")
-        else:
-            self._score_label.setStyleSheet("color: #8BC34A;")
-
-        # Set explanation text
-        explanation_text = result.shortExplanation
-        if result.falsePositive:
-            warning_message = "<p style='color:#FF5252;font-style:italic;font-weight:bold;'>⚠️ WARNING: This is identified as a FALSE POSITIVE. The severity, exploitability score, and other information should not be taken seriously.</p><hr>"
-            explanation_text = warning_message + explanation_text
-        self._explanation_text.setHtml(explanation_text)
-
-        # Set input example
-        self._input_example_text.setText(result.inputExample)
-
-        # Set model information
-        self._model_label.setText(result.model)
-        self._tool_calls_label.setText(str(result.tool_calls))
-        self._turns_label.setText(str(result.turns))
-
-        # Set token usage information
-        token_text = f"Prompt: {result.prompt_tokens}, Completion: {result.completion_tokens}, Total: {result.total_tokens}"
-        self._token_usage_label.setText(token_text)
-
-        # Set timestamp
-        if result.timestamp:
-            self._timestamp_label.setText(
-                result.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-            )
-        else:
-            self._timestamp_label.setText("N/A")
-
-        # Switch to the result view
-        self._stack.setCurrentIndex(1)
-        return
-
-    def clear_result(self) -> None:
-        """
-        This method clears the current result and shows the "no result" view.
-        """
-        self._current_path_id = None
-        self._stack.setCurrentIndex(0)
+        self._stack_wid.setCurrentIndex(0)
         return

@@ -428,7 +428,7 @@ class PathTreeModel(qtui.QStandardItemModel):
         if result is None:
             # No score available
             score_display = ""
-        elif result.falsePositive:
+        elif not result.truePositive:
             # Set to 0 for false positives
             score_value = 0.0
             score_display = "0.0"

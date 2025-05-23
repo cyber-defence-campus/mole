@@ -8,7 +8,7 @@ from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
 from mole.controllers.config import ConfigController
 from mole.controllers.ai import AiController
-from mole.services.ai import AIService
+from mole.services.ai import AiService
 from mole.models.ai import AiVulnerabilityReport
 from mole.common.log import log
 from typing import Dict, List, Literal, Tuple, Optional
@@ -33,7 +33,7 @@ class PathController:
 
     def __init__(
         self,
-        ai_service: AIService,
+        ai_service: AiService,
         config_ctr: ConfigController,
         ai_ctr: AiController,
         path_view: PathView,
@@ -52,7 +52,7 @@ class PathController:
         self._paths_highlight: Tuple[
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
-
+        self.path_view.init(self)
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
         self.connect_signal_load_paths(self.load_paths)
@@ -92,7 +92,7 @@ class PathController:
 
     def connect_signal_show_ai_result(self, slot: object) -> None:
         """
-        This method allows connecting to the signal that is triggered when AI results should be shown.
+        This method allows connecting to the signal that is triggered when AI reports should be shown.
         """
         self.path_view.signal_show_ai_result.connect(slot)
         return
@@ -472,10 +472,10 @@ class PathController:
         if result:
             # Show the result in the AI view
             self.ai_ctr.show_result(path_id, result)
-            # Switch to the AI Result tab
-            self.path_view.show_ai_result_tab()
+            # Switch to the AI Report tab
+            self.path_view.show_ai_report_tab()
         else:
-            log.warn(tag, f"No AI analysis result available for path {path_id}")
+            log.warn(tag, f"No AI analysis result available for path {path_id:d}")
             self.ai_ctr.clear_result()
         return
 
@@ -508,9 +508,9 @@ class PathController:
         def on_result_handler(result: AiVulnerabilityReport):
             log.info(
                 tag,
-                f"AI analysis result for path {result.path_id}: "
-                f"{'False positive' if result.falsePositive else result.vulnerabilityClass} "
-                f"(score: {result.exploitabilityScore})",
+                f"AI analysis result for path {str(result.path_id):s}: "
+                f"{result.vulnerabilityClass if result.truePositive else 'False positive'} "
+                f"(score: {result.exploitabilityScore:.2f})",
             )
 
             # Update the path tree model with the analysis result

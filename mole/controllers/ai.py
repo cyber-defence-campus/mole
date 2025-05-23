@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.models.ai import AiVulnerabilityReport
-from mole.views.ai import AiResultView
-from mole.services.ai import AIService
+from mole.views.ai import AiView
+from mole.services.ai import AiService
 
 tag = "Mole.AI"
 
@@ -11,10 +11,11 @@ class AiController:
     This class implements a controller to handle AI-related operations.
     """
 
-    def __init__(self, ai_service: AIService, ai_view: AiResultView) -> None:
+    def __init__(self, ai_service: AiService, ai_view: AiView) -> None:
         """
-        This method initializes a controller (MVC pattern).
+        This method initializes the AI controller.
         """
+        # Initialization
         self.ai_service = ai_service
         self.ai_view = ai_view
         self.ai_view.init(self)
@@ -24,14 +25,14 @@ class AiController:
         """
         This method shows an AI analysis result in the view.
         """
-        self.ai_view.show_result(path_id, result)
+        self.ai_view.show_report(path_id, result)
         return
 
     def clear_result(self) -> None:
         """
         This method clears the current result from the view.
         """
-        self.ai_view.clear_result()
+        self.ai_view.clear_report()
         return
 
     def is_ai_configured(self) -> bool:

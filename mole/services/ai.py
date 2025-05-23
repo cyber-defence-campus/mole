@@ -24,7 +24,7 @@ MOCK_AI = False
 tag = "Mole.AI"
 
 
-class AIService:
+class AiService:
     """Service for handling AI-based vulnerability analysis."""
 
     def __init__(self, config_service: ConfigService):
@@ -38,12 +38,12 @@ class AIService:
     3. Validate the Path: Determine if the path is logically valid, reachable, and not a false positive.
     4. Identify Vulnerability: If valid, identify the potential vulnerability type.
     5. Explain Concisely: Provide a clear explanation of why the vulnerability exists.
-    6. Assess Severity: Assign a severity level (Critical, High, Medium, Low).
-    7. Score Exploitability: Provide an exploitability score (0-10).
+    6. Assess Severity: Assign a severity level (High, Medium, Low).
+    7. Score Exploitability: Assign an exploitability score (0-10).
     8. Craft Example Input: Create a realistic input example that could trigger the vulnerability.
 
     Use the tools proactively to understand the code path and its upstream callers to provide a well-reasoned analysis, assess true reachability, and craft a plausible triggering input. You have a maximum of {self.max_turns} conversation turns to complete this analysis.
-"""
+    """
 
     def _get_openai_client(self) -> OpenAI:
         """
@@ -319,8 +319,8 @@ class AIService:
             time.sleep(0.25)
 
             return AiVulnerabilityReport(
-                falsePositive=random.choice(
-                    [True, False, False, False]
+                truePositive=random.choice(
+                    [True, True, True, False]
                 ),  # 25% chance of false positive
                 vulnerabilityClass=random.choice(vulnerability_classes),
                 shortExplanation="Mock analysis: Found potential issue.",
@@ -484,16 +484,16 @@ class AIService:
             if isinstance(final_content, VulnerabilityReport):
                 vuln: VulnerabilityReport = final_content
 
-                if vuln.falsePositive:
-                    summary = (
-                        "AI analysis concluded the path is likely a false positive."
-                    )
-                else:
+                if vuln.truePositive:
                     summary = (
                         f"\nAI analysis confirms a potential {vuln.severityLevel} {vuln.vulnerabilityClass} vulnerability "
                         f"with exploitability score of {vuln.exploitabilityScore}.\n"
                         f"Explanation: {vuln.shortExplanation}.\n"
                         f"Example input: {vuln.inputExample}.\n"
+                    )
+                else:
+                    summary = (
+                        "AI analysis concluded the path is likely a false positive."
                     )
                 log.info(tag, summary)
                 return AiVulnerabilityReport(

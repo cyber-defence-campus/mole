@@ -31,6 +31,7 @@ class ConfigController:
         self.config_service = config_service
         self.config_model = config_model
         self.config_view = config_view
+        self.config_view.init(self)
         # Connect signals
         self.connect_signal_save_config(self.save_config)
         self.connect_signal_reset_config(self.reset_config)

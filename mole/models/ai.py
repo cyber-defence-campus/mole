@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 class VulnerabilityReport(BaseModel):
-    falsePositive: bool
+    truePositive: bool
     vulnerabilityClass: Literal[
         "Out-of-Bounds Write",
         "Command Injection",
@@ -23,7 +23,7 @@ class VulnerabilityReport(BaseModel):
         "Other",
     ]
     shortExplanation: str
-    severityLevel: Literal["Critical", "High", "Medium", "Low"]
+    severityLevel: Literal["High", "Medium", "Low"]
     exploitabilityScore: float
     inputExample: str
 

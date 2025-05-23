@@ -25,40 +25,43 @@ class ConfigView(qtw.QWidget):
         This method initializes the configuration view.
         """
         super().__init__()
+        self.config_ctr: Optional[ConfigController] = None
         self._save_but: Optional[qtw.QPushButton] = None
         self._reset_but: Optional[qtw.QPushButton] = None
-        self.config_ctr: Optional[ConfigController] = None
         return
 
     def init(self, config_ctr: ConfigController) -> ConfigView:
         """
-        This method sets the controller and initializes relevant UI widgets.
+        This method sets the controller and initializes relevant UI components.
         """
         # Set controller
         self.config_ctr = config_ctr
-        # Initialize conf dir
+        # Tab widget
+        tab_wid = qtw.QTabWidget()
+        tab_wid.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
+        tab_wid.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
+        tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
+        # Script widget
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        cnf_dir = os.path.abspath(os.path.join(script_dir, "../conf/"))
-        cnf_lbl = qtw.QLabel("Config Dir:")
-        cnf_lin = FullSelectLineEdit(cnf_dir)
-        cnf_lin.setReadOnly(True)
-        cnf_lin.setStyleSheet("background-color: transparent; border: none;")
-        cnf_lay = qtw.QHBoxLayout()
-        cnf_lay.addWidget(cnf_lbl)
-        cnf_lay.addWidget(cnf_lin)
-        cnf_dir = qtw.QWidget()
-        cnf_dir.setLayout(cnf_lay)
-        # Initialize UI widgets
-        tab = qtw.QTabWidget()
-        tab.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
-        tab.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
-        tab.addTab(self._init_cnf_set_tab(), "Settings")
-        but = self._init_cnf_but()
-        lay = qtw.QVBoxLayout()
-        lay.addWidget(tab)
-        lay.addWidget(cnf_dir)
-        lay.addWidget(but)
-        self.setLayout(lay)
+        script_dir = os.path.abspath(os.path.join(script_dir, "../conf/"))
+        script_wid = FullSelectLineEdit(script_dir)
+        script_wid.setReadOnly(True)
+        script_wid.setStyleSheet("background-color: transparent; border: none;")
+        # Directory layout
+        dir_lay = qtw.QHBoxLayout()
+        dir_lay.addWidget(qtw.QLabel("Config Dir:"))
+        dir_lay.addWidget(script_wid)
+        # Directory widget
+        dir_wid = qtw.QWidget()
+        dir_wid.setLayout(dir_lay)
+        # Button widget
+        but_wid = self._init_cnf_but()
+        # Main layout
+        main_lay = qtw.QVBoxLayout()
+        main_lay.addWidget(tab_wid)
+        main_lay.addWidget(dir_wid)
+        main_lay.addWidget(but_wid)
+        self.setLayout(main_lay)
         return self
 
     def _init_cnf_fun_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QWidget:
@@ -123,8 +126,8 @@ class ConfigView(qtw.QWidget):
                 box_wid.setLayout(box_lay)
                 lib_lay.addWidget(box_wid)
             scr_wid = qtw.QScrollArea()
-            scr_wid.setWidget(lib_wid)
             scr_wid.setWidgetResizable(True)
+            scr_wid.setWidget(lib_wid)
             tab_wid.addTab(scr_wid, lib.name)
         lay = qtw.QVBoxLayout()
         lay.addWidget(tab_wid)
