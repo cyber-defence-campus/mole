@@ -19,7 +19,7 @@ class PathTreeView(qtw.QTreeView):
     This class implements a tree view for displaying paths grouped by source, sink and call graph.
     """
 
-    signal_show_ai_details = qtc.Signal(int)
+    # signal_show_ai_details = qtc.Signal(int)
 
     def __init__(self, parent=None) -> None:
         """
@@ -183,9 +183,9 @@ class PathTreeView(qtw.QTreeView):
         on_export_paths: Callable[[List[int]], None],
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
-        on_ai_analyse: Callable[[List[int]], None],
-        is_ai_enabled: Callable[[], bool],
-        on_show_ai_details: Callable[[int], None] = None,
+        on_run_ai_analysis: Callable[[List[int]], None],
+        # is_ai_enabled: Callable[[], bool],
+        on_show_ai_report: Callable[[List[int]], None],
         bv: bn.BinaryView = None,
     ) -> None:
         """
@@ -199,33 +199,6 @@ class PathTreeView(qtw.QTreeView):
 
             # Create context menu
             menu = qtw.QMenu(self)
-
-            # Add menu actions with their enabled states and direct connections
-
-            # AI actions
-            ai_action = self._add_menu_action(menu, "🤖 Analyze (AI)", len(rows) >= 1)
-            ai_action.triggered.connect(lambda: on_ai_analyse(rows))
-            if is_ai_enabled():
-                ai_action.setEnabled(True)
-            else:
-                ai_action.setEnabled(False)
-                ai_action.setToolTip(
-                    "AI Analysis requires API key, URL and model to be configured"
-                )
-
-            # Add AI details menu option if we have exactly one selected row with an analysis result
-            if len(rows) == 1:
-                path_id = rows[0]
-                path = self.path_tree_model.get_path(path_id)
-                if path and path.ai_report is not None:
-                    ai_details_action = self._add_menu_action(
-                        menu, "🔍 AI Score Details", True
-                    )
-                    ai_details_action.triggered.connect(
-                        lambda: on_show_ai_details(path_id)
-                    )
-
-            menu.addSeparator()
 
             # Log actions
             log_path_action = self._add_menu_action(
@@ -259,6 +232,18 @@ class PathTreeView(qtw.QTreeView):
                 menu, "Show call graph", has_single_row_and_bv
             )
             show_call_graph_action.triggered.connect(lambda: on_show_call_graph(rows))
+
+            menu.addSeparator()
+
+            # AI-generated vulnerability report actions
+            run_ai_analysis_action = self._add_menu_action(
+                menu, "Run AI analysis", len(rows) >= 1
+            )
+            run_ai_analysis_action.triggered.connect(lambda: on_run_ai_analysis(rows))
+            show_ai_report_action = self._add_menu_action(
+                menu, "Show AI report", len(rows) == 1
+            )
+            show_ai_report_action.triggered.connect(lambda: on_show_ai_report(rows))
 
             menu.addSeparator()
 

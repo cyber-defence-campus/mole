@@ -58,7 +58,7 @@ class PathController:
         self.connect_signal_load_paths(self.load_paths)
         self.connect_signal_save_paths(self.save_paths)
         self.connect_signal_setup_paths_tree(self.setup_path_tree)
-        self.connect_signal_show_ai_result(self.show_ai_result)
+        self.connect_signal_show_ai_result(self.show_ai_report)
         self.config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
         return
 
@@ -456,78 +456,6 @@ class PathController:
         self._thread.start()
         return
 
-    def show_ai_result(self, path_id: int) -> None:
-        """
-        This method shows AI analysis results for a path.
-        """
-        # Get the path and its analysis result
-        if not self.path_tree_view:
-            return
-
-        path = self.path_tree_view.get_path(path_id)
-        if not path:
-            return
-
-        result = path.ai_report
-        if result:
-            # Show the result in the AI view
-            self.ai_ctr.show_result(path_id, result)
-            # Switch to the AI Report tab
-            self.path_view.show_ai_report_tab()
-        else:
-            log.warn(tag, f"No AI analysis result available for path {path_id:d}")
-            self.ai_ctr.clear_result()
-        return
-
-    def ai_analyse(self, path_ids: List[int]) -> None:
-        """
-        This method analyzes a path using AI.
-        """
-        # Detect newly attached debuggers
-        log.find_attached_debugger()
-        # Ensure correct view
-        if not self._validate_bv():
-            return
-        # Ensure expected number of selected paths
-        if len(path_ids) <= 0:
-            return
-
-        paths = [
-            (path_id, self.path_tree_view.get_path(path_id)) for path_id in path_ids
-        ]
-
-        # Start the AI analysis in a background task
-        log.info(tag, f"Starting AI analysis of {len(paths):d} path(s)")
-
-        self.ai_task = BackgroundTask(
-            initial_progress_text="Starting AI analysis...",
-            can_cancel=True,
-            run=self.ai_service.analyse,
-        )
-
-        def on_result_handler(result: AiVulnerabilityReport):
-            log.info(
-                tag,
-                f"AI analysis result for path {str(result.path_id):s}: "
-                f"{result.vulnerabilityClass if result.truePositive else 'False positive'} "
-                f"(score: {result.exploitabilityScore:.2f})",
-            )
-
-            # Update the path tree model with the analysis result
-            if result and self.path_tree_view:
-                self.path_tree_view.model.update_analysis_result(result.path_id, result)
-
-        self.ai_task.set_args(
-            binary_view=self._bv,
-            paths=paths,
-            progress=BackgroundTaskProgress(
-                self.ai_task,
-                on_result=on_result_handler,
-            ),
-        )
-
-        self.ai_task.start()
-
     def log_path(self, path_ids: List[int], reverse: bool = False) -> None:
         """
         This method logs information about a path.
@@ -773,6 +701,81 @@ class PathController:
         log.info(tag, f"Showing call graph of path {path_ids[0]:d}")
         return
 
+    def run_ai_analysis(self, path_ids: List[int]) -> None:
+        """
+        TODO: This method analyzes paths using AI.
+        """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure correct view
+        if not self._validate_bv():
+            return
+        # Ensure expected number of selected paths
+        if len(path_ids) <= 0:
+            return
+
+        paths = [
+            (path_id, self.path_tree_view.get_path(path_id)) for path_id in path_ids
+        ]
+
+        # Start the AI analysis in a background task
+        log.info(tag, f"Starting AI analysis of {len(paths):d} path(s)")
+
+        self.ai_task = BackgroundTask(
+            initial_progress_text="Starting AI analysis...",
+            can_cancel=True,
+            run=self.ai_service.analyse,
+        )
+
+        def on_result_handler(result: AiVulnerabilityReport):
+            log.info(
+                tag,
+                f"AI analysis result for path {str(result.path_id):s}: "
+                f"{result.vulnerabilityClass if result.truePositive else 'False positive'} "
+                f"(score: {result.exploitabilityScore:.2f})",
+            )
+
+            # Update the path tree model with the analysis result
+            if result and self.path_tree_view:
+                self.path_tree_view.model.update_analysis_result(result.path_id, result)
+
+        self.ai_task.set_args(
+            binary_view=self._bv,
+            paths=paths,
+            progress=BackgroundTaskProgress(
+                self.ai_task,
+                on_result=on_result_handler,
+            ),
+        )
+
+        self.ai_task.start()
+        return
+
+    def show_ai_report(self, path_ids: List[int]) -> None:
+        """
+        This method shows the AI-generated vulnerability report of a path.
+        """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure correct view
+        if not self._validate_bv():
+            return
+        # Ensure expected number of selected paths
+        if len(path_ids) != 1:
+            return
+        # Show AI-generated report of selected path
+        path = self.path_tree_view.get_path(path_ids[0])
+        if not path:
+            return
+        if not path.ai_report:
+            self.ai_ctr.clear_result()
+            log.warn(tag, f"AI-generated report for path #{path_ids[0]:d} not found")
+            return
+        # TODO: Cleanup
+        self.ai_ctr.show_report(path_ids[0], path.ai_report)
+        self.path_view.show_ai_report_tab()
+        return
+
     def remove_selected_paths(self, path_ids: List[int]) -> None:
         """
         This method removes selected paths from the view.
@@ -822,12 +825,12 @@ class PathController:
             on_export_paths=lambda rows: self.export_paths(rows),
             on_remove_selected=self.remove_selected_paths,
             on_clear_all=self.clear_all_paths,
-            on_ai_analyse=self.ai_analyse,
-            is_ai_enabled=self.ai_ctr.is_ai_configured,
-            on_show_ai_details=self.show_ai_result,
+            on_run_ai_analysis=self.run_ai_analysis,
+            # is_ai_enabled=self.ai_ctr.is_ai_configured,
+            on_show_ai_report=self.show_ai_report,
             bv=bv,
         )
-        ptv.signal_show_ai_details.connect(self.show_ai_result)
+        # ptv.signal_show_ai_details.connect(self.show_ai_report)
         # Set up navigation
         ptv.setup_navigation(bv)
         # Expand all nodes by default
