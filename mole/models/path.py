@@ -403,7 +403,8 @@ class PathTreeModel(qtui.QStandardItemModel):
         self, path_id: int, result: AiVulnerabilityReport
     ) -> bool:
         """
-        This method updates the analysis result for a path and updates the score display.
+        This method updates the analysis result for a path and updates the score
+        display.
 
         Args:
             path_id: The ID of the path to update
@@ -423,18 +424,15 @@ class PathTreeModel(qtui.QStandardItemModel):
         if child_item is None:
             return False
 
-        # Determine the score value to display - access attributes directly
-        score_value = None
-        if result is None:
-            # No score available
-            score_display = ""
-        elif not result.truePositive:
-            # Set to 0 for false positives
-            score_value = 0.0
-            score_display = "0.0"
-        else:
+        # Determine score
+        score_value = 0.0
+        score_display = ""
+        if result is not None:
             score_value = result.exploitabilityScore
-            score_display = f"{score_value:.1f}"
+            if result.truePositive:
+                score_display = f"{score_value:.1f}"
+            else:
+                score_display = f"{score_value:.1f}*"
 
         # Find the score column item for this path row
         if parent_item:
@@ -446,22 +444,17 @@ class PathTreeModel(qtui.QStandardItemModel):
             score_item.setText(score_display)
             score_item.setData(score_value, qtc.Qt.UserRole)  # For sorting
 
-            # Apply color formatting based on the score
-            if score_value is not None:
-                if score_value >= 8.0:
-                    # High score - critical
-                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FF5252")))
-                    score_item.setFont(qtui.QFont("", -1, qtui.QFont.Bold))
-                elif score_value >= 5.0:
-                    # Medium score - high
-                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FF9800")))
-                elif score_value > 0:
-                    # Low score - medium
-                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FFC107")))
+            # Color formatting for true positives
+            if result.truePositive:
+                # Red: high score
+                if score_value >= 7.0:
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FF0000")))
+                # Orange: medium score
+                elif score_value >= 4.0:
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#FFA500")))
+                # Green: low score
                 else:
-                    # False positive (0) - low/safe
-                    score_item.setForeground(qtui.QBrush(qtui.QColor("#8BC34A")))
-
+                    score_item.setForeground(qtui.QBrush(qtui.QColor("#008000")))
             return True
         return False
 
