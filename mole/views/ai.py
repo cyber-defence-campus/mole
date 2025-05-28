@@ -44,19 +44,12 @@ class AiView(qtw.QWidget):
         summary_lay = qtw.QGridLayout()
         summary_lay.addWidget(qtw.QLabel("Path ID:"), 0, 0)
         summary_lay.addWidget(self._path_id_lbl, 0, 1)
-        summary_lay.addWidget(qtw.QLabel(""), 0, 2)
         summary_lay.addWidget(qtw.QLabel("Vulnerability Type:"), 1, 0)
         summary_lay.addWidget(self._vuln_type_lbl, 1, 1)
-        summary_lay.addWidget(qtw.QLabel(""), 1, 2)
         summary_lay.addWidget(qtw.QLabel("True Positive:"), 2, 0)
         summary_lay.addWidget(self._true_positive_lbl, 2, 1)
-        summary_lay.addWidget(qtw.QLabel("[Yes, No]"), 2, 2)
         summary_lay.addWidget(qtw.QLabel("Severity Level:"), 3, 0)
         summary_lay.addWidget(self._severity_lbl, 3, 1)
-        summary_lay.addWidget(qtw.QLabel("[High, Medium, Low]"), 3, 2)
-        summary_lay.addWidget(qtw.QLabel("Exploitability Score:"), 4, 0)
-        summary_lay.addWidget(self._score_lbl, 4, 1)
-        summary_lay.addWidget(qtw.QLabel("[0-10]"), 4, 2)
         # Summary widget
         summary_wid = qtw.QWidget()
         summary_wid.setLayout(summary_lay)
@@ -131,7 +124,7 @@ class AiView(qtw.QWidget):
         This method displays an AI-generated vulnerability report.
         """
         warning_txt = "--- WARNING ---\n"
-        warning_txt += "This report has been identified as a FALSE POSITIVE. Its severity, exploitability score, and related details might be inaccurate.\n"
+        warning_txt += "This report has been identified as a FALSE POSITIVE. Its severity and related details might be inaccurate.\n"
         warning_txt += "---------------\n\n"
         # Summary
         self._path_id_lbl.setText(str(path_id))
@@ -142,19 +135,14 @@ class AiView(qtw.QWidget):
         )
         self._severity_lbl.setText(report.severityLevel)
         match report.severityLevel:
-            case "High":
+            case "Critical":
                 self._severity_lbl.setStyleSheet("color: red;")
-            case "Medium":
+            case "High":
                 self._severity_lbl.setStyleSheet("color: orange;")
+            case "Medium":
+                self._severity_lbl.setStyleSheet("color: yellow;")
             case _:
                 self._severity_lbl.setStyleSheet("color: green;")
-        self._score_lbl.setText(f"{report.exploitabilityScore:.1f}")
-        if report.exploitabilityScore >= 7.0:
-            self._score_lbl.setStyleSheet("color: red;")
-        elif report.exploitabilityScore >= 4.0:
-            self._score_lbl.setStyleSheet("color: orange;")
-        else:
-            self._score_lbl.setStyleSheet("color: green;")
         # Explanation
         msg_txt = report.shortExplanation
         if not report.truePositive:

@@ -1,16 +1,14 @@
 from __future__ import annotations
 from mole.common.help import InstructionHelper
-from mole.common.task import BackgroundTask, BackgroundTaskProgress
+from mole.common.log import log
+from mole.common.task import BackgroundTask
+from mole.controllers.ai import NewAiController
+from mole.controllers.config import ConfigController
 from mole.core.data import Path
 from mole.services.path import PathService
 from mole.views.graph import GraphWidget
 from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
-from mole.controllers.config import ConfigController
-from mole.controllers.ai import AiController
-from mole.services.ai import AiService
-from mole.models.ai import AiVulnerabilityReport
-from mole.common.log import log
 from typing import Dict, List, Literal, Tuple, Optional
 import binaryninja as bn
 import copy as copy
@@ -32,20 +30,15 @@ class PathController:
     """
 
     def __init__(
-        self,
-        ai_service: AiService,
-        config_ctr: ConfigController,
-        ai_ctr: AiController,
-        path_view: PathView,
+        self, path_view: PathView, config_ctr: ConfigController, ai_ctr: NewAiController
     ) -> None:
         """
         This method initializes a controller (MVC pattern).
         """
         # Initialization
-        self.ai_service = ai_service
+        self.path_view = path_view
         self.config_ctr = config_ctr
         self.ai_ctr = ai_ctr
-        self.path_view = path_view
         self._bv: Optional[bn.BinaryView] = None
         self.path_tree_view: Optional[PathTreeView] = None
         self._thread: Optional[PathService] = None
@@ -58,7 +51,7 @@ class PathController:
         self.connect_signal_load_paths(self.load_paths)
         self.connect_signal_save_paths(self.save_paths)
         self.connect_signal_setup_paths_tree(self.setup_path_tree)
-        self.connect_signal_show_ai_result(self.show_ai_report)
+        self.connect_signal_show_ai_report(self.show_ai_report)
         self.config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
         return
 
@@ -90,7 +83,7 @@ class PathController:
         self.path_view.signal_setup_path_tree.connect(slot)
         return
 
-    def connect_signal_show_ai_result(self, slot: object) -> None:
+    def connect_signal_show_ai_report(self, slot: object) -> None:
         """
         This method allows connecting to the signal that is triggered when AI reports should be shown.
         """
@@ -144,10 +137,6 @@ class PathController:
                 path_grouping = setting.value
             # Update the model
             self.path_tree_view.model.add_path(path, path_grouping)
-            if path.ai_report:
-                self.path_tree_view.model.update_analysis_result(
-                    path.ai_report.path_id, path.ai_report
-                )
             return
 
         bn.execute_on_main_thread(update_paths_view)
@@ -486,10 +475,6 @@ class PathController:
             insts = path.insts
         basic_block = None
         for i, inst in enumerate(insts):
-            if inst.function not in path.call_graph.nodes:
-                log.warn(tag, f"Function {inst.function} not found in call graph.")
-                continue
-
             call_level = path.call_graph.nodes[inst.function]["call_level"]
             if (not reverse and i < src_inst_idx) or (reverse and i >= src_inst_idx):
                 custom_tag = f"{tag}] [Snk] [{call_level:+d}"
@@ -701,7 +686,7 @@ class PathController:
         log.info(tag, f"Showing call graph of path {path_ids[0]:d}")
         return
 
-    def run_ai_analysis(self, path_ids: List[int]) -> None:
+    def analyze_paths(self, path_ids: List[int]) -> None:
         """
         TODO: This method analyzes paths using AI.
         """
@@ -710,50 +695,90 @@ class PathController:
         # Ensure correct view
         if not self._validate_bv():
             return
-        # Ensure expected number of selected paths
-        if len(path_ids) <= 0:
+        # Require previous background threads to have completed
+        if self._thread and not self._thread.finished:
+            log.warn(tag, "Wait for previous background thread to complete first")
             return
 
-        paths = [
-            (path_id, self.path_tree_view.get_path(path_id)) for path_id in path_ids
-        ]
+        # Analyze paths in a background task
+        def _analyze_paths() -> None:
+            nonlocal path_ids
+            cnt_analyzed_paths = 0
+            try:
+                for i, path_id in enumerate(path_ids):
+                    try:
+                        # Check if user cancelled the background task
+                        if self._thread.cancelled:
+                            break
+                        # Get path (filtering out headers/groups)
+                        path = self.path_tree_view.get_path(path_id)
+                        if not path:
+                            continue
+                        # Analyze path using AI
+                        report = self.ai_ctr.analyze_path(self._bv, path)
+                        self.path_tree_view.model.update_path_report(path_id, report)
+                        # Increment analyzed path counter
+                        cnt_analyzed_paths += 1
+                    except Exception as e:
+                        log.error(tag, f"Failed to analyze path #{i + 1:d}: {str(e):s}")
+                    finally:
+                        self._thread.progress = (
+                            f"Mole analyzes paths: {i + 1:d}/{len(path_ids):d}"
+                        )
+            except Exception as e:
+                log.error(tag, f"Failed to analyze paths: {str(e):s}")
+            log.info(tag, f"Analyzed {cnt_analyzed_paths:d} path(s)")
+            return
 
-        # Start the AI analysis in a background task
-        log.info(tag, f"Starting AI analysis of {len(paths):d} path(s)")
-
-        self.ai_task = BackgroundTask(
-            initial_progress_text="Starting AI analysis...",
+        # Start a background task
+        self._thread = BackgroundTask(
+            initial_progress_text="Mole analyzes paths...",
             can_cancel=True,
-            run=self.ai_service.analyse,
+            run=_analyze_paths,
         )
-
-        def on_result_handler(result: AiVulnerabilityReport):
-            log.info(
-                tag,
-                f"AI analysis result for path {str(result.path_id):s}: "
-                f"{result.vulnerabilityClass if result.truePositive else 'False positive'} "
-                f"(score: {result.exploitabilityScore:.2f})",
-            )
-
-            # Update the path tree model with the analysis result
-            if result and self.path_tree_view:
-                self.path_tree_view.model.update_analysis_result(result.path_id, result)
-
-        self.ai_task.set_args(
-            binary_view=self._bv,
-            paths=paths,
-            progress=BackgroundTaskProgress(
-                self.ai_task,
-                on_result=on_result_handler,
-            ),
-        )
-
-        self.ai_task.start()
+        self._thread.start()
         return
+
+        # paths = [
+        #     (path_id, self.path_tree_view.get_path(path_id)) for path_id in path_ids
+        # ]
+
+        # # Start the AI analysis in a background task
+        # log.info(tag, f"Starting AI analysis of {len(paths):d} path(s)")
+
+        # self.ai_task = BackgroundTask(
+        #     initial_progress_text="Starting AI analysis...",
+        #     can_cancel=True,
+        #     run=self.ai_service.analyse,
+        # )
+
+        # def on_result_handler(result: AiVulnerabilityReport):
+        #     log.info(
+        #         tag,
+        #         f"AI analysis result for path {str(result.path_id):s}: "
+        #         f"{result.vulnerabilityClass if result.truePositive else 'False positive'} "
+        #         f"(score: {result.exploitabilityScore:.2f})",
+        #     )
+
+        #     # Update the path tree model with the analysis result
+        #     if result and self.path_tree_view:
+        #         self.path_tree_view.model.update_analysis_result(result.path_id, result)
+
+        # self.ai_task.set_args(
+        #     binary_view=self._bv,
+        #     paths=paths,
+        #     progress=BackgroundTaskProgress(
+        #         self.ai_task,
+        #         on_result=on_result_handler,
+        #     ),
+        # )
+
+        # self.ai_task.start()
+        # return
 
     def show_ai_report(self, path_ids: List[int]) -> None:
         """
-        This method shows the AI-generated vulnerability report of a path.
+        TODO: This method shows the AI-generated vulnerability report of a path.
         """
         # Detect newly attached debuggers
         log.find_attached_debugger()
@@ -825,7 +850,7 @@ class PathController:
             on_export_paths=lambda rows: self.export_paths(rows),
             on_remove_selected=self.remove_selected_paths,
             on_clear_all=self.clear_all_paths,
-            on_run_ai_analysis=self.run_ai_analysis,
+            on_run_ai_analysis=self.analyze_paths,
             # is_ai_enabled=self.ai_ctr.is_ai_configured,
             on_show_ai_report=self.show_ai_report,
             bv=bv,

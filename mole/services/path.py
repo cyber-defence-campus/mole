@@ -13,8 +13,8 @@ tag = "Mole.Path"
 
 class PathService(BackgroundTask):
     """
-    This class implements a background task that tries to find interesting code paths using static
-    backward slicing.
+    This class implements a background task that tries to find interesting code
+    paths using static backward slicing.
     """
 
     def __init__(
@@ -54,8 +54,8 @@ class PathService(BackgroundTask):
 
     def run(self) -> None:
         """
-        This method runs the background task, i.e. tries to identify interesting code paths using
-        static backward slicing.
+        This method runs the background task, i.e. tries to identify interesting
+        code paths using static backward slicing.
         """
         log.info(tag, "Starting backward slicing")
         self._paths = []

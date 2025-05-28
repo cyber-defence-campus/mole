@@ -1,31 +1,156 @@
-import json
-import traceback
-from types import SimpleNamespace
-import random
 from datetime import datetime
-
-from binaryninja import BinaryView
-from openai import OpenAI
-from openai.lib.streaming.chat._completions import LengthFinishReasonError
-from pprint import pformat
-
 from mole.ai.tools import call_function, tools
-from mole.models.ai import AiVulnerabilityReport, VulnerabilityReport
-
 from mole.common.help import InstructionHelper
 from mole.common.log import log
 from mole.common.task import ProgressCallback
-
 from mole.core.data import Path
+from mole.models.ai import (
+    AiVulnerabilityReport,
+    SeverityLevel,
+    VulnerabilityClass,
+    VulnerabilityReport,
+)
 from mole.services.config import ConfigService
+from openai import OpenAI
+from openai.lib.streaming.chat._completions import LengthFinishReasonError
+from pprint import pformat
+from types import SimpleNamespace
+import binaryninja as bn
+import json
+import os
+import random
+import textwrap
+import time
+import traceback
 
-MOCK_AI = False
+
+MOCK_AI = True
 
 tag = "Mole.AI"
 
 
+# class NewAiService(BackgroundTask):
+#     """
+#     This class implements a background task that analyzes paths using AI.
+#     """
+
+#     def __init__(
+#             self,
+#             bv: bn.BinaryView,
+#             initial_progress_text: str = "",
+#             can_cancel: bool = False,
+#     ) -> None:
+#         """
+#         This method initializes the background task.
+#         """
+#         super().__init__(initial_progress_text, can_cancel)
+#         self._bv = bv
+#         return
+
+#     def run(self) -> None:
+#         """
+#         This method runs the background task, i.e. analyzes paths using AI.
+#         """
+#         log.info(tag, "Starting AI analysis")
+#         log.info(tag, "AI analysis completed")
+#         return
+
+
+class NewAiService:
+    """
+    This class implements a service to analyze paths using AI.
+    """
+
+    def __init__(self) -> None:
+        self._max_turns = 10
+        self._system_prompt = textwrap.dedent(f"""
+        You are an expert vulnerability research assistant specializing in sink-source analysis using Binary Ninja's MLIL SSA form. Your task is to evaluate potential vulnerability paths identified by static backward slicing.
+
+        1. Analyze the Path Context and Reachability: Use tools (`get_function_containing_address`, `get_function_by_name`) to retrieve function code involved in the path. Examine instructions before and after the sliced instructions. Use caller analysis tools (`get_callers_by_address`, `get_callers_by_name`) to investigate reachability.
+        2. Identify User-Controlled Variables: Determine which variables are user-controlled, their origins, and any transformations or validations.
+        3. Validate the Path: Determine if the path is logically valid, reachable, and not a false positive.
+        4. Identify Vulnerability: If valid, identify the potential vulnerability type.
+        5. Explain Concisely: Provide a clear explanation of why the vulnerability exists.
+        6. Assess Severity: Assign a severity level (Critical, High, Medium, Low).
+        7. Craft Example Input: Create a realistic input example that could trigger the vulnerability.
+
+        Use the tools proactively to understand the code path and its upstream callers to provide a well-reasoned analysis, assess true reachability, and craft a plausible triggering input. You have a maximum of {self._max_turns} conversation turns to complete this analysis.
+        """)
+        return
+
+    def _generate_first_message(self, bv: bn.BinaryView, path: Path) -> str:
+        filename = os.path.basename(bv.file.filename)
+        if filename.endswith(".bndb"):
+            filename = filename[:-5]
+
+        # TODO: Adjust text if we do not have a source or sink parameter
+        msg = textwrap.dedent(f"""
+        Evaluate path from source `{path.src_sym_name}` @ `0x{path.src_sym_addr:x}` to sink `{path.snk_sym_name}` @ `0x{path.snk_sym_addr:x}`.
+        Interested source parameter is `{path.src_par_var}` at index {path.src_par_idx}, sink parameter is `{path.snk_par_var}` at index {path.snk_par_idx}.
+        Path hits {len(path.insts)} instructions, which includes {len(path.phiis)} PHI instructions.
+
+        --- Backward Slice in MLIL (SSA Form) ---
+        """)
+
+        basic_block = None
+        for i, inst in enumerate(path.insts):
+            call_level = path.call_graph.nodes[inst.function]["call_level"]
+            if i < path.src_inst_idx:
+                custom_tag = f"[Snk] [{call_level:+d}]"
+            else:
+                custom_tag = f"[Src] [{call_level:+d}]"
+            if inst.il_basic_block != basic_block:
+                basic_block = inst.il_basic_block
+                fun_name = basic_block.function.name
+                bb_addr = basic_block[0].address
+                msg += f"{custom_tag:s} - FUN: '{fun_name:s}', BB: 0x{bb_addr:x}\n"
+            msg += f"{custom_tag:s} {InstructionHelper.get_inst_info(inst):s}\n"
+
+        msg += "\n--- Call Sequence ---\n"
+        min_call_level = min(path.calls, key=lambda x: x[2])[2]
+        for call_addr, call_name, call_level in path.calls:
+            indent = call_level - min_call_level
+            msg += f"{'>' * indent:s} 0x{call_addr:x} {call_name:s}\n"
+        msg += "\n"
+        return msg
+
+    def analyze_path(self, bv: bn.BinaryView, path: Path) -> AiVulnerabilityReport:
+        """
+        This method analyzes a given path using AI and returns a corresponding
+        vulnerability report.
+        """
+        # TODO: MOCK AI mode
+        if MOCK_AI:
+            time.sleep(random.uniform(0.25, 2.0))
+            report = AiVulnerabilityReport(
+                truePositive=random.choice([True, True, True, False]),
+                vulnerabilityClass=random.choice(list(VulnerabilityClass)),
+                shortExplanation="Mock AI analysis found a potential issue.",
+                severityLevel=random.choice(list(SeverityLevel)),
+                inputExample=f"0x{random.getrandbits(32):08x}",
+                path_id=random.randint(1, 1000),
+                model="mockgpt-4",
+                tool_calls=random.randint(1, 5),
+                turns=random.randint(1, 5),
+                prompt_tokens=random.randint(50, 150),
+                completion_tokens=random.randint(50, 150),
+                total_tokens=random.randint(100, 300),
+                timestamp=datetime.now(),
+            )
+            return report
+        # TODO
+        messages = [
+            {"role": "system", "content": self._system_prompt},
+            {"role": "user", "content": self._generate_first_message(bv, path)},
+        ]
+        print(messages)
+        return
+
+
 class AiService:
-    """Service for handling AI-based vulnerability analysis."""
+    """
+    This class implements a service to analyze paths using AI.
+    """
 
     def __init__(self, config_service: ConfigService):
         self._config_service = config_service
@@ -38,9 +163,8 @@ class AiService:
     3. Validate the Path: Determine if the path is logically valid, reachable, and not a false positive.
     4. Identify Vulnerability: If valid, identify the potential vulnerability type.
     5. Explain Concisely: Provide a clear explanation of why the vulnerability exists.
-    6. Assess Severity: Assign a severity level (High, Medium, Low).
-    7. Score Exploitability: Assign an exploitability score (0-10).
-    8. Craft Example Input: Create a realistic input example that could trigger the vulnerability.
+    6. Assess Severity: Assign a severity level (Critical, High, Medium, Low).
+    7. Craft Example Input: Create a realistic input example that could trigger the vulnerability.
 
     Use the tools proactively to understand the code path and its upstream callers to provide a well-reasoned analysis, assess true reachability, and craft a plausible triggering input. You have a maximum of {self.max_turns} conversation turns to complete this analysis.
     """
@@ -238,7 +362,7 @@ class AiService:
             )
         return results
 
-    def _generate_first_message(self, binary_view: BinaryView, path: Path) -> str:
+    def _generate_first_message(self, binary_view: bn.BinaryView, path: Path) -> str:
         filename = (
             binary_view.file.filename.replace(".bndb", "")
             if binary_view.file.filename
@@ -291,7 +415,7 @@ class AiService:
 
     def _analyse_path(
         self,
-        binary_view: BinaryView,
+        binary_view: bn.BinaryView,
         path: Path,
         progress: ProgressCallback,
         path_info="",
@@ -305,9 +429,6 @@ class AiService:
                 VulnerabilityReport.model_fields[
                     "vulnerabilityClass"
                 ].annotation.__args__
-            )
-            severity_levels = list(
-                VulnerabilityReport.model_fields["severityLevel"].annotation.__args__
             )
 
             if progress.cancelled():
@@ -324,8 +445,7 @@ class AiService:
                 ),  # 25% chance of false positive
                 vulnerabilityClass=random.choice(vulnerability_classes),
                 shortExplanation="Mock analysis: Found potential issue.",
-                severityLevel=random.choice(severity_levels),
-                exploitabilityScore=round(random.uniform(4.0, 9.8), 1),
+                severityLevel=random.choice(list(SeverityLevel)),
                 inputExample=f"0x{random.getrandbits(32):08x}",
                 path_id=random.randint(1, 1000),
                 model="mockgpt-4",
@@ -487,7 +607,6 @@ class AiService:
                 if vuln.truePositive:
                     summary = (
                         f"\nAI analysis confirms a potential {vuln.severityLevel} {vuln.vulnerabilityClass} vulnerability "
-                        f"with exploitability score of {vuln.exploitabilityScore}.\n"
                         f"Explanation: {vuln.shortExplanation}.\n"
                         f"Example input: {vuln.inputExample}.\n"
                     )
@@ -531,7 +650,7 @@ class AiService:
 
     def analyse(
         self,
-        binary_view: BinaryView,
+        binary_view: bn.BinaryView,
         paths: list[tuple[int, Path]],
         progress: ProgressCallback[AiVulnerabilityReport],
     ) -> None:

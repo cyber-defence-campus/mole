@@ -1,30 +1,41 @@
-from typing import Literal
+from enum import Enum
 from pydantic import BaseModel
 from datetime import datetime
 
 
+class SeverityLevel(Enum):
+    CRITICAL = 4
+    HIGH = 3
+    MEDIUM = 2
+    LOW = 1
+
+    def __str__(self) -> str:
+        return self.name.capitalize()
+
+
+class VulnerabilityClass(Enum):
+    OUT_OF_BOUNDS_WRITE = "Out-of-Bounds Write"
+    COMMAND_INJECTION = "Command Injection"
+    OUT_OF_BOUNDS_READ = "Out-of-Bounds Read"
+    USE_AFTER_FREE = "Use-After-Free"
+    FILE_INCLUSION = "File Inclusion"
+    RESOURCE_LEAK = "Resource Leak"
+    NULL_POINTER_DEREFERENCE = "Null Pointer Dereference"
+    BUFFER_OVERFLOW = "Buffer Overflow"
+    INTEGER_OVERFLOW = "Integer Overflow"
+    DIRECTORY_TRAVERSAL = "Directory Traversal"
+    SQL_INJECTION = "SQL Injection"
+    CROSS_SITE_SCRIPTING = "Cross-Site Scripting (XSS)"
+    CROSS_SITE_REQUEST_FORGERY = "Cross-Site Request Forgery (CSRF)"
+    INFORMATION_DISCLOSURE = "Information Disclosure"
+    OTHER = "Other"
+
+
 class VulnerabilityReport(BaseModel):
     truePositive: bool
-    vulnerabilityClass: Literal[
-        "Out-of-Bounds Write",
-        "Command Injection",
-        "Out-of-Bounds Read",
-        "Use-After-Free",
-        "File Inclusion",
-        "Resource Leak",
-        "Null Pointer Dereference",
-        "Buffer Overflow",
-        "Integer Overflow",
-        "Directory Traversal",
-        "SQL Injection",
-        "Cross-Site Scripting (XSS)",
-        "Cross-Site Request Forgery (CSRF)",
-        "Information Disclosure",
-        "Other",
-    ]
+    vulnerabilityClass: VulnerabilityClass
     shortExplanation: str
-    severityLevel: Literal["High", "Medium", "Low"]
-    exploitabilityScore: float
+    severityLevel: SeverityLevel
     inputExample: str
 
 

@@ -384,11 +384,6 @@ class PathTreeView(qtw.QTreeView):
             # Navigate based on column
             path = self.get_path(path_id)
             if path:
-                if col == PATH_COLS["AI Score"]:
-                    if path.ai_report is not None:
-                        self.signal_show_ai_details.emit(path_id)
-                    return
-
                 # Navigate to source address
                 if col in [
                     PATH_COLS["Src Addr"],
@@ -403,6 +398,10 @@ class PathTreeView(qtw.QTreeView):
                     PATH_COLS["Snk Parm"],
                 ]:
                     vf.navigate(bv, path.snk_sym_addr)
+                # TODO: Navigate to AI report
+                # elif col == PATH_COLS["AI Severity"]:
+                #     if path.ai_report is not None:
+                #         self.signal_show_ai_details.emit(path_id)
 
         # Disconnect existing navigation signals to prevent multiple connections
         if self._navigation_connected:
