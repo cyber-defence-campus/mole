@@ -1,11 +1,6 @@
 from __future__ import annotations
 from mole.core.data import Path
-from mole.models.path import (
-    PathSortProxyModel,
-    PathTreeModel,
-    PATH_COLS,
-    IS_PATH_ITEM_ROLE,
-)
+from mole.models.path import PathColumn, PathRole, PathSortProxyModel, PathTreeModel
 from typing import Callable, List, Optional
 import binaryninja as bn
 import binaryninjaui as bnui
@@ -115,7 +110,9 @@ class PathTreeView(qtw.QTreeView):
         for row in range(self.path_sort_proxy_model.rowCount(proxy_parent_index)):
             proxy_index = self.path_sort_proxy_model.index(row, 0, proxy_parent_index)
             source_index = self.path_sort_proxy_model.mapToSource(proxy_index)
-            is_path_item = self.path_tree_model.data(source_index, IS_PATH_ITEM_ROLE)
+            is_path_item = self.path_tree_model.data(
+                source_index, PathRole.IS_PATH_ITEM.index
+            )
 
             if not is_path_item:
                 # Apply spanning to this item
@@ -317,7 +314,9 @@ class PathTreeView(qtw.QTreeView):
         clicked_source_idx = self.path_sort_proxy_model.mapToSource(clicked_idx)
 
         # Check if the clicked item is a group/header (not a path item)
-        is_path_item = self.path_tree_model.data(clicked_source_idx, IS_PATH_ITEM_ROLE)
+        is_path_item = self.path_tree_model.data(
+            clicked_source_idx, PathRole.IS_PATH_ITEM.index
+        )
         if is_path_item:
             return export_rows
 
@@ -343,7 +342,9 @@ class PathTreeView(qtw.QTreeView):
         """
         for row in range(self.path_tree_model.rowCount(parent_idx)):
             child_idx = self.path_tree_model.index(row, 0, parent_idx)
-            is_path_item = self.path_tree_model.data(child_idx, IS_PATH_ITEM_ROLE)
+            is_path_item = self.path_tree_model.data(
+                child_idx, PathRole.IS_PATH_ITEM.index
+            )
 
             if is_path_item:
                 path_id = self.path_tree_model.get_path_id_from_index(child_idx)
@@ -386,20 +387,20 @@ class PathTreeView(qtw.QTreeView):
             if path:
                 # Navigate to source address
                 if col in [
-                    PATH_COLS["Src Addr"],
-                    PATH_COLS["Src Func"],
-                    PATH_COLS["Src Parm"],
+                    PathColumn.SRC_ADDR.index,
+                    PathColumn.SRC_FUNC.index,
+                    PathColumn.SRC_PARM.index,
                 ]:
                     vf.navigate(bv, path.src_sym_addr)
                 # Navigate to sink address
                 elif col in [
-                    PATH_COLS["Snk Addr"],
-                    PATH_COLS["Snk Func"],
-                    PATH_COLS["Snk Parm"],
+                    PathColumn.SNK_ADDR.index,
+                    PathColumn.SNK_FUNC.index,
+                    PathColumn.SNK_PARM.index,
                 ]:
                     vf.navigate(bv, path.snk_sym_addr)
                 # TODO: Navigate to AI report
-                # elif col == PATH_COLS["AI Severity"]:
+                # elif col == PathColumns.AI_REPORT.data:
                 #     if path.ai_report is not None:
                 #         self.signal_show_ai_details.emit(path_id)
 
@@ -425,12 +426,12 @@ class PathTreeView(qtw.QTreeView):
         if qtc.Qt.DisplayRole not in roles and qtc.Qt.EditRole not in roles:
             return
         # Check if this edit spans the comment column
-        if topLeft.column() <= PATH_COLS["Comment"] <= bottomRight.column():
+        if topLeft.column() <= PathColumn.COMMENT.index <= bottomRight.column():
             # Process each row in the changed range
             for row in range(topLeft.row(), bottomRight.row() + 1):
                 # Get the index for the comment column in the current row
                 comment_idx = self.path_sort_proxy_model.index(
-                    row, PATH_COLS["Comment"], topLeft.parent()
+                    row, PathColumn.COMMENT.index, topLeft.parent()
                 )
                 # Map to source index and get the path ID
                 source_idx = self.path_sort_proxy_model.mapToSource(comment_idx)

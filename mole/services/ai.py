@@ -606,7 +606,7 @@ class AiService:
 
                 if vuln.truePositive:
                     summary = (
-                        f"\nAI analysis confirms a potential {vuln.severityLevel} {vuln.vulnerabilityClass} vulnerability "
+                        f"\nAI analysis confirms a potential {vuln.severityLevel.label} {vuln.vulnerabilityClass} vulnerability "
                         f"Explanation: {vuln.shortExplanation}.\n"
                         f"Example input: {vuln.inputExample}.\n"
                     )

@@ -128,13 +128,13 @@ class AiView(qtw.QWidget):
         warning_txt += "---------------\n\n"
         # Summary
         self._path_id_lbl.setText(str(path_id))
-        self._vuln_type_lbl.setText(report.vulnerabilityClass)
+        self._vuln_type_lbl.setText(report.vulnerabilityClass.label)
         self._true_positive_lbl.setText("Yes" if report.truePositive else "No")
         self._true_positive_lbl.setStyleSheet(
             "color: red;" if report.truePositive else "color: green;"
         )
-        self._severity_lbl.setText(report.severityLevel)
-        match report.severityLevel:
+        self._severity_lbl.setText(report.severityLevel.label)
+        match report.severityLevel.label:
             case "Critical":
                 self._severity_lbl.setStyleSheet("color: red;")
             case "High":
