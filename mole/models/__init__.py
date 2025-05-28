@@ -2,8 +2,8 @@ from enum import Enum
 from typing import List
 
 
-class LabeledEnum(Enum):
-    def __init__(self, index: int, label: str) -> None:
+class IndexedLabeledEnum(Enum):
+    def __init__(self, index: int, label: str = "") -> None:
         self._index = index
         self._label = label
         return
@@ -31,4 +31,17 @@ class LabeledEnum(Enum):
         return [member._label for member in cls]
 
     def __str__(self) -> str:
-        return f"{self._index:d}: {self._label:s}"
+        return self._label
+
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, IndexedLabeledEnum):
+            return self._index < other._index
+        return NotImplemented
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, IndexedLabeledEnum):
+            return self._index == other._index
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self._index)

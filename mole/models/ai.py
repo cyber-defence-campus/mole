@@ -1,16 +1,16 @@
 from datetime import datetime
-from mole.models import LabeledEnum
+from mole.models import IndexedLabeledEnum
 from pydantic import BaseModel
 
 
-class SeverityLevel(LabeledEnum):
+class SeverityLevel(IndexedLabeledEnum):
     LOW = (1, "Low")
     MEDIUM = (2, "Medium")
     HIGH = (3, "High")
     CRITICAL = (4, "Critical")
 
 
-class VulnerabilityClass(LabeledEnum):
+class VulnerabilityClass(IndexedLabeledEnum):
     OUT_OF_BOUNDS_READ = (1, "Out-of-Bounds Read")
     OUT_OF_BOUNDS_WRITE = (2, "Out-of-Bounds Write")
     BUFFER_OVERFLOW = (3, "Buffer Overflow")

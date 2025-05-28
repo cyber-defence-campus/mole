@@ -1,20 +1,20 @@
 from __future__ import annotations
 from mole.core.data import Path
 from mole.grouping import get_grouper
-from mole.models import LabeledEnum
+from mole.models import IndexedLabeledEnum
 from mole.services.ai import AiVulnerabilityReport
 from typing import Dict, List, Optional, Tuple
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 
 
-class PathRole(LabeledEnum):
-    ID = (qtc.Qt.UserRole + 100, "Id")
-    IS_PATH_ITEM = (qtc.Qt.UserRole + 101, "IsPathItem")
-    LEVEL = (qtc.Qt.UserRole + 102, "Level")
+class PathRole(IndexedLabeledEnum):
+    ID = qtc.Qt.UserRole + 100
+    IS_PATH_ITEM = qtc.Qt.UserRole + 101
+    LEVEL = qtc.Qt.UserRole + 102
 
 
-class PathColumn(LabeledEnum):
+class PathColumn(IndexedLabeledEnum):
     ID = (0, "Id")
     SRC_ADDR = (1, "Src Addr")
     SRC_FUNC = (2, "Src Func")
