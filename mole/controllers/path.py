@@ -688,7 +688,7 @@ class PathController:
 
     def analyze_paths(self, path_ids: List[int]) -> None:
         """
-        TODO: This method analyzes paths using AI.
+        This method analyzes paths using AI.
         """
         # Detect newly attached debuggers
         log.find_attached_debugger()
@@ -738,43 +738,6 @@ class PathController:
         )
         self._thread.start()
         return
-
-        # paths = [
-        #     (path_id, self.path_tree_view.get_path(path_id)) for path_id in path_ids
-        # ]
-
-        # # Start the AI analysis in a background task
-        # log.info(tag, f"Starting AI analysis of {len(paths):d} path(s)")
-
-        # self.ai_task = BackgroundTask(
-        #     initial_progress_text="Starting AI analysis...",
-        #     can_cancel=True,
-        #     run=self.ai_service.analyse,
-        # )
-
-        # def on_result_handler(result: AiVulnerabilityReport):
-        #     log.info(
-        #         tag,
-        #         f"AI analysis result for path {str(result.path_id):s}: "
-        #         f"{result.vulnerabilityClass if result.truePositive else 'False positive'} "
-        #         f"(score: {result.exploitabilityScore:.2f})",
-        #     )
-
-        #     # Update the path tree model with the analysis result
-        #     if result and self.path_tree_view:
-        #         self.path_tree_view.model.update_analysis_result(result.path_id, result)
-
-        # self.ai_task.set_args(
-        #     binary_view=self._bv,
-        #     paths=paths,
-        #     progress=BackgroundTaskProgress(
-        #         self.ai_task,
-        #         on_result=on_result_handler,
-        #     ),
-        # )
-
-        # self.ai_task.start()
-        # return
 
     def show_ai_report(self, path_ids: List[int]) -> None:
         """

@@ -389,8 +389,25 @@ class PathTreeModel(qtui.QStandardItemModel):
         if not severity_item:
             return False
         # Update the severity item
-        severity_item.setText(ai_report.severityLevel.label)
+        if ai_report.truePositive:
+            text = f"{ai_report.severityLevel.label:s}"
+        else:
+            text = f"{ai_report.severityLevel.label:s}*"
+        severity_item.setText(text)
         severity_item.setData(ai_report.severityLevel.index, qtc.Qt.UserRole)
+        # Color formatting
+        if ai_report.truePositive:
+            match ai_report.severityLevel.label:
+                case "Critical":
+                    severity_item.setForeground(qtui.QBrush(qtui.QColor("#FF0000")))
+                case "High":
+                    severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFA500")))
+                case "Medium":
+                    severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFF00")))
+                case _:
+                    severity_item.setForeground(qtui.QBrush(qtui.QColor("#008000")))
+        else:
+            severity_item.setForeground(qtui.QBrush(qtui.QColor("#808080")))
         return True
 
     def update_path_comment(self, path_id: int, comment: str) -> None:
