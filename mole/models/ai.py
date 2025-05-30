@@ -4,10 +4,10 @@ from pydantic import BaseModel
 
 
 class SeverityLevel(IndexedLabeledEnum):
-    LOW = (1, "Low")
-    MEDIUM = (2, "Medium")
-    HIGH = (3, "High")
-    CRITICAL = (4, "Critical")
+    LOW = (1, "Low")  # 0: Low* (false positive)
+    MEDIUM = (3, "Medium")  # 2: Medium* (false positive)
+    HIGH = (5, "High")  # 4: High* (false positive)
+    CRITICAL = (7, "Critical")  # 6: Critical* (false positive)
 
 
 class VulnerabilityClass(IndexedLabeledEnum):

@@ -85,18 +85,19 @@ class PathController:
 
     def connect_signal_show_ai_report(self, slot: object) -> None:
         """
-        This method allows connecting to the signal that is triggered when AI reports should be shown.
+        This method allows connecting to the signal that is triggered when AI reports should be
+        shown.
         """
         self.path_view.signal_show_ai_result.connect(slot)
         return
 
     def _change_path_grouping(self, new_strategy: str) -> None:
         """
-        Handler for when grouping strategy changes in the config.
-        Regroups all paths with the new strategy.
+        Handler for when grouping strategy changes in the config. Regroups all paths with the new
+        strategy.
         """
         if self.path_tree_view and len(self.path_tree_view.model.path_map) > 0:
-            log.info(tag, f"Regrouping paths with new strategy: {new_strategy}")
+            log.info(tag, f"Regrouping paths with new strategy: {new_strategy:s}")
             self.path_tree_view.model.regroup_paths(new_strategy)
         return
 

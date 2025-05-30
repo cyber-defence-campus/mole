@@ -9,9 +9,9 @@ import PySide6.QtGui as qtui
 
 
 class PathRole(IndexedLabeledEnum):
-    ID = qtc.Qt.UserRole + 100
-    IS_PATH_ITEM = qtc.Qt.UserRole + 101
-    LEVEL = qtc.Qt.UserRole + 102
+    ID = qtc.Qt.UserRole + 100  # Path ID (empty for headers)
+    LEVEL = qtc.Qt.UserRole + 101  # Header level (empty for paths)
+    SORT = qtc.Qt.UserRole + 101  # Key for sorting (empty for sorting on DisplayRole)
 
 
 class PathColumn(IndexedLabeledEnum):
@@ -44,36 +44,49 @@ class PathSortProxyModel(qtc.QSortFilterProxyModel):
         This method overrides the `lessThan` method to provide proper sorting
         based on data types.
         """
-        # First check if these are header items (treat differently)
-        left_is_path = self.sourceModel().data(left, PathRole.IS_PATH_ITEM.index)
-        right_is_path = self.sourceModel().data(right, PathRole.IS_PATH_ITEM.index)
+        # Access model data
+        model = self.sourceModel()
+        lft_id = model.data(left, PathRole.ID.index)
+        lft_level = model.data(left, PathRole.LEVEL.index)
+        lft_sort = model.data(left, PathRole.SORT.index)
+        lft_text = str(model.data(left, qtc.Qt.DisplayRole)).lower()
+        rgt_id = model.data(right, PathRole.ID.index)
+        rgt_level = model.data(right, PathRole.LEVEL.index)
+        rgt_sort = model.data(right, PathRole.SORT.index)
+        rgt_text = str(model.data(right, qtc.Qt.DisplayRole)).lower()
 
-        # Header items should come before path items
-        if left_is_path != right_is_path:
-            return right_is_path
-
-        # Get the values stored in UserRole for proper type comparison
-        left_data = self.sourceModel().data(left, qtc.Qt.UserRole)
-        right_data = self.sourceModel().data(right, qtc.Qt.UserRole)
-
-        # If we have UserRole data available, use it for comparison
-        if left_data is not None and right_data is not None:
-            # Compare based on the actual types
-            return left_data > right_data
-
-        # Fall back to string comparison of display text
-        left_text = self.sourceModel().data(left, qtc.Qt.DisplayRole)
-        right_text = self.sourceModel().data(right, qtc.Qt.DisplayRole)
-
-        # Try numeric comparison first if both are convertible to numbers
-        try:
-            left_num = float(left_text)
-            right_num = float(right_text)
-            return left_num > right_num
-        except Exception as _:
-            pass
-        # Fall back to string comparison
-        return str(left_text).lower() > str(right_text).lower()
+        # Left is header
+        if lft_id is None:
+            # Right is header
+            if rgt_id is None:
+                try:
+                    lft_level = int(lft_level)
+                    rgt_level = int(rgt_level)
+                except Exception as _:
+                    if lft_text == rgt_text:
+                        return False
+                    return lft_text >= rgt_text
+                if lft_level == rgt_level:
+                    return False
+                return lft_level >= rgt_level
+            # Right is path
+            return True
+        # Left is path
+        else:
+            # Right is header
+            if rgt_id is None:
+                return False
+            # Right is path
+            try:
+                lft_sort = int(lft_sort)
+                rgt_sort = int(rgt_sort)
+            except Exception as _:
+                if lft_text == rgt_text:
+                    return False
+                return lft_text >= rgt_text
+            if lft_sort == rgt_sort:
+                return False
+            return lft_sort >= rgt_sort
 
 
 class PathTreeModel(qtui.QStandardItemModel):
@@ -108,14 +121,12 @@ class PathTreeModel(qtui.QStandardItemModel):
         color = qtui.QBrush(qtui.QColor(255, 239, 213))
         # Create main item
         main_item = qtui.QStandardItem(text)
-        main_item.setFont(font)
-        main_item.setForeground(color)
-        main_item.setData(False, PathRole.IS_PATH_ITEM.index)
         main_item.setData(level, PathRole.LEVEL.index)
         main_item.setFlags(
             main_item.flags() & ~qtc.Qt.ItemIsEditable & ~qtc.Qt.ItemIsSelectable
         )
-        # Return a single item - we'll use setFirstColumnSpanned in the view to make it span all columns
+        main_item.setFont(font)
+        main_item.setForeground(color)
         return main_item
 
     def add_path(self, path: Path, path_grouping: str = None) -> None:
@@ -158,49 +169,78 @@ class PathTreeModel(qtui.QStandardItemModel):
         # Create path items
         id_item = qtui.QStandardItem(f"{self.path_id:d}")
         id_item.setData(self.path_id, PathRole.ID.index)
-        id_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        id_item.setData(self.path_id, PathRole.SORT.index)
 
-        # Only store hex values as UserRole data for proper sorting
         src_addr_item = qtui.QStandardItem(f"0x{path.src_sym_addr:x}")
-        src_addr_item.setData(path.src_sym_addr, qtc.Qt.UserRole)
-        src_addr_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        src_addr_item.setData(self.path_id, PathRole.ID.index)
+        src_addr_item.setData(path.src_sym_addr, PathRole.SORT.index)
 
         src_func_item = qtui.QStandardItem(path.src_sym_name)
-        src_func_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        src_func_item.setData(self.path_id, PathRole.ID.index)
 
-        if path.src_par_idx and path.src_par_var:
+        if path.src_par_idx is not None and path.src_par_var is not None:
             src_parm_label = f"arg#{path.src_par_idx:d}:{str(path.src_par_var):s}"
+            src_parm_sort = path.src_par_idx
         else:
             src_parm_label = ""
+            src_parm_sort = 0
         src_parm_item = qtui.QStandardItem(src_parm_label)
-        src_parm_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        src_parm_item.setData(self.path_id, PathRole.ID.index)
+        src_parm_item.setData(src_parm_sort, PathRole.SORT.index)
 
         snk_addr_item = qtui.QStandardItem(f"0x{path.snk_sym_addr:x}")
-        snk_addr_item.setData(path.snk_sym_addr, qtc.Qt.UserRole)
-        snk_addr_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        snk_addr_item.setData(self.path_id, PathRole.ID.index)
+        snk_addr_item.setData(path.snk_sym_addr, PathRole.SORT.index)
 
         snk_func_item = qtui.QStandardItem(path.snk_sym_name)
-        snk_func_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        snk_func_item.setData(self.path_id, PathRole.ID.index)
 
         snk_parm_item = qtui.QStandardItem(
             f"arg#{path.snk_par_idx:d}:{str(path.snk_par_var):s}"
         )
-        snk_parm_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        snk_parm_item.setData(self.path_id, PathRole.ID.index)
+        snk_parm_item.setData(path.snk_par_idx, PathRole.SORT.index)
 
         inst_item = qtui.QStandardItem(str(len(path.insts)))
-        inst_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        inst_item.setData(self.path_id, PathRole.ID.index)
+        inst_item.setData(len(path.insts), PathRole.SORT.index)
 
         phis_item = qtui.QStandardItem(str(len(path.phiis)))
-        phis_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        phis_item.setData(self.path_id, PathRole.ID.index)
+        phis_item.setData(len(path.phiis), PathRole.SORT.index)
 
         bdeps_item = qtui.QStandardItem(str(len(path.bdeps)))
-        bdeps_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        bdeps_item.setData(self.path_id, PathRole.ID.index)
+        bdeps_item.setData(len(path.bdeps), PathRole.SORT.index)
 
-        severity_item = qtui.QStandardItem("")
-        severity_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        if path.ai_report is not None:
+            if path.ai_report.truePositive:
+                severity_label = f"{path.ai_report.severityLevel.label:s}"
+                severity_sort = path.ai_report.severityLevel.index
+                match path.ai_report.severityLevel.label:
+                    case "Critical":
+                        severity_color = qtui.QBrush(qtui.QColor("#FF0000"))
+                    case "High":
+                        severity_color = qtui.QBrush(qtui.QColor("#FFA500"))
+                    case "Medium":
+                        severity_color = qtui.QBrush(qtui.QColor("#FFFF00"))
+                    case _:
+                        severity_color = qtui.QBrush(qtui.QColor("#008000"))
+            else:
+                severity_label = f"{path.ai_report.severityLevel.label:s}*"
+                severity_sort = path.ai_report.severityLevel.index - 1
+                severity_color = qtui.QBrush(qtui.QColor("#FFFFFF"))
+        else:
+            severity_label = ""
+            severity_sort = 0
+            severity_color = qtui.QBrush(qtui.QColor("#FFFFFF"))
+        severity_item = qtui.QStandardItem(severity_label)
+        severity_item.setData(self.path_id, PathRole.ID.index)
+        severity_item.setData(severity_sort, PathRole.SORT.index)
+        severity_item.setForeground(severity_color)
 
         comment_item = qtui.QStandardItem(path.comment)
-        comment_item.setData(True, PathRole.IS_PATH_ITEM.index)
+        comment_item.setData(self.path_id, PathRole.ID.index)
 
         # Set items as non-editable (except for comment)
         for item in [
@@ -268,10 +308,9 @@ class PathTreeModel(qtui.QStandardItemModel):
         def _find_path(
             item: qtui.QStandardItem,
         ) -> Tuple[Optional[qtui.QStandardItem], Optional[qtui.QStandardItem], int]:
-            # If the item is a path, check whether the `path_id` matches
-            if item.data(PathRole.IS_PATH_ITEM.index):
-                if item.data(PathRole.ID.index) == path_id:
-                    return (None, item, -1)
+            # Check matching path ID
+            if item.data(PathRole.ID.index) == path_id:
+                return (None, item, -1)
             # If the item is not a path, try finding in its children
             else:
                 for row in range(item.rowCount()):
@@ -351,7 +390,7 @@ class PathTreeModel(qtui.QStandardItemModel):
         This method returns the path ID from a model index, or `None` if it's not a path item.
         """
         # Check if this is a valid path item
-        if not index.isValid() or not index.data(PathRole.IS_PATH_ITEM.index):
+        if not index.isValid() or not index.data(PathRole.ID.index):
             return None
         # Get the first column item which contains the path ID
         if index.column() != 0:
@@ -391,10 +430,12 @@ class PathTreeModel(qtui.QStandardItemModel):
         # Update the severity item
         if ai_report.truePositive:
             text = f"{ai_report.severityLevel.label:s}"
+            sort = ai_report.severityLevel.index
         else:
             text = f"{ai_report.severityLevel.label:s}*"
+            sort = ai_report.severityLevel.index - 1
         severity_item.setText(text)
-        severity_item.setData(ai_report.severityLevel.index, qtc.Qt.UserRole)
+        severity_item.setData(sort, PathRole.SORT.index)
         # Color formatting
         if ai_report.truePositive:
             match ai_report.severityLevel.label:
@@ -407,7 +448,7 @@ class PathTreeModel(qtui.QStandardItemModel):
                 case _:
                     severity_item.setForeground(qtui.QBrush(qtui.QColor("#008000")))
         else:
-            severity_item.setForeground(qtui.QBrush(qtui.QColor("#808080")))
+            severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFFFF")))
         return True
 
     def update_path_comment(self, path_id: int, comment: str) -> None:
@@ -506,7 +547,7 @@ class PathTreeModel(qtui.QStandardItemModel):
     #                 severity_item.setForeground(qtui.QBrush(qtui.QColor("#008000")))
     #             # None: gray
     #             else:
-    #                 severity_item.setForeground(qtui.QBrush(qtui.QColor("#808080")))
+    #                 severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFFFF")))
     #         return True
     #     return False
 

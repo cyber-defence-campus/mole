@@ -110,11 +110,8 @@ class PathTreeView(qtw.QTreeView):
         for row in range(self.path_sort_proxy_model.rowCount(proxy_parent_index)):
             proxy_index = self.path_sort_proxy_model.index(row, 0, proxy_parent_index)
             source_index = self.path_sort_proxy_model.mapToSource(proxy_index)
-            is_path_item = self.path_tree_model.data(
-                source_index, PathRole.IS_PATH_ITEM.index
-            )
-
-            if not is_path_item:
+            path_id = self.path_tree_model.data(source_index, PathRole.ID.index)
+            if path_id is None:
                 # Apply spanning to this item
                 self.setFirstColumnSpanned(row, proxy_parent_index, True)
                 # Recursively apply to children
@@ -314,10 +311,8 @@ class PathTreeView(qtw.QTreeView):
         clicked_source_idx = self.path_sort_proxy_model.mapToSource(clicked_idx)
 
         # Check if the clicked item is a group/header (not a path item)
-        is_path_item = self.path_tree_model.data(
-            clicked_source_idx, PathRole.IS_PATH_ITEM.index
-        )
-        if is_path_item:
+        path_id = self.path_tree_model.data(clicked_source_idx, PathRole.ID.index)
+        if path_id is not None:
             return export_rows
 
         # Recursively gather all path IDs under this group/header
@@ -342,17 +337,13 @@ class PathTreeView(qtw.QTreeView):
         """
         for row in range(self.path_tree_model.rowCount(parent_idx)):
             child_idx = self.path_tree_model.index(row, 0, parent_idx)
-            is_path_item = self.path_tree_model.data(
-                child_idx, PathRole.IS_PATH_ITEM.index
-            )
-
-            if is_path_item:
-                path_id = self.path_tree_model.get_path_id_from_index(child_idx)
-                if path_id is not None and path_id not in path_list:
-                    path_list.append(path_id)
-            else:
-                # This is a header item, so recurse into it
+            path_id = self.path_tree_model.data(child_idx, PathRole.ID.index)
+            # Header
+            if path_id is None:
                 self._collect_child_paths(child_idx, path_list)
+            else:
+                if path_id not in path_list:
+                    path_list.append(path_id)
         return
 
     def setup_navigation(self, bv: bn.BinaryView = None) -> None:
