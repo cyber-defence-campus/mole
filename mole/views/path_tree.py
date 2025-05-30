@@ -177,7 +177,7 @@ class PathTreeView(qtw.QTreeView):
         on_export_paths: Callable[[List[int]], None],
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
-        on_run_ai_analysis: Callable[[List[int]], None],
+        on_analyze_paths: Callable[[List[int]], None],
         # is_ai_enabled: Callable[[], bool],
         on_show_ai_report: Callable[[List[int]], None],
         bv: bn.BinaryView = None,
@@ -233,7 +233,7 @@ class PathTreeView(qtw.QTreeView):
             run_ai_analysis_action = self._add_menu_action(
                 menu, "Run AI analysis", len(rows) >= 1
             )
-            run_ai_analysis_action.triggered.connect(lambda: on_run_ai_analysis(rows))
+            run_ai_analysis_action.triggered.connect(lambda: on_analyze_paths(rows))
             show_ai_report_action = self._add_menu_action(
                 menu, "Show AI report", len(rows) == 1
             )

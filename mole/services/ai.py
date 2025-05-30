@@ -24,36 +24,7 @@ import time
 import traceback
 
 
-MOCK_AI = True
-
 tag = "Mole.AI"
-
-
-# class NewAiService(BackgroundTask):
-#     """
-#     This class implements a background task that analyzes paths using AI.
-#     """
-
-#     def __init__(
-#             self,
-#             bv: bn.BinaryView,
-#             initial_progress_text: str = "",
-#             can_cancel: bool = False,
-#     ) -> None:
-#         """
-#         This method initializes the background task.
-#         """
-#         super().__init__(initial_progress_text, can_cancel)
-#         self._bv = bv
-#         return
-
-#     def run(self) -> None:
-#         """
-#         This method runs the background task, i.e. analyzes paths using AI.
-#         """
-#         log.info(tag, "Starting AI analysis")
-#         log.info(tag, "AI analysis completed")
-#         return
 
 
 class NewAiService:
@@ -114,22 +85,38 @@ class NewAiService:
         msg += "\n"
         return msg
 
-    def analyze_path(self, bv: bn.BinaryView, path: Path) -> AiVulnerabilityReport:
+    def analyze_path(
+        self,
+        bv: bn.BinaryView,
+        path_id: int,
+        path: Path,
+        base_url: str,
+        api_key: str,
+        model: str,
+    ) -> AiVulnerabilityReport:
         """
-        This method analyzes a given path using AI and returns a corresponding
+        This method analyzes a given path using an OpenAI model and returns a corresponding
         vulnerability report.
         """
-        # TODO: MOCK AI mode
-        if MOCK_AI:
+        # Initialize OpenAI client
+        openai_client = None
+        if base_url and api_key:
+            try:
+                openai_client = OpenAI(base_url=base_url, api_key=api_key)
+            except Exception as e:
+                log.error(tag, f"Failed to initialize OpenAI client: {str(e):s}")
+        # Operate in mock mode if no valid OpenAI client is available
+        if openai_client is None:
+            log.warn(tag, "Running in mock mode since no OpenAI client available")
             time.sleep(random.uniform(0.25, 2.0))
             report = AiVulnerabilityReport(
                 truePositive=random.choice([True, True, True, False]),
                 vulnerabilityClass=random.choice(list(VulnerabilityClass)),
-                shortExplanation="Mock AI analysis found a potential issue.",
+                shortExplanation="Mock mode simulates a potential vulnerability.",
                 severityLevel=random.choice(list(SeverityLevel)),
                 inputExample=f"0x{random.getrandbits(32):08x}",
                 path_id=random.randint(1, 1000),
-                model="mockgpt-4",
+                model="mock-mode",
                 tool_calls=random.randint(1, 5),
                 turns=random.randint(1, 5),
                 prompt_tokens=random.randint(50, 150),
@@ -175,11 +162,14 @@ class AiService:
         """
         config = self._config_service.load_config()
 
-        if "ai_api_key" not in config.settings or "ai_api_url" not in config.settings:
+        if (
+            "openai_api_key" not in config.settings
+            or "opnai_base_url" not in config.settings
+        ):
             raise ValueError("AI API key or URL not found in configuration.")
 
-        api_key = config.settings["ai_api_key"].value
-        base_url = config.settings["ai_api_url"].value
+        api_key = config.settings["openai_api_key"].value
+        base_url = config.settings["openai_base_url"].value
 
         # Return client with configured settings
         return OpenAI(api_key=api_key, base_url=base_url)
@@ -420,7 +410,8 @@ class AiService:
         progress: ProgressCallback,
         path_info="",
     ) -> AiVulnerabilityReport | None:
-        if MOCK_AI:
+        # if MOCK_AI:
+        if True:
             log.info(tag, "Mock AI mode enabled. Skipping actual analysis.")
             progress.progress(f"{path_info}Mock AI mode: analysis skipped.")
 

@@ -6,7 +6,7 @@ import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
     from mole.controllers.config import ConfigController
-    from mole.core.data import ComboboxSetting, SpinboxSetting
+    from mole.core.data import ComboboxSetting, SpinboxSetting, TextSetting
 
 
 class ConfigView(qtw.QWidget):
@@ -139,12 +139,15 @@ class ConfigView(qtw.QWidget):
         """
         This method initializes the tab `Settings`.
         """
-        com_wid = qtw.QWidget()
-        com_lay = qtw.QFormLayout()
-        for name in ["max_workers", "max_call_level", "max_slice_depth"]:
+        # Find layout
+        fnd_lay = qtw.QGridLayout()
+        for i, name in enumerate(["max_workers", "max_call_level", "max_slice_depth"]):
             setting: SpinboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            fnd_lay.addWidget(setting_lbl, i, 0)
             setting.widget = qtw.QSpinBox()
             setting.widget.setRange(setting.min_value, setting.max_value)
             setting.widget.setValue(setting.value)
@@ -152,22 +155,21 @@ class ConfigView(qtw.QWidget):
             setting.widget.valueChanged.connect(
                 lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
-            label = qtw.QLabel(f"{name:s}:")
-            label.setToolTip(setting.help)
-            com_lay.addRow(label, setting.widget)
-        com_wid.setLayout(com_lay)
-        com_box_lay = qtw.QVBoxLayout()
-        com_box_lay.addWidget(com_wid)
-        com_box_wid = qtw.QGroupBox("Finding Paths:")
-        com_box_wid.setLayout(com_box_lay)
-
-        pth_wid = qtw.QWidget()
-        pth_lay = qtw.QFormLayout()
-
-        for name in ["src_highlight_color", "snk_highlight_color", "path_grouping"]:
+            fnd_lay.addWidget(setting.widget, i, 1)
+        # Find widget
+        fnd_wid = qtw.QGroupBox("Finding Paths:")
+        fnd_wid.setLayout(fnd_lay)
+        # Inspecting layout
+        ins_lay = qtw.QGridLayout()
+        for i, name in enumerate(
+            ["src_highlight_color", "snk_highlight_color", "path_grouping"]
+        ):
             setting: ComboboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            ins_lay.addWidget(setting_lbl, i, 0)
             setting.widget = qtw.QComboBox()
             setting.widget.addItems(setting.items)
             if setting.value in setting.items:
@@ -180,86 +182,44 @@ class ConfigView(qtw.QWidget):
                 setting.widget.currentTextChanged.connect(
                     lambda value: self.signal_change_path_grouping.emit(value)
                 )
+            ins_lay.addWidget(setting.widget, i, 1)
+        # Inspecting widget
+        ins_wid = qtw.QGroupBox("Inspecting Path:")
+        ins_wid.setLayout(ins_lay)
+        # Analyzing layout
+        aia_lay = qtw.QGridLayout()
+        for i, name in enumerate(["openai_base_url", "openai_api_key", "openai_model"]):
+            setting: TextSetting = self.config_ctr.get_setting(name)
+            if not setting:
+                continue
             setting_lbl = qtw.QLabel(f"{name:s}:")
-            pth_lay.addRow(setting_lbl, setting.widget)
-
-        pth_wid.setLayout(pth_lay)
-        pth_box_lay = qtw.QVBoxLayout()
-        pth_box_lay.addWidget(pth_wid)
-        pth_box_wid = qtw.QGroupBox("Analyzing Path:")
-        pth_box_wid.setLayout(pth_box_lay)
-
-        # --- AI Group ---
-        ai_wid = qtw.QWidget()
-        ai_lay = qtw.QFormLayout()
-
-        # API URL field
-        ai_api_url_setting = self.config_ctr.get_setting("ai_api_url")
-        ai_api_url_edit = qtw.QLineEdit()
-        ai_api_url_edit.setPlaceholderText("Enter AI API URL")
-        if ai_api_url_setting:
-            ai_api_url_edit.setText(ai_api_url_setting.value)
-            ai_api_url_edit.setToolTip(ai_api_url_setting.help)
-            ai_api_url_setting.widget = ai_api_url_edit
-            ai_api_url_edit.textChanged.connect(
-                lambda value, name="ai_api_url": self.signal_change_setting.emit(
-                    name, value
-                )
+            setting_lbl.setToolTip(setting.help)
+            aia_lay.addWidget(setting_lbl, i, 0)
+            setting.widget = qtw.QLineEdit()
+            if name == "openai_api_key":
+                setting.widget.setEchoMode(qtw.QLineEdit.EchoMode.Password)
+            setting.widget.setText(setting.value)
+            setting.widget.setToolTip(setting.help)
+            setting.widget.textChanged.connect(
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
-        ai_api_url_label = qtw.QLabel("API URL:")
-        ai_lay.addRow(ai_api_url_label, ai_api_url_edit)
-
-        # API Key field
-        ai_api_key_setting = self.config_ctr.get_setting("ai_api_key")
-        ai_api_key_edit = qtw.QLineEdit()
-        ai_api_key_edit.setEchoMode(qtw.QLineEdit.EchoMode.Password)  # Mask the key
-        ai_api_key_edit.setPlaceholderText("Enter AI API Key")
-        if ai_api_key_setting:
-            ai_api_key_edit.setText(ai_api_key_setting.value)
-            ai_api_key_edit.setToolTip(ai_api_key_setting.help)
-            ai_api_key_setting.widget = ai_api_key_edit
-            ai_api_key_edit.textChanged.connect(
-                lambda value, name="ai_api_key": self.signal_change_setting.emit(
-                    name, value
-                )
-            )
-
-        ai_api_key_label = qtw.QLabel("API Key:")
-        ai_lay.addRow(ai_api_key_label, ai_api_key_edit)
-
-        # AI Model field
-        ai_model_setting = self.config_ctr.get_setting("ai_model")
-        ai_model_edit = qtw.QLineEdit()
-        ai_model_edit.setPlaceholderText("Enter AI Model")
-        if ai_model_setting:
-            ai_model_edit.setText(ai_model_setting.value)
-            ai_model_edit.setToolTip(ai_model_setting.help)
-            ai_model_setting.widget = ai_model_edit
-            ai_model_edit.textChanged.connect(
-                lambda value, name="ai_model": self.signal_change_setting.emit(
-                    name, value
-                )
-            )
-        ai_model_label = qtw.QLabel("AI Model:")
-        ai_lay.addRow(ai_model_label, ai_model_edit)
-
-        ai_wid.setLayout(ai_lay)
-        ai_box_lay = qtw.QVBoxLayout()
-        ai_box_lay.addWidget(ai_wid)
-        ai_box_wid = qtw.QGroupBox("AI:")
-        ai_box_wid.setLayout(ai_box_lay)
-
-        lay = qtw.QVBoxLayout()
-        lay.addWidget(com_box_wid)
-        lay.addWidget(pth_box_wid)
-        lay.addWidget(ai_box_wid)
-        wid = qtw.QWidget()
-        wid.setLayout(lay)
-
-        scr = qtw.QScrollArea()
-        scr.setWidgetResizable(True)
-        scr.setWidget(wid)
-        return scr
+            aia_lay.addWidget(setting.widget, i, 1)
+        # Analyzing widget
+        aia_wid = qtw.QGroupBox("AI Analyzing Path:")
+        aia_wid.setLayout(aia_lay)
+        # Setting layout
+        set_lay = qtw.QVBoxLayout()
+        set_lay.addWidget(fnd_wid)
+        set_lay.addWidget(ins_wid)
+        set_lay.addWidget(aia_wid)
+        # Setting widget
+        set_wid = qtw.QWidget()
+        set_wid.setLayout(set_lay)
+        # Scroll widget
+        scr_wid = qtw.QScrollArea()
+        scr_wid.setWidgetResizable(True)
+        scr_wid.setWidget(set_wid)
+        return scr_wid
 
     def _init_cnf_but(self) -> qtw.QWidget:
         """

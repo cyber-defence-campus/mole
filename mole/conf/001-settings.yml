@@ -49,15 +49,15 @@ settings:
     name: path_grouping
     help: Strategy used to group paths
     value: Call Graph
-  ai_api_url:
-    name: ai_api_url
-    help: LLM Base URL
+  openai_base_url:
+    name: openai_base_url
+    help: OpenAI API base URL
     value: "https://api.openai.com/v1"
-  ai_api_key:
-    name: ai_api_key
-    help: LLM API key
+  openai_api_key:
+    name: openai_api_key
+    help: OpenAI API key
     value: ""
-  ai_model:
-    name: ai_model
-    help: LLM Model
+  openai_model:
+    name: openai_model
+    help: OpenAI model
     value: "o4-mini"

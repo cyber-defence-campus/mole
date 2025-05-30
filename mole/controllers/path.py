@@ -716,7 +716,7 @@ class PathController:
                         if not path:
                             continue
                         # Analyze path using AI
-                        report = self.ai_ctr.analyze_path(self._bv, path)
+                        report = self.ai_ctr.analyze_path(self._bv, path_id, path)
                         self.path_tree_view.model.update_path_report(path_id, report)
                         # Increment analyzed path counter
                         cnt_analyzed_paths += 1
@@ -814,7 +814,7 @@ class PathController:
             on_export_paths=lambda rows: self.export_paths(rows),
             on_remove_selected=self.remove_selected_paths,
             on_clear_all=self.clear_all_paths,
-            on_run_ai_analysis=self.analyze_paths,
+            on_analyze_paths=self.analyze_paths,
             # is_ai_enabled=self.ai_ctr.is_ai_configured,
             on_show_ai_report=self.show_ai_report,
             bv=bv,

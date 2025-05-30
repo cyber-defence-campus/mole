@@ -30,12 +30,21 @@ class NewAiController:
         self.config_ctr = config_ctr
         return
 
-    def analyze_path(self, bv: bn.BinaryView, path: Path) -> AiVulnerabilityReport:
+    def analyze_path(
+        self, bv: bn.BinaryView, path_id: int, path: Path
+    ) -> AiVulnerabilityReport:
         """
-        This method analyzes a given path using AI and returns a corresponding
-        vulnerability report.
+        This method analyzes a given path by generating an AI-based vulnerability report.
         """
-        return self.ai_service.analyze_path(bv, path)
+        # Get OpenAI settings
+        base_url_set = self.config_ctr.get_setting("openai_base_url")
+        base_url = base_url_set.value if base_url_set else ""
+        api_key_set = self.config_ctr.get_setting("openai_api_key")
+        api_key = api_key_set.value if api_key_set else ""
+        model_set = self.config_ctr.get_setting("openai_model")
+        model = model_set.value if model_set else ""
+        # AI-generated vulnerability report
+        return self.ai_service.analyze_path(bv, path_id, path, base_url, api_key, model)
 
 
 class AiController:
@@ -68,27 +77,3 @@ class AiController:
         """
         self.ai_view.clear_report()
         return
-
-    # def is_ai_configured(self) -> bool:
-    #     """
-    #     This method checks whether all required AI settings are configured.
-
-    #     Returns:
-    #         bool: True if all required settings are available, False otherwise
-    #     """
-    #     try:
-    #         # Use the config service from ai_service to check for required settings
-    #         config = self.ai_service._config_service.load_config()
-
-    #         # Check for all three required settings
-    #         for key in ["ai_api_key", "ai_api_url", "ai_model"]:
-    #             if (
-    #                 key not in config.settings
-    #                 or not config.settings[key].value
-    #                 or config.settings[key].value.strip() == ""
-    #             ):
-    #                 return False
-    #         return True
-    #     except Exception:
-    #         # If any error occurs during checking, assume AI is not properly configured
-    #         return False
