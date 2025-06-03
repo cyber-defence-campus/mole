@@ -37,16 +37,101 @@ class BackgroundAiService(BackgroundTask):
     TODO: Rename to `AiService`.
     """
 
+    _tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_function_containing_address",
+                "description": "Retrieve the decompiled code of the function that contains a specific address.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "address": {
+                            "type": "string",
+                            "description": "The address (hexadecimal string, e.g., '0x408f20') located within the target function.",
+                        },
+                        "il_type": {
+                            "type": "string",
+                            "description": "The desired Intermediate Language (IL) for decompilation.",
+                            "enum": ["Pseudo_C", "HLIL", "MLIL"],
+                        },
+                    },
+                    "required": ["address", "il_type"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_function_by_name",
+                "description": "Retrieve the decompiled code of a function specified by its name.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The exact name of the function to retrieve.",
+                        },
+                        "il_type": {
+                            "type": "string",
+                            "description": "The desired Intermediate Language (IL) for decompilation.",
+                            "enum": ["Pseudo_C", "HLIL", "MLIL"],
+                        },
+                    },
+                    "required": [
+                        "name",
+                        "il_type",
+                    ],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_callers_by_address",
+                "description": "List all functions that call the function containing a specific address.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "address": {
+                            "type": "string",
+                            "description": "The address (hexadecimal string, e.g., '0x409fd4') within the function whose callers are needed.",
+                        }
+                    },
+                    "required": ["address"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_callers_by_name",
+                "description": "List all functions that call the function specified by its name.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The exact name of the function whose callers are needed.",
+                        }
+                    },
+                    "required": ["name"],
+                },
+            },
+        },
+    ]
+
     def __init__(
         self,
         bv: bn.BinaryView,
         paths: List[Tuple[int, Path]],
         analyzed_path: Callable[[int, AiVulnerabilityReport], None],
-        max_workers: Optional[int] = None,
-        base_url: str = "",
-        api_key: str = "",
-        model: str = "",
-        max_turns: int = 10,
+        max_workers: Optional[int],
+        base_url: str,
+        api_key: str,
+        model: str,
+        max_turns: int,
+        max_completion_tokens: int,
         initial_progress_text: str = "",
         can_cancel: bool = False,
     ) -> None:
@@ -62,6 +147,7 @@ class BackgroundAiService(BackgroundTask):
         self._api_key = api_key
         self._model = model
         self._max_turns = max_turns
+        self._max_completion_tokens = max_completion_tokens
         return
 
     def _create_openai_client(self) -> Optional[OpenAI]:
@@ -139,9 +225,65 @@ class BackgroundAiService(BackgroundTask):
         prompt += "\n"
         return prompt
 
+    def _send_messages(
+        self, client: OpenAI, messages: Iterable[ChatCompletionMessageParam]
+    ) -> Optional[SimpleNamespace]:
+        """
+        This method sends the given messages to the OpenAI client and returns the response.
+        """
+        response = None
+        try:
+            # Send messages and receive completion
+            completion = None
+            with client.beta.chat.completions.stream(
+                messages=messages,
+                model=self._model,
+                tools=self._tools,
+                max_completion_tokens=self._max_completion_tokens,
+                response_format=VulnerabilityReport,
+                stream_options={"include_usage": True},
+            ) as stream:
+                chunk_cnt = 0
+                for _ in stream:
+                    if self.cancelled:
+                        log.debug(
+                            self.tag, f"Cancelled after streaming {chunk_cnt:d} chunks"
+                        )
+                        return None
+                    chunk_cnt += 1
+                log.debug(
+                    self.tag, f"Finished streaming response after {chunk_cnt:d} chunks"
+                )
+                completion = stream.get_final_completion()
+            # Response message
+            message = completion.choices[0].message
+            # Convert too calls to SimpleNamespace
+            tool_calls = []
+            for tool_call in message.tool_calls:
+                tool_calls.append(
+                    SimpleNamespace(
+                        id=tool_call.id,
+                        type=tool_call.type,
+                        function=SimpleNamespace(
+                            name=tool_call.function.name,
+                            arguments=tool_call.function.arguments,
+                        ),
+                    )
+                )
+            # Create response
+            response = SimpleNamespace(
+                role="assistant",
+                content=message.content if hasattr(message, "content") else None,
+                tool_calls=tool_calls if tool_calls else None,
+                parsed=message.parsed if hasattr(message, "parsed") else None,
+            )
+        except Exception as e:
+            log.error(self.tag, f"Failure while sending messages: {str(e):s}")
+        return response
+
     def _analyze_path(
         self, path_id: int, path: Path, canceled: Callable[[], bool]
-    ) -> AiVulnerabilityReport:
+    ) -> Optional[AiVulnerabilityReport]:
         """ """
         # Custom tag for logging
         self.tag = f"{tag:s}] [Path:{path_id:d}"
@@ -172,8 +314,13 @@ class BackgroundAiService(BackgroundTask):
             {"role": "system", "content": self._create_system_prompt()},
             {"role": "user", "content": self._create_user_prompt(path)},
         ]
-        print(messages)
-        return None
+        for turn in range(self._max_turns):
+            if self.cancelled:
+                break
+            # TODO: Send messages
+            self._send_messages(client, messages)
+            break
+        return
 
     def run(self) -> None:
         """
@@ -182,11 +329,14 @@ class BackgroundAiService(BackgroundTask):
         log.info(tag, "Starting AI analysis")
         # Settings
         log.debug(tag, "Settings")
-        log.debug(tag, f"- max_workers: '{self._max_workers}'")
-        log.debug(tag, f"- base_url   : '{self._base_url}'")
-        log.debug(tag, f"- api_key    : '{'[API_KEY]' if self._api_key else ''}'")
-        log.debug(tag, f"- model      : '{self._model:s}'")
-        log.debug(tag, f"- max_turns  : '{self._max_turns:d}'")
+        log.debug(tag, f"- max_workers          : '{self._max_workers}'")
+        log.debug(tag, f"- base_url             : '{self._base_url}'")
+        log.debug(
+            tag, f"- api_key              : '{'[API_KEY]' if self._api_key else ''}'"
+        )
+        log.debug(tag, f"- model                : '{self._model:s}'")
+        log.debug(tag, f"- max_turns            : '{self._max_turns:d}'")
+        log.debug(tag, f"- max_completion_tokens: '{self._max_completion_tokens:d}'")
         # Analyze paths using AI
         with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
             # Submit tasks
@@ -207,7 +357,8 @@ class BackgroundAiService(BackgroundTask):
                 # Collect vulnerability reports from task results
                 if task.done() and not task.exception():
                     vuln_report = task.result()
-                    self._analyzed_path(path_id, vuln_report)
+                    if vuln_report:
+                        self._analyzed_path(path_id, vuln_report)
         log.info(tag, "AI analysis completed")
         return
 

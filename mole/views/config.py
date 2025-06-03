@@ -226,7 +226,7 @@ class ConfigView(qtw.QWidget):
             )
             aia_lay.addWidget(setting.widget, row_cnt, 1)
             row_cnt += 1
-        for name in ["max_turns"]:
+        for name in ["max_turns", "max_completion_tokens"]:
             setting: SpinboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue

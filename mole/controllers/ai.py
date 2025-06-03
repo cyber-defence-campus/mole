@@ -63,6 +63,12 @@ class NewAiController:
         max_turns_setting = self.config_ctr.get_setting("max_turns")
         if max_turns_setting:
             max_turns = int(max_turns_setting.value)
+        max_completion_tokens = 4096
+        max_completion_tokens_setting = self.config_ctr.get_setting(
+            "max_completion_tokens"
+        )
+        if max_completion_tokens_setting:
+            max_completion_tokens = int(max_completion_tokens_setting.value)
         # Initialize and start AI service
         ai_service = BackgroundAiService(
             bv=bv,
@@ -73,6 +79,7 @@ class NewAiController:
             api_key=api_key,
             model=model,
             max_turns=max_turns,
+            max_completion_tokens=max_completion_tokens,
             initial_progress_text="Mole analyzes paths...",
             can_cancel=True,
         )

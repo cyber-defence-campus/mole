@@ -188,6 +188,7 @@ class ConfigService:
                 "max_call_level",
                 "max_slice_depth",
                 "max_turns",
+                "max_completion_tokens",
             ]:
                 setting: Dict = settings.get(name, None)
                 if not setting:
