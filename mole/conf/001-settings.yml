@@ -61,3 +61,9 @@ settings:
     name: openai_model
     help: OpenAI model
     value: "o4-mini"
+  max_turns:
+    name: max_turns
+    help: maximum number of turns in a conversation with the AI
+    value: 10
+    min_value: 1
+    max_value: 256

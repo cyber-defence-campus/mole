@@ -4,7 +4,7 @@ from mole.core.data import Path
 from mole.models.ai import AiVulnerabilityReport
 from mole.views.ai import AiView
 from mole.services.ai import AiService, BackgroundAiService, NewAiService
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 import binaryninja as bn
 
 
@@ -35,10 +35,10 @@ class NewAiController:
         self,
         bv: bn.BinaryView,
         paths: List[Tuple[int, Path]],
-        callback: Optional[Callable[[int, AiVulnerabilityReport], None]] = None,
+        analyzed_path: Callable[[int, AiVulnerabilityReport], None],
     ) -> BackgroundAiService:
         """
-        This method starts and returns a new AI service that analyzes the given paths.
+        This method starts a service that analyzes each path using AI.
         """
         # Get settings
         max_workers = None
@@ -55,38 +55,30 @@ class NewAiController:
         api_key_setting = self.config_ctr.get_setting("openai_api_key")
         if api_key_setting:
             api_key = str(api_key_setting.value)
+        model = ""
+        model_setting = self.config_ctr.get_setting("openai_model")
+        if model_setting:
+            model = str(model_setting.value)
+        max_turns = 10
+        max_turns_setting = self.config_ctr.get_setting("max_turns")
+        if max_turns_setting:
+            max_turns = int(max_turns_setting.value)
         # Initialize and start AI service
         ai_service = BackgroundAiService(
             bv=bv,
             paths=paths,
+            analyzed_path=analyzed_path,
             max_workers=max_workers,
             base_url=base_url,
             api_key=api_key,
-            callback=callback,
+            model=model,
+            max_turns=max_turns,
             initial_progress_text="Mole analyzes paths...",
             can_cancel=True,
         )
         ai_service.start()
         # Return AI service instance
         return ai_service
-
-    # def analyze_path(
-    #     self, bv: bn.BinaryView, path: Path
-    # ) -> AiVulnerabilityReport:
-    #     """
-    #     This method analyzes a given path by generating an AI-based vulnerability report.
-    #     """
-    #     # Get OpenAI settings
-    #     base_url_set = self.config_ctr.get_setting("openai_base_url")
-    #     base_url = base_url_set.value if base_url_set else ""
-    #     api_key_set = self.config_ctr.get_setting("openai_api_key")
-    #     api_key = api_key_set.value if api_key_set else ""
-    #     model_set = self.config_ctr.get_setting("openai_model")
-    #     model = model_set.value if model_set else ""
-    #     max_completion_tokens_set = self.config_ctr.get_setting("openai_max_completion_tokens")
-    #     max_completion_tokens = max_completion_tokens_set.value if max_completion_tokens_set else 4096
-    #     # AI-generated vulnerability report
-    #     return self.ai_service.analyze_path(bv, path, base_url, api_key, model, max_completion_tokens)
 
 
 class AiController:

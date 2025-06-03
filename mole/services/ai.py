@@ -41,10 +41,12 @@ class BackgroundAiService(BackgroundTask):
         self,
         bv: bn.BinaryView,
         paths: List[Tuple[int, Path]],
+        analyzed_path: Callable[[int, AiVulnerabilityReport], None],
         max_workers: Optional[int] = None,
         base_url: str = "",
         api_key: str = "",
-        callback: Optional[Callable[[int, AiVulnerabilityReport], None]] = None,
+        model: str = "",
+        max_turns: int = 10,
         initial_progress_text: str = "",
         can_cancel: bool = False,
     ) -> None:
@@ -54,10 +56,12 @@ class BackgroundAiService(BackgroundTask):
         super().__init__(initial_progress_text, can_cancel)
         self._bv = bv
         self._paths = paths
+        self._analyzed_path = analyzed_path
         self._max_workers = max_workers
         self._base_url = base_url
         self._api_key = api_key
-        self._callback = callback
+        self._model = model
+        self._max_turns = max_turns
         return
 
     def _create_openai_client(self) -> Optional[OpenAI]:
@@ -71,6 +75,69 @@ class BackgroundAiService(BackgroundTask):
             except Exception as e:
                 log.error(self.tag, f"Failed to create OpenAI client: {str(e):s}")
         return client
+
+    def _create_system_prompt(self) -> str:
+        prompt = textwrap.dedent(f"""
+        You are an expert vulnerability research assistant specializing in sink-to-source analysis using Binary Ninja's MLIL SSA form. Your task is to evaluate potential vulnerability paths identified by static backward slicing.
+
+        1. Analyze the Path Context and Reachability: Use tools (`get_function_containing_address`, `get_function_by_name`) to retrieve function code involved in the path. Examine instructions before and after the sliced instructions. Use caller analysis tools (`get_callers_by_address`, `get_callers_by_name`) to investigate reachability.
+        2. Identify User-Controlled Variables: Determine which variables are user-controlled, their origins, and any transformations or validations.
+        3. Validate the Path: Determine if the path is logically valid, reachable, and not a false positive.
+        4. Identify Vulnerability: If valid, identify the potential vulnerability type.
+        5. Explain Concisely: Provide a clear explanation of why the vulnerability exists.
+        6. Assess Severity: Assign a severity level (Critical, High, Medium, Low).
+        7. Craft Example Input: Create a realistic input example that could trigger the vulnerability.
+
+        Use the tools proactively to understand the code path and its upstream callers to provide a well-reasoned analysis, assess true reachability, and craft a plausible triggering input. You have a maximum of {self._max_turns} conversation turns to complete this analysis.
+        """)
+        return prompt
+
+    def _create_user_prompt(self, path: Path) -> str:
+        # Filename
+        filename = os.path.basename(self._bv.file.filename)
+        if filename.endswith(".bndb"):
+            filename = filename[:-5]
+        # Function names and addresses
+        prompt = textwrap.dedent(f"""
+        Evaluate the path with source `{path.src_sym_name}` @ `0x{path.src_sym_addr:x}` and sink `{path.snk_sym_name}` @ `0x{path.snk_sym_addr:x}`.
+        """)
+        # Function arguments
+        if path.src_par_var is None:
+            prompt += textwrap.dedent(
+                f"The interesting sink argument is `{str(path.snk_par_var):s}` (index {path.snk_par_idx:d})."
+            )
+        else:
+            prompt += textwrap.dedent(
+                f"The interesting source argument is `{str(path.src_par_var):s}` (index {path.src_par_idx:d}) and the interesting sink argument is `{str(path.snk_par_var):s}` (index {path.snk_par_idx:d})."
+            )
+        # Instruction statistics
+        prompt += textwrap.dedent(f"""
+        The path contains a total of {len(path.insts):d} instructions, out of which {len(path.phiis):d} instructions are of type MediumLevelILVarPhi. The path depends on {len(path.bdeps):d} branch conditions.
+
+        --- Backward Slice in MLIL (SSA Form) ---
+        """)
+        # Backward slice
+        basic_block = None
+        for i, inst in enumerate(path.insts):
+            call_level = path.call_graph.nodes[inst.function]["call_level"]
+            if i < path.src_inst_idx:
+                custom_tag = f"[Snk] [{call_level:+d}]"
+            else:
+                custom_tag = f"[Src] [{call_level:+d}]"
+            if inst.il_basic_block != basic_block:
+                basic_block = inst.il_basic_block
+                fun_name = basic_block.function.name
+                bb_addr = basic_block[0].address
+                prompt += f"{custom_tag:s} - FUN: '{fun_name:s}', BB: 0x{bb_addr:x}\n"
+            prompt += f"{custom_tag:s} {InstructionHelper.get_inst_info(inst):s}\n"
+        # Call sequence
+        prompt += "\n--- Call Sequence ---\n"
+        min_call_level = min(path.calls, key=lambda x: x[2])[2]
+        for call_addr, call_name, call_level in path.calls:
+            indent = call_level - min_call_level
+            prompt += f"{'>' * indent:s} 0x{call_addr:x} {call_name:s}\n"
+        prompt += "\n"
+        return prompt
 
     def _analyze_path(
         self, path_id: int, path: Path, canceled: Callable[[], bool]
@@ -100,6 +167,12 @@ class BackgroundAiService(BackgroundTask):
                 timestamp=datetime.now(),
             )
             return report
+        # TODO
+        messages = [
+            {"role": "system", "content": self._create_system_prompt()},
+            {"role": "user", "content": self._create_user_prompt(path)},
+        ]
+        print(messages)
         return None
 
     def run(self) -> None:
@@ -112,6 +185,8 @@ class BackgroundAiService(BackgroundTask):
         log.debug(tag, f"- max_workers: '{self._max_workers}'")
         log.debug(tag, f"- base_url   : '{self._base_url}'")
         log.debug(tag, f"- api_key    : '{'[API_KEY]' if self._api_key else ''}'")
+        log.debug(tag, f"- model      : '{self._model:s}'")
+        log.debug(tag, f"- max_turns  : '{self._max_turns:d}'")
         # Analyze paths using AI
         with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
             # Submit tasks
@@ -130,9 +205,9 @@ class BackgroundAiService(BackgroundTask):
                 self.progress = f"Mole analyzes path {cnt + 1:d}/{len(self._paths):d}"
                 path_id = tasks[task]
                 # Collect vulnerability reports from task results
-                if self._callback and task.done() and not task.exception():
+                if task.done() and not task.exception():
                     vuln_report = task.result()
-                    self._callback(path_id, vuln_report)
+                    self._analyzed_path(path_id, vuln_report)
         log.info(tag, "AI analysis completed")
         return
 

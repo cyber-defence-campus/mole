@@ -183,7 +183,12 @@ class ConfigService:
                     parsed_config[type][lib_name] = Library(lib_name, lib_categories)
             # Parse settings
             settings: Dict[str, Dict] = config.get("settings", {})
-            for name in ["max_workers", "max_call_level", "max_slice_depth"]:
+            for name in [
+                "max_workers",
+                "max_call_level",
+                "max_slice_depth",
+                "max_turns",
+            ]:
                 setting: Dict = settings.get(name, None)
                 if not setting:
                     continue
@@ -220,8 +225,6 @@ class ConfigService:
                         )
                     }
                 )
-
-            # Parse AI API settings
             for name in ["openai_base_url", "openai_api_key", "openai_model"]:
                 setting = settings.get(name, None)
                 if not setting:
@@ -231,7 +234,6 @@ class ConfigService:
                 parsed_config["settings"].update(
                     {name: TextSetting(name=name, value=value, help=help)}
                 )
-
         except Exception as e:
             log.warn(tag, f"Failed to parse configuration file: '{str(e):s}'")
         return Configuration(**parsed_config)

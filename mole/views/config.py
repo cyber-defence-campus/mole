@@ -139,9 +139,29 @@ class ConfigView(qtw.QWidget):
         """
         This method initializes the tab `Settings`.
         """
+        # General layout
+        gen_lay = qtw.QGridLayout()
+        for i, name in enumerate(["max_workers"]):
+            setting: SpinboxSetting = self.config_ctr.get_setting(name)
+            if not setting:
+                continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            gen_lay.addWidget(setting_lbl, i, 0)
+            setting.widget = qtw.QSpinBox()
+            setting.widget.setRange(setting.min_value, setting.max_value)
+            setting.widget.setValue(setting.value)
+            setting.widget.setToolTip(setting.help)
+            setting.widget.valueChanged.connect(
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
+            )
+            gen_lay.addWidget(setting.widget, i, 1)
+        # General widget
+        gen_wid = qtw.QGroupBox("General:")
+        gen_wid.setLayout(gen_lay)
         # Find layout
         fnd_lay = qtw.QGridLayout()
-        for i, name in enumerate(["max_workers", "max_call_level", "max_slice_depth"]):
+        for i, name in enumerate(["max_call_level", "max_slice_depth"]):
             setting: SpinboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue
@@ -188,13 +208,14 @@ class ConfigView(qtw.QWidget):
         ins_wid.setLayout(ins_lay)
         # Analyzing layout
         aia_lay = qtw.QGridLayout()
-        for i, name in enumerate(["openai_base_url", "openai_api_key", "openai_model"]):
+        row_cnt = 0
+        for name in ["openai_base_url", "openai_api_key", "openai_model"]:
             setting: TextSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue
             setting_lbl = qtw.QLabel(f"{name:s}:")
             setting_lbl.setToolTip(setting.help)
-            aia_lay.addWidget(setting_lbl, i, 0)
+            aia_lay.addWidget(setting_lbl, row_cnt, 0)
             setting.widget = qtw.QLineEdit()
             if name == "openai_api_key":
                 setting.widget.setEchoMode(qtw.QLineEdit.EchoMode.Password)
@@ -203,12 +224,30 @@ class ConfigView(qtw.QWidget):
             setting.widget.textChanged.connect(
                 lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
-            aia_lay.addWidget(setting.widget, i, 1)
+            aia_lay.addWidget(setting.widget, row_cnt, 1)
+            row_cnt += 1
+        for name in ["max_turns"]:
+            setting: SpinboxSetting = self.config_ctr.get_setting(name)
+            if not setting:
+                continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            aia_lay.addWidget(setting_lbl, row_cnt, 0)
+            setting.widget = qtw.QSpinBox()
+            setting.widget.setRange(setting.min_value, setting.max_value)
+            setting.widget.setValue(setting.value)
+            setting.widget.setToolTip(setting.help)
+            setting.widget.valueChanged.connect(
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
+            )
+            aia_lay.addWidget(setting.widget, row_cnt, 1)
+            row_cnt += 1
         # Analyzing widget
-        aia_wid = qtw.QGroupBox("AI Analyzing Path:")
+        aia_wid = qtw.QGroupBox("Analyzing Path with AI:")
         aia_wid.setLayout(aia_lay)
         # Setting layout
         set_lay = qtw.QVBoxLayout()
+        set_lay.addWidget(gen_wid)
         set_lay.addWidget(fnd_wid)
         set_lay.addWidget(ins_wid)
         set_lay.addWidget(aia_wid)
