@@ -126,3 +126,18 @@ class FunctionHelper:
         if with_class_name:
             info = f"{info:s} ({func.__class__.__name__:s})"
         return info
+
+    @staticmethod
+    def get_mlil_code(func: bn.Function) -> str:
+        """
+        This method returns a MLIL code representation of the function `func`.
+        """
+        mlil_func = func.mlil
+        if mlil_func is None:
+            return ""
+        header = f"0x{func.start:x} | {str(func):s}"
+        lines = [
+            f"0x{inst.address:x}: {''.join(str(token) for token in inst.tokens):s}"
+            for inst in mlil_func.instructions
+        ]
+        return header + "\n" + "\n".join(lines)

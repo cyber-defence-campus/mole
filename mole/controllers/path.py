@@ -41,7 +41,7 @@ class PathController:
         self.ai_ctr = ai_ctr
         self._bv: Optional[bn.BinaryView] = None
         self.path_tree_view: Optional[PathTreeView] = None
-        self._thread: Optional[PathService] = None
+        self._thread: Optional[BackgroundTask] = None
         self._paths_highlight: Tuple[
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
@@ -700,44 +700,14 @@ class PathController:
         if self._thread and not self._thread.finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             return
-
-        # Analyze paths in a background task
-        def _analyze_paths() -> None:
-            nonlocal path_ids
-            cnt_analyzed_paths = 0
-            try:
-                for i, path_id in enumerate(path_ids):
-                    try:
-                        # Check if user cancelled the background task
-                        if self._thread.cancelled:
-                            break
-                        # Get path (filtering out headers/groups)
-                        path = self.path_tree_view.get_path(path_id)
-                        if not path:
-                            continue
-                        # Analyze path using AI
-                        report = self.ai_ctr.analyze_path(self._bv, path_id, path)
-                        self.path_tree_view.model.update_path_report(path_id, report)
-                        # Increment analyzed path counter
-                        cnt_analyzed_paths += 1
-                    except Exception as e:
-                        log.error(tag, f"Failed to analyze path #{i + 1:d}: {str(e):s}")
-                    finally:
-                        self._thread.progress = (
-                            f"Mole analyzes paths: {i + 1:d}/{len(path_ids):d}"
-                        )
-            except Exception as e:
-                log.error(tag, f"Failed to analyze paths: {str(e):s}")
-            log.info(tag, f"Analyzed {cnt_analyzed_paths:d} path(s)")
-            return
-
-        # Start a background task
-        self._thread = BackgroundTask(
-            initial_progress_text="Mole analyzes paths...",
-            can_cancel=True,
-            run=_analyze_paths,
+        # Get selected paths
+        paths = [
+            (path_id, self.path_tree_view.get_path(path_id)) for path_id in path_ids
+        ]
+        # Start background thread analyzing paths using AI
+        self._thread = self.ai_ctr.analyze_paths(
+            self._bv, paths, self.path_tree_view.model.update_path_report
         )
-        self._thread.start()
         return
 
     def show_ai_report(self, path_ids: List[int]) -> None:

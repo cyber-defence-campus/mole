@@ -1,8 +1,9 @@
+from concurrent import futures
 from datetime import datetime
 from mole.ai.tools import call_function, tools
 from mole.common.help import InstructionHelper
 from mole.common.log import log
-from mole.common.task import ProgressCallback
+from mole.common.task import BackgroundTask, ProgressCallback
 from mole.core.data import Path
 from mole.models.ai import (
     AiVulnerabilityReport,
@@ -13,8 +14,10 @@ from mole.models.ai import (
 from mole.services.config import ConfigService
 from openai import OpenAI
 from openai.lib.streaming.chat._completions import LengthFinishReasonError
+from openai.types.chat import ChatCompletionMessageParam
 from pprint import pformat
 from types import SimpleNamespace
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 import binaryninja as bn
 import json
 import os
@@ -27,15 +30,206 @@ import traceback
 tag = "Mole.AI"
 
 
+class BackgroundAiService(BackgroundTask):
+    """
+    This class implements a background task that analyzes paths using AI.
+
+    TODO: Rename to `AiService`.
+    """
+
+    def __init__(
+        self,
+        bv: bn.BinaryView,
+        paths: List[Tuple[int, Path]],
+        max_workers: Optional[int] = None,
+        base_url: str = "",
+        api_key: str = "",
+        callback: Optional[Callable[[int, AiVulnerabilityReport], None]] = None,
+        initial_progress_text: str = "",
+        can_cancel: bool = False,
+    ) -> None:
+        """
+        This method initializes the AI service.
+        """
+        super().__init__(initial_progress_text, can_cancel)
+        self._bv = bv
+        self._paths = paths
+        self._max_workers = max_workers
+        self._base_url = base_url
+        self._api_key = api_key
+        self._callback = callback
+        return
+
+    def _create_openai_client(self) -> Optional[OpenAI]:
+        """
+        This method creates a new OpenAI client.
+        """
+        client = None
+        if self._base_url and self._api_key:
+            try:
+                client = OpenAI(base_url=self._base_url, api_key=self._api_key)
+            except Exception as e:
+                log.error(self.tag, f"Failed to create OpenAI client: {str(e):s}")
+        return client
+
+    def _analyze_path(
+        self, path_id: int, path: Path, canceled: Callable[[], bool]
+    ) -> AiVulnerabilityReport:
+        """ """
+        # Custom tag for logging
+        self.tag = f"{tag:s}] [Path:{path_id:d}"
+        # Create OpenAI client
+        client = self._create_openai_client()
+        # Mock mode if no OpenAI client available
+        if client is None:
+            log.warn(self.tag, "Running in mock mode since no OpenAI client available")
+            time.sleep(random.uniform(0.25, 2.0))
+            report = AiVulnerabilityReport(
+                truePositive=random.choice([True, True, True, False]),
+                vulnerabilityClass=random.choice(list(VulnerabilityClass)),
+                shortExplanation="Mock mode simulates a potential vulnerability.",
+                severityLevel=random.choice(list(SeverityLevel)),
+                inputExample=f"0x{random.getrandbits(32):08x}",
+                path_id=random.randint(1, 1000),
+                model="mock-mode",
+                tool_calls=random.randint(1, 5),
+                turns=random.randint(1, 5),
+                prompt_tokens=random.randint(50, 150),
+                completion_tokens=random.randint(50, 150),
+                total_tokens=random.randint(100, 300),
+                timestamp=datetime.now(),
+            )
+            return report
+        return None
+
+    def run(self) -> None:
+        """
+        This method analyzes each path in a worker thread.
+        """
+        log.info(tag, "Starting AI analysis")
+        # Settings
+        log.debug(tag, "Settings")
+        log.debug(tag, f"- max_workers: '{self._max_workers}'")
+        log.debug(tag, f"- base_url   : '{self._base_url}'")
+        log.debug(tag, f"- api_key    : '{'[API_KEY]' if self._api_key else ''}'")
+        # Analyze paths using AI
+        with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            # Submit tasks
+            tasks: Dict[futures.Future, int] = {}
+            for path_id, path in self._paths:
+                if self.cancelled:
+                    break
+                task = executor.submit(
+                    self._analyze_path, path_id, path, lambda: self.cancelled
+                )
+                tasks[task] = path_id
+            # Wait for tasks to complete
+            for cnt, task in enumerate(futures.as_completed(tasks)):
+                if self.cancelled:
+                    break
+                self.progress = f"Mole analyzes path {cnt + 1:d}/{len(self._paths):d}"
+                path_id = tasks[task]
+                # Collect vulnerability reports from task results
+                if self._callback and task.done() and not task.exception():
+                    vuln_report = task.result()
+                    self._callback(path_id, vuln_report)
+        log.info(tag, "AI analysis completed")
+        return
+
+
 class NewAiService:
     """
     This class implements a service to analyze paths using AI.
     """
 
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_function_containing_address",
+                "description": "Retrieve the decompiled code of the function that contains a specific address.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "address": {
+                            "type": "string",
+                            "description": "The address (hexadecimal string, e.g., '0x408f20') located within the target function.",
+                        },
+                        "il_type": {
+                            "type": "string",
+                            "description": "The desired Intermediate Language (IL) for decompilation.",
+                            "enum": ["Pseudo_C", "HLIL", "MLIL"],
+                        },
+                    },
+                    "required": ["address", "il_type"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_function_by_name",
+                "description": "Retrieve the decompiled code of a function specified by its name.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The exact name of the function to retrieve.",
+                        },
+                        "il_type": {
+                            "type": "string",
+                            "description": "The desired Intermediate Language (IL) for decompilation.",
+                            "enum": ["Pseudo_C", "HLIL", "MLIL"],
+                        },
+                    },
+                    "required": [
+                        "name",
+                        "il_type",
+                    ],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_callers_by_address",
+                "description": "List all functions that call the function containing a specific address.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "address": {
+                            "type": "string",
+                            "description": "The address (hexadecimal string, e.g., '0x409fd4') within the function whose callers are needed.",
+                        }
+                    },
+                    "required": ["address"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_callers_by_name",
+                "description": "List all functions that call the function specified by its name.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The exact name of the function whose callers are needed.",
+                        }
+                    },
+                    "required": ["name"],
+                },
+            },
+        },
+    ]
+
     def __init__(self) -> None:
         self._max_turns = 10
         self._system_prompt = textwrap.dedent(f"""
-        You are an expert vulnerability research assistant specializing in sink-source analysis using Binary Ninja's MLIL SSA form. Your task is to evaluate potential vulnerability paths identified by static backward slicing.
+        You are an expert vulnerability research assistant specializing in sink-to-source analysis using Binary Ninja's MLIL SSA form. Your task is to evaluate potential vulnerability paths identified by static backward slicing.
 
         1. Analyze the Path Context and Reachability: Use tools (`get_function_containing_address`, `get_function_by_name`) to retrieve function code involved in the path. Examine instructions before and after the sliced instructions. Use caller analysis tools (`get_callers_by_address`, `get_callers_by_name`) to investigate reachability.
         2. Identify User-Controlled Variables: Determine which variables are user-controlled, their origins, and any transformations or validations.
@@ -49,20 +243,43 @@ class NewAiService:
         """)
         return
 
+    def _create_openai_client(self, base_url: str, api_key: str) -> Optional[OpenAI]:
+        """
+        This method creates an OpenAI client using the provided base URL and API key.
+        """
+        client = None
+        if base_url and api_key:
+            try:
+                client = OpenAI(base_url=base_url, api_key=api_key)
+            except Exception as e:
+                log.error(tag, f"Failed to initialize OpenAI client: {str(e):s}")
+        return client
+
     def _generate_first_message(self, bv: bn.BinaryView, path: Path) -> str:
+        # Filename
         filename = os.path.basename(bv.file.filename)
         if filename.endswith(".bndb"):
             filename = filename[:-5]
-
-        # TODO: Adjust text if we do not have a source or sink parameter
+        # Function names and addresses
         msg = textwrap.dedent(f"""
-        Evaluate path from source `{path.src_sym_name}` @ `0x{path.src_sym_addr:x}` to sink `{path.snk_sym_name}` @ `0x{path.snk_sym_addr:x}`.
-        Interested source parameter is `{path.src_par_var}` at index {path.src_par_idx}, sink parameter is `{path.snk_par_var}` at index {path.snk_par_idx}.
-        Path hits {len(path.insts)} instructions, which includes {len(path.phiis)} PHI instructions.
+        Evaluate the path with source `{path.src_sym_name}` @ `0x{path.src_sym_addr:x}` and sink `{path.snk_sym_name}` @ `0x{path.snk_sym_addr:x}`.
+        """)
+        # Function arguments
+        if path.src_par_var is None:
+            msg += textwrap.dedent(
+                f"The interesting sink argument is `{str(path.snk_par_var):s}` (index {path.snk_par_idx:d})."
+            )
+        else:
+            msg += textwrap.dedent(
+                f"The interesting source argument is `{str(path.src_par_var):s}` (index {path.src_par_idx:d}) and the interesting sink argument is `{str(path.snk_par_var):s}` (index {path.snk_par_idx:d})."
+            )
+        # Instruction statistics
+        msg += textwrap.dedent(f"""
+        The path contains a total of {len(path.insts):d} instructions, out of which {len(path.phiis):d} instructions are of type MediumLevelILVarPhi. The path depends on {len(path.bdeps):d} branch conditions.
 
         --- Backward Slice in MLIL (SSA Form) ---
         """)
-
+        # Backward slice
         basic_block = None
         for i, inst in enumerate(path.insts):
             call_level = path.call_graph.nodes[inst.function]["call_level"]
@@ -76,7 +293,7 @@ class NewAiService:
                 bb_addr = basic_block[0].address
                 msg += f"{custom_tag:s} - FUN: '{fun_name:s}', BB: 0x{bb_addr:x}\n"
             msg += f"{custom_tag:s} {InstructionHelper.get_inst_info(inst):s}\n"
-
+        # Call sequence
         msg += "\n--- Call Sequence ---\n"
         min_call_level = min(path.calls, key=lambda x: x[2])[2]
         for call_addr, call_name, call_level in path.calls:
@@ -85,26 +302,39 @@ class NewAiService:
         msg += "\n"
         return msg
 
+    def _send_messages(
+        self,
+        openai_client: OpenAI,
+        messages: Iterable[ChatCompletionMessageParam],
+        model: str,
+        max_completion_tokens: int,
+    ) -> None:
+        completion = openai_client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=self.tools,
+            max_completion_tokens=max_completion_tokens,
+            response_format=VulnerabilityReport,
+        )
+        message = completion.choices[0].message
+        print(message)
+        return None
+
     def analyze_path(
         self,
         bv: bn.BinaryView,
-        path_id: int,
         path: Path,
         base_url: str,
         api_key: str,
         model: str,
+        max_completion_tokens: int,
     ) -> AiVulnerabilityReport:
         """
         This method analyzes a given path using an OpenAI model and returns a corresponding
         vulnerability report.
         """
-        # Initialize OpenAI client
-        openai_client = None
-        if base_url and api_key:
-            try:
-                openai_client = OpenAI(base_url=base_url, api_key=api_key)
-            except Exception as e:
-                log.error(tag, f"Failed to initialize OpenAI client: {str(e):s}")
+        # Create OpenAI client
+        openai_client = self._create_openai_client(base_url, api_key)
         # Operate in mock mode if no valid OpenAI client is available
         if openai_client is None:
             log.warn(tag, "Running in mock mode since no OpenAI client available")
@@ -411,7 +641,7 @@ class AiService:
         path_info="",
     ) -> AiVulnerabilityReport | None:
         # if MOCK_AI:
-        if True:
+        if False:
             log.info(tag, "Mock AI mode enabled. Skipping actual analysis.")
             progress.progress(f"{path_info}Mock AI mode: analysis skipped.")
 

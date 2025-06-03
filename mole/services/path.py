@@ -25,12 +25,12 @@ class PathService(BackgroundTask):
         max_call_level: Optional[int] = None,
         max_slice_depth: Optional[int] = None,
         enable_all_funs: bool = False,
-        path_callback: Optional[Callable[[Path, str], None]] = None,
+        path_callback: Optional[Callable[[Path], None]] = None,
         initial_progress_text: str = "",
         can_cancel: bool = False,
     ) -> None:
         """
-        This method initializes the background task.
+        This method initializes the path service.
         """
         super().__init__(initial_progress_text, can_cancel)
         self._bv = bv
@@ -54,8 +54,8 @@ class PathService(BackgroundTask):
 
     def run(self) -> None:
         """
-        This method runs the background task, i.e. tries to identify interesting
-        code paths using static backward slicing.
+        This method runs the background task, i.e. tries to identify interesting code paths using
+        static backward slicing.
         """
         log.info(tag, "Starting backward slicing")
         self._paths = []

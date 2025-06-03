@@ -1,7 +1,8 @@
 from pydantic import validate_call
 from typing import Any, Union
 from binaryninja import BinaryView, Function
-from mole.common.binja import get_pseudo_c, get_hlil_code, get_mlil_code
+from mole.common.binja import get_pseudo_c, get_hlil_code
+from mole.common.help import FunctionHelper
 
 
 class HexInt(int):
@@ -120,7 +121,8 @@ def get_code_content(func: Function, il_type: str) -> str:
     elif il_type == "HLIL":
         return get_hlil_code(func) or ""
     elif il_type == "MLIL":
-        return get_mlil_code(func) or ""
+        return FunctionHelper.get_mlil_code(func)
+
     # Consider adding logging or raising an error for invalid il_type
     return ""
 
