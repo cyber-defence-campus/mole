@@ -1,6 +1,6 @@
 from concurrent import futures
 from datetime import datetime
-from mole.ai.tools import call_function, tools
+from mole.ai.tools import call_function
 from mole.common.help import InstructionHelper
 from mole.common.log import log
 from mole.common.task import BackgroundTask, ProgressCallback
@@ -8,13 +8,18 @@ from mole.core.data import Path
 from mole.models.ai import (
     AiVulnerabilityReport,
     SeverityLevel,
+    tools,
     VulnerabilityClass,
     VulnerabilityReport,
 )
 from mole.services.config import ConfigService
 from openai import OpenAI
 from openai.lib.streaming.chat._completions import LengthFinishReasonError
-from openai.types.chat import ChatCompletionMessageParam
+from openai.types.chat import (
+    ChatCompletionMessageParam,
+    ParsedChatCompletionMessage,
+    ParsedFunctionToolCall,
+)
 from pprint import pformat
 from types import SimpleNamespace
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
@@ -36,90 +41,6 @@ class BackgroundAiService(BackgroundTask):
 
     TODO: Rename to `AiService`.
     """
-
-    _tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_function_containing_address",
-                "description": "Retrieve the decompiled code of the function that contains a specific address.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "address": {
-                            "type": "string",
-                            "description": "The address (hexadecimal string, e.g., '0x408f20') located within the target function.",
-                        },
-                        "il_type": {
-                            "type": "string",
-                            "description": "The desired Intermediate Language (IL) for decompilation.",
-                            "enum": ["Pseudo_C", "HLIL", "MLIL"],
-                        },
-                    },
-                    "required": ["address", "il_type"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_function_by_name",
-                "description": "Retrieve the decompiled code of a function specified by its name.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "The exact name of the function to retrieve.",
-                        },
-                        "il_type": {
-                            "type": "string",
-                            "description": "The desired Intermediate Language (IL) for decompilation.",
-                            "enum": ["Pseudo_C", "HLIL", "MLIL"],
-                        },
-                    },
-                    "required": [
-                        "name",
-                        "il_type",
-                    ],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_callers_by_address",
-                "description": "List all functions that call the function containing a specific address.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "address": {
-                            "type": "string",
-                            "description": "The address (hexadecimal string, e.g., '0x409fd4') within the function whose callers are needed.",
-                        }
-                    },
-                    "required": ["address"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_callers_by_name",
-                "description": "List all functions that call the function specified by its name.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "The exact name of the function whose callers are needed.",
-                        }
-                    },
-                    "required": ["name"],
-                },
-            },
-        },
-    ]
 
     def __init__(
         self,
@@ -148,6 +69,7 @@ class BackgroundAiService(BackgroundTask):
         self._model = model
         self._max_turns = max_turns
         self._max_completion_tokens = max_completion_tokens
+        self._tools = [tool.to_dict() for tool in tools.values()]
         return
 
     def _create_openai_client(self) -> Optional[OpenAI]:
@@ -225,15 +147,71 @@ class BackgroundAiService(BackgroundTask):
         prompt += "\n"
         return prompt
 
+    # def _send_messages(
+    #     self, client: OpenAI, messages: Iterable[ChatCompletionMessageParam]
+    # ) -> Optional[SimpleNamespace]:
+    #     """
+    #     This method sends the given messages to the OpenAI client and returns the response.
+    #     """
+    #     response = None
+    #     try:
+    #         # Send messages and receive completion
+    #         completion = None
+    #         with client.beta.chat.completions.stream(
+    #             messages=messages,
+    #             model=self._model,
+    #             tools=self._tools,
+    #             max_completion_tokens=self._max_completion_tokens,
+    #             response_format=VulnerabilityReport,
+    #             stream_options={"include_usage": True},
+    #         ) as stream:
+    #             for chunk_cnt, _ in enumerate(stream):
+    #                 if self.cancelled:
+    #                     log.debug(
+    #                         self.tag, f"Cancel message streaming after {chunk_cnt:d} chunks"
+    #                     )
+    #                     return None
+    #                 chunk_cnt += 1
+    #             log.debug(
+    #                 self.tag, f"Message streaming finished after {chunk_cnt:d} chunks"
+    #             )
+    #             completion = stream.get_final_completion()
+    #         # Completion message
+    #         message = completion.choices[0].message
+    #         # Convert tool calls
+    #         tool_calls = []
+    #         for tool_call in message.tool_calls:
+    #             tool_calls.append(
+    #                 SimpleNamespace(
+    #                     id=tool_call.id,
+    #                     type=tool_call.type,
+    #                     function=SimpleNamespace(
+    #                         name=tool_call.function.name,
+    #                         arguments=tool_call.function.arguments,
+    #                     ),
+    #                 )
+    #             )
+    #         # Create response
+    #         response = SimpleNamespace(
+    #             role="assistant",
+    #             content=message.content if hasattr(message, "content") else None,
+    #             tool_calls=tool_calls if tool_calls else None,
+    #             parsed=message.parsed if hasattr(message, "parsed") else None,
+    #         )
+    #     except Exception as e:
+    #         log.error(self.tag, f"Failed to send messages: {str(e):s}")
+    #     return response
+
     def _send_messages(
         self, client: OpenAI, messages: Iterable[ChatCompletionMessageParam]
-    ) -> Optional[SimpleNamespace]:
+    ) -> Optional[ParsedChatCompletionMessage]:
         """
-        This method sends the given messages to the OpenAI client and returns the response.
+        This method sends the given messages to the OpenAI client and returns the completion
+        message.
         """
-        response = None
+        message = None
         try:
-            # Send messages and receive completion
+            # Send messages and receive completion message
             completion = None
             with client.beta.chat.completions.stream(
                 messages=messages,
@@ -243,48 +221,56 @@ class BackgroundAiService(BackgroundTask):
                 response_format=VulnerabilityReport,
                 stream_options={"include_usage": True},
             ) as stream:
-                chunk_cnt = 0
-                for _ in stream:
+                for chunk_cnt, _ in enumerate(stream):
                     if self.cancelled:
                         log.debug(
-                            self.tag, f"Cancelled after streaming {chunk_cnt:d} chunks"
+                            self.tag,
+                            f"Cancel message streaming after {chunk_cnt:d} chunks",
                         )
                         return None
                     chunk_cnt += 1
                 log.debug(
-                    self.tag, f"Finished streaming response after {chunk_cnt:d} chunks"
+                    self.tag, f"Message streaming finished after {chunk_cnt:d} chunks"
                 )
                 completion = stream.get_final_completion()
-            # Response message
             message = completion.choices[0].message
-            # Convert too calls to SimpleNamespace
-            tool_calls = []
-            for tool_call in message.tool_calls:
-                tool_calls.append(
-                    SimpleNamespace(
-                        id=tool_call.id,
-                        type=tool_call.type,
-                        function=SimpleNamespace(
-                            name=tool_call.function.name,
-                            arguments=tool_call.function.arguments,
-                        ),
-                    )
-                )
-            # Create response
-            response = SimpleNamespace(
-                role="assistant",
-                content=message.content if hasattr(message, "content") else None,
-                tool_calls=tool_calls if tool_calls else None,
-                parsed=message.parsed if hasattr(message, "parsed") else None,
-            )
         except Exception as e:
-            log.error(self.tag, f"Failure while sending messages: {str(e):s}")
-        return response
+            log.error(self.tag, f"Failed to send messages: {str(e):s}")
+        return message
+
+    def _execute_tool(self) -> None:
+        """ """
+        return
+
+    def _execute_tool_calls(self, tool_calls: List[ParsedFunctionToolCall]) -> List:
+        """ """
+        results = []
+        for tool_call in tool_calls:
+            try:
+                if tool_call.type == "function":
+                    content = "TODO"
+                else:
+                    content = "Error: Unsupported tool call type"
+            except Exception as e:
+                content = f"Error: {str(e):s}"
+                log.error(
+                    self.tag,
+                    f"Failed to execute tool call '{tool_call.id:s}': {str(e):s}",
+                )
+            results.append(
+                {"role": "tool", "tool_call_id": tool_call.id, "content": content}
+            )
+        return results
 
     def _analyze_path(
         self, path_id: int, path: Path, canceled: Callable[[], bool]
     ) -> Optional[AiVulnerabilityReport]:
-        """ """
+        """
+        TODO:
+        - Logging
+        - Cancellation
+        - Typing
+        """
         # Custom tag for logging
         self.tag = f"{tag:s}] [Path:{path_id:d}"
         # Create OpenAI client
@@ -292,7 +278,6 @@ class BackgroundAiService(BackgroundTask):
         # Mock mode if no OpenAI client available
         if client is None:
             log.warn(self.tag, "Running in mock mode since no OpenAI client available")
-            time.sleep(random.uniform(0.25, 2.0))
             report = AiVulnerabilityReport(
                 truePositive=random.choice([True, True, True, False]),
                 vulnerabilityClass=random.choice(list(VulnerabilityClass)),
@@ -302,23 +287,52 @@ class BackgroundAiService(BackgroundTask):
                 path_id=random.randint(1, 1000),
                 model="mock-mode",
                 tool_calls=random.randint(1, 5),
-                turns=random.randint(1, 5),
-                prompt_tokens=random.randint(50, 150),
-                completion_tokens=random.randint(50, 150),
-                total_tokens=random.randint(100, 300),
+                turns=random.randint(1, self._max_turns),
+                prompt_tokens=random.randint(1, self._max_completion_tokens),
+                completion_tokens=random.randint(1, self._max_completion_tokens),
+                total_tokens=random.randint(1, self._max_completion_tokens),
                 timestamp=datetime.now(),
             )
             return report
-        # TODO
+        # Initial messages
         messages = [
             {"role": "system", "content": self._create_system_prompt()},
             {"role": "user", "content": self._create_user_prompt(path)},
         ]
-        for turn in range(self._max_turns):
+        # Conversation turns
+        for turn in range(1, self._max_turns + 1):
+            # User cancellation
             if self.cancelled:
-                break
-            # TODO: Send messages
-            self._send_messages(client, messages)
+                log.debug(self.tag, f"Cancel conversation in turn {turn:d}")
+                return None
+            # Send messages and receive response
+            response = self._send_messages(client, messages)
+            if not response:
+                log.error(
+                    self.tag, f"No response received in conversation turn {turn:d}"
+                )
+                return None
+            log.debug(self.tag, f"Received response in conversation turn {turn:d}")
+            # Add response to conversation messages
+            messages.append(
+                {
+                    "role": response.role,
+                    "content": response.content,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": tool_call.type,
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments,
+                            },
+                        }
+                        for tool_call in response.tool_calls
+                    ],
+                }
+            )
+            # TODO: Execute tool calls
+            self._execute_tool_calls(response.tool_calls)
             break
         return
 

@@ -1,6 +1,9 @@
+from dataclasses import dataclass
 from datetime import datetime
 from mole.models import IndexedLabeledEnum
 from pydantic import BaseModel
+from typing import Dict, List, Optional
+import enum
 
 
 class SeverityLevel(IndexedLabeledEnum):
@@ -52,3 +55,112 @@ class AiVulnerabilityReport(VulnerabilityReport):
         if data["timestamp"] is not None:
             data["timestamp"] = data["timestamp"].isoformat()
         return data
+
+
+class ILType(str, enum.Enum):
+    PSEUDO_C = "Pseudo_C"
+    HLIL = "HLIL"
+    MLIL = "MLIL"
+
+
+@dataclass
+class ToolParameter:
+    name: str
+    type: str
+    description: str
+    enum: Optional[List[str]] = None
+
+
+@dataclass
+class ToolFunction:
+    name: str
+    description: str
+    parameters: List[ToolParameter]
+    required: List[str]
+
+    def to_dict(self) -> Dict:
+        properties = {}
+        for parameter in self.parameters:
+            parameter_dict = {
+                "type": parameter.type,
+                "description": parameter.description,
+            }
+            if parameter.enum:
+                parameter_dict["enum"] = parameter.enum
+            properties[parameter.name] = parameter_dict
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": self.required,
+                },
+            },
+        }
+
+
+tools: Dict[str, ToolFunction] = {
+    "get_function_containing_address": ToolFunction(
+        name="get_function_containing_address",
+        description="Retrieve the decompiled code of the function that contains a specific address.",
+        parameters=[
+            ToolParameter(
+                name="address",
+                type="string",
+                description="The address (hexadecimal string, e.g., '0x408f20') located within the target function.",
+            ),
+            ToolParameter(
+                name="il_type",
+                type="string",
+                description="The desired Intermediate Language (IL) for decompilation.",
+                enum=[il.value for il in ILType],
+            ),
+        ],
+        required=["address", "il_type"],
+    ),
+    "get_function_by_name": ToolFunction(
+        name="get_function_by_name",
+        description="Retrieve the decompiled code of a function specified by its name.",
+        parameters=[
+            ToolParameter(
+                name="name",
+                type="string",
+                description="The exact name of the function to retrieve.",
+            ),
+            ToolParameter(
+                name="il_type",
+                type="string",
+                description="The desired Intermediate Language (IL) for decompilation.",
+                enum=[il.value for il in ILType],
+            ),
+        ],
+        required=["name", "il_type"],
+    ),
+    "get_callers_by_address": ToolFunction(
+        name="get_callers_by_address",
+        description="List all functions that call the function containing a specific address.",
+        parameters=[
+            ToolParameter(
+                name="address",
+                type="string",
+                description="The address (hexadecimal string, e.g., '0x409fd4') within the function whose callers are needed.",
+            )
+        ],
+        required=["address"],
+    ),
+    "get_callers_by_name": ToolFunction(
+        name="get_callers_by_name",
+        description="List all functions that call the function specified by its name.",
+        parameters=[
+            ToolParameter(
+                name="name",
+                type="string",
+                description="The exact name of the function whose callers are needed.",
+            )
+        ],
+        required=["name"],
+    ),
+}
