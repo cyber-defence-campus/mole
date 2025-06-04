@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 from mole.models import IndexedLabeledEnum
+from mole.common.help import FunctionHelper
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 import enum
 
 
@@ -77,6 +78,7 @@ class ToolFunction:
     description: str
     parameters: List[ToolParameter]
     required: List[str]
+    handler: Optional[Callable[..., Any]] = None
 
     def to_dict(self) -> Dict:
         properties = {}
@@ -108,9 +110,9 @@ tools: Dict[str, ToolFunction] = {
         description="Retrieve the decompiled code of the function that contains a specific address.",
         parameters=[
             ToolParameter(
-                name="address",
+                name="addr",
                 type="string",
-                description="The address (hexadecimal string, e.g., '0x408f20') located within the target function.",
+                description="The address (hexadecimal string, e.g. '0x408f20') located within the target function.",
             ),
             ToolParameter(
                 name="il_type",
@@ -119,7 +121,8 @@ tools: Dict[str, ToolFunction] = {
                 enum=[il.value for il in ILType],
             ),
         ],
-        required=["address", "il_type"],
+        required=["addr", "il_type"],
+        handler=FunctionHelper.get_function_containing_address,
     ),
     "get_function_by_name": ToolFunction(
         name="get_function_by_name",

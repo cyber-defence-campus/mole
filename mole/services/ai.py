@@ -22,7 +22,7 @@ from openai.types.chat import (
 )
 from pprint import pformat
 from types import SimpleNamespace
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 import binaryninja as bn
 import json
 import os
@@ -147,61 +147,6 @@ class BackgroundAiService(BackgroundTask):
         prompt += "\n"
         return prompt
 
-    # def _send_messages(
-    #     self, client: OpenAI, messages: Iterable[ChatCompletionMessageParam]
-    # ) -> Optional[SimpleNamespace]:
-    #     """
-    #     This method sends the given messages to the OpenAI client and returns the response.
-    #     """
-    #     response = None
-    #     try:
-    #         # Send messages and receive completion
-    #         completion = None
-    #         with client.beta.chat.completions.stream(
-    #             messages=messages,
-    #             model=self._model,
-    #             tools=self._tools,
-    #             max_completion_tokens=self._max_completion_tokens,
-    #             response_format=VulnerabilityReport,
-    #             stream_options={"include_usage": True},
-    #         ) as stream:
-    #             for chunk_cnt, _ in enumerate(stream):
-    #                 if self.cancelled:
-    #                     log.debug(
-    #                         self.tag, f"Cancel message streaming after {chunk_cnt:d} chunks"
-    #                     )
-    #                     return None
-    #                 chunk_cnt += 1
-    #             log.debug(
-    #                 self.tag, f"Message streaming finished after {chunk_cnt:d} chunks"
-    #             )
-    #             completion = stream.get_final_completion()
-    #         # Completion message
-    #         message = completion.choices[0].message
-    #         # Convert tool calls
-    #         tool_calls = []
-    #         for tool_call in message.tool_calls:
-    #             tool_calls.append(
-    #                 SimpleNamespace(
-    #                     id=tool_call.id,
-    #                     type=tool_call.type,
-    #                     function=SimpleNamespace(
-    #                         name=tool_call.function.name,
-    #                         arguments=tool_call.function.arguments,
-    #                     ),
-    #                 )
-    #             )
-    #         # Create response
-    #         response = SimpleNamespace(
-    #             role="assistant",
-    #             content=message.content if hasattr(message, "content") else None,
-    #             tool_calls=tool_calls if tool_calls else None,
-    #             parsed=message.parsed if hasattr(message, "parsed") else None,
-    #         )
-    #     except Exception as e:
-    #         log.error(self.tag, f"Failed to send messages: {str(e):s}")
-    #     return response
-
     def _send_messages(
         self, client: OpenAI, messages: Iterable[ChatCompletionMessageParam]
     ) -> Optional[ParsedChatCompletionMessage]:
@@ -238,17 +183,31 @@ class BackgroundAiService(BackgroundTask):
             log.error(self.tag, f"Failed to send messages: {str(e):s}")
         return message
 
-    def _execute_tool(self) -> None:
+    def _execute_tool_call(self, func_name: str, func_args: str) -> Any:
         """ """
-        return
+        result = None
+        try:
+            args = json.loads(func_args)
+            args["bv"] = self._bv
+            result = tools[func_name].handler(**args)
+        except Exception as e:
+            log.error(self.tag, f"TODO: {str(e):s}")
+        return result
 
-    def _execute_tool_calls(self, tool_calls: List[ParsedFunctionToolCall]) -> List:
-        """ """
+    def _execute_tool_calls(
+        self, tool_calls: List[ParsedFunctionToolCall]
+    ) -> List[Dict[str, str]]:
+        """
+        This method executes the given tool calls and returns the results.
+        """
         results = []
         for tool_call in tool_calls:
             try:
                 if tool_call.type == "function":
-                    content = "TODO"
+                    result = self._execute_tool_call(
+                        tool_call.function.name, tool_call.function.arguments
+                    )
+                    content = str(result)
                 else:
                     content = "Error: Unsupported tool call type"
             except Exception as e:
@@ -332,7 +291,8 @@ class BackgroundAiService(BackgroundTask):
                 }
             )
             # TODO: Execute tool calls
-            self._execute_tool_calls(response.tool_calls)
+            results = self._execute_tool_calls(response.tool_calls)
+            messages.extend(results)
             break
         return
 

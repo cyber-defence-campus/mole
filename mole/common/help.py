@@ -141,3 +141,10 @@ class FunctionHelper:
             for inst in mlil_func.instructions
         ]
         return header + "\n" + "\n".join(lines)
+
+    @staticmethod
+    def get_function_containing_address(
+        bv: bn.BinaryView, addr: str, il_type: str
+    ) -> None:
+        """ """
+        return
