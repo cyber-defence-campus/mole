@@ -28,8 +28,8 @@ def get_code_for_functions_containing(
     tag: str = None,
 ) -> str:
     """
-    This method returns code of functions containing `addr`, in the specified BNIL representation
-    `il_type`.
+    This method returns code of functions containing address `addr`, in the specified BNIL
+    representation `il_type`.
     """
     code = ""
     log.info(
@@ -44,11 +44,49 @@ def get_code_for_functions_containing(
             header = f"{il_type:s} code of function '{str(func):s}' containing address '0x{addr:x}':"
             code = get_il_code(func, il_type)
             func_code.append(header + "\n```" + code + "```\n")
-            log.debug(tag, f"Return {il_type:s} code of function '{str(func):s}'")
+            log.debug(
+                tag,
+                f"Return {il_type:s} code of function '0x{func.start:x}: {str(func):s}'",
+            )
         code = "\n".join(func_code)
     except Exception as e:
         log.error(
             tag,
             f"Failed to get {il_type:s} code of functions containing address '0x{addr:x}': {str(e):s}",
+        )
+    return code
+
+
+def get_functions_by_name(
+    bv: bn.BinaryView,
+    name: str,
+    il_type: str,
+    tag: str = None,
+) -> str:
+    """
+    This method returns code of functions with name `name`, in the specified BNIL representation
+    `il_type`.
+    """
+    code = ""
+    log.info(
+        tag,
+        f"Tool call 'get_functions_by_name(name={name:s}, il_type={il_type:s})'",
+    )
+    try:
+        il_type = il_type.upper()
+        func_code = []
+        for func in bv.get_functions_by_name(name):
+            header = f"{il_type:s} code of function '{str(func):s}':"
+            code = get_il_code(func, il_type)
+            func_code.append(header + "\n```" + code + "```\n")
+            log.debug(
+                tag,
+                f"Return {il_type:s} code of function '0x{func.start:x}: {str(func):s}'",
+            )
+        code = "\n".join(func_code)
+    except Exception as e:
+        log.error(
+            tag,
+            f"Failed to get {il_type:s} code of functions with name '{name:s}': {str(e):s}",
         )
     return code

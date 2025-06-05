@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from mole.models import IndexedLabeledEnum
-from mole.core.ai import get_code_for_functions_containing
+from mole.core.ai import get_code_for_functions_containing, get_functions_by_name
 from pydantic import BaseModel
 from typing import Any, Callable, Dict, List, Optional
 
@@ -118,24 +118,25 @@ tools: Dict[str, ToolFunction] = {
         required=["addr", "il_type"],
         handler=get_code_for_functions_containing,
     ),
-    # "get_function_by_name": ToolFunction(
-    #     name="get_function_by_name",
-    #     description="Retrieve the decompiled code of a function specified by its name.",
-    #     parameters=[
-    #         ToolParameter(
-    #             name="name",
-    #             type="string",
-    #             description="The exact name of the function to retrieve.",
-    #         ),
-    #         ToolParameter(
-    #             name="il_type",
-    #             type="string",
-    #             description="The desired Intermediate Language (IL) for decompilation.",
-    #             enum=["PSEUDO_C", "HLIL", "MLIL", "LLIL"],
-    #         ),
-    #     ],
-    #     required=["name", "il_type"],
-    # ),
+    "get_functions_by_name": ToolFunction(
+        name="get_functions_by_name",
+        description="Retrieve code of functions with the given name, in a desired Binary Ninja Intermediate Language (BNIL) representation.",
+        parameters=[
+            ToolParameter(
+                name="name",
+                type="string",
+                description="The name of the functions to retrieve",
+            ),
+            ToolParameter(
+                name="il_type",
+                type="string",
+                description="The desired BNIL representation",
+                enum=["PSEUDO_C", "HLIL", "MLIL", "LLIL"],
+            ),
+        ],
+        required=["name", "il_type"],
+        handler=get_functions_by_name,
+    ),
     # "get_callers_by_address": ToolFunction(
     #     name="get_callers_by_address",
     #     description="List all functions that call the function containing a specific address.",
