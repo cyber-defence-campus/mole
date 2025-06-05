@@ -2,7 +2,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from mole.models import IndexedLabeledEnum
-from mole.core.ai import get_code_for_functions_containing, get_functions_by_name
+from mole.core.ai import (
+    get_callers_by_address,
+    get_callers_by_name,
+    get_code_for_functions_containing,
+    get_code_for_functions_by_name,
+)
 from pydantic import BaseModel
 from typing import Any, Callable, Dict, List, Optional
 
@@ -118,8 +123,8 @@ tools: Dict[str, ToolFunction] = {
         required=["addr", "il_type"],
         handler=get_code_for_functions_containing,
     ),
-    "get_functions_by_name": ToolFunction(
-        name="get_functions_by_name",
+    "get_code_for_functions_by_name": ToolFunction(
+        name="get_code_for_functions_by_name",
         description="Retrieve code of functions with the given name, in a desired Binary Ninja Intermediate Language (BNIL) representation.",
         parameters=[
             ToolParameter(
@@ -135,30 +140,32 @@ tools: Dict[str, ToolFunction] = {
             ),
         ],
         required=["name", "il_type"],
-        handler=get_functions_by_name,
+        handler=get_code_for_functions_by_name,
     ),
-    # "get_callers_by_address": ToolFunction(
-    #     name="get_callers_by_address",
-    #     description="List all functions that call the function containing a specific address.",
-    #     parameters=[
-    #         ToolParameter(
-    #             name="address",
-    #             type="string",
-    #             description="The address (hexadecimal string, e.g., '0x409fd4') within the function whose callers are needed.",
-    #         )
-    #     ],
-    #     required=["address"],
-    # ),
-    # "get_callers_by_name": ToolFunction(
-    #     name="get_callers_by_name",
-    #     description="List all functions that call the function specified by its name.",
-    #     parameters=[
-    #         ToolParameter(
-    #             name="name",
-    #             type="string",
-    #             description="The exact name of the function whose callers are needed.",
-    #         )
-    #     ],
-    #     required=["name"],
-    # ),
+    "get_callers_by_address": ToolFunction(
+        name="get_callers_by_address",
+        description="Retrieve all functions that call the function containing the specified address.",
+        parameters=[
+            ToolParameter(
+                name="addr",
+                type="string",
+                description="The address (e.g. '0x409fd4') within the function whose callers are needed",
+            )
+        ],
+        required=["addr"],
+        handler=get_callers_by_address,
+    ),
+    "get_callers_by_name": ToolFunction(
+        name="get_callers_by_name",
+        description="Retrieve all functions that call the function with the given name.",
+        parameters=[
+            ToolParameter(
+                name="name",
+                type="string",
+                description="The name of the function whose callers are needed",
+            )
+        ],
+        required=["name"],
+        handler=get_callers_by_name,
+    ),
 }
