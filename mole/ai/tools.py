@@ -121,7 +121,7 @@ def get_code_content(func: Function, il_type: str) -> str:
     elif il_type == "HLIL":
         return get_hlil_code(func) or ""
     elif il_type == "MLIL":
-        return FunctionHelper.get_mlil_code(func)
+        return FunctionHelper.get_il_code(func)
 
     # Consider adding logging or raising an error for invalid il_type
     return ""

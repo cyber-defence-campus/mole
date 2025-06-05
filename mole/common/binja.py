@@ -50,17 +50,17 @@ def get_hlil_code(func: Function) -> Optional[str]:
     return "\n".join([proto] + lines_with_addresses)
 
 
-# def get_mlil_code(func: Function) -> Optional[str]:
-#     """
-#     Get the MLIL code representation of a function with addresses.
-#     """
-#     mlil = func.mlil
-#     if mlil is None:
-#         return None
-#     header = f"{func.start:x} | {str(func)}"
-#     # Get lines with their addresses and symbolized instructions
-#     lines = [
-#         f"{insn.address:x}: {''.join(str(t) for t in insn.tokens)}"
-#         for insn in mlil.instructions
-#     ]
-#     return header + "\n" + "\n".join(lines)
+def get_mlil_code(func: Function) -> Optional[str]:
+    """
+    Get the MLIL code representation of a function with addresses.
+    """
+    mlil = func.mlil
+    if mlil is None:
+        return None
+    header = f"{func.start:x} | {str(func)}"
+    # Get lines with their addresses and symbolized instructions
+    lines = [
+        f"{insn.address:x}: {''.join(str(t) for t in insn.tokens)}"
+        for insn in mlil.instructions
+    ]
+    return header + "\n" + "\n".join(lines)

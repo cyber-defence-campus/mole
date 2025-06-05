@@ -3,7 +3,7 @@ from mole.controllers.config import ConfigController
 from mole.core.data import Path
 from mole.models.ai import AiVulnerabilityReport
 from mole.views.ai import AiView
-from mole.services.ai import AiService, BackgroundAiService, NewAiService
+from mole.services.ai import AiService
 from typing import Callable, List, Tuple
 import binaryninja as bn
 
@@ -11,14 +11,14 @@ import binaryninja as bn
 tag = "Mole.AI"
 
 
-class NewAiController:
+class AiController:
     """
     This class implements a controller to analyze paths using AI.
     """
 
     def __init__(
         self,
-        ai_service: NewAiService,
+        # ai_service: NewAiService,
         ai_view: AiView,
         config_ctr: ConfigController,
     ) -> None:
@@ -26,7 +26,7 @@ class NewAiController:
         This method initializes the AI controller.
         """
         # Initialization
-        self.ai_service = ai_service
+        # self.ai_service = ai_service
         self.ai_view = ai_view.init(self)
         self.config_ctr = config_ctr
         return
@@ -36,7 +36,7 @@ class NewAiController:
         bv: bn.BinaryView,
         paths: List[Tuple[int, Path]],
         analyzed_path: Callable[[int, AiVulnerabilityReport], None],
-    ) -> BackgroundAiService:
+    ) -> AiService:
         """
         This method starts a service that analyzes each path using AI.
         """
@@ -70,7 +70,7 @@ class NewAiController:
         if max_completion_tokens_setting:
             max_completion_tokens = int(max_completion_tokens_setting.value)
         # Initialize and start AI service
-        ai_service = BackgroundAiService(
+        ai_service = AiService(
             bv=bv,
             paths=paths,
             analyzed_path=analyzed_path,
@@ -88,33 +88,33 @@ class NewAiController:
         return ai_service
 
 
-class AiController:
-    """
-    This class implements a controller to analyze paths using AI.
-    """
+# class AiController:
+#     """
+#     This class implements a controller to analyze paths using AI.
+#     """
 
-    def __init__(
-        self, ai_service: AiService, ai_view: AiView, config_ctr: ConfigController
-    ) -> None:
-        """
-        This method initializes the AI controller.
-        """
-        # Initialization
-        self.ai_service = ai_service
-        self.ai_view = ai_view
-        self.ai_view.init(self)
-        return
+#     def __init__(
+#         self, ai_service: AiService, ai_view: AiView, config_ctr: ConfigController
+#     ) -> None:
+#         """
+#         This method initializes the AI controller.
+#         """
+#         # Initialization
+#         self.ai_service = ai_service
+#         self.ai_view = ai_view
+#         self.ai_view.init(self)
+#         return
 
-    def show_report(self, path_id: int, result: AiVulnerabilityReport) -> None:
-        """
-        TODO: This method shows an AI analysis result in the view.
-        """
-        self.ai_view.show_report(path_id, result)
-        return
+#     def show_report(self, path_id: int, result: AiVulnerabilityReport) -> None:
+#         """
+#         TODO: This method shows an AI analysis result in the view.
+#         """
+#         self.ai_view.show_report(path_id, result)
+#         return
 
-    def clear_result(self) -> None:
-        """
-        TODO: This method clears the current result from the view.
-        """
-        self.ai_view.clear_report()
-        return
+#     def clear_result(self) -> None:
+#         """
+#         TODO: This method clears the current result from the view.
+#         """
+#         self.ai_view.clear_report()
+#         return

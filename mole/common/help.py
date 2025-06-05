@@ -128,23 +128,27 @@ class FunctionHelper:
         return info
 
     @staticmethod
-    def get_mlil_code(func: bn.Function) -> str:
+    def get_il_code(
+        func: bn.HighLevelILFunction | bn.MediumLevelILFunction | bn.LowLevelILFunction,
+    ) -> str:
         """
-        This method returns a MLIL code representation of the function `func`.
+        This method returns an IL code representation of the function `func`.
         """
-        mlil_func = func.mlil
-        if mlil_func is None:
+        if not func:
             return ""
-        header = f"0x{func.start:x} | {str(func):s}"
-        lines = [
-            f"0x{inst.address:x}: {''.join(str(token) for token in inst.tokens):s}"
-            for inst in mlil_func.instructions
+        code_lines = [
+            f"0x{inst.address:x}: {str(inst):s}" for inst in func.instructions
         ]
-        return header + "\n" + "\n".join(lines)
+        return "\n".join(code_lines)
 
     @staticmethod
-    def get_function_containing_address(
-        bv: bn.BinaryView, addr: str, il_type: str
-    ) -> None:
-        """ """
-        return
+    def get_pseudo_c_code(func: bn.Function) -> str:
+        """
+        This method returns the pseudo C code of the function `func`.
+        """
+        if not func or func.pseudo_c_if_available is None:
+            return ""
+        code_lines = []
+        for code_line in func.pseudo_c_if_available.get_linear_lines(func.hlil.root):
+            code_lines.append(f"0x{code_line.address:x}: {str(code_line):s}")
+        return "\n".join(code_lines)

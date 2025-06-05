@@ -2,7 +2,7 @@ from __future__ import annotations
 from mole.common.help import InstructionHelper
 from mole.common.log import log
 from mole.common.task import BackgroundTask
-from mole.controllers.ai import NewAiController
+from mole.controllers.ai import AiController
 from mole.controllers.config import ConfigController
 from mole.core.data import Path
 from mole.services.path import PathService
@@ -30,7 +30,7 @@ class PathController:
     """
 
     def __init__(
-        self, path_view: PathView, config_ctr: ConfigController, ai_ctr: NewAiController
+        self, path_view: PathView, config_ctr: ConfigController, ai_ctr: AiController
     ) -> None:
         """
         This method initializes a controller (MVC pattern).
