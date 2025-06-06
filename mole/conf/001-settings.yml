@@ -65,7 +65,7 @@ settings:
     name: max_turns
     help: maximum number of turns in a conversation with the AI
     value: 10
-    min_value: 1
+    min_value: 2
     max_value: 256
   max_completion_tokens:
     name: max_completion_tokens

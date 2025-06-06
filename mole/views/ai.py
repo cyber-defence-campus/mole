@@ -75,10 +75,10 @@ class AiView(qtw.QWidget):
         info_lay = qtw.QGridLayout()
         info_lay.addWidget(qtw.QLabel("Model:"), 0, 0)
         info_lay.addWidget(self._model_lbl, 0, 1)
-        info_lay.addWidget(qtw.QLabel("Tool Calls:"), 1, 0)
-        info_lay.addWidget(self._tool_calls_lbl, 1, 1)
-        info_lay.addWidget(qtw.QLabel("Conversation Turns:"), 2, 0)
-        info_lay.addWidget(self._turns, 2, 1)
+        info_lay.addWidget(qtw.QLabel("Conversation Turns:"), 1, 0)
+        info_lay.addWidget(self._turns, 1, 1)
+        info_lay.addWidget(qtw.QLabel("Tool Calls:"), 2, 0)
+        info_lay.addWidget(self._tool_calls_lbl, 2, 1)
         info_lay.addWidget(qtw.QLabel("Token Usage:"), 3, 0)
         info_lay.addWidget(self._token_usage_lbl, 3, 1)
         info_lay.addWidget(qtw.QLabel("Timestamp:"), 4, 0)
@@ -119,16 +119,15 @@ class AiView(qtw.QWidget):
         self.setLayout(main_lay)
         return self
 
-    def show_report(self, path_id: int, report: AiVulnerabilityReport) -> None:
+    def show_report(self, report: AiVulnerabilityReport) -> None:
         """
-        This method displays an AI-generated vulnerability report.
+        This method shows AI-generated `report` in the AI view.
         """
         warning_txt = "--- WARNING ---\n"
         warning_txt += "This report has been identified as a FALSE POSITIVE. Its severity and related details might be inaccurate.\n"
         warning_txt += "---------------\n\n"
         # Summary
-        self._path_id_lbl.setText(str(path_id))
-        self._vuln_type_lbl.setText(report.vulnerabilityClass.label)
+        self._path_id_lbl.setText(str(report.path_id))
         self._true_positive_lbl.setText("Yes" if report.truePositive else "No")
         self._true_positive_lbl.setStyleSheet(
             "color: red;" if report.truePositive else "color: green;"
@@ -143,6 +142,7 @@ class AiView(qtw.QWidget):
                 self._severity_lbl.setStyleSheet("color: yellow;")
             case _:
                 self._severity_lbl.setStyleSheet("color: green;")
+        self._vuln_type_lbl.setText(report.vulnerabilityClass.label)
         # Explanation
         msg_txt = report.shortExplanation
         if not report.truePositive:

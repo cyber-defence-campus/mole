@@ -21,7 +21,7 @@ class PathView(bnui.SidebarWidget):
     signal_load_paths = qtc.Signal()
     signal_save_paths = qtc.Signal()
     signal_setup_path_tree = qtc.Signal(object, object, object)
-    signal_show_ai_result = qtc.Signal(int)
+    # signal_show_ai_report = qtc.Signal(int)
 
     def __init__(self) -> None:
         """

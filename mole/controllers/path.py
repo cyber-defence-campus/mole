@@ -51,7 +51,7 @@ class PathController:
         self.connect_signal_load_paths(self.load_paths)
         self.connect_signal_save_paths(self.save_paths)
         self.connect_signal_setup_paths_tree(self.setup_path_tree)
-        self.connect_signal_show_ai_report(self.show_ai_report)
+        # self.connect_signal_show_ai_report(self.show_ai_report)
         self.config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
         return
 
@@ -83,13 +83,13 @@ class PathController:
         self.path_view.signal_setup_path_tree.connect(slot)
         return
 
-    def connect_signal_show_ai_report(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when AI reports should be
-        shown.
-        """
-        self.path_view.signal_show_ai_result.connect(slot)
-        return
+    # def connect_signal_show_ai_report(self, slot: object) -> None:
+    #     """
+    #     This method allows connecting to the signal that is triggered when AI reports should be
+    #     shown.
+    #     """
+    #     self.path_view.signal_show_ai_report.connect(slot)
+    #     return
 
     def _change_path_grouping(self, new_strategy: str) -> None:
         """
@@ -712,7 +712,7 @@ class PathController:
 
     def show_ai_report(self, path_ids: List[int]) -> None:
         """
-        TODO: This method shows the AI-generated vulnerability report of a path.
+        This method shows the AI-generated vulnerability report of a path.
         """
         # Detect newly attached debuggers
         log.find_attached_debugger()
@@ -722,17 +722,17 @@ class PathController:
         # Ensure expected number of selected paths
         if len(path_ids) != 1:
             return
-        # Show AI-generated report of selected path
+        # Get selected path
         path = self.path_tree_view.get_path(path_ids[0])
         if not path:
             return
-        if not path.ai_report:
-            self.ai_ctr.clear_result()
-            log.warn(tag, f"AI-generated report for path #{path_ids[0]:d} not found")
-            return
-        # TODO: Cleanup
-        self.ai_ctr.show_report(path_ids[0], path.ai_report)
-        self.path_view.show_ai_report_tab()
+        # Show the path's AI-generated report if available
+        if path.ai_report:
+            self.ai_ctr.show_report(path.ai_report)
+            self.path_view.show_ai_report_tab()
+        else:
+            self.ai_ctr.clear_report()
+            log.warn(tag, f"No AI-generated report available for path #{path_ids[0]:d}")
         return
 
     def remove_selected_paths(self, path_ids: List[int]) -> None:
@@ -785,11 +785,9 @@ class PathController:
             on_remove_selected=self.remove_selected_paths,
             on_clear_all=self.clear_all_paths,
             on_analyze_paths=self.analyze_paths,
-            # is_ai_enabled=self.ai_ctr.is_ai_configured,
             on_show_ai_report=self.show_ai_report,
             bv=bv,
         )
-        # ptv.signal_show_ai_details.connect(self.show_ai_report)
         # Set up navigation
         ptv.setup_navigation(bv)
         # Expand all nodes by default

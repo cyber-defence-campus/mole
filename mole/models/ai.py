@@ -48,8 +48,8 @@ class VulnerabilityReport(BaseModel):
 class AiVulnerabilityReport(VulnerabilityReport):
     path_id: int
     model: str
-    tool_calls: int
     turns: int
+    tool_calls: int
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0

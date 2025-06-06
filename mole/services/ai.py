@@ -10,6 +10,7 @@ from mole.models.ai import (
     SeverityLevel,
     tools,
     VulnerabilityClass,
+    VulnerabilityReport,
 )
 from openai import OpenAI
 from openai.types.chat import (
@@ -139,7 +140,10 @@ class AiService(BackgroundTask):
         return prompt
 
     def _send_messages(
-        self, client: OpenAI, messages: Iterable[ChatCompletionMessageParam]
+        self,
+        client: OpenAI,
+        messages: Iterable[ChatCompletionMessageParam],
+        token_usage: Dict[str, int],
     ) -> Optional[ParsedChatCompletionMessage]:
         """
         This method sends the given messages to the OpenAI client and returns the completion
@@ -154,7 +158,7 @@ class AiService(BackgroundTask):
                 model=self._model,
                 tools=self._tools,
                 max_completion_tokens=self._max_completion_tokens,
-                response_format=AiVulnerabilityReport,
+                response_format=VulnerabilityReport,
                 stream_options={"include_usage": True},
             ) as stream:
                 for chunk_cnt, _ in enumerate(stream):
@@ -170,6 +174,10 @@ class AiService(BackgroundTask):
                 )
                 completion = stream.get_final_completion()
             message = completion.choices[0].message
+            if completion.usage:
+                token_usage["prompt_tokens"] += completion.usage.prompt_tokens
+                token_usage["completion_tokens"] += completion.usage.completion_tokens
+                token_usage["total_tokens"] += completion.usage.total_tokens
         except Exception as e:
             log.error(self.tag, f"Failed to send messages: {str(e):s}")
         return message
@@ -229,83 +237,104 @@ class AiService(BackgroundTask):
         self.tag = f"{tag:s}] [Path:{path_id:d}"
         # Create OpenAI client
         client = self._create_openai_client()
-        # Mock mode if no OpenAI client available
+        # No OpenAI client available (mock mode)
         if client is None:
             log.warn(self.tag, "Running in mock mode since no OpenAI client available")
-            report = AiVulnerabilityReport(
+            vuln_report = AiVulnerabilityReport(
                 truePositive=random.choice([True, True, True, False]),
                 vulnerabilityClass=random.choice(list(VulnerabilityClass)),
                 shortExplanation="Mock mode simulates a potential vulnerability.",
                 severityLevel=random.choice(list(SeverityLevel)),
                 inputExample=f"0x{random.getrandbits(32):08x}",
-                path_id=random.randint(1, 1000),
+                path_id=path_id,
                 model="mock-mode",
-                tool_calls=random.randint(1, 5),
                 turns=random.randint(1, self._max_turns),
+                tool_calls=random.randint(1, self._max_turns * 2),
                 prompt_tokens=random.randint(1, self._max_completion_tokens),
                 completion_tokens=random.randint(1, self._max_completion_tokens),
                 total_tokens=random.randint(1, self._max_completion_tokens),
                 timestamp=datetime.now(),
             )
-            return report
-        # Initial messages
-        messages = [
-            {"role": "system", "content": self._create_system_prompt()},
-            {"role": "user", "content": self._create_user_prompt(path)},
-        ]
-        # Conversation turns
-        response = None
-        for turn in range(1, self._max_turns + 1):
-            # User cancellation
-            if self.cancelled:
-                log.warn(self.tag, f"Cancel conversation in turn {turn:d}")
-                return None
-            # Send messages and receive response
-            log.info(self.tag, f"Sending messages in conversation turn {turn:d}")
-            response = self._send_messages(client, messages)
-            if not response:
-                log.error(
-                    self.tag, f"No response received in conversation turn {turn:d}"
+        # OpenAI client available
+        else:
+            # Initial messages
+            messages = [
+                {"role": "system", "content": self._create_system_prompt()},
+                {"role": "user", "content": self._create_user_prompt(path)},
+            ]
+            # Conversation turns
+            response = None
+            cnt_tool_calls = 0
+            token_usage = {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            }
+            for turn in range(1, self._max_turns + 1):
+                # User cancellation
+                if self.cancelled:
+                    log.warn(self.tag, f"Cancel conversation in turn {turn:d}")
+                    return None
+                # Send messages and receive response
+                log.info(self.tag, f"Sending messages in conversation turn {turn:d}")
+                response = self._send_messages(client, messages, token_usage)
+                if not response:
+                    log.error(
+                        self.tag, f"No response received in conversation turn {turn:d}"
+                    )
+                    return None
+                log.info(self.tag, f"Received response in conversation turn {turn:d}")
+                # Add response to conversation messages
+                messages.append(
+                    {
+                        "role": response.role,
+                        "content": response.content,
+                        "tool_calls": [
+                            {
+                                "id": tool_call.id,
+                                "type": tool_call.type,
+                                "function": {
+                                    "name": tool_call.function.name,
+                                    "arguments": tool_call.function.arguments,
+                                },
+                            }
+                            for tool_call in response.tool_calls
+                        ]
+                        if response.tool_calls is not None
+                        else None,
+                    }
                 )
+                # Terminate conversation if no more tool calls requested
+                if not response.tool_calls:
+                    log.info(
+                        self.tag,
+                        f"Received final response in conversation turn {turn:d}",
+                    )
+                    break
+                # Execute tool calls and add results to the conversation messages
+                messages.extend(self._execute_tool_calls(response.tool_calls))
+                cnt_tool_calls += len(response.tool_calls)
+            # Return vulnerability report if final response is available
+            if not response or not response.parsed:
+                log.error(self.tag, "No vulnerability report received")
                 return None
-            log.info(self.tag, f"Received response in conversation turn {turn:d}")
-            # Add response to conversation messages
-            messages.append(
-                {
-                    "role": response.role,
-                    "content": response.content,
-                    "tool_calls": [
-                        {
-                            "id": tool_call.id,
-                            "type": tool_call.type,
-                            "function": {
-                                "name": tool_call.function.name,
-                                "arguments": tool_call.function.arguments,
-                            },
-                        }
-                        for tool_call in response.tool_calls
-                    ]
-                    if response.tool_calls is not None
-                    else None,
-                }
+            report: VulnerabilityReport = response.parsed
+            vuln_report = AiVulnerabilityReport(
+                path_id=path_id,
+                model=self._model,
+                turns=turn,
+                tool_calls=cnt_tool_calls,
+                prompt_tokens=token_usage["prompt_tokens"],
+                completion_tokens=token_usage["completion_tokens"],
+                total_tokens=token_usage["total_tokens"],
+                timestamp=datetime.now(),
+                **report.model_dump(),
             )
-            # Terminate conversation if no more tool calls requested
-            if not response.tool_calls:
-                log.info(
-                    self.tag, f"Received final response in conversation turn {turn:d}"
-                )
-                break
-            # Execute tool calls and add results to the conversation messages
-            messages.extend(self._execute_tool_calls(response.tool_calls))
-        # Return vulnerability report if final response is available
-        if not response:
-            log.error(self.tag, "No vulnerability report received")
-            return None
-        vuln_report: AiVulnerabilityReport = response.parsed
-        vuln_report_summary = textwrap.dedent(f"""Summary Vulnerability Report Path {path_id:d}:
+        # Return vulnerability report and log a summary
+        vuln_report_summary = textwrap.dedent(f"""Vulnerability Report Summary:
         - True Positive      : {"Yes" if vuln_report.truePositive else "No"}
-        - Severity Level     : {vuln_report.severityLevel.name:s}
-        - Vulnerability Class: {vuln_report.vulnerabilityClass.name:s}
+        - Severity Level     : {vuln_report.severityLevel.label:s}
+        - Vulnerability Class: {vuln_report.vulnerabilityClass.label:s}
         """)
         log.info(self.tag, vuln_report_summary)
         return vuln_report

@@ -87,34 +87,15 @@ class AiController:
         # Return AI service instance
         return ai_service
 
+    def show_report(self, report: AiVulnerabilityReport) -> None:
+        """
+        This method shows the AI-generated `report` in the AI view.
+        """
+        self.ai_view.show_report(report)
+        return
 
-# class AiController:
-#     """
-#     This class implements a controller to analyze paths using AI.
-#     """
-
-#     def __init__(
-#         self, ai_service: AiService, ai_view: AiView, config_ctr: ConfigController
-#     ) -> None:
-#         """
-#         This method initializes the AI controller.
-#         """
-#         # Initialization
-#         self.ai_service = ai_service
-#         self.ai_view = ai_view
-#         self.ai_view.init(self)
-#         return
-
-#     def show_report(self, path_id: int, result: AiVulnerabilityReport) -> None:
-#         """
-#         TODO: This method shows an AI analysis result in the view.
-#         """
-#         self.ai_view.show_report(path_id, result)
-#         return
-
-#     def clear_result(self) -> None:
-#         """
-#         TODO: This method clears the current result from the view.
-#         """
-#         self.ai_view.clear_report()
-#         return
+    def clear_report(self) -> None:
+        """
+        This method clear the current report from the AI view.
+        """
+        return self.ai_view.clear_report()
