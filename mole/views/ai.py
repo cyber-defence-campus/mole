@@ -125,7 +125,7 @@ class AiView(qtw.QWidget):
         """
         warning_txt = "--- WARNING ---\n"
         warning_txt += "This report has been identified as a FALSE POSITIVE. Its severity and related details might be inaccurate.\n"
-        warning_txt += "---------------\n\n"
+        warning_txt += "--------------\n\n"
         # Summary
         self._path_id_lbl.setText(str(report.path_id))
         self._true_positive_lbl.setText("Yes" if report.truePositive else "No")

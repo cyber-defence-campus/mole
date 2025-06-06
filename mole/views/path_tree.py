@@ -178,7 +178,6 @@ class PathTreeView(qtw.QTreeView):
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
         on_analyze_paths: Callable[[List[int]], None],
-        # is_ai_enabled: Callable[[], bool],
         on_show_ai_report: Callable[[List[int]], None],
         bv: bn.BinaryView = None,
     ) -> None:
@@ -234,8 +233,17 @@ class PathTreeView(qtw.QTreeView):
                 menu, "Run AI analysis", len(rows) >= 1
             )
             run_ai_analysis_action.triggered.connect(lambda: on_analyze_paths(rows))
+
+            def enable_show_ai_report(rows: List[int]) -> bool:
+                if len(rows) != 1:
+                    return False
+                path = self.path_tree_model.path_map.get(rows[0], None)
+                if path and path.ai_report:
+                    return True
+                return False
+
             show_ai_report_action = self._add_menu_action(
-                menu, "Show AI report", len(rows) == 1
+                menu, "Show AI report", enable_show_ai_report(rows)
             )
             show_ai_report_action.triggered.connect(lambda: on_show_ai_report(rows))
 
@@ -390,10 +398,6 @@ class PathTreeView(qtw.QTreeView):
                     PathColumn.SNK_PARM.index,
                 ]:
                     vf.navigate(bv, path.snk_sym_addr)
-                # TODO: Navigate to AI report
-                # elif col == PathColumns.AI_REPORT.data:
-                #     if path.ai_report is not None:
-                #         self.signal_show_ai_details.emit(path_id)
 
         # Disconnect existing navigation signals to prevent multiple connections
         if self._navigation_connected:
