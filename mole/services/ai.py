@@ -299,8 +299,16 @@ class AiService(BackgroundTask):
             messages.extend(self._execute_tool_calls(response.tool_calls))
         # Return vulnerability report if final response is available
         if not response:
+            log.error(self.tag, "No vulnerability report received")
             return None
-        return response.parsed
+        vuln_report: AiVulnerabilityReport = response.parsed
+        vuln_report_summary = textwrap.dedent(f"""Summary Vulnerability Report Path {path_id:d}:
+        - True Positive      : {"Yes" if vuln_report.truePositive else "No"}
+        - Severity Level     : {vuln_report.severityLevel.name:s}
+        - Vulnerability Class: {vuln_report.vulnerabilityClass.name:s}
+        """)
+        log.info(self.tag, vuln_report_summary)
+        return vuln_report
 
     def run(self) -> None:
         """
