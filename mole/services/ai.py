@@ -77,19 +77,33 @@ class AiService(BackgroundTask):
         return client
 
     def _create_system_prompt(self) -> str:
-        prompt = textwrap.dedent(f"""
-        You are an expert vulnerability research assistant specializing in sink-to-source analysis using Binary Ninja's MLIL SSA form. Your task is to evaluate potential vulnerability paths identified by static backward slicing.
+        vuln_class_lst = "\n".join(
+            f"   - `{vuln_class:s}`" for vuln_class in list(VulnerabilityClass)
+        )
+        sevr_level_lst = "\n".join(
+            f"   - `{sevr_level:s}`" for sevr_level in list(SeverityLevel)
+        )
+        tool_lst = "\n".join(f"- `{tool:s}`" for tool in tools.keys())
+        prompt = textwrap.dedent(
+            f"""You are a vulnerability research assistant specializing in static backward slicing of variables in Binary Ninja’s Medium Level Intermediate Language (MLIL) in Static Single Assignment (SSA) form. Your task is to determine whether a given slice corresponds to a real and exploitable vulnerability.
+        
+Perform the following steps:
+- **Understand the Path and Reachability**: Use `get_code_for_functions_containing` or `get_code_for_functions_by_name` to retrieve the relevant function(s). Examine the code surrounding the sliced instructions. For reachability, use `get_callers_by_address` or `get_callers_by_name` to analyze the calling context.
+- **Identify User-Controlled Variables**: Determine which variables in the slice are user-controlled. Trace their origin, propagation, and any transformations or sanitization.
+- **Validate the Path**: Assess whether the path is logically valid and reachable, and eliminate false positives based on control flow or infeasible data dependencies.
+- **Explain Your Findings**: Provide a concise and technically accurate explanation of whether and why the path constitutes a vulnerability.
+- **Classify the Vulnerability**: Choose from the following classes:
+{vuln_class_lst:s}
+- **Rate the Vulnerability**: Choose from the following severity levels:
+{sevr_level_lst:s}
+- **Craft an Example Input**: Provide a realistic input that could trigger the issue.
+                            
+Use the following tools to support your analysis:
+{tool_lst:s}
 
-        1. Analyze the Path Context and Reachability: Use tools (`get_function_containing_address`, `get_function_by_name`) to retrieve function code involved in the path. Examine instructions before and after the sliced instructions. Use caller analysis tools (`get_callers_by_address`, `get_callers_by_name`) to investigate reachability.
-        2. Identify User-Controlled Variables: Determine which variables are user-controlled, their origins, and any transformations or validations.
-        3. Validate the Path: Determine if the path is logically valid, reachable, and not a false positive.
-        4. Identify Vulnerability: If valid, identify the potential vulnerability type.
-        5. Explain Concisely: Provide a clear explanation of why the vulnerability exists.
-        6. Assess Severity: Assign a severity level (Critical, High, Medium, Low).
-        7. Craft Example Input: Create a realistic input example that could trigger the vulnerability.
-
-        Use the tools proactively to understand the code path and its upstream callers to provide a well-reasoned analysis, assess true reachability, and craft a plausible triggering input. You have a maximum of {self._max_turns} conversation turns to complete this analysis.
-        """)
+Be proactive in exploring upstream paths, analyzing data/control dependencies, and reasoning about practical exploitability. You have {str(self._max_turns):s} turns to complete your assessment.
+"""
+        )
         return prompt
 
     def _create_user_prompt(self, path: Path) -> str:
@@ -332,9 +346,9 @@ class AiService(BackgroundTask):
             )
         # Return vulnerability report and log a summary
         vuln_report_summary = textwrap.dedent(f"""Vulnerability Report Summary:
-        - True Positive      : {"Yes" if vuln_report.truePositive else "No"}
-        - Severity Level     : {vuln_report.severityLevel.label:s}
-        - Vulnerability Class: {vuln_report.vulnerabilityClass.label:s}
+        - True Positive     : {"Yes" if vuln_report.truePositive else "No"}
+        - Severity Level    : {vuln_report.severityLevel.label:s}
+        - Vulnerability Type: {vuln_report.vulnerabilityClass.label:s}
         """)
         log.info(self.tag, vuln_report_summary)
         return vuln_report
