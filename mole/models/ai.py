@@ -20,21 +20,33 @@ class SeverityLevel(IndexedLabeledEnum):
 
 
 class VulnerabilityClass(IndexedLabeledEnum):
-    OUT_OF_BOUNDS_READ = (1, "Out-of-Bounds Read")
-    OUT_OF_BOUNDS_WRITE = (2, "Out-of-Bounds Write")
-    BUFFER_OVERFLOW = (3, "Buffer Overflow")
-    INTEGER_OVERFLOW = (4, "Integer Overflow")
-    NULL_POINTER_DEREFERENCE = (5, "Null Pointer Dereference")
-    USE_AFTER_FREE = (6, "Use-After-Free")
-    COMMAND_INJECTION = (7, "Command Injection")
-    SQL_INJECTION = (8, "SQL Injection")
-    CROSS_SITE_SCRIPTING = (9, "Cross-Site Scripting (XSS)")
-    CROSS_SITE_REQUEST_FORGERY = (10, "Cross-Site Request Forgery (CSRF)")
-    DIRECTORY_TRAVERSAL = (11, "Directory Traversal")
-    FILE_INCLUSION = (12, "File Inclusion")
-    RESOURCE_LEAK = (13, "Resource Leak")
-    INFORMATION_DISCLOSURE = (14, "Information Disclosure")
-    OTHER = (15, "Other")
+    OUT_OF_BOUNDS_READ_WRITE = (
+        1,
+        "Out-of-Bounds Read / Write (CWE-119, CWE-125, CWE-787)",
+    )
+    BUFFER_OVERFLOW = (2, "Buffer Overflow (CWE-120, CWE-121, CWE-122)")
+    INTEGER_OVERFLOW_UNDERFLOW = (3, "Integer Overflow / Underflow (CWE-190, CWE-191)")
+    USE_AFTER_FREE = (4, "Use-After-Free / Dangling Pointer (CWE-416)")
+    DOUBLE_FREE = (5, "Double Free / Invalid Free (CWE-415)")
+    NULL_POINTER_DEREFERENCE = (6, "Null Pointer Dereference (CWE-476)")
+    UNINITIALIZED_MEMORY_ACCESS = (7, "Uninitialized Memory Access (CWE-457)")
+    MEMORY_LEAK = (8, "Memory Leak / Resource Leak (CWE-401)")
+    COMMAND_CODE_INJECTION = (
+        9,
+        "Command Injection / Arbitrary Code Execution (CWE-77, CWE-94)",
+    )
+    RACE_CONDITION = (10, "Race Condition (CWE-362)")
+    IMPROPER_ACCESS_CONTROL = (
+        11,
+        "Improper Access Control / Privilege Escalation (CWE-284)",
+    )
+    IMPROPER_INPUT_VALIDATION = (12, "Improper Input Validation (CWE-20)")
+    INSECURE_PATH_FILE_ACCESS = (
+        13,
+        "Path Traversal / Insecure File Access (CWE-22, CWE-73)",
+    )
+    INFORMATION_DISCLOSURE = (14, "Information Disclosure / Insecure Storage (CWE-200)")
+    OTHER = (15, "Other / Unknown")
 
 
 class VulnerabilityReport(BaseModel):
