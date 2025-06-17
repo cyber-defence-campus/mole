@@ -1,7 +1,6 @@
 from __future__ import annotations
 from mole.models.ai import AiVulnerabilityReport
 from typing import Optional, TYPE_CHECKING
-import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
@@ -19,7 +18,6 @@ class AiView(qtw.QWidget):
         """
         super().__init__()
         self.ai_ctr: Optional[AiController] = None
-        self._stack_wid: Optional[qtw.QStackedWidget] = None
         self._path_id_lbl: qtw.QLabel = qtw.QLabel("")
         self._vuln_type_lbl: qtw.QLabel = qtw.QLabel("")
         self._true_positive_lbl: qtw.QLabel = qtw.QLabel("")
@@ -102,20 +100,12 @@ class AiView(qtw.QWidget):
         report_wid = qtw.QWidget()
         report_wid.setLayout(report_lay)
         # Widget to display when a result is available
-        result_wid = qtw.QScrollArea()
-        result_wid.setWidgetResizable(True)
-        result_wid.setWidget(report_wid)
-        # Widget to display when no result is available
-        no_result_wid = qtw.QLabel("No AI-generated vulnerability report available.")
-        no_result_wid.setAlignment(qtc.Qt.AlignCenter)
-        # Widget to switch based on result availability
-        self._stack_wid = qtw.QStackedWidget()
-        self._stack_wid.addWidget(no_result_wid)
-        self._stack_wid.addWidget(result_wid)
-        self._stack_wid.setCurrentIndex(0)
+        scr_wid = qtw.QScrollArea()
+        scr_wid.setWidgetResizable(True)
+        scr_wid.setWidget(report_wid)
         # Main layout
         main_lay = qtw.QVBoxLayout()
-        main_lay.addWidget(self._stack_wid)
+        main_lay.addWidget(scr_wid)
         self.setLayout(main_lay)
         return self
 
@@ -166,13 +156,4 @@ class AiView(qtw.QWidget):
         else:
             timestamp_txt = "N/A"
         self._timestamp_lbl.setText(timestamp_txt)
-        # Switch to the report available widget
-        self._stack_wid.setCurrentIndex(1)
-        return
-
-    def clear_report(self) -> None:
-        """
-        This method switches to the no report available widget.
-        """
-        self._stack_wid.setCurrentIndex(0)
         return

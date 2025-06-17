@@ -18,7 +18,6 @@ class AiController:
 
     def __init__(
         self,
-        # ai_service: NewAiService,
         ai_view: AiView,
         config_ctr: ConfigController,
     ) -> None:
@@ -26,7 +25,6 @@ class AiController:
         This method initializes the AI controller.
         """
         # Initialization
-        # self.ai_service = ai_service
         self.ai_view = ai_view.init(self)
         self.config_ctr = config_ctr
         return
@@ -93,9 +91,3 @@ class AiController:
         """
         self.ai_view.show_report(report)
         return
-
-    def clear_report(self) -> None:
-        """
-        This method clear the current report from the AI view.
-        """
-        return self.ai_view.clear_report()

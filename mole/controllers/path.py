@@ -730,9 +730,6 @@ class PathController:
         if path.ai_report:
             self.ai_ctr.show_report(path.ai_report)
             self.path_view.show_ai_report_tab()
-        else:
-            self.ai_ctr.clear_report()
-            log.warn(tag, f"No AI-generated report available for path #{path_ids[0]:d}")
         return
 
     def remove_selected_paths(self, path_ids: List[int]) -> None:
