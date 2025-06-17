@@ -677,7 +677,7 @@ class Path:
         insts: List[Tuple[int, int]] = []
         for inst in self.insts:
             insts.append((hex(inst.function.source_function.start), inst.expr_index))
-        d = {
+        return {
             "src_sym_addr": hex(self.src_sym_addr),
             "src_sym_name": self.src_sym_name,
             "src_par_idx": self.src_par_idx,
@@ -689,14 +689,8 @@ class Path:
             "call_graph": self.call_graph.to_dict(),
             "comment": self.comment,
             "sha1_hash": self.sha1_hash,
+            "ai_report": self.ai_report.to_dict() if self.ai_report else None,
         }
-        if self.ai_report:
-            d["ai_report"] = (
-                self.ai_report.model_dump()
-                if hasattr(self.ai_report, "model_dump")
-                else self.ai_report.dict()
-            )
-        return d
 
     @classmethod
     def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Optional[Path]:
@@ -714,9 +708,6 @@ class Path:
             src_par_var = None
         snk_par_idx = d["snk_par_idx"]
         snk_par_var = insts[0].params[snk_par_idx - 1]
-        ai_report = None
-        if "ai_report" in d and d["ai_report"]:
-            ai_report = AiVulnerabilityReport(**d["ai_report"])
         path: Path = cls(
             src_sym_addr=int(d["src_sym_addr"], 0),
             src_sym_name=d["src_sym_name"],
@@ -730,7 +721,9 @@ class Path:
             insts=insts,
             comment=d["comment"],
             sha1_hash=d["sha1_hash"],
-            ai_report=ai_report,
+            ai_report=AiVulnerabilityReport(**d["ai_report"])
+            if d["ai_report"]
+            else None,
         )
         path.init(MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"]))
         return path

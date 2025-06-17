@@ -30,7 +30,7 @@ class VulnerabilityClass(IndexedLabeledEnum):
     DOUBLE_FREE = (5, "Double Free / Invalid Free (CWE-415)")
     NULL_POINTER_DEREFERENCE = (6, "Null Pointer Dereference (CWE-476)")
     UNINITIALIZED_MEMORY_ACCESS = (7, "Uninitialized Memory Access (CWE-457)")
-    MEMORY_LEAK = (8, "Memory Leak / Resource Leak (CWE-401)")
+    MEMORY_RESOURCE_LEAK = (8, "Memory / Resource Leak (CWE-401)")
     COMMAND_CODE_INJECTION = (
         9,
         "Command Injection / Arbitrary Code Execution (CWE-77, CWE-94)",
@@ -56,23 +56,41 @@ class VulnerabilityReport(BaseModel):
     severityLevel: SeverityLevel
     inputExample: str
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "truePositive": self.truePositive,
+            "vulnerabilityClass": self.vulnerabilityClass.index,
+            "shortExplanation": self.shortExplanation,
+            "severityLevel": self.severityLevel.index,
+            "inputExample": self.inputExample,
+        }
+
 
 class AiVulnerabilityReport(VulnerabilityReport):
     path_id: int
     model: str
     turns: int
     tool_calls: int
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
-    timestamp: datetime = None
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    timestamp: datetime
 
-    def model_dump(self):
-        data = super().model_dump()
-        # Convert datetime to ISO format string if it exists
-        if data["timestamp"] is not None:
-            data["timestamp"] = data["timestamp"].isoformat()
-        return data
+    def to_dict(self) -> Dict[str, Any]:
+        d = super().to_dict()
+        d.update(
+            {
+                "path_id": self.path_id,
+                "model": self.model,
+                "turns": self.turns,
+                "tool_calls": self.tool_calls,
+                "prompt_tokens": self.prompt_tokens,
+                "completion_tokens": self.completion_tokens,
+                "total_tokens": self.total_tokens,
+                "timestamp": self.timestamp.isoformat(),
+            }
+        )
+        return d
 
 
 @dataclass

@@ -342,7 +342,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 completion_tokens=token_usage["completion_tokens"],
                 total_tokens=token_usage["total_tokens"],
                 timestamp=datetime.now(),
-                **report.model_dump(),
+                **report.to_dict(),
             )
         # Return vulnerability report and log a summary
         vuln_report_summary = textwrap.dedent(f"""Vulnerability Report Summary:
