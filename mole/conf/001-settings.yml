@@ -47,7 +47,7 @@ settings:
     - Black
   path_grouping:
     name: path_grouping
-    help: Strategy used to group paths
+    help: strategy used to group paths
     value: Call Graph
   openai_base_url:
     name: openai_base_url
