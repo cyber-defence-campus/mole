@@ -4,7 +4,7 @@ This section provides some guidance on how to use *Mole*.
 *Mole* is implemented as a *Binary Ninja* sidebar, with a dedicated **_Configure_** tab that contains all plugin settings. Within this tab, the *Sources* and *Sinks* sub-tabs allow you to enable or disable available source and sink functions, respectively. General settings can be configured in the *Settings* sub-tab.
 
 <p align="center">
-  <img src="https://i.postimg.cc/65ZC1MJW/configure-tab.png" alt="Mole Configure Tab"/>
+  <img src="https://i.postimg.cc/SsDV6vX7/configure-tab.png" alt="Mole Configure Tab"/>
 </p>
 
 Clicking the *Save* button stores the current configuration and writes it to the file `conf/000-mole.yml` (see the table below). These saved values are also applied when *Mole* is run in [headless mode](02-Usage.md#headless-mode), unless they are overwritten by command-line arguments. The *Reset* button restores all configuration options to their default values.
@@ -42,19 +42,42 @@ sources:                                             # Collection of function so
 
 The `par_slice` expression specifies which function parameters should be included in the backward slice. The selection of parameters depends on your specific use case and analysis goals. For example, when trying to identify potential vulnerabilities, you should slice parameters of source functions that introduce untrusted input, as well as parameters of sink functions that could result in dangerous behavior. It is relevant to slice source function parameters because the backward slice from a sink might not always reach the source's call site directly - it may instead trace back to where the parameter is defined or used.
 
+### OpenAI API Endpoint
+*Mole* includes an AI-powered analysis mode that may provide deeper insights into identified paths. This feature leverages *Large Language Models* (*LLMs*) to analyze potential vulnerabilities, assess their severity, and suggest inputs that might trigger the corresponding code path.
+
+To analyze paths with AI, you must first configure an OpenAI-compatible endpoint in the *Configure* / *Settings* sub-tab:
+
+| Setting               | Description                                                               |
+|-----------------------|---------------------------------------------------------------------------|
+| openai_base_url       | URL of OpenAI API compatible endpoint (e.g., `https://api.openai.com/v1`) |
+| openai_api_key        | API key for authentication (leave empty for mock mode)                    |
+| openai_model          | Model to use (e.g., `o4-mini`)                                            |
+| max_turns             | Maximum number of turns in a conversation with the AI                     |
+| max_completion_tokens | Maximum number of tokens in a completion                                  |
+
+<p align="center">
+  <img src="https://i.postimg.cc/N07S9bQB/ai-config.png" alt="Mole AI Settings Configuration"/>
+</p>
+
+From our initial tests, the OpenAI `o4-mini` model seems to provide a good balance of quality results and cost efficiency. However, you can use any model or provider of your choice, as long as it supports tool calling and structured output capabilities.
+
+> **Cost Disclaimer:** Using the AI Analysis feature may incur charges from your LLM provider based on their pricing structure for API usage. The costs vary depending on the model selected, the complexity and length of each analysis, and the number of paths analyzed. Please be aware of your LLM provider's pricing model before performing bulk analyses on multiple paths.
+
 ## Headless Mode
 Use *Mole* with the `-h` flag to display detailed usage information. The example below demonstrates how to run *Mole* on one of the unit tests (make sure to build them first by running `cd test/ && make`):
 ```
 mole bin/memcpy-01 > ./memcpy-01.log 2>&1
 ```
+
 ## Example
+### Inspecting Paths
 Below is an example log output as given by *Mole*. The listed path is identified on unit test [memcpy-01.c](../test/src/memcpy-01.c), when compiled for `linux-armv7`. At log level *INFO*, the following output is given:
 ```
 [...]
-Interesting path: 0x104c4 getenv(arg#1:"MEMCPY_SIZE") --> 0x104e8 memcpy(arg#3:r2#1) [L:7,P:0,B:1]!
+Interesting path: 0x104c4 getenv() --> 0x104e8 memcpy(arg#3:r2#1) [L:7,P:0,B:1]!
 [...]
 ```
-The entry indicates a potential data flow path from the source function `getenv` (located at `0x104c4`) to the sink function `memcpy` (at `0x104e8`). Specifically, the 1st parameter of `getenv` (synopsis: `char* getenv(const char* name)`) and the 3rd parameter of `memcpy` (synopsis: `void* memcpy(void* dest, const void* src, size_t n)`) are identified as relevant for this path.
+This entry highlights a potential data flow from the source function `getenv` (at `0x104c4`) to the sink function `memcpy` (at `0x104e8`). Specifically, data returned by `getenv` influences the 3rd parameter of `memcpy` (synopsis: `void* memcpy(void* dest, const void* src, size_t n)`), which determines the number of bytes to copy.
 
 The annotation `[L:7,P:0,B:1]` provides additional insights:
 - `L:7` indicates the path spans 7 [MLIL](https://docs.binary.ninja/dev/bnil-mlil.html) instructions
@@ -82,56 +105,45 @@ At log level *DEBUG*, a full listing of the instructions along the path is shown
 
 Instructions are grouped by *function* (*FUN*) and *basic block* (*BB*). For instance, instructions 1-6 belong to the basic block starting at address `0x104d4` within the `main` function, while instruction 7 belongs to the basic block at `0x104b4`, also within `main`. This grouping is particularly useful for following the path in *Binary Ninja*'s graph view.
 
-Beyond the textual log output, *Mole* also summarizes identified paths in the *Run* tab when used within *Binary Ninja*'s UI. Right-clicking on a path opens a context menu with several actions such as:
+Beyond the textual log output, *Mole* also summarizes identified paths in the *Paths* tab when used within *Binary Ninja*'s UI. Right-clicking on a path opens a context menu with several actions such as:
 - Viewing detailed path information
 - Highlighting instructions in the path
 - Visualizing the call flow as a graph
+- Analyzing a path with AI
 
 These features help users better inspect and validate identified paths during analysis.
 
 <p align="center">
-  <img src="https://i.postimg.cc/7YLLQVCC/interesting-paths.png" alt="Mole UI Paths"/>
+  <img src="https://i.postimg.cc/Z59c2J7M/interesting-paths.png" alt="Mole UI Paths"/>
 </p>
 
-## AI Analysis Mode
-*Mole* includes an AI-powered analysis mode that provides deeper insights into identified paths. This feature leverages Large Language Models to analyze potential vulnerabilities, assess their severity, and even suggest payloads that might trigger the code paths.
+### Analyzing Paths with AI
+Once configured, you can trigger AI analysis by right-clicking on any path (or a selection of paths) in the *Paths* tab and selecting "Run AI analysis" from the context menu.
 
-<p>
-  <img src="https://i.postimg.cc/9FH1Pm2B/ai-results.png" alt="Mole AI Settings Configuration"/>
+The AI analysis process may take a few moments depending on the complexity of the paths and the selected model. An AI-generated severity level will be displayed in the path tree view.
+
+<p align="center">
+  <img src="https://i.postimg.cc/WpWRw9g4/ai-results.png" alt="Mole AI Settings Configuration"/>
 </p>
 
-
-### Configuration
-To use the AI Analysis mode, you must first configure an OpenAI-compatible endpoint in the *Settings* sub-tab under the *Configure* tab:
-
-1. **API URL**: Enter the URL of your OpenAI-compatible API endpoint (e.g., `https://api.openai.com/v1`)
-2. **API Key**: Provide your API key for authentication
-3. **API Model**: Specify which model to use (e.g., `o4-mini`)
-
-<p>
-  <img src="https://i.postimg.cc/tT0y2G7H/ai-config.png" alt="Mole AI Settings Configuration"/>
-</p>
-
-From our initial tests, the OpenAI `o4-mini` model provided the best balance of quality results and cost efficiency. However, you can use any model or provider of your choice, as long as it supports function calling and structured output capabilities.
-
-> **Cost Disclaimer:** Using the AI Analysis feature may incur charges from your LLM provider based on their pricing structure for API usage. The costs vary depending on the model selected, the complexity and length of each analysis, and the number of paths analyzed. Please be aware of your LLM provider's pricing model before performing bulk analyses on multiple paths.
-
-
-### Running AI Analysis
-Once configured, you can trigger AI analysis by right-clicking on any path (or a selection of paths) in the *Run* tab and selecting "Analyze (AI)" from the context menu.
-
-The AI analysis process may take a few moments depending on the complexity of the paths and the selected model. By default, only an AI score will be displayed in the path tree view. For additional details, you can select "AI Score Details" from the context menu or double-click the AI Score. This detailed view provides:
-
+For additional details, you can select "Show AI report" from the context menu. This detailed view provides:
+- True Positive
+- Severity Level (Low, Medium, High, Critical)
+- Vulnerability Type
+- Explanation
+- Input Example
+- Information
+<!--
 - Vulnerability type and classification
 - Severity rating (from Low to Critical)
 - Exploitation potential assessment
 - Possible triggering payload examples
 - Metadata about the AI generation (model used, token count, timestamp, etc.)
+-->
 
-<p>
-  <img src="https://i.postimg.cc/NMybDLLd/ai-result-details.png" alt="Mole AI Analysis Results"/>
+<p align="center">
+  <img src="https://i.postimg.cc/dQm2bX4q/ai-result-details.png" alt="Mole AI Analysis Results"/>
 </p>
-
 
 ----------------------------------------------------------------------------------------------------
 [Back-To-README](../README.md#documentation)
