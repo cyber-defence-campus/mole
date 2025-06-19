@@ -27,6 +27,7 @@ The following list highlights some of *Mole*'s current **features**:
 2. [Usage](./docs/02-Usage.md)
 3. [Customization](./docs/03-Customization.md)
 
+## Usage Example
 See *Mole* in action as it exposes [CVE-2021-4045](https://www.hacefresko.com/posts/tp-link-tapo-c200-unauthenticated-rce), an unauthenticated command injection flaw in the *TP-Link Tapo C200* IP camera:
 <p align="center">
   <img src="https://i.postimg.cc/Vv8sMH8L/uhttpd-usage-ai.gif" alt="Mole Usage Example"/>
