@@ -64,7 +64,7 @@ class AiService(BackgroundTask):
         self._tools = [tool.to_dict() for tool in tools.values()]
         return
 
-    def _create_openai_client(self) -> Optional[OpenAI]:
+    def _create_openai_client(self, custom_tag: str = tag) -> Optional[OpenAI]:
         """
         This method creates a new OpenAI client.
         """
@@ -73,7 +73,7 @@ class AiService(BackgroundTask):
             try:
                 client = OpenAI(base_url=self._base_url, api_key=self._api_key)
             except Exception as e:
-                log.error(self.tag, f"Failed to create OpenAI client: {str(e):s}")
+                log.error(custom_tag, f"Failed to create OpenAI client: {str(e):s}")
         return client
 
     def _create_system_prompt(self) -> str:
@@ -158,6 +158,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         client: OpenAI,
         messages: Iterable[ChatCompletionMessageParam],
         token_usage: Dict[str, int],
+        custom_tag: str = tag,
     ) -> Optional[ParsedChatCompletionMessage]:
         """
         This method sends the given messages to the OpenAI client and returns the completion
@@ -178,13 +179,14 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 for chunk_cnt, _ in enumerate(stream):
                     if self.cancelled:
                         log.warn(
-                            self.tag,
+                            custom_tag,
                             f"Cancel message streaming after {chunk_cnt:d} chunks",
                         )
                         return None
                     chunk_cnt += 1
                 log.debug(
-                    self.tag, f"Streaming messages finished after {chunk_cnt:d} chunks"
+                    custom_tag,
+                    f"Streaming messages finished after {chunk_cnt:d} chunks",
                 )
                 completion = stream.get_final_completion()
             message = completion.choices[0].message
@@ -193,10 +195,12 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 token_usage["completion_tokens"] += completion.usage.completion_tokens
                 token_usage["total_tokens"] += completion.usage.total_tokens
         except Exception as e:
-            log.error(self.tag, f"Failed to send messages: {str(e):s}")
+            log.error(custom_tag, f"Failed to send messages: {str(e):s}")
         return message
 
-    def _execute_tool_call(self, func_name: str, func_args: str) -> Any:
+    def _execute_tool_call(
+        self, func_name: str, func_args: str, custom_tag: str = tag
+    ) -> Any:
         """
         This method executes a tool call with the given function name and arguments and returns the
         result.
@@ -205,17 +209,17 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         try:
             args = json.loads(func_args)
             args["bv"] = self._bv
-            args["tag"] = self.tag
+            args["tag"] = custom_tag
             result = tools[func_name].handler(**args)
         except Exception as e:
             log.error(
-                self.tag,
+                custom_tag,
                 f"Failed to execute tool call '{func_name:s}' with arguments '{func_args:s}': {str(e):s}",
             )
         return result
 
     def _execute_tool_calls(
-        self, tool_calls: List[ParsedFunctionToolCall]
+        self, tool_calls: List[ParsedFunctionToolCall], custom_tag: str = tag
     ) -> List[Dict[str, str]]:
         """
         This method executes the given tool calls and returns their results.
@@ -225,7 +229,9 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             try:
                 if tool_call.type == "function":
                     result = self._execute_tool_call(
-                        tool_call.function.name, tool_call.function.arguments
+                        tool_call.function.name,
+                        tool_call.function.arguments,
+                        custom_tag,
                     )
                     content = str(result)
                 else:
@@ -233,7 +239,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             except Exception as e:
                 content = f"Error: {str(e):s}"
                 log.error(
-                    self.tag,
+                    custom_tag,
                     f"Failed to execute tool call '{tool_call.id:s}': {str(e):s}",
                 )
             results.append(
@@ -248,12 +254,14 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         This method analyzes a path using AI and returns a vulnerability report.
         """
         # Custom tag for logging
-        self.tag = f"{tag:s}] [Path:{path_id:d}"
+        custom_tag = f"{tag:s}] [Path:{path_id:d}"
         # Create OpenAI client
-        client = self._create_openai_client()
+        client = self._create_openai_client(custom_tag)
         # No OpenAI client available (mock mode)
         if client is None:
-            log.warn(self.tag, "Running in mock mode since no OpenAI client available")
+            log.warn(
+                custom_tag, "Running in mock mode since no OpenAI client available"
+            )
             vuln_report = AiVulnerabilityReport(
                 truePositive=random.choice([True, True, True, False]),
                 vulnerabilityClass=random.choice(list(VulnerabilityClass)),
@@ -287,17 +295,20 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             for turn in range(1, self._max_turns + 1):
                 # User cancellation
                 if self.cancelled:
-                    log.warn(self.tag, f"Cancel conversation in turn {turn:d}")
+                    log.warn(custom_tag, f"Cancel conversation in turn {turn:d}")
                     return None
                 # Send messages and receive response
-                log.info(self.tag, f"Sending messages in conversation turn {turn:d}")
-                response = self._send_messages(client, messages, token_usage)
+                log.info(custom_tag, f"Sending messages in conversation turn {turn:d}")
+                response = self._send_messages(
+                    client, messages, token_usage, custom_tag
+                )
                 if not response:
                     log.error(
-                        self.tag, f"No response received in conversation turn {turn:d}"
+                        custom_tag,
+                        f"No response received in conversation turn {turn:d}",
                     )
                     return None
-                log.info(self.tag, f"Received response in conversation turn {turn:d}")
+                log.info(custom_tag, f"Received response in conversation turn {turn:d}")
                 # Add response to conversation messages
                 messages.append(
                     {
@@ -321,16 +332,18 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 # Terminate conversation if no more tool calls requested
                 if not response.tool_calls:
                     log.info(
-                        self.tag,
+                        custom_tag,
                         f"Received final response in conversation turn {turn:d}",
                     )
                     break
                 # Execute tool calls and add results to the conversation messages
-                messages.extend(self._execute_tool_calls(response.tool_calls))
+                messages.extend(
+                    self._execute_tool_calls(response.tool_calls, custom_tag)
+                )
                 cnt_tool_calls += len(response.tool_calls)
             # Return vulnerability report if final response is available
             if not response or not response.parsed:
-                log.error(self.tag, "No vulnerability report received")
+                log.error(custom_tag, "No vulnerability report received")
                 return None
             report: VulnerabilityReport = response.parsed
             vuln_report = AiVulnerabilityReport(
@@ -345,12 +358,18 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 **report.to_dict(),
             )
         # Return vulnerability report and log a summary
-        vuln_report_summary = textwrap.dedent(f"""Vulnerability Report Summary:
-        - True Positive     : {"Yes" if vuln_report.truePositive else "No"}
-        - Severity Level    : {vuln_report.severityLevel.label:s}
-        - Vulnerability Type: {vuln_report.vulnerabilityClass.label:s}
-        """)
-        log.info(self.tag, vuln_report_summary)
+        log.info(custom_tag, "Vulnerability Report Summary:")
+        log.info(
+            custom_tag,
+            f"- True Positive     : {'Yes' if vuln_report.truePositive else 'No'}",
+        )
+        log.info(
+            custom_tag, f"- Severity Level    : {vuln_report.severityLevel.label:s}"
+        )
+        log.info(
+            custom_tag,
+            f"- Vulnerability Type: {vuln_report.vulnerabilityClass.label:s}",
+        )
         return vuln_report
 
     def run(self) -> None:
