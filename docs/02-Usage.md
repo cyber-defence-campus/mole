@@ -20,7 +20,7 @@ All configuration files are located in the [`conf/`](../mole/conf/) directory. T
 
 To add your own source and sink functions, create a custom file like `conf/003-yourlib.yml`. *Mole* will automatically load and show them in its *Configure* tab. For details on the expected format, refer to the next subsection.
 
-### Definition of Source and Sink Functions
+### Source and Sink Functions
 To define your own source or sink functions - such as those belonging to a custom third-party library - you can use [`conf/002-libc.yml`](../mole/conf/002-libc.yml) as a starting point. Duplicate this file and rename it, for example, to `conf/003-yourlib.yml`. The expected format is described below:
 ```YAML
 sources:                                             # Collection of function sources (or sinks)
@@ -43,25 +43,21 @@ sources:                                             # Collection of function so
 The `par_slice` expression specifies which function parameters should be included in the backward slice. The selection of parameters depends on your specific use case and analysis goals. For example, when trying to identify potential vulnerabilities, you should slice parameters of source functions that introduce untrusted input, as well as parameters of sink functions that could result in dangerous behavior. It is relevant to slice source function parameters because the backward slice from a sink might not always reach the source's call site directly - it may instead trace back to where the parameter is defined or used.
 
 ### OpenAI API Endpoint
-*Mole* includes an AI-powered analysis mode that may provide deeper insights into identified paths. This feature leverages *Large Language Models* (*LLMs*) to analyze potential vulnerabilities, assess their severity, and suggest inputs that might trigger the corresponding code path.
+*Mole* includes an AI-assisted analysis mode designed to provide deeper insights into identified paths. This feature leverages *Large Language Models* (*LLMs*) to examine potential vulnerabilities, evaluate their severity, and suggest inputs that could trigger the corresponding code paths.
 
-To analyze paths with AI, you must first configure an OpenAI-compatible endpoint in the *Configure* / *Settings* sub-tab:
+To enable AI-based analysis, you must first configure an OpenAI-compatible endpoint in the *Configure / Settings* sub-tab. The following settings are available:
 
 | Setting               | Description                                                               |
 |-----------------------|---------------------------------------------------------------------------|
-| openai_base_url       | URL of OpenAI API compatible endpoint (e.g., `https://api.openai.com/v1`) |
-| openai_api_key        | API key for authentication (leave empty for mock mode)                    |
+| openai_base_url       | URL of OpenAI-compatible API endpoint (e.g., `https://api.openai.com/v1`) |
+| openai_api_key        | API key for authentication (leave empty for `MOCK` mode)                  |
 | openai_model          | Model to use (e.g., `o4-mini`)                                            |
-| max_turns             | Maximum number of turns in a conversation with the AI                     |
+| max_turns             | Maximum number of turns in a conversation                                 |
 | max_completion_tokens | Maximum number of tokens in a completion                                  |
 
-<p align="center">
-  <img src="https://i.postimg.cc/N07S9bQB/ai-config.png" alt="Mole AI Settings Configuration"/>
-</p>
+Based on our initial testing, OpenAI’s `o4-mini` model offers a good balance between output quality and cost efficiency. However, you are free to use any model or provider that supports tool calling and structured output, depending on your preferences and requirements.
 
-From our initial tests, the OpenAI `o4-mini` model seems to provide a good balance of quality results and cost efficiency. However, you can use any model or provider of your choice, as long as it supports tool calling and structured output capabilities.
-
-> **Cost Disclaimer:** Using the AI Analysis feature may incur charges from your LLM provider based on their pricing structure for API usage. The costs vary depending on the model selected, the complexity and length of each analysis, and the number of paths analyzed. Please be aware of your LLM provider's pricing model before performing bulk analyses on multiple paths.
+> **Cost Disclaimer:** The AI analysis feature may incur charges from your LLM provider, depending on their API pricing. Costs can vary based on the selected model, the complexity and length of each analysis, and the number of paths analyzed. Be sure to review your provider’s pricing structure before running bulk analyses.
 
 ## Headless Mode
 Use *Mole* with the `-h` flag to display detailed usage information. The example below demonstrates how to run *Mole* on one of the unit tests (make sure to build them first by running `cd test/ && make`):
@@ -118,28 +114,21 @@ These features help users better inspect and validate identified paths during an
 </p>
 
 ### Analyzing Paths with AI
-Once configured, you can trigger AI analysis by right-clicking on any path (or a selection of paths) in the *Paths* tab and selecting "Run AI analysis" from the context menu.
+Once configured, you can initiate AI analysis by right-clicking on any path (or a group of selected paths) in the *Paths* tab and choosing *Run AI analysis* from the context menu.
 
-The AI analysis process may take a few moments depending on the complexity of the paths and the selected model. An AI-generated severity level will be displayed in the path tree view.
+The analysis may take some time, depending on the complexity of the paths and the model in use. Once complete, an AI-generated severity level will appear in the path tree view.
 
 <p align="center">
   <img src="https://i.postimg.cc/WpWRw9g4/ai-results.png" alt="Mole AI Settings Configuration"/>
 </p>
 
-For additional details, you can select "Show AI report" from the context menu. This detailed view provides:
-- True Positive
-- Severity Level (Low, Medium, High, Critical)
-- Vulnerability Type
-- Explanation
-- Input Example
-- Information
-<!--
-- Vulnerability type and classification
-- Severity rating (from Low to Critical)
-- Exploitation potential assessment
-- Possible triggering payload examples
-- Metadata about the AI generation (model used, token count, timestamp, etc.)
--->
+For more detailed insights, right-click on a path and select *Show AI report* from the context menu. The report includes the following information:
+- True positive status
+- Severity level (Low, Medium, High, Critical)
+- Vulnerability type
+- Explanation of the issue
+- Example of a potential triggering input
+- Additional context from the AI analysis
 
 <p align="center">
   <img src="https://i.postimg.cc/dQm2bX4q/ai-result-details.png" alt="Mole AI Analysis Results"/>
