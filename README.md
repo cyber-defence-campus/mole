@@ -23,10 +23,9 @@ The following list highlights some of *Mole*'s current **features**:
 - **Basic Pointer Analysis**: *Mole* currently implements a simplified strategy for tracking pointer usage. Like inter-procedural slicing, this approach is a simplification with inherent limitations. Nevertheless, it performs well in many practical cases and is planned to be improved in future versions.
 
 ## Usage Example
-See *Mole* in action as it exposes [CVE-2021-4045](https://www.hacefresko.com/posts/tp-link-tapo-c200-unauthenticated-rce), an unauthenticated command injection flaw in the *TP-Link Tapo C200* IP camera:
-<p align="center">
-  <img src="https://i.postimg.cc/Vv8sMH8L/uhttpd-usage-ai.gif" alt="Mole Usage Example"/>
-</p>
+See *Mole* in action as it exposes [CVE-2021-4045](https://www.hacefresko.com/posts/tp-link-tapo-c200-unauthenticated-rce), an unauthenticated command injection flaw in the *TP-Link Tapo C200* IP camera (click the image below to watch on YouTube):
+
+[![Mole Usage Example](https://img.youtube.com/vi/paL7b_vsuPc/maxresdefault.jpg)](https://www.youtube.com/watch?v=paL7b_vsuPc)
 
 ## Documentation
 1. [Installation](./docs/01-Installation.md)
