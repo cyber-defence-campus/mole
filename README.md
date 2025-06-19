@@ -22,16 +22,16 @@ The following list highlights some of *Mole*'s current **features**:
 - **Inter-Procedural Variable Slicing**: *Mole* supports slicing *MLIL variables* across function boundaries - a task that presents several challenges. For instance, statically determining a function's effective caller(s) is often difficult or even impossible. As a result, the implemented approach is an approximation. While not perfect, it performs reasonably well across a wide range of practical scenarios.
 - **Basic Pointer Analysis**: *Mole* currently implements a simplified strategy for tracking pointer usage. Like inter-procedural slicing, this approach is a simplification with inherent limitations. Nevertheless, it performs well in many practical cases and is planned to be improved in future versions.
 
-## Documentation
-1. [Installation](./docs/01-Installation.md)
-2. [Usage](./docs/02-Usage.md)
-3. [Customization](./docs/03-Customization.md)
-
 ## Usage Example
 See *Mole* in action as it exposes [CVE-2021-4045](https://www.hacefresko.com/posts/tp-link-tapo-c200-unauthenticated-rce), an unauthenticated command injection flaw in the *TP-Link Tapo C200* IP camera:
 <p align="center">
   <img src="https://i.postimg.cc/Vv8sMH8L/uhttpd-usage-ai.gif" alt="Mole Usage Example"/>
 </p>
+
+## Documentation
+1. [Installation](./docs/01-Installation.md)
+2. [Usage](./docs/02-Usage.md)
+3. [Customization](./docs/03-Customization.md)
 
 ## Contribute or Share Your Experience
 *Mole* is currently a **work in progress**. If you encounter a bug, have a useful new unit test that highlights a false positive or negative, or have a suggestion for a new feature, please consider opening an issue or contribute via pull request. Also note that the current [unit tests](./test/src/) have only been verified on `linux-x86_64` and `linux-armv7` binaries so far.
