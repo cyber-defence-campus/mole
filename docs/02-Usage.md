@@ -114,7 +114,7 @@ These features help users better inspect and validate identified paths during an
 </p>
 
 ### Analyzing Paths with AI
-Once configured, you can initiate AI analysis by right-clicking on any path (or a group of selected paths) in the *Paths* tab and choosing *Run AI analysis* from the context menu.
+Once [configured](02-Usage.md#openai-api-endpoint), you can initiate AI analysis by right-clicking on any path (or a group of selected paths) in the *Paths* tab and choosing *Run AI analysis* from the context menu.
 
 The analysis may take some time, depending on the complexity of the paths and the model in use. Once complete, an AI-generated severity level will appear in the path tree view.
 
