@@ -1,13 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
-from mole.models import IndexedLabeledEnum
 from mole.core.ai import (
     get_callers_by_address,
     get_callers_by_name,
     get_code_for_functions_containing,
     get_code_for_functions_by_name,
 )
+from mole.models import IndexedLabeledEnum
 from pydantic import BaseModel
 from typing import Any, Callable, Dict, List, Optional
 

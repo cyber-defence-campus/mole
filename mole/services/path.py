@@ -1,9 +1,9 @@
 from __future__ import annotations
-from mole.core.data import Path, SourceFunction, SinkFunction
-from mole.common.task import BackgroundTask
-from mole.models.config import ConfigModel
 from concurrent import futures
 from mole.common.log import log
+from mole.common.task import BackgroundTask
+from mole.core.data import Path, SourceFunction, SinkFunction
+from mole.models.config import ConfigModel
 from typing import Callable, List, Optional
 import binaryninja as bn
 
@@ -13,8 +13,8 @@ tag = "Mole.Path"
 
 class PathService(BackgroundTask):
     """
-    This class implements a background task that tries to find interesting code
-    paths using static backward slicing.
+    This class implements a background task that tries to find interesting code paths using static
+    backward slicing.
     """
 
     def __init__(
@@ -110,7 +110,7 @@ class PathService(BackgroundTask):
                     if self.cancelled:
                         break
                     self.progress = (
-                        f"Mole processes source {cnt + 1:d}/{len(src_funs):d}"
+                        f"Mole processed source {cnt + 1:d}/{len(src_funs):d}"
                     )
             # Backward slice sink functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -134,7 +134,7 @@ class PathService(BackgroundTask):
                 for cnt, task in enumerate(futures.as_completed(tasks)):
                     if self.cancelled:
                         break
-                    self.progress = f"Mole processes sink {cnt + 1:d}/{len(snk_funs):d}"
+                    self.progress = f"Mole processed sink {cnt + 1:d}/{len(snk_funs):d}"
                     # Collect paths from task results
                     if task.done() and not task.exception():
                         paths = task.result()

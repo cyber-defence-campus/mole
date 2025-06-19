@@ -3,6 +3,7 @@ from mole.models.ai import AiVulnerabilityReport
 from typing import Optional, TYPE_CHECKING
 import PySide6.QtWidgets as qtw
 
+
 if TYPE_CHECKING:
     from mole.controllers.ai import AiController
 

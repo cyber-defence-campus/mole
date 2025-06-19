@@ -31,8 +31,8 @@ class PathColumn(IndexedLabeledEnum):
 
 class PathSortProxyModel(qtc.QSortFilterProxyModel):
     """
-    This class implements a proxy model to handle proper sorting for paths. It
-    uses `qtc.Qt.UserRole` data to maintain original data types during sorting.
+    This class implements a proxy model to handle proper sorting for paths. It use
+    `qtc.Qt.UserRole` data to maintain original data types during sorting.
     """
 
     def lessThan(
@@ -41,8 +41,7 @@ class PathSortProxyModel(qtc.QSortFilterProxyModel):
         right: qtc.QModelIndex | qtc.QPersistentModelIndex,
     ) -> bool:
         """
-        This method overrides the `lessThan` method to provide proper sorting
-        based on data types.
+        This method overrides the `lessThan` method to provide proper sorting based on data types.
         """
         # Access model data
         model = self.sourceModel()
@@ -54,7 +53,6 @@ class PathSortProxyModel(qtc.QSortFilterProxyModel):
         rgt_level = model.data(right, PathRole.LEVEL.index)
         rgt_sort = model.data(right, PathRole.SORT.index)
         rgt_text = str(model.data(right, qtc.Qt.DisplayRole)).lower()
-
         # Left is header
         if lft_id is None:
             # Right is header
@@ -402,8 +400,8 @@ class PathTreeModel(qtui.QStandardItemModel):
         self, path_id: int, ai_report: AiVulnerabilityReport
     ) -> bool:
         """
-        This method updates the AI-generated report for the specified path and
-        adjusts the severity display.
+        This method updates the AI-generated report for the specified path and adjusts the severity
+        display.
 
         Args:
             path_id: The ID of the path to update
@@ -482,74 +480,6 @@ class PathTreeModel(qtui.QStandardItemModel):
         for path in paths:
             self.add_path(path, path_grouping)
         return
-
-    # def update_analysis_result(
-    #     self, path_id: int, ai_report: AiVulnerabilityReport
-    # ) -> bool:
-    #     """
-    #     This method updates the AI report for a path and updates the score
-    #     display.
-
-    #     Args:
-    #         path_id: The ID of the path to update
-    #         ai_report: The AI report object
-
-    #     Returns:
-    #         bool: True if the update was successful, False otherwise
-    #     """
-    #     if path_id not in self.path_map:
-    #         return False
-
-    #     # Update the path with the new analysis result
-    #     self.path_map[path_id].ai_report = ai_report
-
-    #     # Find the path item
-    #     parent_item, child_item, child_row = self.find_path_item(path_id)
-    #     if child_item is None:
-    #         return False
-
-    #     # # TODO
-    #     # ai_report.severityLevel
-
-    #     # # Determine score
-    #     # score_value = 0.0
-    #     # score_display = ""
-    #     # if ai_report is not None:
-    #     #     score_value = ai_report.exploitabilityScore
-    #     #     if ai_report.truePositive:
-    #     #         score_display = f"{score_value:.1f}"
-    #     #     else:
-    #     #         score_display = f"{score_value:.1f}*"
-
-    #     # Find the severity column item
-    #     if parent_item:
-    #         severity_item = parent_item.child(child_row, PATH_COLS["AI Severity"])
-    #     else:
-    #         severity_item = self.item(child_row, PATH_COLS["AI Severity"])
-
-    #     if severity_item:
-    #         severity_item.setText(score_display)
-    #         severity_item.setData(score_value, qtc.Qt.UserRole)  # For sorting
-
-    #         # Color formatting for true positives
-    #         if ai_report.truePositive:
-    #             # Critical: red
-    #             if score_value >= 9.0:
-    #                 severity_item.setForeground(qtui.QBrush(qtui.QColor("#FF0000")))
-    #             # High: orange
-    #             if score_value >= 7.0:
-    #                 severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFA500")))
-    #             # Medium: yellow
-    #             elif score_value >= 4.0:
-    #                 severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFF00")))
-    #             # Low: green
-    #             elif score_value >= 0.1:
-    #                 severity_item.setForeground(qtui.QBrush(qtui.QColor("#008000")))
-    #             # None: gray
-    #             else:
-    #                 severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFFFF")))
-    #         return True
-    #     return False
 
     def get_analysis_result(self, path_id: int) -> Optional[AiVulnerabilityReport]:
         """

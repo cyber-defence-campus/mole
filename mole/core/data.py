@@ -1,14 +1,14 @@
 from __future__ import annotations
+from dataclasses import dataclass, field
 from mole.common.help import InstructionHelper, SymbolHelper
+from mole.common.log import log
 from mole.core.slice import (
     MediumLevelILBackwardSlicer,
     MediumLevelILFunctionGraph,
     MediumLevelILInstructionGraph,
 )
-from dataclasses import dataclass, field
-from mole.common.log import log
-from typing import Callable, Dict, List, Optional, Tuple
 from mole.models.ai import AiVulnerabilityReport
+from typing import Callable, Dict, List, Optional, Tuple
 import binaryninja as bn
 import hashlib
 import networkx as nx

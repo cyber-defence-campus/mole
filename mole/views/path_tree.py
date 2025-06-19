@@ -14,8 +14,6 @@ class PathTreeView(qtw.QTreeView):
     This class implements a tree view for displaying paths grouped by source, sink and call graph.
     """
 
-    # signal_show_ai_details = qtc.Signal(int)
-
     def __init__(self, parent=None) -> None:
         """
         This method initializes the path tree view.

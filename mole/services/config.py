@@ -1,4 +1,5 @@
 from __future__ import annotations
+from mole.common.log import log
 from mole.common.parse import LogicalExpressionParser
 from mole.core.data import (
     Category,
@@ -11,7 +12,6 @@ from mole.core.data import (
     TextSetting,
 )
 from mole.grouping import get_all_grouping_strategies
-from mole.common.log import log
 from typing import Dict
 import fnmatch as fn
 import os as os

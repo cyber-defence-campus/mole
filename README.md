@@ -17,18 +17,20 @@ The following list highlights some of *Mole*'s current **features**:
   - **Exploration**: To better understand a path and examine its characteristics, all instructions along the path can be printed or visually highlighted within *Binary Ninja*. Additionally, a side-by-side comparison of two paths can be displayed to quickly identify differences. Similar to instructions, a path's sequence of function calls can be printed or even visualized as a graph.
   - **Grouping**: To facilitate the identification of similar paths, *Mole* supports multiple grouping strategies. Currently, paths can be grouped based on matching source and sink functions, or by identical call sequences. New custom grouping strategies can easily be added to extend and customize this functionality (see [Customization](./docs/03-Customization.md#path-grouping-strategy)).
   - **Persistence**: Discovered paths can be annotated for clarity or removed if deemed irrelevant. To preserve analysis progress, paths can be saved directly to the target binary's database (*Binary Ninja*'s `.bndb` format). Paths can also be exported - for example, when performing headless analysis across many binaries on a file system, allowing identified paths to be later imported for easier exploration within *Binary Ninja*.
+- **Path Analysis with AI**: *Mole* can interact with local or remote *Large Language Models* (*LLMs*) via the *OpenAI API*. The models are used to analyze identified paths and reason whether a given path corresponds to an exploitable vulnerability or not. The *LLM* attempts to classify the vulnerability and assign a severity level, which can help prioritize which paths are worth further investigation by an analyst. *Mole* provides a basic set of tools that the *LLM* can use to request additional information about the binary under analysis. This feature is an initial prototype and has not yet undergone systematic evaluation (e.g., models, prompts, tools). If it proves useful, we plan to improve it in future releases.
+
 - **Inter-Procedural Variable Slicing**: *Mole* supports slicing *MLIL variables* across function boundaries - a task that presents several challenges. For instance, statically determining a function's effective caller(s) is often difficult or even impossible. As a result, the implemented approach is an approximation. While not perfect, it performs reasonably well across a wide range of practical scenarios.
 - **Basic Pointer Analysis**: *Mole* currently implements a simplified strategy for tracking pointer usage. Like inter-procedural slicing, this approach is a simplification with inherent limitations. Nevertheless, it performs well in many practical cases and is planned to be improved in future versions.
-
-See *Mole* in action as it exposes [CVE-2021-4045](https://www.hacefresko.com/posts/tp-link-tapo-c200-unauthenticated-rce), an unauthenticated command injection flaw in the *TP-Link Tapo C200* IP camera:
-<p align="center">
-  <img src="https://i.postimg.cc/VkHKm1R6/uhttpd-usage.gif" alt="Mole Usage Example"/>
-</p>
 
 ## Documentation
 1. [Installation](./docs/01-Installation.md)
 2. [Usage](./docs/02-Usage.md)
 3. [Customization](./docs/03-Customization.md)
+
+See *Mole* in action as it exposes [CVE-2021-4045](https://www.hacefresko.com/posts/tp-link-tapo-c200-unauthenticated-rce), an unauthenticated command injection flaw in the *TP-Link Tapo C200* IP camera:
+<p align="center">
+  <img src="https://i.postimg.cc/Vv8sMH8L/uhttpd-usage-ai.gif" alt="Mole Usage Example"/>
+</p>
 
 ## Contribute or Share Your Experience
 *Mole* is currently a **work in progress**. If you encounter a bug, have a useful new unit test that highlights a false positive or negative, or have a suggestion for a new feature, please consider opening an issue or contribute via pull request. Also note that the current [unit tests](./test/src/) have only been verified on `linux-x86_64` and `linux-armv7` binaries so far.

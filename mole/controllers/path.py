@@ -51,7 +51,6 @@ class PathController:
         self.connect_signal_load_paths(self.load_paths)
         self.connect_signal_save_paths(self.save_paths)
         self.connect_signal_setup_paths_tree(self.setup_path_tree)
-        # self.connect_signal_show_ai_report(self.show_ai_report)
         self.config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
         return
 
@@ -82,14 +81,6 @@ class PathController:
         """
         self.path_view.signal_setup_path_tree.connect(slot)
         return
-
-    # def connect_signal_show_ai_report(self, slot: object) -> None:
-    #     """
-    #     This method allows connecting to the signal that is triggered when AI reports should be
-    #     shown.
-    #     """
-    #     self.path_view.signal_show_ai_report.connect(slot)
-    #     return
 
     def _change_path_grouping(self, new_strategy: str) -> None:
         """
@@ -769,7 +760,6 @@ class PathController:
         # Store references
         self._bv = bv
         self.path_tree_view = ptv
-
         # Set up context menu
         ptv.setup_context_menu(
             on_log_path=self.log_path,
