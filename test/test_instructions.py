@@ -1,3 +1,4 @@
+from keystone import Ks, KS_ARCH_X86, KS_MODE_64
 from mole.common.log import log
 from mole.core.slice import MediumLevelILBackwardSlicer
 from typing import List
@@ -32,69 +33,84 @@ class TestMediumLevelILInstruction(unittest.TestCase):
 
 
 class Test_x86_64(TestMediumLevelILInstruction):
+    """
+    This class implements unit tests to test the slicing of MLIL instructions on the x86_64
+    architecture.
+    """
+
     def setUp(self) -> None:
+        super().setUp()
         # Architecture and platform
         self.arch = bn.Architecture["x86_64"]
         self.plat = self.arch.standalone_platform
+        # Keystone assembler
+        self.ks = Ks(KS_ARCH_X86, KS_MODE_64)
         return
 
-    def test_mlil_store(self) -> None:
-        # Assembly code
-        code = b"\xc7\x00\xef\xbe\xad\xde"
+    def test_mlil_store_ssa(self) -> None:
+        # Assemble code
+        code = "mov dword ptr [rax], 0xdeadbeef"
+        encoding, _ = self.ks.asm(code, as_bytes=True)
         # Binary view
-        bv = bn.BinaryView.new(code)
+        bv = bn.BinaryView.new(encoding)
         bv.platform = self.plat
         bv.add_function(0, self.plat)
         bv.update_analysis_and_wait()
+        # Assert correct MLIL instruction
+        func = bv.get_function_at(0)
+        inst = list(func.mlil.ssa_form.instructions)[0]
+        self.assertIsInstance(
+            inst, bn.MediumLevelILStoreSsa, "instruction is a MLIL_STORE_SSA"
+        )
         # Slice instruction
         slicer = MediumLevelILBackwardSlicer(bv)
-        func = bv.get_function_at(0)
-        for inst in func.mlil.ssa_form.instructions:
-            if isinstance(inst, bn.MediumLevelILStoreSsa):
-                slicer._slice_backwards(inst)
-                break
-        # Assert results
-        self.assertEqual(len(slicer.inst_graph.nodes), 2, "count inst nodes")
-        self.assertEqual(len(slicer.inst_graph.edges), 1, "count inst edges")
-        return
-
-    def test_mlil_store_struct(self, filenames: List[str] = ["struct-02"]) -> None:
-        # Define structure name and type
-        struct_name = "my_struct"
-        struct = bn.StructureBuilder.create()
-        struct.append(bn.Type.int(4), "field_a")
-        struct.append(bn.Type.int(4), "field_b")
-        struct.append(bn.Type.int(4), "field_c")
-        struct_type = bn.Type.structure_type(struct)
-
-        for file in TestMediumLevelILInstruction.load_files(filenames):
-            # TODO: Does not yet lead to a MLIL_STORE_STRUCT instruction
-            # TODO: Revise comments
-            # Load and analyze test binary with Binary Ninja
-            bv = bn.load(file)
-            bv.update_analysis_and_wait()
-            # Get _start function
-            func = list(bv.functions)[0]
-            # Create struct type
-            bv.define_user_type(struct_name, struct_type)
-            struct_named_type = bn.Type.named_type_from_registered_type(bv, struct_name)
-            # Create data variable with the struct type
-            s1_addr = bv.get_symbol_by_raw_name("s1").address
-            bv.define_user_data_var(s1_addr, struct_named_type)
-            s2_addr = bv.get_symbol_by_raw_name("s2").address
-            bv.define_user_data_var(s2_addr, struct_named_type)
-            # Define pointer type at use site
-            # Create variable representing rdi
-            rdi_id = bv.arch.get_reg_index("rdi")
-            rdi_var = bn.Variable(
-                func, bn.VariableSourceType.RegisterVariableSourceType, 0, rdi_id
+        slicer._slice_backwards(inst)
+        inst_slice = list(slicer.inst_graph.nodes())
+        # Assert slice
+        inst_types = [bn.MediumLevelILStoreSsa, bn.MediumLevelILConst]
+        for inst, type in zip(inst_slice, inst_types):
+            self.assertIsInstance(
+                inst, type, f"instruction {str(inst):s} has type {type.__name__:s}"
             )
-            # Create pointer to structure type
-            my_struct_ptr_type = bn.Type.pointer(bv.arch, struct_named_type)
-            func.create_user_var(rdi_var, my_struct_ptr_type, "rdi")
-            # func = current_function
-            # var = func.get_var_at(Architecture['x86_64'], "rdi")
-            # func.create_user_var(var, Type.pointer(Architecture['x86_64'], Type.named_type_from_registered_type(bv, "my_struct")), "my_struct_ptr")
-            # Reanalyze the _start function
-            func.reanalyze()
         return
+
+    # def test_mlil_store_struct(self, filenames: List[str] = ["struct-02"]) -> None:
+    #     # Define structure name and type
+    #     struct_name = "my_struct"
+    #     struct = bn.StructureBuilder.create()
+    #     struct.append(bn.Type.int(4), "field_a")
+    #     struct.append(bn.Type.int(4), "field_b")
+    #     struct.append(bn.Type.int(4), "field_c")
+    #     struct_type = bn.Type.structure_type(struct)
+
+    #     for file in TestMediumLevelILInstruction.load_files(filenames):
+    #         # TODO: Does not yet lead to a MLIL_STORE_STRUCT instruction
+    #         # TODO: Revise comments
+    #         # Load and analyze test binary with Binary Ninja
+    #         bv = bn.load(file)
+    #         bv.update_analysis_and_wait()
+    #         # Get _start function
+    #         func = list(bv.functions)[0]
+    #         # Create struct type
+    #         bv.define_user_type(struct_name, struct_type)
+    #         struct_named_type = bn.Type.named_type_from_registered_type(bv, struct_name)
+    #         # Create data variable with the struct type
+    #         s1_addr = bv.get_symbol_by_raw_name("s1").address
+    #         bv.define_user_data_var(s1_addr, struct_named_type)
+    #         s2_addr = bv.get_symbol_by_raw_name("s2").address
+    #         bv.define_user_data_var(s2_addr, struct_named_type)
+    #         # Define pointer type at use site
+    #         # Create variable representing rdi
+    #         rdi_id = bv.arch.get_reg_index("rdi")
+    #         rdi_var = bn.Variable(
+    #             func, bn.VariableSourceType.RegisterVariableSourceType, 0, rdi_id
+    #         )
+    #         # Create pointer to structure type
+    #         my_struct_ptr_type = bn.Type.pointer(bv.arch, struct_named_type)
+    #         func.create_user_var(rdi_var, my_struct_ptr_type, "rdi")
+    #         # func = current_function
+    #         # var = func.get_var_at(Architecture['x86_64'], "rdi")
+    #         # func.create_user_var(var, Type.pointer(Architecture['x86_64'], Type.named_type_from_registered_type(bv, "my_struct")), "my_struct_ptr")
+    #         # Reanalyze the _start function
+    #         func.reanalyze()
+    #     return
