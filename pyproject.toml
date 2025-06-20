@@ -31,6 +31,7 @@ dependencies = [
 [project.optional-dependencies]
 develop = [
     "debugpy==1.8.1",
+    "keystone-engine==0.9.2",
     "pre_commit==4.2.0",
     "ruff==0.9.9",
     "tomli==2.2.1"
