@@ -435,6 +435,7 @@ class MediumLevelILBackwardSlicer:
                     self._slice_ssa_var_definition(var, inst, call_level, caller_site)
             case (
                 bn.MediumLevelILCallSsa(dest=dest_inst)
+                | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
                 | bn.MediumLevelILTailcallSsa(dest=dest_inst)
             ):
                 call_info = InstructionHelper.get_inst_info(inst, False)
@@ -582,6 +583,18 @@ class MediumLevelILBackwardSlicer:
                 )
                 self.inst_graph.add_edge(inst, inst.right)
                 self._slice_backwards(inst.right, call_level, caller_site)
+            case (
+                bn.MediumLevelILJump(dest=dest_inst)
+                | bn.MediumLevelILJumpTo(dest=dest_inst)
+            ):
+                self.inst_graph.add_node(
+                    inst, call_level, caller_site, origin=self._origin
+                )
+                self.inst_graph.add_node(
+                    dest_inst, call_level, caller_site, origin=self._origin
+                )
+                self.inst_graph.add_edge(inst, dest_inst)
+                self._slice_backwards(dest_inst, call_level, caller_site)
             case _:
                 log.warn(self._tag, f"[{call_level:+d}] {info:s}: Missing handler")
         return
