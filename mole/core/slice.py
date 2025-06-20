@@ -437,6 +437,7 @@ class MediumLevelILBackwardSlicer:
                 bn.MediumLevelILCallSsa(dest=dest_inst)
                 | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
                 | bn.MediumLevelILTailcallSsa(dest=dest_inst)
+                | bn.MediumLevelILTailcallUntypedSsa(dest=dest_inst)
             ):
                 call_info = InstructionHelper.get_inst_info(inst, False)
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
@@ -525,7 +526,11 @@ class MediumLevelILBackwardSlicer:
                             self._tag,
                             f"[{call_level:+d}] {dest_info:s}: Missing handler for function call",
                         )
-            case bn.MediumLevelILSyscallSsa() | bn.MediumLevelILIntrinsicSsa():
+            case (
+                bn.MediumLevelILSyscallSsa()
+                | bn.MediumLevelILSyscallUntypedSsa()
+                | bn.MediumLevelILIntrinsicSsa()
+            ):
                 for par in inst.params:
                     self.inst_graph.add_node(
                         inst, call_level, caller_site, origin=self._origin
@@ -583,18 +588,15 @@ class MediumLevelILBackwardSlicer:
                 )
                 self.inst_graph.add_edge(inst, inst.right)
                 self._slice_backwards(inst.right, call_level, caller_site)
-            case (
-                bn.MediumLevelILJump(dest=dest_inst)
-                | bn.MediumLevelILJumpTo(dest=dest_inst)
-            ):
+            case bn.MediumLevelILJump() | bn.MediumLevelILJumpTo():
                 self.inst_graph.add_node(
                     inst, call_level, caller_site, origin=self._origin
                 )
                 self.inst_graph.add_node(
-                    dest_inst, call_level, caller_site, origin=self._origin
+                    inst.dest, call_level, caller_site, origin=self._origin
                 )
-                self.inst_graph.add_edge(inst, dest_inst)
-                self._slice_backwards(dest_inst, call_level, caller_site)
+                self.inst_graph.add_edge(inst, inst.dest)
+                self._slice_backwards(inst.dest, call_level, caller_site)
             case _:
                 log.warn(self._tag, f"[{call_level:+d}] {info:s}: Missing handler")
         return
