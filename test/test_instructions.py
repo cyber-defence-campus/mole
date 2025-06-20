@@ -141,6 +141,24 @@ class Test_x86_64(TestMediumLevelILInstruction):
         )
         return
 
+    def test_mlil_jump(self) -> None:
+        return self.test_mlil_inst(
+            "jmp 0x1000",
+            [bn.MediumLevelILJump, bn.MediumLevelILConstPtr],
+        )
+
+    # def test_mlil_jump_to(self) -> None:
+    #     return self.test_mlil_inst(
+    #         """
+    #         mov eax, edi
+    #         cmp eax, 2
+    #         ja  0x1000
+    #         mov eax, [0x2000 + rax*4]
+    #         jmp rax
+    #         """,
+    #         [bn.MediumLevelILJumpTo, bn.MediumLevelILConst],
+    #     )
+
     def test_mlil_store_ssa(self) -> None:
         self.test_mlil_inst(
             self.create_bv(),
