@@ -1,3 +1,4 @@
+from keystone import Ks, KS_ARCH_X86, KS_MODE_64
 from mole.common.log import log
 from mole.core.slice import MediumLevelILBackwardSlicer
 from typing import List
@@ -32,10 +33,18 @@ class TestMediumLevelILInstruction(unittest.TestCase):
 
 
 class Test_x86_64(TestMediumLevelILInstruction):
+    """
+    This class implements unit tests to test the slicing of MLIL instructions on the x86_64
+    architecture.
+    """
+
     def setUp(self) -> None:
+        super().setUp()
         # Architecture and platform
         self.arch = bn.Architecture["x86_64"]
         self.plat = self.arch.standalone_platform
+        # Keystone assembler
+        self.ks = Ks(KS_ARCH_X86, KS_MODE_64)
         return
 
     def create_bv(self, size: int = 1024) -> bn.BinaryView:
