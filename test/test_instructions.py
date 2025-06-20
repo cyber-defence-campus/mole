@@ -47,27 +47,60 @@ class Test_x86_64(TestMediumLevelILInstruction):
         self.ks = Ks(KS_ARCH_X86, KS_MODE_64)
         return
 
-    def test_mlil_store_ssa(self) -> None:
-        # Assemble code
-        code = "mov dword ptr [rax], 0xdeadbeef"
-        encoding, _ = self.ks.asm(code, as_bytes=True)
-        # Binary view
-        bv = bn.BinaryView.new(encoding)
+    def create_function(self, data: bytes) -> bn.Function | None:
+        """
+        This method creates a new function in a binary view with the given data.
+        """
+        bv = bn.BinaryView.new(data)
         bv.platform = self.plat
         bv.add_function(0, self.plat)
         bv.update_analysis_and_wait()
+        return bv.get_function_at(0)
+
+    def test_mlil_jump(self) -> None:
+        # Assemble code and create function
+        code = "jmp 0x1000"
+        encoding, _ = self.ks.asm(code, as_bytes=True)
+        func = self.create_function(encoding)
         # Assert correct MLIL instruction
-        func = bv.get_function_at(0)
         inst = list(func.mlil.ssa_form.instructions)[0]
         self.assertIsInstance(
-            inst, bn.MediumLevelILStoreSsa, "instruction is a MLIL_STORE_SSA"
+            inst,
+            bn.MediumLevelILJump,
+            f"instruction {str(inst):s} has type MediumLevelILJump",
         )
         # Slice instruction
-        slicer = MediumLevelILBackwardSlicer(bv)
+        slicer = MediumLevelILBackwardSlicer(func.view)
+        slicer._slice_backwards(inst)
+        inst_slice = list(slicer.inst_graph.nodes())
+        # Assert slice
+        inst_types = [bn.MediumLevelILJump, bn.MediumLevelILConst]
+        self.assertEqual(len(inst_slice), len(inst_types), "incorrect slice length")
+        for inst, type in zip(inst_slice, inst_types):
+            self.assertIsInstance(
+                inst, type, f"instruction {str(inst):s} has type {type.__name__:s}"
+            )
+        return
+
+    def test_mlil_store_ssa(self) -> None:
+        # Assemble code and create function
+        code = "mov dword ptr [rax], 0xdeadbeef"
+        encoding, _ = self.ks.asm(code, as_bytes=True)
+        func = self.create_function(encoding)
+        # Assert correct MLIL instruction
+        inst = list(func.mlil.ssa_form.instructions)[0]
+        self.assertIsInstance(
+            inst,
+            bn.MediumLevelILStoreSsa,
+            f"instruction {str(inst):s} has type MediumLevelILStoreSsa",
+        )
+        # Slice instruction
+        slicer = MediumLevelILBackwardSlicer(func.view)
         slicer._slice_backwards(inst)
         inst_slice = list(slicer.inst_graph.nodes())
         # Assert slice
         inst_types = [bn.MediumLevelILStoreSsa, bn.MediumLevelILConst]
+        self.assertEqual(len(inst_slice), len(inst_types), "incorrect slice length")
         for inst, type in zip(inst_slice, inst_types):
             self.assertIsInstance(
                 inst, type, f"instruction {str(inst):s} has type {type.__name__:s}"
