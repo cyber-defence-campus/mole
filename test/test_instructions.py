@@ -47,15 +47,39 @@ class Test_x86_64(TestMediumLevelILInstruction):
         self.ks = Ks(KS_ARCH_X86, KS_MODE_64)
         return
 
-    def create_function(self, data: bytes) -> bn.Function | None:
+    def create_bv(self, size: int = 1024) -> bn.BinaryView:
         """
-        This method creates a new function in a binary view with the given data.
+        This method creates a new binary view of the given size.
         """
-        bv = bn.BinaryView.new(data)
+        bv = bn.BinaryView.new(b"\x00" * size)
         bv.platform = self.plat
-        bv.add_function(0, self.plat)
+        return bv
+
+    def create_function(
+        self, bv: bn.BinaryView, addr: int = 0x0, assembly_code: str = ""
+    ) -> bn.Function | None:
+        """
+        This method creates a new function in the given binary view at the specified address.
+        """
+        # Assemble code
+        encoding, _ = self.ks.asm(assembly_code, as_bytes=True)
+        # Write data at the given address
+        bv.write(addr, encoding)
+        # Create function at the given address
+        bv.add_function(addr, self.plat)
         bv.update_analysis_and_wait()
-        return bv.get_function_at(0)
+        # Return the created function
+        return bv.get_function_at(addr)
+
+    # def create_function(self, addr: int = 0x0, data: bytes = b"") -> bn.Function | None:
+    #     """
+    #     This method creates a new function in a binary view with the given data.
+    #     """
+    #     bv = bn.BinaryView.new(data)
+    #     bv.platform = self.plat
+    #     bv.add_function(addr, self.plat)
+    #     bv.update_analysis_and_wait()
+    #     return bv.get_function_at(0)
 
     def test_mlil_inst(
         self,
@@ -67,10 +91,10 @@ class Test_x86_64(TestMediumLevelILInstruction):
         """
         if not assembly_code or not expected_inst_types:
             return
-        # Assemble code
-        encoding, _ = self.ks.asm(assembly_code, as_bytes=True)
+        # Create binary view
+        bv = self.create_bv()
         # Create function
-        func = self.create_function(encoding)
+        func = self.create_function(bv, 0x0, assembly_code)
         # Assert correct MLIL instruction
         inst = list(func.mlil.ssa_form.instructions)[0]
         self.assertIsInstance(
@@ -109,6 +133,24 @@ class Test_x86_64(TestMediumLevelILInstruction):
     #         """,
     #         [bn.MediumLevelILJumpTo, bn.MediumLevelILConst],
     #     )
+
+    def test_mlil_call(self) -> None:
+        self.create_function()
+        # # Assemble code
+        # encoding, _ = self.ks.asm(assembly_code, as_bytes=True)
+        # # Create function
+        # func = self.create_function(encoding)
+        # # Assert correct MLIL instruction
+        # inst = list(func.mlil.ssa_form.instructions)[0]
+        # self.assertIsInstance(
+        #     inst,
+        #     expected_inst_types[0],
+        #     f"instruction {str(inst):s} has type {expected_inst_types[0].__name__:s}",
+        # )
+        return self.test_mlil_inst(
+            "call 0x1000",
+            [bn.MediumLevelILCallSsa, bn.MediumLevelILConstPtr],
+        )
 
     def test_mlil_store_ssa(self) -> None:
         return self.test_mlil_inst(
