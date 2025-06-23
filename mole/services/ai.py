@@ -386,7 +386,12 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         )
         log.debug(tag, f"- model                : '{self._model:s}'")
         log.debug(tag, f"- max_turns            : '{self._max_turns:d}'")
-        log.debug(tag, f"- max_completion_tokens: '{self._max_completion_tokens:d}'")
+        max_completion_tokens = (
+            f"{self._max_completion_tokens:d}"
+            if self._max_completion_tokens
+            else "None"
+        )
+        log.debug(tag, f"- max_completion_tokens: '{max_completion_tokens:s}'")
         # Analyze paths using AI
         with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
             # Submit tasks

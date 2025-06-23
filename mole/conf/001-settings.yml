@@ -71,5 +71,5 @@ settings:
     name: max_completion_tokens
     help: maximum number of tokens in a completion
     value: 4096
-    min_value: -1
+    min_value: 0
     max_value: 100000

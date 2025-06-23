@@ -61,12 +61,14 @@ class AiController:
         max_turns_setting = self.config_ctr.get_setting("max_turns")
         if max_turns_setting:
             max_turns = int(max_turns_setting.value)
-        max_completion_tokens = 4096
+        max_completion_tokens = None
         max_completion_tokens_setting = self.config_ctr.get_setting(
             "max_completion_tokens"
         )
         if max_completion_tokens_setting:
             max_completion_tokens = int(max_completion_tokens_setting.value)
+            if max_completion_tokens < 1:
+                max_completion_tokens = None
         # Initialize and start AI service
         ai_service = AiService(
             bv=bv,
