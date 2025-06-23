@@ -159,6 +159,24 @@ class Test_x86_64(TestMediumLevelILInstruction):
     #         [bn.MediumLevelILJumpTo, bn.MediumLevelILConst],
     #     )
 
+    def test_mlil_call(self) -> None:
+        self.create_function()
+        # # Assemble code
+        # encoding, _ = self.ks.asm(assembly_code, as_bytes=True)
+        # # Create function
+        # func = self.create_function(encoding)
+        # # Assert correct MLIL instruction
+        # inst = list(func.mlil.ssa_form.instructions)[0]
+        # self.assertIsInstance(
+        #     inst,
+        #     expected_inst_types[0],
+        #     f"instruction {str(inst):s} has type {expected_inst_types[0].__name__:s}",
+        # )
+        return self.test_mlil_inst(
+            "call 0x1000",
+            [bn.MediumLevelILCallSsa, bn.MediumLevelILConstPtr],
+        )
+
     def test_mlil_store_ssa(self) -> None:
         self.test_mlil_inst(
             self.create_bv(),
