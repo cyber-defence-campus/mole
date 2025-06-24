@@ -45,6 +45,7 @@ class AiService(BackgroundTask):
         model: str,
         max_turns: int,
         max_completion_tokens: int,
+        temperature: float,
         initial_progress_text: str = "",
         can_cancel: bool = False,
     ) -> None:
@@ -61,6 +62,7 @@ class AiService(BackgroundTask):
         self._model = model
         self._max_turns = max_turns
         self._max_completion_tokens = max_completion_tokens
+        self._temperature = temperature
         self._tools = [tool.to_dict() for tool in tools.values()]
         return
 
@@ -173,6 +175,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 model=self._model,
                 tools=self._tools,
                 max_completion_tokens=self._max_completion_tokens,
+                temperature=self._temperature,
                 response_format=VulnerabilityReport,
                 stream_options={"include_usage": True},
             ) as stream:
@@ -392,6 +395,8 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             else "None"
         )
         log.debug(tag, f"- max_completion_tokens: '{max_completion_tokens:s}'")
+        temperature = f"{self._temperature:.1f}" if self._temperature else "None"
+        log.debug(tag, f"- temperature          : '{temperature:s}'")
         # Analyze paths using AI
         with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
             # Submit tasks

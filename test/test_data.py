@@ -1,7 +1,12 @@
 from __future__ import annotations
 from mole.core.data import Category, Configuration, Library
 from mole.core.data import SinkFunction, SourceFunction
-from mole.core.data import ComboboxSetting, SpinboxSetting, TextSetting
+from mole.core.data import (
+    ComboboxSetting,
+    DoubleSpinboxSetting,
+    SpinboxSetting,
+    TextSetting,
+)
 import tempfile
 import unittest
 import yaml
@@ -146,6 +151,13 @@ class TestData(unittest.TestCase):
                     max_value=100000,
                     help="maximum number of tokens in a completion",
                 ),
+                "temperature": DoubleSpinboxSetting(
+                    name="temperature",
+                    value=0.5,
+                    min_value=0.0,
+                    max_value=2.0,
+                    help="the sampling temperature to use",
+                ),
             },
         )
         return
@@ -280,6 +292,29 @@ class TestData(unittest.TestCase):
             # Assert
             self.assertEqual(
                 ori_set, des_set, "Serialization error of 'SpinboxSetting'"
+            )
+        return
+
+    def test_serialize_doublespinbox_settings(self) -> None:
+        for name in ["temperature"]:
+            ori_set: DoubleSpinboxSetting = self.config.settings.get(name, None)
+            # Serialize
+            self.tf.seek(0)
+            self.tf.truncate(0)
+            yaml.safe_dump(
+                ori_set.to_dict(),
+                self.tf,
+                sort_keys=False,
+                default_style=None,
+                default_flow_style=None,
+                encoding="utf-8",
+            )
+            # Deserialize
+            self.tf.seek(0)
+            des_set = DoubleSpinboxSetting(**yaml.safe_load(self.tf))
+            # Assert
+            self.assertEqual(
+                ori_set, des_set, "Serialization error of 'DoubleSpinboxSetting'"
             )
         return
 

@@ -69,6 +69,12 @@ class AiController:
             max_completion_tokens = int(max_completion_tokens_setting.value)
             if max_completion_tokens < 1:
                 max_completion_tokens = None
+        temperature = None
+        temperature_setting = self.config_ctr.get_setting("temperature")
+        if temperature_setting:
+            temperature = float(temperature_setting.value)
+            if temperature < 0.0 or temperature > 2.0:
+                temperature = None
         # Initialize and start AI service
         ai_service = AiService(
             bv=bv,
@@ -80,6 +86,7 @@ class AiController:
             model=model,
             max_turns=max_turns,
             max_completion_tokens=max_completion_tokens,
+            temperature=temperature,
             initial_progress_text="Mole analyzes paths...",
             can_cancel=True,
         )

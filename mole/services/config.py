@@ -5,6 +5,7 @@ from mole.core.data import (
     Category,
     ComboboxSetting,
     Configuration,
+    DoubleSpinboxSetting,
     Library,
     SinkFunction,
     SourceFunction,
@@ -201,6 +202,26 @@ class ConfigService:
                 parsed_config["settings"].update(
                     {
                         name: SpinboxSetting(
+                            name=name,
+                            value=value,
+                            help=help,
+                            min_value=min_value,
+                            max_value=max_value,
+                        )
+                    }
+                )
+            for name in ["temperature"]:
+                setting: Dict = settings.get(name, None)
+                if not setting:
+                    continue
+                value = setting.get("value", None)
+                min_value = float(setting.get("min_value", None))
+                max_value = float(setting.get("max_value", None))
+                value = min(max(value, min_value), max_value)
+                help = setting.get("help", "")
+                parsed_config["settings"].update(
+                    {
+                        name: DoubleSpinboxSetting(
                             name=name,
                             value=value,
                             help=help,

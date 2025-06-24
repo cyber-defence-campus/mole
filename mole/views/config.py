@@ -6,7 +6,12 @@ import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
     from mole.controllers.config import ConfigController
-    from mole.core.data import ComboboxSetting, SpinboxSetting, TextSetting
+    from mole.core.data import (
+        ComboboxSetting,
+        DoubleSpinboxSetting,
+        SpinboxSetting,
+        TextSetting,
+    )
 
 
 class ConfigView(qtw.QWidget):
@@ -234,6 +239,24 @@ class ConfigView(qtw.QWidget):
             setting_lbl.setToolTip(setting.help)
             aia_lay.addWidget(setting_lbl, row_cnt, 0)
             setting.widget = qtw.QSpinBox()
+            setting.widget.setRange(setting.min_value, setting.max_value)
+            setting.widget.setValue(setting.value)
+            setting.widget.setToolTip(setting.help)
+            setting.widget.valueChanged.connect(
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
+            )
+            aia_lay.addWidget(setting.widget, row_cnt, 1)
+            row_cnt += 1
+        for name in ["temperature"]:
+            setting: DoubleSpinboxSetting = self.config_ctr.get_setting(name)
+            if not setting:
+                continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            aia_lay.addWidget(setting_lbl, row_cnt, 0)
+            setting.widget = qtw.QDoubleSpinBox()
+            setting.widget.setDecimals(1)
+            setting.widget.setSingleStep(0.1)
             setting.widget.setRange(setting.min_value, setting.max_value)
             setting.widget.setValue(setting.value)
             setting.widget.setToolTip(setting.help)

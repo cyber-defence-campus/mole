@@ -8,7 +8,7 @@ from mole.core.slice import (
     MediumLevelILInstructionGraph,
 )
 from mole.models.ai import AiVulnerabilityReport
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import binaryninja as bn
 import hashlib
 import networkx as nx
@@ -736,7 +736,7 @@ class WidgetSetting:
     """
 
     name: str
-    value: int | str
+    value: Any
     help: str
     widget: qtw.QWidget = None
 
@@ -766,6 +766,30 @@ class SpinboxSetting(WidgetSetting):
         if not isinstance(other, SpinboxSetting):
             try:
                 other = SpinboxSetting(**other)
+            except Exception as _:
+                return False
+        return super().__eq__(other)
+
+    def to_dict(self) -> Dict:
+        d = super().to_dict()
+        d.update({"min_value": self.min_value, "max_value": self.max_value})
+        return d
+
+
+@dataclass
+class DoubleSpinboxSetting(WidgetSetting):
+    """
+    This class is a representation of the data associated with a spinbox widget.
+    """
+
+    min_value: float = field(default_factory=float)
+    max_value: float = field(default_factory=float)
+    widget: qtw.QDoubleSpinBox = None
+
+    def __eq__(self, other: DoubleSpinboxSetting) -> bool:
+        if not isinstance(other, DoubleSpinboxSetting):
+            try:
+                other = DoubleSpinboxSetting(**other)
             except Exception as _:
                 return False
         return super().__eq__(other)

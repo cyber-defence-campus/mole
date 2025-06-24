@@ -73,3 +73,9 @@ settings:
     value: 4096
     min_value: 0
     max_value: 100000
+  temperature:
+    name: temperature
+    help: the sampling temperature to use
+    value: 0.5
+    min_value: 0.0
+    max_value: 2.0
