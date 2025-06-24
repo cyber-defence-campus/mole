@@ -76,6 +76,6 @@ settings:
   temperature:
     name: temperature
     help: the sampling temperature to use
-    value: 0.5
+    value: 1.0
     min_value: 0.0
     max_value: 2.0

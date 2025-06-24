@@ -153,7 +153,7 @@ class TestData(unittest.TestCase):
                 ),
                 "temperature": DoubleSpinboxSetting(
                     name="temperature",
-                    value=0.5,
+                    value=1.0,
                     min_value=0.0,
                     max_value=2.0,
                     help="the sampling temperature to use",
