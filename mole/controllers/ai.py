@@ -57,7 +57,7 @@ class AiController:
         model_setting = self.config_ctr.get_setting("openai_model")
         if model_setting:
             model = str(model_setting.value)
-        max_turns = 10
+        max_turns = 0
         max_turns_setting = self.config_ctr.get_setting("max_turns")
         if max_turns_setting:
             max_turns = int(max_turns_setting.value)
