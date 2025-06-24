@@ -1,11 +1,6 @@
 from __future__ import annotations
 from mole.core.data import Path
-from mole.models.path import (
-    PathSortProxyModel,
-    PathTreeModel,
-    PATH_COLS,
-    IS_PATH_ITEM_ROLE,
-)
+from mole.models.path import PathColumn, PathRole, PathSortProxyModel, PathTreeModel
 from typing import Callable, List, Optional
 import binaryninja as bn
 import binaryninjaui as bnui
@@ -18,6 +13,8 @@ class PathTreeView(qtw.QTreeView):
     """
     This class implements a tree view for displaying paths grouped by source, sink and call graph.
     """
+
+    signal_show_ai_report = qtc.Signal(list)
 
     def __init__(self, parent=None) -> None:
         """
@@ -113,9 +110,8 @@ class PathTreeView(qtw.QTreeView):
         for row in range(self.path_sort_proxy_model.rowCount(proxy_parent_index)):
             proxy_index = self.path_sort_proxy_model.index(row, 0, proxy_parent_index)
             source_index = self.path_sort_proxy_model.mapToSource(proxy_index)
-            is_path_item = self.path_tree_model.data(source_index, IS_PATH_ITEM_ROLE)
-
-            if not is_path_item:
+            path_id = self.path_tree_model.data(source_index, PathRole.ID.index)
+            if path_id is None:
                 # Apply spanning to this item
                 self.setFirstColumnSpanned(row, proxy_parent_index, True)
                 # Recursively apply to children
@@ -181,6 +177,8 @@ class PathTreeView(qtw.QTreeView):
         on_export_paths: Callable[[List[int]], None],
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
+        on_analyze_paths: Callable[[List[int]], None],
+        on_show_ai_report: Callable[[List[int]], None],
         bv: bn.BinaryView = None,
     ) -> None:
         """
@@ -194,8 +192,6 @@ class PathTreeView(qtw.QTreeView):
 
             # Create context menu
             menu = qtw.QMenu(self)
-
-            # Add menu actions with their enabled states and direct connections
 
             # Log actions
             log_path_action = self._add_menu_action(
@@ -229,6 +225,27 @@ class PathTreeView(qtw.QTreeView):
                 menu, "Show call graph", has_single_row_and_bv
             )
             show_call_graph_action.triggered.connect(lambda: on_show_call_graph(rows))
+
+            menu.addSeparator()
+
+            # AI-generated vulnerability report actions
+            run_ai_analysis_action = self._add_menu_action(
+                menu, "Run AI analysis", len(rows) >= 1
+            )
+            run_ai_analysis_action.triggered.connect(lambda: on_analyze_paths(rows))
+
+            def enable_show_ai_report(rows: List[int]) -> bool:
+                if len(rows) != 1:
+                    return False
+                path = self.path_tree_model.path_map.get(rows[0], None)
+                if path and path.ai_report:
+                    return True
+                return False
+
+            show_ai_report_action = self._add_menu_action(
+                menu, "Show AI report", enable_show_ai_report(rows)
+            )
+            show_ai_report_action.triggered.connect(lambda: on_show_ai_report(rows))
 
             menu.addSeparator()
 
@@ -302,8 +319,8 @@ class PathTreeView(qtw.QTreeView):
         clicked_source_idx = self.path_sort_proxy_model.mapToSource(clicked_idx)
 
         # Check if the clicked item is a group/header (not a path item)
-        is_path_item = self.path_tree_model.data(clicked_source_idx, IS_PATH_ITEM_ROLE)
-        if is_path_item:
+        path_id = self.path_tree_model.data(clicked_source_idx, PathRole.ID.index)
+        if path_id is not None:
             return export_rows
 
         # Recursively gather all path IDs under this group/header
@@ -328,15 +345,13 @@ class PathTreeView(qtw.QTreeView):
         """
         for row in range(self.path_tree_model.rowCount(parent_idx)):
             child_idx = self.path_tree_model.index(row, 0, parent_idx)
-            is_path_item = self.path_tree_model.data(child_idx, IS_PATH_ITEM_ROLE)
-
-            if is_path_item:
-                path_id = self.path_tree_model.get_path_id_from_index(child_idx)
-                if path_id is not None and path_id not in path_list:
-                    path_list.append(path_id)
-            else:
-                # This is a header item, so recurse into it
+            path_id = self.path_tree_model.data(child_idx, PathRole.ID.index)
+            # Header
+            if path_id is None:
                 self._collect_child_paths(child_idx, path_list)
+            else:
+                if path_id not in path_list:
+                    path_list.append(path_id)
         return
 
     def setup_navigation(self, bv: bn.BinaryView = None) -> None:
@@ -371,18 +386,21 @@ class PathTreeView(qtw.QTreeView):
             if path:
                 # Navigate to source address
                 if col in [
-                    PATH_COLS["Src Addr"],
-                    PATH_COLS["Src Func"],
-                    PATH_COLS["Src Parm"],
+                    PathColumn.SRC_ADDR.index,
+                    PathColumn.SRC_FUNC.index,
+                    PathColumn.SRC_PARM.index,
                 ]:
                     vf.navigate(bv, path.src_sym_addr)
                 # Navigate to sink address
                 elif col in [
-                    PATH_COLS["Snk Addr"],
-                    PATH_COLS["Snk Func"],
-                    PATH_COLS["Snk Parm"],
+                    PathColumn.SNK_ADDR.index,
+                    PathColumn.SNK_FUNC.index,
+                    PathColumn.SNK_PARM.index,
                 ]:
                     vf.navigate(bv, path.snk_sym_addr)
+                # Navigate to AI-generated vulnerability report
+                elif col == PathColumn.AI_SEVERITY.index:
+                    self.signal_show_ai_report.emit([path_id])
 
         # Disconnect existing navigation signals to prevent multiple connections
         if self._navigation_connected:
@@ -406,12 +424,12 @@ class PathTreeView(qtw.QTreeView):
         if qtc.Qt.DisplayRole not in roles and qtc.Qt.EditRole not in roles:
             return
         # Check if this edit spans the comment column
-        if topLeft.column() <= PATH_COLS["Comment"] <= bottomRight.column():
+        if topLeft.column() <= PathColumn.COMMENT.index <= bottomRight.column():
             # Process each row in the changed range
             for row in range(topLeft.row(), bottomRight.row() + 1):
                 # Get the index for the comment column in the current row
                 comment_idx = self.path_sort_proxy_model.index(
-                    row, PATH_COLS["Comment"], topLeft.parent()
+                    row, PathColumn.COMMENT.index, topLeft.parent()
                 )
                 # Map to source index and get the path ID
                 source_idx = self.path_sort_proxy_model.mapToSource(comment_idx)

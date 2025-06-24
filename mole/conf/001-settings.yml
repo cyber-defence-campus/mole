@@ -47,5 +47,35 @@ settings:
     - Black
   path_grouping:
     name: path_grouping
-    help: Strategy used to group paths
+    help: strategy used to group paths
     value: Call Graph
+  openai_base_url:
+    name: openai_base_url
+    help: OpenAI API base URL
+    value: "https://api.openai.com/v1"
+  openai_api_key:
+    name: openai_api_key
+    help: OpenAI API key
+    value: ""
+  openai_model:
+    name: openai_model
+    help: OpenAI model
+    value: "o4-mini"
+  max_turns:
+    name: max_turns
+    help: maximum number of turns in a conversation with the AI
+    value: 10
+    min_value: 1
+    max_value: 256
+  max_completion_tokens:
+    name: max_completion_tokens
+    help: maximum number of tokens in a completion
+    value: 4096
+    min_value: 0
+    max_value: 100000
+  temperature:
+    name: temperature
+    help: the sampling temperature to use
+    value: 1.0
+    min_value: 0.0
+    max_value: 2.0

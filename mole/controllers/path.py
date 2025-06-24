@@ -1,13 +1,14 @@
 from __future__ import annotations
 from mole.common.help import InstructionHelper
+from mole.common.log import log
 from mole.common.task import BackgroundTask
+from mole.controllers.ai import AiController
+from mole.controllers.config import ConfigController
 from mole.core.data import Path
 from mole.services.path import PathService
 from mole.views.graph import GraphWidget
 from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
-from mole.controllers.config import ConfigController
-from mole.common.log import log
 from typing import Dict, List, Literal, Tuple, Optional
 import binaryninja as bn
 import copy as copy
@@ -28,19 +29,23 @@ class PathController:
     This class implements a controller to handle paths.
     """
 
-    def __init__(self, config_ctr: ConfigController, path_view: PathView) -> None:
+    def __init__(
+        self, path_view: PathView, config_ctr: ConfigController, ai_ctr: AiController
+    ) -> None:
         """
         This method initializes a controller (MVC pattern).
         """
         # Initialization
-        self.config_ctr = config_ctr
         self.path_view = path_view
+        self.config_ctr = config_ctr
+        self.ai_ctr = ai_ctr
         self._bv: Optional[bn.BinaryView] = None
         self.path_tree_view: Optional[PathTreeView] = None
-        self._thread: Optional[PathService] = None
+        self._thread: Optional[BackgroundTask] = None
         self._paths_highlight: Tuple[
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
+        self.path_view.init(self)
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
         self.connect_signal_load_paths(self.load_paths)
@@ -77,13 +82,22 @@ class PathController:
         self.path_view.signal_setup_path_tree.connect(slot)
         return
 
+    def connect_signal_show_ai_report(self, slot: object) -> None:
+        """
+        This method allows connecting to the signal that is triggered when the AI report should be
+        shown.
+        """
+        if self.path_tree_view:
+            self.path_tree_view.signal_show_ai_report.connect(slot)
+        return
+
     def _change_path_grouping(self, new_strategy: str) -> None:
         """
-        Handler for when grouping strategy changes in the config.
-        Regroups all paths with the new strategy.
+        Handler for when grouping strategy changes in the config. Regroups all paths with the new
+        strategy.
         """
         if self.path_tree_view and len(self.path_tree_view.model.path_map) > 0:
-            log.info(tag, f"Regrouping paths with new strategy: {new_strategy}")
+            log.info(tag, f"Regrouping paths with new strategy: {new_strategy:s}")
             self.path_tree_view.model.regroup_paths(new_strategy)
         return
 
@@ -673,6 +687,51 @@ class PathController:
         log.info(tag, f"Showing call graph of path {path_ids[0]:d}")
         return
 
+    def analyze_paths(self, path_ids: List[int]) -> None:
+        """
+        This method analyzes paths using AI.
+        """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure correct view
+        if not self._validate_bv():
+            return
+        # Require previous background threads to have completed
+        if self._thread and not self._thread.finished:
+            log.warn(tag, "Wait for previous background thread to complete first")
+            return
+        # Get selected paths
+        paths = [
+            (path_id, self.path_tree_view.get_path(path_id)) for path_id in path_ids
+        ]
+        # Start background thread analyzing paths using AI
+        self._thread = self.ai_ctr.analyze_paths(
+            self._bv, paths, self.path_tree_view.model.update_path_report
+        )
+        return
+
+    def show_ai_report(self, path_ids: List[int]) -> None:
+        """
+        This method shows the AI-generated vulnerability report of a path.
+        """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure correct view
+        if not self._validate_bv():
+            return
+        # Ensure expected number of selected paths
+        if len(path_ids) != 1:
+            return
+        # Get selected path
+        path = self.path_tree_view.get_path(path_ids[0])
+        if not path:
+            return
+        # Show the path's AI-generated report if available
+        if path.ai_report:
+            self.ai_ctr.show_report(path.ai_report)
+            self.path_view.show_ai_report_tab()
+        return
+
     def remove_selected_paths(self, path_ids: List[int]) -> None:
         """
         This method removes selected paths from the view.
@@ -710,6 +769,8 @@ class PathController:
         # Store references
         self._bv = bv
         self.path_tree_view = ptv
+        # Set up signals
+        self.connect_signal_show_ai_report(self.show_ai_report)
         # Set up context menu
         ptv.setup_context_menu(
             on_log_path=self.log_path,
@@ -721,6 +782,8 @@ class PathController:
             on_export_paths=lambda rows: self.export_paths(rows),
             on_remove_selected=self.remove_selected_paths,
             on_clear_all=self.clear_all_paths,
+            on_analyze_paths=self.analyze_paths,
+            on_show_ai_report=self.show_ai_report,
             bv=bv,
         )
         # Set up navigation

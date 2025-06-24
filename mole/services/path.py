@@ -1,9 +1,9 @@
 from __future__ import annotations
-from mole.core.data import Path, SourceFunction, SinkFunction
-from mole.common.task import BackgroundTask
-from mole.models.config import ConfigModel
 from concurrent import futures
 from mole.common.log import log
+from mole.common.task import BackgroundTask
+from mole.core.data import Path, SourceFunction, SinkFunction
+from mole.models.config import ConfigModel
 from typing import Callable, List, Optional
 import binaryninja as bn
 
@@ -25,12 +25,12 @@ class PathService(BackgroundTask):
         max_call_level: Optional[int] = None,
         max_slice_depth: Optional[int] = None,
         enable_all_funs: bool = False,
-        path_callback: Optional[Callable[[Path, str], None]] = None,
+        path_callback: Optional[Callable[[Path], None]] = None,
         initial_progress_text: str = "",
         can_cancel: bool = False,
     ) -> None:
         """
-        This method initializes the background task.
+        This method initializes the path service.
         """
         super().__init__(initial_progress_text, can_cancel)
         self._bv = bv
@@ -110,7 +110,7 @@ class PathService(BackgroundTask):
                     if self.cancelled:
                         break
                     self.progress = (
-                        f"Mole processes source {cnt + 1:d}/{len(src_funs):d}"
+                        f"Mole processed source {cnt + 1:d}/{len(src_funs):d}"
                     )
             # Backward slice sink functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -134,7 +134,7 @@ class PathService(BackgroundTask):
                 for cnt, task in enumerate(futures.as_completed(tasks)):
                     if self.cancelled:
                         break
-                    self.progress = f"Mole processes sink {cnt + 1:d}/{len(snk_funs):d}"
+                    self.progress = f"Mole processed sink {cnt + 1:d}/{len(snk_funs):d}"
                     # Collect paths from task results
                     if task.done() and not task.exception():
                         paths = task.result()

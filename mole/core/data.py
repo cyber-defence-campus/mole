@@ -1,13 +1,14 @@
 from __future__ import annotations
+from dataclasses import dataclass, field
 from mole.common.help import InstructionHelper, SymbolHelper
+from mole.common.log import log
 from mole.core.slice import (
     MediumLevelILBackwardSlicer,
     MediumLevelILFunctionGraph,
     MediumLevelILInstructionGraph,
 )
-from dataclasses import dataclass, field
-from mole.common.log import log
-from typing import Callable, Dict, List, Optional, Tuple
+from mole.models.ai import AiVulnerabilityReport
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import binaryninja as bn
 import hashlib
 import networkx as nx
@@ -538,6 +539,7 @@ class Path:
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     calls: List[Tuple[int, str, int]] = field(default_factory=list)
     call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
+    ai_report: Optional[AiVulnerabilityReport] = None
 
     def __init__(
         self,
@@ -553,6 +555,7 @@ class Path:
         insts: List[bn.MediumLevelILInstruction],
         comment: str = "",
         sha1_hash: str = "",
+        ai_report: Optional[AiVulnerabilityReport] = None,
     ) -> None:
         self.src_sym_addr = src_sym_addr
         self.src_sym_name = src_sym_name
@@ -570,6 +573,7 @@ class Path:
         self.bdeps = {}
         self.calls = []
         self.call_graph = MediumLevelILFunctionGraph()
+        self.ai_report = ai_report
         return
 
     def init(self, call_graph: MediumLevelILFunctionGraph) -> None:
@@ -685,6 +689,7 @@ class Path:
             "call_graph": self.call_graph.to_dict(),
             "comment": self.comment,
             "sha1_hash": self.sha1_hash,
+            "ai_report": self.ai_report.to_dict() if self.ai_report else None,
         }
 
     @classmethod
@@ -716,6 +721,9 @@ class Path:
             insts=insts,
             comment=d["comment"],
             sha1_hash=d["sha1_hash"],
+            ai_report=AiVulnerabilityReport(**d["ai_report"])
+            if d["ai_report"]
+            else None,
         )
         path.init(MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"]))
         return path
@@ -728,7 +736,7 @@ class WidgetSetting:
     """
 
     name: str
-    value: int | str
+    value: Any
     help: str
     widget: qtw.QWidget = None
 
@@ -769,6 +777,30 @@ class SpinboxSetting(WidgetSetting):
 
 
 @dataclass
+class DoubleSpinboxSetting(WidgetSetting):
+    """
+    This class is a representation of the data associated with a spinbox widget.
+    """
+
+    min_value: float = field(default_factory=float)
+    max_value: float = field(default_factory=float)
+    widget: qtw.QDoubleSpinBox = None
+
+    def __eq__(self, other: DoubleSpinboxSetting) -> bool:
+        if not isinstance(other, DoubleSpinboxSetting):
+            try:
+                other = DoubleSpinboxSetting(**other)
+            except Exception as _:
+                return False
+        return super().__eq__(other)
+
+    def to_dict(self) -> Dict:
+        d = super().to_dict()
+        d.update({"min_value": self.min_value, "max_value": self.max_value})
+        return d
+
+
+@dataclass
 class ComboboxSetting(WidgetSetting):
     """
     This class is a representation of the data associated with a combobox widget.
@@ -789,3 +821,23 @@ class ComboboxSetting(WidgetSetting):
         d = super().to_dict()
         d.update({"items": self.items})
         return d
+
+
+@dataclass
+class TextSetting(WidgetSetting):
+    """
+    This class is a representation of the data associated with a text input widget.
+    """
+
+    widget: qtw.QLineEdit = None
+
+    def __eq__(self, other: TextSetting) -> bool:
+        if not isinstance(other, TextSetting):
+            try:
+                other = TextSetting(**other)
+            except Exception as _:
+                return False
+        return super().__eq__(other)
+
+    def to_dict(self) -> Dict:
+        return super().to_dict()

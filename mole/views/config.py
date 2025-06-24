@@ -6,7 +6,12 @@ import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
     from mole.controllers.config import ConfigController
-    from mole.core.data import ComboboxSetting, SpinboxSetting
+    from mole.core.data import (
+        ComboboxSetting,
+        DoubleSpinboxSetting,
+        SpinboxSetting,
+        TextSetting,
+    )
 
 
 class ConfigView(qtw.QWidget):
@@ -25,40 +30,43 @@ class ConfigView(qtw.QWidget):
         This method initializes the configuration view.
         """
         super().__init__()
+        self.config_ctr: Optional[ConfigController] = None
         self._save_but: Optional[qtw.QPushButton] = None
         self._reset_but: Optional[qtw.QPushButton] = None
-        self.config_ctr: Optional[ConfigController] = None
         return
 
     def init(self, config_ctr: ConfigController) -> ConfigView:
         """
-        This method sets the controller and initializes relevant UI widgets.
+        This method sets the controller and initializes relevant UI components.
         """
         # Set controller
         self.config_ctr = config_ctr
-        # Initialize conf dir
+        # Tab widget
+        tab_wid = qtw.QTabWidget()
+        tab_wid.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
+        tab_wid.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
+        tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
+        # Script widget
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        cnf_dir = os.path.abspath(os.path.join(script_dir, "../conf/"))
-        cnf_lbl = qtw.QLabel("Config Dir:")
-        cnf_lin = FullSelectLineEdit(cnf_dir)
-        cnf_lin.setReadOnly(True)
-        cnf_lin.setStyleSheet("background-color: transparent; border: none;")
-        cnf_lay = qtw.QHBoxLayout()
-        cnf_lay.addWidget(cnf_lbl)
-        cnf_lay.addWidget(cnf_lin)
-        cnf_dir = qtw.QWidget()
-        cnf_dir.setLayout(cnf_lay)
-        # Initialize UI widgets
-        tab = qtw.QTabWidget()
-        tab.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
-        tab.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
-        tab.addTab(self._init_cnf_set_tab(), "Settings")
-        but = self._init_cnf_but()
-        lay = qtw.QVBoxLayout()
-        lay.addWidget(tab)
-        lay.addWidget(cnf_dir)
-        lay.addWidget(but)
-        self.setLayout(lay)
+        script_dir = os.path.abspath(os.path.join(script_dir, "../conf/"))
+        script_wid = FullSelectLineEdit(script_dir)
+        script_wid.setReadOnly(True)
+        script_wid.setStyleSheet("background-color: transparent; border: none;")
+        # Directory layout
+        dir_lay = qtw.QHBoxLayout()
+        dir_lay.addWidget(qtw.QLabel("Config Dir:"))
+        dir_lay.addWidget(script_wid)
+        # Directory widget
+        dir_wid = qtw.QWidget()
+        dir_wid.setLayout(dir_lay)
+        # Button widget
+        but_wid = self._init_cnf_but()
+        # Main layout
+        main_lay = qtw.QVBoxLayout()
+        main_lay.addWidget(tab_wid)
+        main_lay.addWidget(dir_wid)
+        main_lay.addWidget(but_wid)
+        self.setLayout(main_lay)
         return self
 
     def _init_cnf_fun_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QWidget:
@@ -123,8 +131,8 @@ class ConfigView(qtw.QWidget):
                 box_wid.setLayout(box_lay)
                 lib_lay.addWidget(box_wid)
             scr_wid = qtw.QScrollArea()
-            scr_wid.setWidget(lib_wid)
             scr_wid.setWidgetResizable(True)
+            scr_wid.setWidget(lib_wid)
             tab_wid.addTab(scr_wid, lib.name)
         lay = qtw.QVBoxLayout()
         lay.addWidget(tab_wid)
@@ -136,12 +144,15 @@ class ConfigView(qtw.QWidget):
         """
         This method initializes the tab `Settings`.
         """
-        com_wid = qtw.QWidget()
-        com_lay = qtw.QFormLayout()
-        for name in ["max_workers", "max_call_level", "max_slice_depth"]:
+        # General layout
+        gen_lay = qtw.QGridLayout()
+        for i, name in enumerate(["max_workers"]):
             setting: SpinboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            gen_lay.addWidget(setting_lbl, i, 0)
             setting.widget = qtw.QSpinBox()
             setting.widget.setRange(setting.min_value, setting.max_value)
             setting.widget.setValue(setting.value)
@@ -149,22 +160,41 @@ class ConfigView(qtw.QWidget):
             setting.widget.valueChanged.connect(
                 lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
-            label = qtw.QLabel(f"{name:s}:")
-            label.setToolTip(setting.help)
-            com_lay.addRow(label, setting.widget)
-        com_wid.setLayout(com_lay)
-        com_box_lay = qtw.QVBoxLayout()
-        com_box_lay.addWidget(com_wid)
-        com_box_wid = qtw.QGroupBox("Finding Paths:")
-        com_box_wid.setLayout(com_box_lay)
-
-        pth_wid = qtw.QWidget()
-        pth_lay = qtw.QFormLayout()
-
-        for name in ["src_highlight_color", "snk_highlight_color", "path_grouping"]:
+            gen_lay.addWidget(setting.widget, i, 1)
+        # General widget
+        gen_wid = qtw.QGroupBox("General:")
+        gen_wid.setLayout(gen_lay)
+        # Find layout
+        fnd_lay = qtw.QGridLayout()
+        for i, name in enumerate(["max_call_level", "max_slice_depth"]):
+            setting: SpinboxSetting = self.config_ctr.get_setting(name)
+            if not setting:
+                continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            fnd_lay.addWidget(setting_lbl, i, 0)
+            setting.widget = qtw.QSpinBox()
+            setting.widget.setRange(setting.min_value, setting.max_value)
+            setting.widget.setValue(setting.value)
+            setting.widget.setToolTip(setting.help)
+            setting.widget.valueChanged.connect(
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
+            )
+            fnd_lay.addWidget(setting.widget, i, 1)
+        # Find widget
+        fnd_wid = qtw.QGroupBox("Finding Paths:")
+        fnd_wid.setLayout(fnd_lay)
+        # Inspecting layout
+        ins_lay = qtw.QGridLayout()
+        for i, name in enumerate(
+            ["src_highlight_color", "snk_highlight_color", "path_grouping"]
+        ):
             setting: ComboboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            ins_lay.addWidget(setting_lbl, i, 0)
             setting.widget = qtw.QComboBox()
             setting.widget.addItems(setting.items)
             if setting.value in setting.items:
@@ -177,20 +207,81 @@ class ConfigView(qtw.QWidget):
                 setting.widget.currentTextChanged.connect(
                     lambda value: self.signal_change_path_grouping.emit(value)
                 )
+            ins_lay.addWidget(setting.widget, i, 1)
+        # Inspecting widget
+        ins_wid = qtw.QGroupBox("Inspecting Path:")
+        ins_wid.setLayout(ins_lay)
+        # Analyzing layout
+        aia_lay = qtw.QGridLayout()
+        row_cnt = 0
+        for name in ["openai_base_url", "openai_api_key", "openai_model"]:
+            setting: TextSetting = self.config_ctr.get_setting(name)
+            if not setting:
+                continue
             setting_lbl = qtw.QLabel(f"{name:s}:")
-            pth_lay.addRow(setting_lbl, setting.widget)
-
-        pth_wid.setLayout(pth_lay)
-        pth_box_lay = qtw.QVBoxLayout()
-        pth_box_lay.addWidget(pth_wid)
-        pth_box_wid = qtw.QGroupBox("Analyzing Path:")
-        pth_box_wid.setLayout(pth_box_lay)
-        lay = qtw.QVBoxLayout()
-        lay.addWidget(com_box_wid)
-        lay.addWidget(pth_box_wid)
-        wid = qtw.QWidget()
-        wid.setLayout(lay)
-        return wid
+            setting_lbl.setToolTip(setting.help)
+            aia_lay.addWidget(setting_lbl, row_cnt, 0)
+            setting.widget = qtw.QLineEdit()
+            if name == "openai_api_key":
+                setting.widget.setEchoMode(qtw.QLineEdit.EchoMode.Password)
+            setting.widget.setText(setting.value)
+            setting.widget.setToolTip(setting.help)
+            setting.widget.textChanged.connect(
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
+            )
+            aia_lay.addWidget(setting.widget, row_cnt, 1)
+            row_cnt += 1
+        for name in ["max_turns", "max_completion_tokens"]:
+            setting: SpinboxSetting = self.config_ctr.get_setting(name)
+            if not setting:
+                continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            aia_lay.addWidget(setting_lbl, row_cnt, 0)
+            setting.widget = qtw.QSpinBox()
+            setting.widget.setRange(setting.min_value, setting.max_value)
+            setting.widget.setValue(setting.value)
+            setting.widget.setToolTip(setting.help)
+            setting.widget.valueChanged.connect(
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
+            )
+            aia_lay.addWidget(setting.widget, row_cnt, 1)
+            row_cnt += 1
+        for name in ["temperature"]:
+            setting: DoubleSpinboxSetting = self.config_ctr.get_setting(name)
+            if not setting:
+                continue
+            setting_lbl = qtw.QLabel(f"{name:s}:")
+            setting_lbl.setToolTip(setting.help)
+            aia_lay.addWidget(setting_lbl, row_cnt, 0)
+            setting.widget = qtw.QDoubleSpinBox()
+            setting.widget.setDecimals(1)
+            setting.widget.setSingleStep(0.1)
+            setting.widget.setRange(setting.min_value, setting.max_value)
+            setting.widget.setValue(setting.value)
+            setting.widget.setToolTip(setting.help)
+            setting.widget.valueChanged.connect(
+                lambda value, name=name: self.signal_change_setting.emit(name, value)
+            )
+            aia_lay.addWidget(setting.widget, row_cnt, 1)
+            row_cnt += 1
+        # Analyzing widget
+        aia_wid = qtw.QGroupBox("Analyzing Path with AI:")
+        aia_wid.setLayout(aia_lay)
+        # Setting layout
+        set_lay = qtw.QVBoxLayout()
+        set_lay.addWidget(gen_wid)
+        set_lay.addWidget(fnd_wid)
+        set_lay.addWidget(ins_wid)
+        set_lay.addWidget(aia_wid)
+        # Setting widget
+        set_wid = qtw.QWidget()
+        set_wid.setLayout(set_lay)
+        # Scroll widget
+        scr_wid = qtw.QScrollArea()
+        scr_wid.setWidgetResizable(True)
+        scr_wid.setWidget(set_wid)
+        return scr_wid
 
     def _init_cnf_but(self) -> qtw.QWidget:
         """

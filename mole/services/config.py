@@ -1,16 +1,18 @@
 from __future__ import annotations
+from mole.common.log import log
 from mole.common.parse import LogicalExpressionParser
 from mole.core.data import (
     Category,
     ComboboxSetting,
     Configuration,
+    DoubleSpinboxSetting,
     Library,
     SinkFunction,
     SourceFunction,
     SpinboxSetting,
+    TextSetting,
 )
 from mole.grouping import get_all_grouping_strategies
-from mole.common.log import log
 from typing import Dict
 import fnmatch as fn
 import os as os
@@ -182,7 +184,13 @@ class ConfigService:
                     parsed_config[type][lib_name] = Library(lib_name, lib_categories)
             # Parse settings
             settings: Dict[str, Dict] = config.get("settings", {})
-            for name in ["max_workers", "max_call_level", "max_slice_depth"]:
+            for name in [
+                "max_workers",
+                "max_call_level",
+                "max_slice_depth",
+                "max_turns",
+                "max_completion_tokens",
+            ]:
                 setting: Dict = settings.get(name, None)
                 if not setting:
                     continue
@@ -194,6 +202,26 @@ class ConfigService:
                 parsed_config["settings"].update(
                     {
                         name: SpinboxSetting(
+                            name=name,
+                            value=value,
+                            help=help,
+                            min_value=min_value,
+                            max_value=max_value,
+                        )
+                    }
+                )
+            for name in ["temperature"]:
+                setting: Dict = settings.get(name, None)
+                if not setting:
+                    continue
+                value = setting.get("value", None)
+                min_value = float(setting.get("min_value", None))
+                max_value = float(setting.get("max_value", None))
+                value = min(max(value, min_value), max_value)
+                help = setting.get("help", "")
+                parsed_config["settings"].update(
+                    {
+                        name: DoubleSpinboxSetting(
                             name=name,
                             value=value,
                             help=help,
@@ -218,6 +246,15 @@ class ConfigService:
                             name=name, value=value, help=help, items=items
                         )
                     }
+                )
+            for name in ["openai_base_url", "openai_api_key", "openai_model"]:
+                setting = settings.get(name, None)
+                if not setting:
+                    continue
+                value = setting.get("value", "")
+                help = setting.get("help", "")
+                parsed_config["settings"].update(
+                    {name: TextSetting(name=name, value=value, help=help)}
                 )
         except Exception as e:
             log.warn(tag, f"Failed to parse configuration file: '{str(e):s}'")

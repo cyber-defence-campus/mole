@@ -1,15 +1,17 @@
 from __future__ import annotations
 from mole.core.data import (
     ComboboxSetting,
+    DoubleSpinboxSetting,
     Function,
     Library,
     SpinboxSetting,
+    TextSetting,
     WidgetSetting,
 )
 from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
 from mole.views.config import ConfigView
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 
 class ConfigController:
@@ -30,6 +32,7 @@ class ConfigController:
         self.config_service = config_service
         self.config_model = config_model
         self.config_view = config_view
+        self.config_view.init(self)
         # Connect signals
         self.connect_signal_save_config(self.save_config)
         self.connect_signal_reset_config(self.reset_config)
@@ -156,11 +159,15 @@ class ConfigController:
                     fun.checkbox.setChecked(fun.enabled)
         for setting_name, setting in new_config.settings.items():
             setting.widget = settings.get(setting_name, None)
-            if isinstance(setting, SpinboxSetting):
+            if isinstance(setting, SpinboxSetting) or isinstance(
+                setting, DoubleSpinboxSetting
+            ):
                 setting.widget.setValue(setting.value)
             elif isinstance(setting, ComboboxSetting):
                 if setting.value in setting.items:
                     setting.widget.setCurrentText(setting.value)
+            elif isinstance(setting, TextSetting):
+                setting.widget.setText(setting.value)
         self.config_model.set(new_config)
         # User feedback
         self.config_view.give_feedback("Reset", "Resetting...")
@@ -190,7 +197,7 @@ class ConfigController:
             fun.checkbox.setChecked(fun.enabled)
         return
 
-    def change_setting(self, name: str, value: object) -> None:
+    def change_setting(self, name: str, value: Any) -> None:
         """
         This method changes setting values.
         """

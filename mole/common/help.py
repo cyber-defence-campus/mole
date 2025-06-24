@@ -126,3 +126,29 @@ class FunctionHelper:
         if with_class_name:
             info = f"{info:s} ({func.__class__.__name__:s})"
         return info
+
+    @staticmethod
+    def get_il_code(
+        func: bn.HighLevelILFunction | bn.MediumLevelILFunction | bn.LowLevelILFunction,
+    ) -> str:
+        """
+        This method returns an IL code representation of the function `func`.
+        """
+        if not func:
+            return ""
+        code_lines = [
+            f"0x{inst.address:x}: {str(inst):s}" for inst in func.instructions
+        ]
+        return "\n".join(code_lines)
+
+    @staticmethod
+    def get_pseudo_c_code(func: bn.Function) -> str:
+        """
+        This method returns the pseudo C code of the function `func`.
+        """
+        if not func or func.pseudo_c_if_available is None:
+            return ""
+        code_lines = []
+        for code_line in func.pseudo_c_if_available.get_linear_lines(func.hlil.root):
+            code_lines.append(f"0x{code_line.address:x}: {str(code_line):s}")
+        return "\n".join(code_lines)
