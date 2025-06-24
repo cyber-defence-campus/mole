@@ -38,11 +38,11 @@ def get_code_for_functions_containing(
     )
     res_code = ""
     try:
-        addr = int(addr, 0)
+        _addr = int(addr, 0)
         il_type = il_type.upper()
         func_code = []
-        for func in bv.get_functions_containing(addr):
-            header = f"{il_type:s} code of function `0x{func.start:x}: {str(func):s}`, which contains address `0x{addr:x}`:"
+        for func in bv.get_functions_containing(_addr):
+            header = f"{il_type:s} code of function `0x{func.start:x}: {str(func):s}`, which contains address `0x{_addr:x}`:"
             code = get_il_code(func, il_type)
             func_code.append(header + "\n```\n" + code + "\n```\n")
             log.debug(
@@ -51,10 +51,9 @@ def get_code_for_functions_containing(
             )
         res_code = "\n".join(func_code)
     except Exception as e:
-        log.error(
-            tag,
-            f"Failed to get {il_type:s} code of functions containing address '0x{addr:x}': {str(e):s}",
-        )
+        msg = f"Failed to get {il_type:s} code of functions containing address '{addr:s}': {str(e):s}"
+        log.warn(tag, msg)
+        res_code = msg
     return res_code
 
 
@@ -86,10 +85,9 @@ def get_code_for_functions_by_name(
             )
         res_code = "\n".join(func_code)
     except Exception as e:
-        log.error(
-            tag,
-            f"Failed to get {il_type:s} code of functions with name '{name:s}': {str(e):s}",
-        )
+        msg = f"Failed to get {il_type:s} code of functions with name '{name:s}': {str(e):s}"
+        log.warn(tag, msg)
+        res_code = msg
     return res_code
 
 
@@ -104,10 +102,10 @@ def get_callers_by_address(
     log.info(tag, f"Tool call 'get_callers_by_address(addr={addr:s})'")
     res_callers = ""
     try:
-        addr = int(addr, 0)
+        _addr = int(addr, 0)
         callers = []
-        for func in bv.get_functions_containing(addr):
-            header = f"Callers of function `0x{func.start:x}: {str(func):s}`, which contains address `0x{addr:x}`:"
+        for func in bv.get_functions_containing(_addr):
+            header = f"Callers of function `0x{func.start:x}: {str(func):s}`, which contains address `0x{_addr:x}`:"
             func_callers = "\n".join(
                 f"- `0x{caller.start:x}`: `{caller.symbol.short_name:s}`"
                 for caller in func.callers
@@ -115,10 +113,9 @@ def get_callers_by_address(
             callers.append(header + "\n" + func_callers + "\n")
         res_callers = "\n".join(callers)
     except Exception as e:
-        log.error(
-            tag,
-            f"Failed to get callers of functions containing address '0x{addr:x}': {str(e):s}",
-        )
+        msg = f"Failed to get callers of functions containing address '{addr:s}': {str(e):s}"
+        log.warn(tag, msg)
+        res_callers = msg
     return res_callers
 
 
@@ -143,8 +140,7 @@ def get_callers_by_name(
             callers.append(header + "\n" + func_callers + "\n")
         res_callers = "\n".join(callers)
     except Exception as e:
-        log.error(
-            tag,
-            f"Failed to get callers of functions with name '{name:s}': {str(e):s}",
-        )
+        msg = f"Failed to get callers of functions with name '{name:s}': {str(e):s}"
+        log.warn(tag, msg)
+        res_callers = msg
     return res_callers
