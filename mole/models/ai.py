@@ -141,7 +141,7 @@ tools: Dict[str, ToolFunction] = {
             ToolParameter(
                 name="addr",
                 type="string",
-                description="The address (e.g. '0x409fd4') to query",
+                description="The address (hexadecimal string, e.g. '0x409fd4') to query",
             ),
             ToolParameter(
                 name="il_type",
@@ -179,7 +179,7 @@ tools: Dict[str, ToolFunction] = {
             ToolParameter(
                 name="addr",
                 type="string",
-                description="The address (e.g. '0x409fd4') within the function whose callers are needed",
+                description="The address (hexadecimal string, e.g. '0x409fd4') within the function whose callers are needed",
             )
         ],
         required=["addr"],
