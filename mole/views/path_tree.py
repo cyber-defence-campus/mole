@@ -14,6 +14,8 @@ class PathTreeView(qtw.QTreeView):
     This class implements a tree view for displaying paths grouped by source, sink and call graph.
     """
 
+    signal_show_ai_report = qtc.Signal(list)
+
     def __init__(self, parent=None) -> None:
         """
         This method initializes the path tree view.
@@ -396,6 +398,9 @@ class PathTreeView(qtw.QTreeView):
                     PathColumn.SNK_PARM.index,
                 ]:
                     vf.navigate(bv, path.snk_sym_addr)
+                # Navigate to AI-generated vulnerability report
+                elif col == PathColumn.AI_SEVERITY.index:
+                    self.signal_show_ai_report.emit([path_id])
 
         # Disconnect existing navigation signals to prevent multiple connections
         if self._navigation_connected:
