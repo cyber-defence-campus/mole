@@ -47,13 +47,14 @@ The `par_slice` expression specifies which function parameters should be include
 
 To enable AI-based analysis, you must first configure an OpenAI-compatible endpoint in the *Configure / Settings* sub-tab. The following settings are available:
 
-| Setting               | Description                                                               |
-|-----------------------|---------------------------------------------------------------------------|
-| openai_base_url       | URL of OpenAI-compatible API endpoint (e.g., `https://api.openai.com/v1`) |
-| openai_api_key        | API key for authentication (leave empty for `MOCK` mode)                  |
-| openai_model          | Model to use (e.g., `o4-mini`)                                            |
-| max_turns             | Maximum number of turns in a conversation                                 |
-| max_completion_tokens | Maximum number of tokens in a completion                                  |
+| Setting               | Description                                                                        |
+|-----------------------|------------------------------------------------------------------------------------|
+| openai_base_url       | URL of OpenAI-compatible API endpoint (e.g., `https://api.openai.com/v1`)          |
+| openai_api_key        | API key for authentication (leave empty for `MOCK` mode)                           |
+| openai_model          | Model to use (e.g., `o4-mini`)                                                     |
+| max_turns             | Maximum number of turns in a conversation                                          |
+| max_completion_tokens | Maximum number of tokens in a completion                                           |
+| temperature           | Sampling temperature (lower values make the output more focused and deterministic) |
 
 Based on our initial testing, OpenAI’s `o4-mini` model offers a good balance between output quality and cost efficiency. However, you are free to use any model or provider that supports tool calling and structured output, depending on your preferences and requirements.
 

@@ -278,6 +278,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 prompt_tokens=random.randint(1, self._max_completion_tokens),
                 completion_tokens=random.randint(1, self._max_completion_tokens),
                 total_tokens=random.randint(1, self._max_completion_tokens),
+                temperature=random.uniform(0.0, 2.0),
                 timestamp=datetime.now(),
             )
         # OpenAI client available
@@ -357,6 +358,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 prompt_tokens=token_usage["prompt_tokens"],
                 completion_tokens=token_usage["completion_tokens"],
                 total_tokens=token_usage["total_tokens"],
+                temperature=self._temperature,
                 timestamp=datetime.now(),
                 **report.to_dict(),
             )
