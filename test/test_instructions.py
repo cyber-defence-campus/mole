@@ -71,28 +71,18 @@ class Test_x86_64(TestMediumLevelILInstruction):
         # Return the created function
         return bv.get_function_at(addr)
 
-    # def create_function(self, addr: int = 0x0, data: bytes = b"") -> bn.Function | None:
-    #     """
-    #     This method creates a new function in a binary view with the given data.
-    #     """
-    #     bv = bn.BinaryView.new(data)
-    #     bv.platform = self.plat
-    #     bv.add_function(addr, self.plat)
-    #     bv.update_analysis_and_wait()
-    #     return bv.get_function_at(0)
-
     def test_mlil_inst(
         self,
+        bv: bn.BinaryView | None = None,
         assembly_code: str = "",
         expected_inst_types: List[bn.MediumLevelILInstruction] = [],
+        expected_call_types: List[int] = [],
     ) -> None:
         """
         This method tests the slicing of a MLIL instruction.
         """
-        if not assembly_code or not expected_inst_types:
+        if not bv or not assembly_code or not expected_inst_types:
             return
-        # Create binary view
-        bv = self.create_bv()
         # Create function
         func = self.create_function(bv, 0x0, assembly_code)
         # Assert correct MLIL instruction
@@ -105,8 +95,8 @@ class Test_x86_64(TestMediumLevelILInstruction):
         # Slice instruction
         slicer = MediumLevelILBackwardSlicer(func.view)
         slicer._slice_backwards(inst)
+        # Assert instruction slice
         inst_slice = list(slicer.inst_graph.nodes())
-        # Assert slice
         self.assertEqual(
             len(inst_slice), len(expected_inst_types), "incorrect slice length"
         )
@@ -114,49 +104,51 @@ class Test_x86_64(TestMediumLevelILInstruction):
             self.assertIsInstance(
                 inst, type, f"instruction {str(inst):s} has type {type.__name__:s}"
             )
+        # Assert call slice
+        call_slice = list(slicer.call_graph.nodes())
+        self.assertEqual(
+            len(call_slice), len(expected_call_types), "incorrect call slice length"
+        )
+        for call, call_addr in zip(call_slice, expected_call_types):
+            func: bn.Function = call.source_function
+            self.assertEqual(
+                func.start,
+                call_addr,
+                f"call address 0x{func.start:x} is not 0x{call_addr:x}",
+            )
         return
 
     def test_mlil_jump(self) -> None:
-        return self.test_mlil_inst(
+        self.test_mlil_inst(
+            self.create_bv(),
             "jmp 0x1000",
             [bn.MediumLevelILJump, bn.MediumLevelILConstPtr],
+            [],
         )
-
-    # def test_mlil_jump_to(self) -> None:
-    #     return self.test_mlil_inst(
-    #         """
-    #         mov eax, edi
-    #         cmp eax, 2
-    #         ja  0x1000
-    #         mov eax, [0x2000 + rax*4]
-    #         jmp rax
-    #         """,
-    #         [bn.MediumLevelILJumpTo, bn.MediumLevelILConst],
-    #     )
+        return
 
     def test_mlil_call(self) -> None:
-        self.create_function()
-        # # Assemble code
-        # encoding, _ = self.ks.asm(assembly_code, as_bytes=True)
-        # # Create function
-        # func = self.create_function(encoding)
-        # # Assert correct MLIL instruction
-        # inst = list(func.mlil.ssa_form.instructions)[0]
-        # self.assertIsInstance(
-        #     inst,
-        #     expected_inst_types[0],
-        #     f"instruction {str(inst):s} has type {expected_inst_types[0].__name__:s}",
-        # )
-        return self.test_mlil_inst(
-            "call 0x1000",
-            [bn.MediumLevelILCallSsa, bn.MediumLevelILConstPtr],
+        # Create binary view
+        bv = self.create_bv()
+        # Create a dummy function
+        self.create_function(bv, 0x100, "ret")
+        # Test call instruction
+        self.test_mlil_inst(
+            bv,
+            "call 0x100",
+            [bn.MediumLevelILCallSsa, bn.MediumLevelILRet],
+            [0x0, 0x100],
         )
+        return
 
     def test_mlil_store_ssa(self) -> None:
-        return self.test_mlil_inst(
+        self.test_mlil_inst(
+            self.create_bv(),
             "mov dword ptr [rax], 0xdeadbeef",
             [bn.MediumLevelILStoreSsa, bn.MediumLevelILConst],
+            [],
         )
+        return
 
     # def test_mlil_store_struct(self, filenames: List[str] = ["struct-02"]) -> None:
     #     # Define structure name and type
