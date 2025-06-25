@@ -142,40 +142,27 @@ class Test_x86_64(TestMediumLevelILInstruction):
         return
 
     def test_mlil_jump(self) -> None:
-        return self.test_mlil_inst(
+        self.test_mlil_inst(
+            self.create_bv(),
             "jmp 0x1000",
             [bn.MediumLevelILJump, bn.MediumLevelILConstPtr],
+            [],
         )
-
-    # def test_mlil_jump_to(self) -> None:
-    #     return self.test_mlil_inst(
-    #         """
-    #         mov eax, edi
-    #         cmp eax, 2
-    #         ja  0x1000
-    #         mov eax, [0x2000 + rax*4]
-    #         jmp rax
-    #         """,
-    #         [bn.MediumLevelILJumpTo, bn.MediumLevelILConst],
-    #     )
+        return
 
     def test_mlil_call(self) -> None:
-        self.create_function()
-        # # Assemble code
-        # encoding, _ = self.ks.asm(assembly_code, as_bytes=True)
-        # # Create function
-        # func = self.create_function(encoding)
-        # # Assert correct MLIL instruction
-        # inst = list(func.mlil.ssa_form.instructions)[0]
-        # self.assertIsInstance(
-        #     inst,
-        #     expected_inst_types[0],
-        #     f"instruction {str(inst):s} has type {expected_inst_types[0].__name__:s}",
-        # )
-        return self.test_mlil_inst(
-            "call 0x1000",
-            [bn.MediumLevelILCallSsa, bn.MediumLevelILConstPtr],
+        # Create binary view
+        bv = self.create_bv()
+        # Create a dummy function
+        self.create_function(bv, 0x100, "ret")
+        # Test call instruction
+        self.test_mlil_inst(
+            bv,
+            "call 0x100",
+            [bn.MediumLevelILCallSsa, bn.MediumLevelILRet],
+            [0x0, 0x100],
         )
+        return
 
     def test_mlil_store_ssa(self) -> None:
         self.test_mlil_inst(
