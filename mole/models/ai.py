@@ -74,6 +74,7 @@ class AiVulnerabilityReport(VulnerabilityReport):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    temperature: float
     timestamp: datetime
 
     def to_dict(self) -> Dict[str, Any]:
@@ -87,6 +88,7 @@ class AiVulnerabilityReport(VulnerabilityReport):
                 "prompt_tokens": self.prompt_tokens,
                 "completion_tokens": self.completion_tokens,
                 "total_tokens": self.total_tokens,
+                "temperature": self.temperature,
                 "timestamp": self.timestamp.isoformat(),
             }
         )

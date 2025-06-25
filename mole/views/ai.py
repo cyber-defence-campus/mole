@@ -30,6 +30,7 @@ class AiView(qtw.QWidget):
         self._tool_calls_lbl: qtw.QLabel = qtw.QLabel("")
         self._turns: qtw.QLabel = qtw.QLabel("")
         self._token_usage_lbl: qtw.QLabel = qtw.QLabel("")
+        self._temperature_lbl: qtw.QLabel = qtw.QLabel("")
         self._timestamp_lbl: qtw.QLabel = qtw.QLabel("")
         return
 
@@ -80,8 +81,10 @@ class AiView(qtw.QWidget):
         info_lay.addWidget(self._tool_calls_lbl, 2, 1)
         info_lay.addWidget(qtw.QLabel("Token Usage:"), 3, 0)
         info_lay.addWidget(self._token_usage_lbl, 3, 1)
-        info_lay.addWidget(qtw.QLabel("Timestamp:"), 4, 0)
-        info_lay.addWidget(self._timestamp_lbl, 4, 1)
+        info_lay.addWidget(qtw.QLabel("Temperature:"), 4, 0)
+        info_lay.addWidget(self._temperature_lbl, 4, 1)
+        info_lay.addWidget(qtw.QLabel("Timestamp:"), 5, 0)
+        info_lay.addWidget(self._timestamp_lbl, 5, 1)
         # Information widget
         info_wid = qtw.QWidget()
         info_wid.setLayout(info_lay)
@@ -146,15 +149,16 @@ class AiView(qtw.QWidget):
         self._input_example_txt.setPlainText(msg_txt)
         # Information
         self._model_lbl.setText(report.model)
-        self._tool_calls_lbl.setText(str(report.tool_calls))
-        self._turns.setText(str(report.turns))
-        token_usage_txt = f"Prompt: {str(report.prompt_tokens):s}, "
-        token_usage_txt += f"Completion: {str(report.completion_tokens):s}, "
-        token_usage_txt += f"Total: {str(report.total_tokens):s}"
+        self._tool_calls_lbl.setText(f"{report.tool_calls:d}")
+        self._turns.setText(f"{report.turns:d}")
+        token_usage_txt = f"Prompt: {report.prompt_tokens:d}, "
+        token_usage_txt += f"Completion: {report.completion_tokens:d}, "
+        token_usage_txt += f"Total: {report.total_tokens:d}"
         self._token_usage_lbl.setText(token_usage_txt)
         if report.timestamp:
             timestamp_txt = report.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         else:
             timestamp_txt = "N/A"
+        self._temperature_lbl.setText(f"{report.temperature:.1f}")
         self._timestamp_lbl.setText(timestamp_txt)
         return
