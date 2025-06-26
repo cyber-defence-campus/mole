@@ -7,14 +7,14 @@ sources:
         functions:
           getenv:
             name: getenv
-            symbols: [getenv, __builtin_getenv]
+            symbols: [getenv, _getenv, __builtin_getenv]
             synopsis: char* getenv(const char* name)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           secure_getenv:
             name: secure_getenv
-            symbols: [secure_getenv, __builtin_secure_getenv]
+            symbols: [secure_getenv, _secure_getenv, __builtin_secure_getenv]
             synopsis: char* secure_getenv(const char* name)
             enabled: true
             par_cnt: i == 1
@@ -24,91 +24,91 @@ sources:
         functions:
           fgetc:
             name: fgetc
-            symbols: [fgetc, __builtin_fgetc]
+            symbols: [fgetc, _fgetc, __builtin_fgetc]
             synopsis: int fgetc(FILE* stream)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           fgetwc:
             name: fgetwc
-            symbols: [fgetwc, __builtin_fgetwc]
+            symbols: [fgetwc, _fgetwc, __builtin_fgetwc]
             synopsis: wint_t fgetwc(FILE *stream)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           fgetc_unlocked:
             name: fgetc_unlocked
-            symbols: [fgetc_unlocked, __builtin_fgetc_unlocked]
+            symbols: [fgetc_unlocked, _fgetc_unlocked, __builtin_fgetc_unlocked]
             synopsis: int fgetc_unlocked(FILE *stream)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           fgetwc_unlocked:
             name: fgetwc_unlocked
-            symbols: [fgetwc_unlocked, __builtin_fgetwc_unlocked]
+            symbols: [fgetwc_unlocked, _fgetwc_unlocked, __builtin_fgetwc_unlocked]
             synopsis: wint_t fgetwc_unlocked(FILE *stream)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           getc:
             name: getc
-            symbols: [getc, __builtin_getc]
+            symbols: [getc, _getc, __builtin_getc]
             synopsis: int getc(FILE* stream)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           getwc:
             name: getwc
-            symbols: [getwc, __builtin_getwc]
+            symbols: [getwc, _getwc, __builtin_getwc]
             synopsis: wint_t getwc(FILE* stream)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           getc_unlocked:
             name: getc_unlocked
-            symbols: [getc_unlocked, __builtin_getc_unlocked]
+            symbols: [getc_unlocked, _getc_unlocked, __builtin_getc_unlocked]
             synopsis: int getc_unlocked(FILE* stream)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           getwc_unlocked:
             name: getwc_unlocked
-            symbols: [getwc_unlocked, __builtin_getwc_unlocked]
+            symbols: [getwc_unlocked, _getwc_unlocked, __builtin_getwc_unlocked]
             synopsis: wint_t getwc_unlocked(FILE* stream)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           getchar:
             name: getchar
-            symbols: [getchar, __builtin_getchar]
+            symbols: [getchar, _getchar, __builtin_getchar]
             synopsis: int getchar(void)
             enabled: true
             par_cnt: i == 0
             par_slice: 'False'
           getwchar:
             name: getwchar
-            symbols: [getwchar, __builtin_getwchar]
+            symbols: [getwchar, _getwchar, __builtin_getwchar]
             synopsis: wint_t getwchar(void)
             enabled: true
             par_cnt: i == 0
             par_slice: 'False'
           getchar_unlocked:
             name: getchar_unlocked
-            symbols: [getchar_unlocked, __builtin_getchar_unlocked]
+            symbols: [getchar_unlocked, _getchar_unlocked, __builtin_getchar_unlocked]
             synopsis: int getchar_unlocked(void)
             enabled: true
             par_cnt: i == 0
             par_slice: 'False'
           getwchar_unlocked:
             name: getwchar_unlocked
-            symbols: [getwchar_unlocked, __builtin_getwchar_unlocked]
+            symbols: [getwchar_unlocked, _getwchar_unlocked, __builtin_getwchar_unlocked]
             synopsis: wint_t getwchar_unlocked(void)
             enabled: true
             par_cnt: i == 0
             par_slice: 'False'
           getw:
             name: getw
-            symbols: [getw, __builtin_getw]
+            symbols: [getw, _getw, __builtin_getw]
             synopsis: int getw(FILE* stream)
             enabled: true
             par_cnt: i == 1
@@ -118,49 +118,49 @@ sources:
         functions:
           getline:
             name: getline
-            symbols: [getline, __builtin_getline]
+            symbols: [getline, _getline, __builtin_getline]
             synopsis: ssize_t getline(char** lineptr, size_t* n, FILE* stream)
             enabled: true
             par_cnt: i == 3
             par_slice: i == 1
           getdelim:
             name: getdelim
-            symbols: [getdelim, __builtin_getdelim]
+            symbols: [getdelim, _getdelim, __builtin_getdelim]
             synopsis: ssize_t getdelim(char** lineptr, size_t* n, int delimiter, FILE* stream)
             enabled: true
             par_cnt: i == 4
             par_slice: i == 1
           fgets:
             name: fgets
-            symbols: [fgets, __builtin_fgets]
+            symbols: [fgets, _fgets, __builtin_fgets]
             synopsis: char* fgets(char* s, int n, FILE* stream)
             enabled: true
             par_cnt: i == 3
             par_slice: i == 1
           fgetws:
             name: fgetws
-            symbols: [fgetws, __builtin_fgetws]
+            symbols: [fgetws, _fgetws, __builtin_fgetws]
             synopsis: wchar_t* fgetws(wchar_t* ws, int n, FILE* stream)
             enabled: true
             par_cnt: i == 3
             par_slice: i == 1
           fgets_unlocked:
             name: fgets_unlocked
-            symbols: [fgets_unlocked, __builtin_fgets_unlocked]
+            symbols: [fgets_unlocked, _fgets_unlocked, __builtin_fgets_unlocked]
             synopsis: char* fgets_unlocked(char* s, int n, FILE* stream)
             enabled: true
             par_cnt: i == 3
             par_slice: i == 1
           fgetws_unlocked:
             name: fgetws_unlocked
-            symbols: [fgetws_unlocked, __builtin_fgetws_unlocked]
+            symbols: [fgetws_unlocked, _fgetws_unlocked, __builtin_fgetws_unlocked]
             synopsis: wchar_t* fgetws_unlocked(wchar_t* ws, int n, FILE* stream)
             enabled: true
             par_cnt: i == 3
             par_slice: i == 1
           gets:
             name: gets
-            symbols: [gets, __builtin_gets]
+            symbols: [gets, _gets, __builtin_gets]
             synopsis: char* gets(char* s)
             enabled: true
             par_cnt: i == 1
@@ -170,42 +170,42 @@ sources:
         functions:
           scanf:
             name: scanf
-            symbols: [scanf, __builtin_scanf, __isoc99_scanf, __isoc23_scanf]
+            symbols: [scanf, _scanf, __builtin_scanf, __isoc99_scanf, __isoc23_scanf]
             synopsis: int scanf(const char* format, ...)
             enabled: true
             par_cnt: i >= 1
             par_slice: i >= 2
           wscanf:
             name: wscanf
-            symbols: [wscanf, __builtin_wscanf, __isoc99_wscanf, __isoc23_wscanf]
+            symbols: [wscanf, _wscanf, __builtin_wscanf, __isoc99_wscanf, __isoc23_wscanf]
             synopsis: int wscanf(const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 1
             par_slice: i >= 2
           fscanf:
             name: fscanf
-            symbols: [fscanf, __builtin_fscanf, __isoc99_fscanf, __isoc23_fscanf]
+            symbols: [fscanf, _fscanf, __builtin_fscanf, __isoc99_fscanf, __isoc23_fscanf]
             synopsis: int fscanf(FILE* stream, const char* format, ...)
             enabled: true
             par_cnt: i >= 2
             par_slice: i >= 3
           fwscanf:
             name: fwscanf
-            symbols: [fwscanf, __builtin_fwscanf, __isco99_fwscanf]
+            symbols: [fwscanf, _fwscanf, __builtin_fwscanf, __isco99_fwscanf]
             synopsis: int fwscanf(FILE* stream, const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 2
             par_slice: i >= 3
           vscanf:
             name: vscanf
-            symbols: [vscanf, __builtin_vscanf, __isoc99_vscanf, __isoc23_vscanf]
+            symbols: [vscanf, _vscanf, __builtin_vscanf, __isoc99_vscanf, __isoc23_vscanf]
             synopsis: int vscanf(const char* format, va_list ap)
             enabled: true
             par_cnt: i == 2
             par_slice: i > 1
           vfscanf:
             name: vfscanf
-            symbols: [vfscanf, __builtin_vfscanf, __isoc99_vfscanf, __isoc23_vfscanf]
+            symbols: [vfscanf, _vfscanf, __builtin_vfscanf, __isoc99_vfscanf, __isoc23_vfscanf]
             synopsis: int vfscanf(FILE* stream, const char* format, va_list ap)
             enabled: true
             par_cnt: i == 3
@@ -215,42 +215,42 @@ sources:
         functions:
           fopen:
             name: fopen
-            symbols: [fopen, __builtin_fopen]
+            symbols: [fopen, _fopen, __builtin_fopen]
             synopsis: FILE* fopen(const char* pathname, const char* mode)
             enabled: true
             par_cnt: i == 2
             par_slice: 'False'
           freopen:
             name: freopen
-            symbols: [freopen, __builtin_freopen]
+            symbols: [freopen, _freopen, __builtin_freopen]
             synopsis: FILE* freopen(const char* pathname, const char* mode, FILE* stream)
             enabled: true
             par_cnt: i == 3
             par_slice: 'False'
           fdopen:
             name: fdopen
-            symbols: [fdopen, __builtin_fdopen]
+            symbols: [fdopen, _fdopen, __builtin_fdopen]
             synopsis: FILE* fdopen(int fd, const char* mode)
             enabled: true
             par_cnt: i == 2
             par_slice: 'False'
           opendir:
             name: opendir
-            symbols: [opendir, __builtin_opendir]
+            symbols: [opendir, _opendir, __builtin_opendir]
             synopsis: DIR* opendir(const char* name)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           fdopendir:
             name: fdopendir
-            symbols: [fdopendir, __builtin_fdopendir]
+            symbols: [fdopendir, _fdopendir, __builtin_fdopendir]
             synopsis: DIR* fdopendir(int fd)
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
           fread:
             name: fread
-            symbols: [fread]
+            symbols: [fread, _fread, __builtin_fread]
             synopsis: size_t fread(void* ptr, size_t size, size_t n, FILE* stream)
             enabled: true
             par_cnt: i == 4
@@ -260,21 +260,21 @@ sources:
         functions:
           recv:
             name: recv
-            symbols: [recv, __builtin_recv]
+            symbols: [recv, _recv, __builtin_recv]
             synopsis: ssize_t recv(int sockfd, void* buf, size_t len, int flags)
             enabled: true
             par_cnt: i == 4
             par_slice: i == 2
           recvfrom:
             name: recvfrom
-            symbols: [recvfrom, __builtin_recvfrom]
+            symbols: [recvfrom, _recvfrom, __builtin_recvfrom]
             synopsis: ssize_t recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t* addrlen)
             enabled: true
             par_cnt: i == 6
             par_slice: i == 2
           recvmsg:
             name: recvmsg
-            symbols: [recvmsg, __builtin_recvmsg]
+            symbols: [recvmsg, _recvmsg, __builtin_recvmsg]
             synopsis: ssize_t recvmsg(int sockfd, struct msghdr* msg, int flags)
             enabled: true
             par_cnt: i == 3
@@ -288,21 +288,21 @@ sinks:
         functions:
           memcpy:
             name: memcpy
-            symbols: [memcpy, __builtin_memcpy]
+            symbols: [memcpy, _memcpy, __builtin_memcpy]
             synopsis: void* memcpy(void* dest, const void* src, size_t n)
             enabled: true
             par_cnt: i == 3
             par_slice: 'True'
           wmemcpy:
             name: wmemcpy
-            symbols: [wmemcpy, __builtin_wmemcpy]
+            symbols: [wmemcpy, _wmemcpy, __builtin_wmemcpy]
             synopsis: wchar_t* wmemcpy(wchar_t* dest, const wchar_t* src, size_t n)
             enabled: true
             par_cnt: i == 3
             par_slice: 'True'
           memmove:
             name: memmove
-            symbols: [memmove, __builtin_memmove]
+            symbols: [memmove, _memmove, __builtin_memmove]
             synopsis: void* memmove(void* dest, const void* src, size_t n)
             enabled: true
             par_cnt: i == 3
@@ -312,42 +312,42 @@ sinks:
         functions:
           strcpy:
             name: strcpy
-            symbols: [strcpy, __builtin_strcpy]
+            symbols: [strcpy, _strcpy, __builtin_strcpy]
             synopsis: char* strcpy(char* dst, const char* src)
             enabled: true
             par_cnt: i == 2
             par_slice: 'True'
           strlcpy:
             name: strlcpy
-            symbols: [strlcpy, __builtin_strlcpy]
+            symbols: [strlcpy, _strlcpy, __builtin_strlcpy]
             synopsis: size_t strlcpy(char* dst, const char* src, size_t size)
             enabled: true
             par_cnt: i == 3
             par_slice: 'True'
           stpcpy:
             name: stpcpy
-            symbols: [stpcpy, __builtin_stpcpy]
+            symbols: [stpcpy, _stpcpy, __builtin_stpcpy]
             synopsis: char* stpcpy(char* dst, const char* src)
             enabled: true
             par_cnt: i == 2
             par_slice: 'True'
           wcscpy:
             name: wcscpy
-            symbols: [wcscpy, __builtin_wcscpy]
+            symbols: [wcscpy, _wcscpy, __builtin_wcscpy]
             synopsis: wchar_t* wcscpy(wchar_t* dest, const wchar_t* src)
             enabled: true
             par_cnt: i == 2
             par_slice: 'True'
           wcsncpy:
             name: wcsncpy
-            symbols: [wcsncpy, __builtin_wcsncpy]
+            symbols: [wcsncpy, _wcsncpy, __builtin_wcsncpy]
             synopsis: wchar_t* wcsncpy(wchar_t* dest, const wchar_t* src, size_t n)
             enabled: true
             par_cnt: i == 3
             par_slice: 'True'
           strncpy:
             name: strncpy
-            symbols: [strncpy, __builtin_strncpy, stpncpy]
+            symbols: [strncpy, _strncpy, __builtin_strncpy, stpncpy]
             synopsis: char* strncpy(char* s1, const char* s2, size_t n)
             enabled: true
             par_cnt: i == 3
@@ -357,35 +357,35 @@ sinks:
         functions:
           strcat:
             name: strcat
-            symbols: [strcat, __builtin_strcat]
+            symbols: [strcat, _strcat, __builtin_strcat]
             synopsis: char* strcat(char* s1, const char* s2)
             enabled: true
             par_cnt: i == 2
             par_slice: 'True'
           strlcat:
             name: strlcat
-            symbols: [strlcat, __builtin_strlcat]
+            symbols: [strlcat, _strlcat, __builtin_strlcat]
             synopsis: size_t strlcat(char* dst, const char* src, size_t size)
             enabled: true
             par_cnt: i == 3
             par_slice: 'True'
           strncat:
             name: strncat
-            symbols: [strncat, __builtin_strncat]
+            symbols: [strncat, _strncat, __builtin_strncat]
             synopsis: char* strncat(char* dst, const char* src, size_t ssize)
             enabled: true
             par_cnt: i == 3
             par_slice: 'True'
           wcscat:
             name: wcscat
-            symbols: [wcscat, __builtin_wcscat]
+            symbols: [wcscat, _wcscat, __builtin_wcscat]
             synopsis: wchar_t* wcscat(wchar_t* dest, const wchar_t* src)
             enabled: true
             par_cnt: i == 2
             par_slice: 'True'
           wcsncat:
             name: wcsncat
-            symbols: [wcsncat, __builtin_wcsncat]
+            symbols: [wcsncat, _wcsncat, __builtin_wcsncat]
             synopsis: wchar_t* wcsncat(wchar_t* dest, const wchar_t* src, size_t n)
             enabled: true
             par_cnt: i == 3
@@ -395,49 +395,49 @@ sinks:
         functions:
           sscanf:
             name: sscanf
-            symbols: [sscanf, __builtin_sscanf, __isoc99_sscanf, __isoc23_sscanf]
+            symbols: [sscanf, _sscanf, __builtin_sscanf, __isoc99_sscanf, __isoc23_sscanf]
             synopsis: int sscanf(const char* str, const char* format, ...)
             enabled: true
             par_cnt: i >= 2
             par_slice: 'True'
           swscanf:
             name: swscanf
-            symbols: [swscanf, __builtin_swscanf, __isoc99_swscanf, __isoc223_swscanf]
+            symbols: [swscanf, _swscanf, __builtin_swscanf, __isoc99_swscanf, __isoc223_swscanf]
             synopsis: int sscanf(const wchar_t* ws, const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 2
             par_slice: 'True'
           vsscanf:
             name: vsscanf
-            symbols: [vsscanf, __builtin_vsscanf, __isoc99_vsscanf, __isoc23_vsscanf]
+            symbols: [vsscanf, _vsscanf, __builtin_vsscanf, __isoc99_vsscanf, __isoc23_vsscanf]
             synopsis: int vsscanf(const char* s, const char* format, va_list arg)
             enabled: true
             par_cnt: i == 3
             par_slice: 'True'
           sprintf:
             name: sprintf
-            symbols: [sprintf, __builtin_sprintf]
+            symbols: [sprintf, _sprintf, __builtin_sprintf]
             synopsis: int sprintf(char* s, const char* format, ...)
             enabled: true
             par_cnt: i >= 2
             par_slice: i >= 2
           swprintf:
             name: swprintf
-            symbols: [swprintf, __builtin_swprintf]
+            symbols: [swprintf, _swprintf, __builtin_swprintf]
             synopsis: int swprintf(wchar_t* ws, size_t n, const wchar_t* format, ...)
             enabled: true
             par_cnt: i >= 3
             par_slice: i >= 2
           vsprintf:
             name: vsprintf
-            symbols: [vsprintf, __builtin_vsprintf]
+            symbols: [vsprintf, _vsprintf, __builtin_vsprintf]
             synopsis: int vsprintf(char* s, const char* format, va_list ap)
             enabled: true
             par_cnt: i == 3
             par_slice: i >= 2
           vswprintf:
             name: vswprintf
-            symbols: [vswprintf, __builtin_vswprintf]
+            symbols: [vswprintf, _vswprintf, __builtin_vswprintf]
             synopsis: int vswprintf(wchar_t* ws, size_t n, const wchar_t* format, va_list arg)
             enabled: true
             par_cnt: i == 4
@@ -447,21 +447,21 @@ sinks:
         functions:
           gets:
             name: gets
-            symbols: [gets, __builtin_gets]
+            symbols: [gets, _gets, __builtin_gets]
             synopsis: char* gets(char* s)
             enabled: true
             par_cnt: i == 1
             par_slice: 'True'
           popen:
             name: popen
-            symbols: [popen]
+            symbols: [popen, _popen, __builtin_popen]
             synopsis: FILE* popen(const char *command, const char *type)
             enabled: true
             par_cnt: i == 2
             par_slice: i == 1
           system:
             name: system
-            symbols: [system, __builtin_system]
+            symbols: [system, _system, __builtin_system]
             synopsis: int system(const char *command);
             enabled: true
             par_cnt: i == 1
