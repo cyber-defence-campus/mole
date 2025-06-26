@@ -29,26 +29,22 @@ class SymbolHelper:
         bv: bn.BinaryView, symbol_names: List[str]
     ) -> Dict[str, Set[bn.MediumLevelILInstruction]]:
         """
-        This method determines code references for the provided `symbol_names`.
-        The returned dictionary contains individual `symbol_names` as keys, and
-        the corresponding code references as values. Code references correspond
-        to `bn.MediumLevelILInstruction`s in SSA form.
+        This method determines code references for the provided `symbol_names`. The returned
+        dictionary contains individual `symbol_names` as keys, and the corresponding code references
+        as values. Code references correspond to `bn.MediumLevelILInstruction`s in SSA form.
         """
         mlil_ssa_code_refs = {}
         for symbol_name in symbol_names:
             for symbol in bv.symbols.get(symbol_name, []):
+                # Check if there is a function (i.e. code) at the symbol address
+                if bv.get_function_at(symbol.address) is None:
+                    continue
+                # Store code references
                 mlil_insts: Set[bn.MediumLevelILInstruction] = mlil_ssa_code_refs.get(
                     symbol_name, set()
                 )
                 for code_ref in bv.get_code_refs(symbol.address):
-                    try:
-                        mlil_inst = code_ref.mlil.ssa_form
-                        for section in bv.get_sections_at(mlil_inst.address):
-                            if section.name == ".text":
-                                mlil_insts.add(mlil_inst)
-                                break
-                    except Exception as _:
-                        continue
+                    mlil_insts.add(code_ref.mlil.ssa_form)
                 mlil_ssa_code_refs[symbol_name] = mlil_insts
         return mlil_ssa_code_refs
 
