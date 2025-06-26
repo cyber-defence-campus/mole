@@ -484,69 +484,60 @@ class MediumLevelILBackwardSlicer:
                 call_info = InstructionHelper.get_inst_info(inst, False)
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
                 match dest_inst:
+                    # TODO: Restructure code
                     # Direct function calls
                     case (
                         bn.MediumLevelILConstPtr(constant=func_addr)
                         | bn.MediumLevelILImport(constant=func_addr)
                     ):
                         try:
-                            func = self._bv.get_function_at(func_addr).mlil.ssa_form
-                            symb = func.source_function.symbol
-                            for func_inst in func.instructions:
-                                # TODO: Support all return instructions
-                                match func_inst:
-                                    case (
-                                        bn.MediumLevelILRet()
-                                        | bn.MediumLevelILTailcallSsa()
-                                    ):
-                                        # Function
-                                        if symb.type == bn.SymbolType.FunctionSymbol:
-                                            ret_info = InstructionHelper.get_inst_info(
-                                                func_inst, False
-                                            )
-                                            log.debug(
-                                                self._tag,
-                                                f"Follow return instruction '{ret_info:s}' of function '{call_info:s}'",
-                                            )
-                                            self.inst_graph.add_node(
-                                                inst,
-                                                call_level,
-                                                caller_site,
-                                                origin=self._origin,
-                                            )
-                                            self.inst_graph.add_node(
-                                                func_inst,
-                                                call_level + 1,
-                                                inst.function,
-                                                origin=self._origin,
-                                            )
-                                            self.inst_graph.add_edge(inst, func_inst)
-                                            self.call_graph.add_node(
-                                                inst.function, call_level
-                                            )
-                                            self.call_graph.add_node(
-                                                func, call_level + 1
-                                            )
-                                            self.call_graph.add_edge(
-                                                inst.function, func
-                                            )
-                                            self._slice_backwards(
-                                                func_inst, call_level + 1, inst.function
-                                            )
-                                        # Imported function
-                                        elif (
-                                            symb.type
-                                            == bn.SymbolType.ImportedFunctionSymbol
+                            func = self._bv.get_function_at(func_addr)
+                            if not func:
+                                for par_idx, par in enumerate(inst.params):
+                                    par_info = InstructionHelper.get_inst_info(
+                                        par, False
+                                    )
+                                    log.debug(
+                                        self._tag,
+                                        f"Follow parameter {par_idx + 1:d} '{par_info:s}' of function '{call_info:s}'",
+                                    )
+                                    self.inst_graph.add_node(
+                                        inst,
+                                        call_level,
+                                        caller_site,
+                                        origin=self._origin,
+                                    )
+                                    self.inst_graph.add_node(
+                                        par,
+                                        call_level,
+                                        caller_site,
+                                        origin=self._origin,
+                                    )
+                                    self.inst_graph.add_edge(inst, par)
+                                    self._slice_backwards(par, call_level, caller_site)
+                            else:
+                                func = func.mlil.ssa_form
+                                symb = func.source_function.symbol
+                                for func_inst in func.instructions:
+                                    # TODO: Support all return instructions
+                                    match func_inst:
+                                        case (
+                                            bn.MediumLevelILRet()
+                                            | bn.MediumLevelILTailcallSsa()
                                         ):
-                                            for par_idx, par in enumerate(inst.params):
-                                                par_info = (
+                                            # Function
+                                            if (
+                                                symb.type
+                                                == bn.SymbolType.FunctionSymbol
+                                            ):
+                                                ret_info = (
                                                     InstructionHelper.get_inst_info(
-                                                        par, False
+                                                        func_inst, False
                                                     )
                                                 )
                                                 log.debug(
                                                     self._tag,
-                                                    f"Follow parameter {par_idx + 1:d} '{par_info:s}' of imported function '{call_info:s}'",
+                                                    f"Follow return instruction '{ret_info:s}' of function '{call_info:s}'",
                                                 )
                                                 self.inst_graph.add_node(
                                                     inst,
@@ -555,20 +546,66 @@ class MediumLevelILBackwardSlicer:
                                                     origin=self._origin,
                                                 )
                                                 self.inst_graph.add_node(
-                                                    par,
-                                                    call_level,
-                                                    caller_site,
+                                                    func_inst,
+                                                    call_level + 1,
+                                                    inst.function,
                                                     origin=self._origin,
                                                 )
-                                                self.inst_graph.add_edge(inst, par)
-                                                self._slice_backwards(
-                                                    par, call_level, caller_site
+                                                self.inst_graph.add_edge(
+                                                    inst, func_inst
                                                 )
-                                        else:
-                                            log.warn(
-                                                self._tag,
-                                                f"Function '{call_info:s}' has an unexpected type '{str(symb.type):s}'",
-                                            )
+                                                self.call_graph.add_node(
+                                                    inst.function, call_level
+                                                )
+                                                self.call_graph.add_node(
+                                                    func, call_level + 1
+                                                )
+                                                self.call_graph.add_edge(
+                                                    inst.function, func
+                                                )
+                                                self._slice_backwards(
+                                                    func_inst,
+                                                    call_level + 1,
+                                                    inst.function,
+                                                )
+                                            # Imported function
+                                            elif (
+                                                symb.type
+                                                == bn.SymbolType.ImportedFunctionSymbol
+                                            ):
+                                                for par_idx, par in enumerate(
+                                                    inst.params
+                                                ):
+                                                    par_info = (
+                                                        InstructionHelper.get_inst_info(
+                                                            par, False
+                                                        )
+                                                    )
+                                                    log.debug(
+                                                        self._tag,
+                                                        f"Follow parameter {par_idx + 1:d} '{par_info:s}' of imported function '{call_info:s}'",
+                                                    )
+                                                    self.inst_graph.add_node(
+                                                        inst,
+                                                        call_level,
+                                                        caller_site,
+                                                        origin=self._origin,
+                                                    )
+                                                    self.inst_graph.add_node(
+                                                        par,
+                                                        call_level,
+                                                        caller_site,
+                                                        origin=self._origin,
+                                                    )
+                                                    self.inst_graph.add_edge(inst, par)
+                                                    self._slice_backwards(
+                                                        par, call_level, caller_site
+                                                    )
+                                            else:
+                                                log.warn(
+                                                    self._tag,
+                                                    f"Function '{call_info:s}' has an unexpected type '{str(symb.type):s}'",
+                                                )
                         except Exception as _:
                             # Function not found within the binary
                             pass
