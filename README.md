@@ -39,4 +39,5 @@ If you have an interesting **success story** - such as finding a vulnerability w
 
 ## Contributors
 - [Damian Pfammatter](https://github.com/pdamian), [Cyber-Defence Campus (armasuisse S+T)](https://www.cydcampus.admin.ch/en)
+- [Daniel Hulliger](https://github.com/dhulliger), [Cyber-Defence Campus (armasuisse S+T)](https://www.cydcampus.admin.ch/en)
 - [Sergio Paganoni](https://github.com/wizche)
