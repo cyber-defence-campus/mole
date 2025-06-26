@@ -506,6 +506,7 @@ class MediumLevelILBackwardSlicer:
                 call_info = InstructionHelper.get_inst_info(inst, False)
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
                 match dest_inst:
+                    # TODO: Restructure code
                     # Direct function calls
                     case (
                         bn.MediumLevelILConstPtr(constant=func_addr)
