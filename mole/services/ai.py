@@ -410,8 +410,6 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 tasks[task] = path_id
             # Wait for tasks to complete
             for cnt, task in enumerate(futures.as_completed(tasks)):
-                if self.cancelled:
-                    break
                 self.progress = f"Mole analyzed path {cnt + 1:d}/{len(self._paths):d}"
                 path_id = tasks[task]
                 # Collect vulnerability reports from task results
