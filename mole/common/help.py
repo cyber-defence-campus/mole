@@ -41,22 +41,30 @@ class SymbolHelper:
                 in_idata = idata.start <= symbol.address < idata.end if idata else False
                 # Check if the symbol is in the PE sections .synthetic_builtins
                 synthetic = bv.sections.get(".synthetic_builtins")
-                in_synthetic = (
+                in_synthetic_builtins = (
                     synthetic.start <= symbol.address < synthetic.end
                     if synthetic
                     else False
                 )
-                # Check if there is no code at the symbol address
-                no_code = bv.get_function_at(symbol.address) is None
-                # Ensure symbols contains code or is in the .idata or .synthetic_builtins sections
-                if no_code and not in_idata and not in_synthetic:
+                # Check if there is code at the symbol address
+                in_code = bv.get_function_at(symbol.address) is not None
+                # Ignore symbols that are neither in code, the .idata or .synthetic_builtins sections
+                if not (in_code or in_idata or in_synthetic_builtins):
                     continue
                 # Store code references
                 mlil_insts: Set[bn.MediumLevelILInstruction] = mlil_ssa_code_refs.get(
                     symbol_name, set()
                 )
                 for code_ref in bv.get_code_refs(symbol.address):
-                    mlil_insts.add(code_ref.mlil.ssa_form)
+                    # Store all instructions at the code reference address
+                    for func in bv.get_functions_containing(code_ref.address):
+                        try:
+                            func = func.mlil.ssa_form
+                        except Exception:
+                            continue
+                        for inst in func.instructions:
+                            if inst.address == code_ref.address:
+                                mlil_insts.add(inst)
                 mlil_ssa_code_refs[symbol_name] = mlil_insts
         return mlil_ssa_code_refs
 
