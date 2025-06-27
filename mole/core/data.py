@@ -217,17 +217,17 @@ class SourceFunction(Function):
             for src_inst in src_insts:
                 if canceled():
                     break
-                src_sym_addr = src_inst.address
-                log.info(
-                    custom_tag,
-                    f"Analyze source function '0x{src_sym_addr:x} {src_sym_name:s}'",
-                )
                 # Ignore everything but call instructions
                 if not (
                     isinstance(src_inst, bn.MediumLevelILCallSsa)
                     or isinstance(src_inst, bn.MediumLevelILTailcallSsa)
                 ):
                     continue
+                src_sym_addr = src_inst.address
+                log.info(
+                    custom_tag,
+                    f"Analyze source function '0x{src_sym_addr:x} {src_sym_name:s}'",
+                )
                 src_call_inst = src_inst
                 # Ignore calls with an invalid number of parameters
                 if not self.par_cnt_fun(len(src_call_inst.params)):
@@ -330,17 +330,17 @@ class SinkFunction(Function):
             for snk_inst in snk_insts:
                 if canceled():
                     break
-                snk_sym_addr = snk_inst.address
-                log.info(
-                    custom_tag,
-                    f"Analyze sink function '0x{snk_sym_addr:x} {snk_sym_name:s}'",
-                )
                 # Ignore everything but call instructions
                 if not (
                     isinstance(snk_inst, bn.MediumLevelILCallSsa)
                     or isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
                 ):
                     continue
+                snk_sym_addr = snk_inst.address
+                log.info(
+                    custom_tag,
+                    f"Analyze sink function '0x{snk_sym_addr:x} {snk_sym_name:s}'",
+                )
                 snk_call_inst = snk_inst
                 # Ignore calls with an invalid number of parameters
                 if not self.par_cnt_fun(len(snk_call_inst.params)):
