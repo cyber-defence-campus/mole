@@ -272,7 +272,9 @@ class SourceFunction(Function):
                             )
                             continue
                     # Create backward slicer
-                    src_slicer = MediumLevelILBackwardSlicer(bv, custom_tag, 0)
+                    src_slicer = MediumLevelILBackwardSlicer(
+                        bv, custom_tag, 0, canceled
+                    )
                     # Add edge between call and parameter instructions
                     src_slicer.inst_graph.add_node(
                         src_call_inst, 0, src_call_inst.function, origin="src"
@@ -285,7 +287,8 @@ class SourceFunction(Function):
                     if self.par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Store the instruction graph
-                    src_par_map[(src_par_idx, src_par_var)] = src_slicer.inst_graph
+                    if not canceled():
+                        src_par_map[(src_par_idx, src_par_var)] = src_slicer.inst_graph
         return
 
 
@@ -385,7 +388,7 @@ class SinkFunction(Function):
                     if self.par_slice_fun(snk_par_idx):
                         # Create backward slicer
                         snk_slicer = MediumLevelILBackwardSlicer(
-                            bv, custom_tag, max_call_level
+                            bv, custom_tag, max_call_level, canceled
                         )
                         snk_inst_graph = snk_slicer.inst_graph
                         snk_call_graph = snk_slicer.call_graph
