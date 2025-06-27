@@ -162,7 +162,7 @@ class MediumLevelILBackwardSlicer:
         bv: bn.BinaryView,
         custom_tag: str = "",
         max_call_level: int = -1,
-        canceled: Callable[[], bool] = None,
+        cancelled: Callable[[], bool] = None,
     ) -> None:
         """
         This method initializes a backward slicer for for MLIL instructions.
@@ -175,7 +175,7 @@ class MediumLevelILBackwardSlicer:
         elif "snk" in self._tag.lower():
             self._origin = "snk"
         self._max_call_level: int = max_call_level
-        self._canceled = canceled
+        self._cancelled = cancelled
         self._inst_visited: Set[bn.MediumLevelILInstruction] = set()
         self.inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
         self.call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
@@ -257,7 +257,7 @@ class MediumLevelILBackwardSlicer:
         expected to be `inst`'s level within the call stack. Parameter `caller_site` is expected to
         be the function that called `inst.function`.
         """
-        if self._canceled and self._canceled():
+        if self._cancelled and self._cancelled():
             return
         info = InstructionHelper.get_inst_info(inst)
         # Maxium call level
@@ -525,16 +525,16 @@ class MediumLevelILBackwardSlicer:
                             symb = func.source_function.symbol
                             for func_inst in func.instructions:
                                 # TODO: Support all return instructions
-                                func_inst_info = InstructionHelper.get_inst_info(
-                                    func_inst, False
-                                )
                                 match func_inst:
                                     case (
                                         bn.MediumLevelILRet()
                                         | bn.MediumLevelILTailcallSsa()
                                     ):
                                         # Function
-                                        if symb.type == bn.SymbolType.FunctionSymbol:
+                                        if symb.type in [
+                                            bn.SymbolType.FunctionSymbol,
+                                            bn.SymbolType.LibraryFunctionSymbol,
+                                        ]:
                                             ret_info = InstructionHelper.get_inst_info(
                                                 func_inst, False
                                             )
@@ -580,11 +580,6 @@ class MediumLevelILBackwardSlicer:
                                                 self._tag,
                                                 f"Function '{call_info:s}' has an unexpected type '{str(symb.type):s}'",
                                             )
-                                    case _:
-                                        log.warn(
-                                            self._tag,
-                                            f"[{call_level:+d}] {func_inst_info:s}: Missing handler for function return instruction",
-                                        )
                     # Indirect function calls
                     case bn.MediumLevelILVarSsa():
                         follow_params()

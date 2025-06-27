@@ -200,7 +200,7 @@ class SourceFunction(Function):
                 return False
         return super().__eq__(other)
 
-    def find_targets(self, bv: bn.BinaryView, canceled: Callable[[], bool]) -> None:
+    def find_targets(self, bv: bn.BinaryView, cancelled: Callable[[], bool]) -> None:
         """
         This method finds a set of target instructions that a static backward slice should hit on.
         """
@@ -211,11 +211,11 @@ class SourceFunction(Function):
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
-            if canceled():
+            if cancelled():
                 break
             # Iterate source instructions
             for src_inst in src_insts:
-                if canceled():
+                if cancelled():
                     break
                 # Ignore everything but call instructions
                 if not (
@@ -241,7 +241,7 @@ class SourceFunction(Function):
                 )
                 # Iterate source instruction's parameters
                 for src_par_idx, src_par_var in enumerate(src_call_inst.params):
-                    if canceled():
+                    if cancelled():
                         break
                     src_par_idx += 1
                     log.debug(
@@ -273,7 +273,7 @@ class SourceFunction(Function):
                             continue
                     # Create backward slicer
                     src_slicer = MediumLevelILBackwardSlicer(
-                        bv, custom_tag, 0, canceled
+                        bv, custom_tag, 0, cancelled
                     )
                     # Add edge between call and parameter instructions
                     src_slicer.inst_graph.add_node(
@@ -287,7 +287,7 @@ class SourceFunction(Function):
                     if self.par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Store the instruction graph
-                    if not canceled():
+                    if not cancelled():
                         src_par_map[(src_par_idx, src_par_var)] = src_slicer.inst_graph
         return
 
@@ -313,7 +313,7 @@ class SinkFunction(Function):
         max_call_level: int,
         max_slice_depth: int,
         found_path: Callable[[Path], None],
-        canceled: Callable[[], bool],
+        cancelled: Callable[[], bool],
     ) -> List[Path]:
         """
         This method tries to find paths, starting from the current sink and ending in one of the
@@ -327,11 +327,11 @@ class SinkFunction(Function):
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
-            if canceled():
+            if cancelled():
                 break
             # Iterate sink instructions
             for snk_inst in snk_insts:
-                if canceled():
+                if cancelled():
                     break
                 # Ignore everything but call instructions
                 if not (
@@ -354,7 +354,7 @@ class SinkFunction(Function):
                     continue
                 # Iterate sink instruction's parameters
                 for snk_par_idx, snk_par_var in enumerate(snk_call_inst.params):
-                    if canceled():
+                    if cancelled():
                         break
                     snk_par_idx += 1
                     log.debug(
@@ -388,7 +388,7 @@ class SinkFunction(Function):
                     if self.par_slice_fun(snk_par_idx):
                         # Create backward slicer
                         snk_slicer = MediumLevelILBackwardSlicer(
-                            bv, custom_tag, max_call_level, canceled
+                            bv, custom_tag, max_call_level, cancelled
                         )
                         snk_inst_graph = snk_slicer.inst_graph
                         snk_call_graph = snk_slicer.call_graph
@@ -405,7 +405,7 @@ class SinkFunction(Function):
                         snk_slicer.slice_backwards(snk_par_var)
                         # Iterate sources
                         for source in sources:
-                            if canceled():
+                            if cancelled():
                                 break
                             # Iterate source instructions
                             for (
@@ -413,13 +413,13 @@ class SinkFunction(Function):
                                 src_sym_name,
                                 src_call_inst,
                             ), src_par_map in source.src_map.items():
-                                if canceled():
+                                if cancelled():
                                     break
                                 # Iterate source instruction's parameters
                                 for (src_par_idx, src_par_var), (
                                     src_inst_graph
                                 ) in src_par_map.items():
-                                    if canceled():
+                                    if cancelled():
                                         break
                                     # Source parameter was not sliced
                                     if not source.par_slice_fun(src_par_idx):
