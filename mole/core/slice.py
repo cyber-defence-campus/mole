@@ -540,7 +540,7 @@ class MediumLevelILBackwardSlicer:
                         func = self._bv.get_function_at(func_addr)
                         # No valid function found within the binary
                         if not (func and func.mlil and func.mlil.ssa_form):
-                            follow_params()
+                            self._slice_params(inst, call_level, caller_site)
                         # Valid function found within the binary
                         else:
                             func = func.mlil.ssa_form
@@ -596,7 +596,9 @@ class MediumLevelILBackwardSlicer:
                                             symb.type
                                             == bn.SymbolType.ImportedFunctionSymbol
                                         ):
-                                            follow_params()
+                                            self._slice_params(
+                                                inst, call_level, caller_site
+                                            )
                                         else:
                                             log.warn(
                                                 self._tag,
@@ -604,7 +606,7 @@ class MediumLevelILBackwardSlicer:
                                             )
                     # Indirect function calls
                     case bn.MediumLevelILVarSsa():
-                        follow_params()
+                        self._slice_params(inst, call_level, caller_site)
                     # Unhandled function calls
                     case _:
                         log.warn(
