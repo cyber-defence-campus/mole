@@ -41,15 +41,19 @@ def get_code_for_functions_containing(
         _addr = int(addr, 0)
         il_type = il_type.upper()
         func_code = []
-        for func in bv.get_functions_containing(_addr):
-            header = f"{il_type:s} code of function `0x{func.start:x}: {str(func):s}`, which contains address `0x{_addr:x}`:"
-            code = get_il_code(func, il_type)
-            func_code.append(header + "\n```\n" + code + "\n```\n")
-            log.debug(
-                tag,
-                f"Return {il_type:s} code of function '0x{func.start:x}: {str(func):s}'",
-            )
-        res_code = "\n".join(func_code)
+        funcs = bv.get_functions_containing(_addr)
+        if funcs is None:
+            res_code = f"No functions found containing address `0x{_addr:x}`"
+        else:
+            for func in funcs:
+                header = f"{il_type:s} code of function `0x{func.start:x}: {str(func):s}`, which contains address `0x{_addr:x}`:"
+                code = get_il_code(func, il_type)
+                func_code.append(header + "\n```\n" + code + "\n```\n")
+                log.debug(
+                    tag,
+                    f"Return {il_type:s} code of function '0x{func.start:x}: {str(func):s}'",
+                )
+            res_code = "\n".join(func_code)
     except Exception as e:
         msg = f"Failed to get {il_type:s} code of functions containing address '{addr:s}': {str(e):s}"
         log.warn(tag, msg)
@@ -104,14 +108,18 @@ def get_callers_by_address(
     try:
         _addr = int(addr, 0)
         callers = []
-        for func in bv.get_functions_containing(_addr):
-            header = f"Callers of function `0x{func.start:x}: {str(func):s}`, which contains address `0x{_addr:x}`:"
-            func_callers = "\n".join(
-                f"- `0x{caller.start:x}`: `{caller.symbol.short_name:s}`"
-                for caller in func.callers
-            )
-            callers.append(header + "\n" + func_callers + "\n")
-        res_callers = "\n".join(callers)
+        funcs = bv.get_functions_containing(_addr)
+        if funcs is None:
+            res_callers = f"No functions found containing address `0x{_addr:x}`"
+        else:
+            for func in funcs:
+                header = f"Callers of function `0x{func.start:x}: {str(func):s}`, which contains address `0x{_addr:x}`:"
+                func_callers = "\n".join(
+                    f"- `0x{caller.start:x}`: `{caller.symbol.short_name:s}`"
+                    for caller in func.callers
+                )
+                callers.append(header + "\n" + func_callers + "\n")
+            res_callers = "\n".join(callers)
     except Exception as e:
         msg = f"Failed to get callers of functions containing address '{addr:s}': {str(e):s}"
         log.warn(tag, msg)

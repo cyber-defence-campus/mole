@@ -57,7 +57,10 @@ class SymbolHelper:
                 )
                 for code_ref in bv.get_code_refs(symbol.address):
                     # Store all instructions at the code reference address
-                    for func in bv.get_functions_containing(code_ref.address):
+                    funcs = bv.get_functions_containing(code_ref.address)
+                    if funcs is None:
+                        continue
+                    for func in funcs:
                         try:
                             func = func.mlil.ssa_form
                         except Exception:
