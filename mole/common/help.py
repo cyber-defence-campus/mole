@@ -29,26 +29,45 @@ class SymbolHelper:
         bv: bn.BinaryView, symbol_names: List[str]
     ) -> Dict[str, Set[bn.MediumLevelILInstruction]]:
         """
-        This method determines code references for the provided `symbol_names`.
-        The returned dictionary contains individual `symbol_names` as keys, and
-        the corresponding code references as values. Code references correspond
-        to `bn.MediumLevelILInstruction`s in SSA form.
+        This method determines code references for the provided `symbol_names`. The returned
+        dictionary contains individual `symbol_names` as keys, and the corresponding code references
+        as values. Code references correspond to `bn.MediumLevelILInstruction`s in SSA form.
         """
         mlil_ssa_code_refs = {}
         for symbol_name in symbol_names:
             for symbol in bv.symbols.get(symbol_name, []):
+                # Check if the symbol is in the PE sections .idata
+                idata = bv.sections.get(".idata")
+                in_idata = idata.start <= symbol.address < idata.end if idata else False
+                # Check if the symbol is in the PE sections .synthetic_builtins
+                synthetic = bv.sections.get(".synthetic_builtins")
+                in_synthetic_builtins = (
+                    synthetic.start <= symbol.address < synthetic.end
+                    if synthetic
+                    else False
+                )
+                # Check if there is code at the symbol address
+                in_code = bv.get_function_at(symbol.address) is not None
+                # Ignore symbols that are neither in code, the .idata or .synthetic_builtins sections
+                if not (in_code or in_idata or in_synthetic_builtins):
+                    continue
+                # Store code references
                 mlil_insts: Set[bn.MediumLevelILInstruction] = mlil_ssa_code_refs.get(
                     symbol_name, set()
                 )
                 for code_ref in bv.get_code_refs(symbol.address):
-                    try:
-                        mlil_inst = code_ref.mlil.ssa_form
-                        for section in bv.get_sections_at(mlil_inst.address):
-                            if section.name == ".text":
-                                mlil_insts.add(mlil_inst)
-                                break
-                    except Exception as _:
+                    # Store all instructions at the code reference address
+                    funcs = bv.get_functions_containing(code_ref.address)
+                    if funcs is None:
                         continue
+                    for func in funcs:
+                        try:
+                            func = func.mlil.ssa_form
+                        except Exception:
+                            continue
+                        for inst in func.instructions:
+                            if inst.address == code_ref.address:
+                                mlil_insts.add(inst)
                 mlil_ssa_code_refs[symbol_name] = mlil_insts
         return mlil_ssa_code_refs
 
