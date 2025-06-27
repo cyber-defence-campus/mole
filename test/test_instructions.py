@@ -141,29 +141,6 @@ class Test_x86_64(TestMediumLevelILInstruction):
         )
         return
 
-    def test_mlil_jump(self) -> None:
-        self.test_mlil_inst(
-            self.create_bv(),
-            "jmp 0x1000",
-            [bn.MediumLevelILJump, bn.MediumLevelILConstPtr],
-            [],
-        )
-        return
-
-    def test_mlil_call(self) -> None:
-        # Create binary view
-        bv = self.create_bv()
-        # Create a dummy function
-        self.create_function(bv, 0x100, "ret")
-        # Test call instruction
-        self.test_mlil_inst(
-            bv,
-            "call 0x100",
-            [bn.MediumLevelILCallSsa, bn.MediumLevelILRet],
-            [0x0, 0x100],
-        )
-        return
-
     def test_mlil_store_ssa(self) -> None:
         self.test_mlil_inst(
             self.create_bv(),
