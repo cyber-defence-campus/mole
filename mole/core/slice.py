@@ -176,6 +176,28 @@ class MediumLevelILBackwardSlicer:
         self.call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
         return
 
+    def _slice_params(
+        self,
+        inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa,
+        call_level: int = 0,
+        caller_site: bn.MediumLevelILFunction = None,
+    ) -> None:
+        """
+        This method slices all parameters of the function call instruction `inst`.
+        """
+        call_info = InstructionHelper.get_inst_info(inst, False)
+        for parm_idx, parm in enumerate(inst.params):
+            parm_info = InstructionHelper.get_inst_info(parm, False)
+            log.debug(
+                self._tag,
+                f"Follow parameter {parm_idx + 1:d} '{parm_info:s}' of function call '{call_info:s}'",
+            )
+            self.inst_graph.add_node(inst, call_level, caller_site, origin=self._origin)
+            self.inst_graph.add_node(parm, call_level, caller_site, origin=self._origin)
+            self.inst_graph.add_edge(inst, parm)
+            self._slice_backwards(parm, call_level, caller_site)
+        return
+
     def _slice_ssa_var_definition(
         self,
         ssa_var: bn.SSAVariable,
@@ -483,24 +505,6 @@ class MediumLevelILBackwardSlicer:
             ):
                 call_info = InstructionHelper.get_inst_info(inst, False)
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
-
-                def follow_params() -> None:
-                    for parm_idx, parm in enumerate(inst.params):
-                        parm_info = InstructionHelper.get_inst_info(parm, False)
-                        log.debug(
-                            self._tag,
-                            f"Follow parameter {parm_idx + 1:d} '{parm_info:s}' of function call '{call_info:s}'",
-                        )
-                        self.inst_graph.add_node(
-                            inst, call_level, caller_site, origin=self._origin
-                        )
-                        self.inst_graph.add_node(
-                            parm, call_level, caller_site, origin=self._origin
-                        )
-                        self.inst_graph.add_edge(inst, parm)
-                        self._slice_backwards(parm, call_level, caller_site)
-                    return
-
                 match dest_inst:
                     # Direct function calls
                     case (
@@ -511,7 +515,7 @@ class MediumLevelILBackwardSlicer:
                         func = self._bv.get_function_at(func_addr)
                         # No valid function found within the binary
                         if not (func and func.mlil and func.mlil.ssa_form):
-                            follow_params()
+                            self._slice_params(inst, call_level, caller_site)
                         # Valid function found within the binary
                         else:
                             func = func.mlil.ssa_form
@@ -567,7 +571,9 @@ class MediumLevelILBackwardSlicer:
                                             symb.type
                                             == bn.SymbolType.ImportedFunctionSymbol
                                         ):
-                                            follow_params()
+                                            self._slice_params(
+                                                inst, call_level, caller_site
+                                            )
                                         else:
                                             log.warn(
                                                 self._tag,
@@ -580,7 +586,7 @@ class MediumLevelILBackwardSlicer:
                                         )
                     # Indirect function calls
                     case bn.MediumLevelILVarSsa():
-                        follow_params()
+                        self._slice_params(inst, call_level, caller_site)
                     # Unhandled function calls
                     case _:
                         log.warn(
