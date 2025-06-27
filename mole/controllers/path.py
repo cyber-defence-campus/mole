@@ -46,6 +46,38 @@ class PathController:
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
         self.path_view.init(self)
+
+        # TODO: Test
+        # def test(bv: bn.BinaryView, addr: int, length: int) -> None:
+        #     log.info(tag, f"[0x{addr:x}, 0x{addr+length:x}[")
+        #     funcs = bv.get_functions_containing(addr)
+        #     if funcs is None:
+        #         return
+        #     for func in funcs:
+        #         if not (func and func.mlil and func.mlil.ssa_form):
+        #             continue
+        #         for inst in func.mlil.ssa_form.instructions:
+        #             if addr <= inst.address < addr + length:
+        #                 inst_info = InstructionHelper.get_inst_info(inst, False)
+        #                 log.info(tag, f"> {inst_info:s}")
+        #     return
+        # bn.PluginCommand.register_for_range(
+        #     "Mole\\Manual Source",
+        #     "Find paths using the selected range as source",
+        #     test
+        # )
+        def test_mlil_inst(
+            bv: bn.BinaryView, inst: bn.MediumLevelILInstruction
+        ) -> None:
+            inst_info = InstructionHelper.get_inst_info(inst, False)
+            log.info(tag, f"Selected MLIL Instruction: {inst_info:s}")
+            return
+
+        bn.PluginCommand.register_for_medium_level_il_instruction(
+            "Mole\\Find Paths to Manual Source\\MLIL Instruction",
+            "Find paths using the selected MLIL instruction as source",
+            test_mlil_inst,
+        )
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
         self.connect_signal_load_paths(self.load_paths)
