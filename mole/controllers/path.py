@@ -216,7 +216,7 @@ class PathController:
                         log.error(tag, f"Failed to load path #{i + 1:d}: {str(e):s}")
                     finally:
                         self._thread.progress = (
-                            f"Mole loads paths: {i + 1:d}/{len(s_paths):d}"
+                            f"Mole loaded path: {i + 1:d}/{len(s_paths):d}"
                         )
             except KeyError:
                 pass
@@ -270,7 +270,7 @@ class PathController:
                         log.error(tag, f"Failed to save path #{i + 1:d}: {str(e):s}")
                     finally:
                         self._thread.progress = (
-                            f"Mole saves paths: {i + 1:d}/{len(paths):d}"
+                            f"Mole saved path: {i + 1:d}/{len(paths):d}"
                         )
                 self._bv.store_metadata("mole_paths", json.dumps(s_paths))
             except Exception as e:
@@ -349,7 +349,7 @@ class PathController:
                             )
                         finally:
                             self._thread.progress = (
-                                f"Mole imports paths: {i + 1:d}/{cnt_total_paths:d}"
+                                f"Mole imported path: {i + 1:d}/{cnt_total_paths:d}"
                             )
             except Exception as e:
                 log.error(tag, f"Failed to import paths: {str(e):s}")
@@ -429,7 +429,7 @@ class PathController:
                             )
                         finally:
                             self._thread.progress = (
-                                f"Mole exports paths: {i + 1:d}/{len(path_ids):d}"
+                                f"Mole exported path: {i + 1:d}/{len(path_ids):d}"
                             )
                     f.write("\n]")
             except Exception as e:
