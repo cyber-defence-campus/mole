@@ -512,24 +512,6 @@ class MediumLevelILBackwardSlicer:
             ):
                 call_info = InstructionHelper.get_inst_info(inst, False)
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
-
-                def follow_params() -> None:
-                    for parm_idx, parm in enumerate(inst.params):
-                        parm_info = InstructionHelper.get_inst_info(parm, False)
-                        log.debug(
-                            self._tag,
-                            f"Follow parameter {parm_idx + 1:d} '{parm_info:s}' of function call '{call_info:s}'",
-                        )
-                        self.inst_graph.add_node(
-                            inst, call_level, caller_site, origin=self._origin
-                        )
-                        self.inst_graph.add_node(
-                            parm, call_level, caller_site, origin=self._origin
-                        )
-                        self.inst_graph.add_edge(inst, parm)
-                        self._slice_backwards(parm, call_level, caller_site)
-                    return
-
                 match dest_inst:
                     # Direct function calls
                     case (
