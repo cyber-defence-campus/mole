@@ -25,6 +25,7 @@ class PathService(BackgroundTask):
         max_call_level: Optional[int] = None,
         max_slice_depth: Optional[int] = None,
         enable_all_funs: bool = False,
+        manual_src_inst: Optional[bn.MediumLevelILInstruction] = None,
         path_callback: Optional[Callable[[Path], None]] = None,
         initial_progress_text: str = "",
         can_cancel: bool = False,
@@ -39,6 +40,7 @@ class PathService(BackgroundTask):
         self._max_call_level = max_call_level
         self._max_slice_depth = max_slice_depth
         self._enable_all_funs = enable_all_funs
+        self._manual_src_inst = manual_src_inst
         self._path_callback = path_callback
         return
 
@@ -81,9 +83,23 @@ class PathService(BackgroundTask):
             if setting:
                 max_slice_depth = setting.value
         log.debug(tag, f"- max_slice_depth: '{max_slice_depth}'")
-        src_funs: List[SourceFunction] = self._config_model.get_functions(
-            fun_type="Sources", fun_enabled=(None if self._enable_all_funs else True)
-        )
+        src_funs: List[SourceFunction] = []
+        # Manual source
+        if self._manual_src_inst:
+            src_fun = SourceFunction(
+                name="manual",
+                symbols=[],
+                enabled=True,
+            )
+            src_funs.append(src_fun)
+        # Regular sources
+        else:
+            src_funs.extend(
+                self._config_model.get_functions(
+                    fun_type="Sources",
+                    fun_enabled=(None if self._enable_all_funs else True),
+                )
+            )
         log.debug(tag, f"- number of sources: '{len(src_funs):d}'")
         snk_funs: List[SinkFunction] = self._config_model.get_functions(
             fun_type="Sinks", fun_enabled=(None if self._enable_all_funs else True)
@@ -102,7 +118,10 @@ class PathService(BackgroundTask):
                         break
                     tasks.append(
                         executor.submit(
-                            src_fun.find_targets, self._bv, lambda: self.cancelled
+                            src_fun.find_targets,
+                            self._bv,
+                            lambda: self.cancelled,
+                            self._manual_src_inst,
                         )
                     )
                 # Wait for tasks to complete

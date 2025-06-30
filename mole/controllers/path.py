@@ -46,37 +46,11 @@ class PathController:
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
         self.path_view.init(self)
-
-        # TODO: Test
-        # def test(bv: bn.BinaryView, addr: int, length: int) -> None:
-        #     log.info(tag, f"[0x{addr:x}, 0x{addr+length:x}[")
-        #     funcs = bv.get_functions_containing(addr)
-        #     if funcs is None:
-        #         return
-        #     for func in funcs:
-        #         if not (func and func.mlil and func.mlil.ssa_form):
-        #             continue
-        #         for inst in func.mlil.ssa_form.instructions:
-        #             if addr <= inst.address < addr + length:
-        #                 inst_info = InstructionHelper.get_inst_info(inst, False)
-        #                 log.info(tag, f"> {inst_info:s}")
-        #     return
-        # bn.PluginCommand.register_for_range(
-        #     "Mole\\Manual Source",
-        #     "Find paths using the selected range as source",
-        #     test
-        # )
-        def test_mlil_inst(
-            bv: bn.BinaryView, inst: bn.MediumLevelILInstruction
-        ) -> None:
-            inst_info = InstructionHelper.get_inst_info(inst, False)
-            log.info(tag, f"Selected MLIL Instruction: {inst_info:s}")
-            return
-
+        # Register commands
         bn.PluginCommand.register_for_medium_level_il_instruction(
-            "Mole\\Find Paths to Manual Source\\MLIL Instruction",
+            "Mole\\Manual Source: MLIL Instruction",
             "Find paths using the selected MLIL instruction as source",
-            test_mlil_inst,
+            self.find_paths_from_manual_source,
         )
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
@@ -175,7 +149,7 @@ class PathController:
         bn.execute_on_main_thread(update_paths_view)
         return
 
-    def find_paths(self) -> None:
+    def find_paths(self, manual_src_inst: bn.MediumLevelILInstruction = None) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths.
         """
@@ -194,11 +168,22 @@ class PathController:
         self._thread = PathService(
             bv=self._bv,
             config_model=self.config_ctr.config_model,
+            manual_src_inst=manual_src_inst,
             path_callback=self.add_path_to_view,
             initial_progress_text="Mole finds paths...",
             can_cancel=True,
         )
         self._thread.start()
+        return
+
+    def find_paths_from_manual_source(
+        self, bv: bn.BinaryView, inst: bn.MediumLevelILInstruction
+    ) -> None:
+        """
+        This method analyzes the entire binary for interesting looking code paths using `inst` as
+        the only source.
+        """
+        self.find_paths(manual_src_inst=inst)
         return
 
     def load_paths(self) -> None:
