@@ -222,7 +222,12 @@ class SourceFunction(Function):
             manual_src_inst_addr = manual_src_inst.address
             log.info(custom_tag, f"Analyze manual source '{manual_src_inst_info:s}'")
             src_par_map = self.src_map.setdefault(
-                (manual_src_inst_addr, "MANUAL_SRC", manual_src_inst), {}
+                (
+                    manual_src_inst_addr,
+                    f"MANUAL (0x{manual_src_inst_info:s})",
+                    manual_src_inst,
+                ),
+                {},
             )
             # Create backward slicer
             src_slicer = MediumLevelILBackwardSlicer(bv, custom_tag, 0, cancelled)
