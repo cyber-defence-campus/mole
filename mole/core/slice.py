@@ -528,7 +528,13 @@ class MediumLevelILBackwardSlicer:
                         # Get function at destination
                         func = self._bv.get_function_at(func_addr)
                         # No valid function found within the binary
-                        if not (func and func.mlil and func.mlil.ssa_form):
+                        if (
+                            # (
+                            #     self._max_call_level >= 0
+                            #     and abs(call_level) >= self._max_call_level
+                            # )
+                            not func or not func.mlil or not func.mlil.ssa_form
+                        ):
                             self._slice_params(inst, call_level, caller_site)
                         # Valid function found within the binary
                         else:

@@ -143,3 +143,22 @@ class PathView(bnui.SidebarWidget):
                 self._wid.setCurrentIndex(i)
                 break
         return
+
+
+class MyPopup(qtw.QDialog):
+    """
+    This class implements a popup dialog with a message.
+    """
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("TODO")
+        self.setMinimumWidth(250)
+
+        self.ok_but = qtw.QPushButton("OK")
+        self.ok_but.clicked.connect(self.accept)
+
+        main_lay = qtw.QVBoxLayout()
+        main_lay.addWidget(self.ok_but)
+        self.setLayout(main_lay)
+        return

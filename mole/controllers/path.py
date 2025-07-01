@@ -7,7 +7,7 @@ from mole.controllers.config import ConfigController
 from mole.core.data import Path
 from mole.services.path import PathService
 from mole.views.graph import GraphWidget
-from mole.views.path import PathView
+from mole.views.path import PathView  # , MyPopup
 from mole.views.path_tree import PathTreeView
 from typing import Dict, List, Literal, Tuple, Optional
 import binaryninja as bn
@@ -47,10 +47,24 @@ class PathController:
         ] = (None, {})
         self.path_view.init(self)
         # Register commands
+        # bn.PluginCommand.register_for_medium_level_il_instruction(
+        #     name="Mole\\Manual Source: MLIL Instruction",
+        #     description="Find paths using the selected MLIL instruction as source",
+        #     action=self.find_paths_from_manual_source,
+        # )
         bn.PluginCommand.register_for_medium_level_il_instruction(
-            "Mole\\Manual Source: MLIL Instruction",
-            "Find paths using the selected MLIL instruction as source",
-            self.find_paths_from_manual_source,
+            name="Mole\\Manual Source: MLIL_CALL Instruction",
+            description="Find paths using the selected MLIL_CALL or MLIL_TAILCALL instruction as source",
+            action=self.find_paths_from_manual_source,
+            is_valid=lambda _, inst: isinstance(
+                inst,
+                (
+                    bn.MediumLevelILCall,
+                    bn.MediumLevelILCallSsa,
+                    bn.MediumLevelILTailcall,
+                    bn.MediumLevelILTailcallSsa,
+                ),
+            ),
         )
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
@@ -149,7 +163,17 @@ class PathController:
         bn.execute_on_main_thread(update_paths_view)
         return
 
-    def find_paths(self, manual_src_inst: bn.MediumLevelILInstruction = None) -> None:
+    def find_paths(
+        self,
+        manual_src_inst: Optional[
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILTailcall
+            | bn.MediumLevelILTailcallSsa
+        ] = None,
+        manual_src_par_idxs: Optional[List[int]] = None,
+        manual_src_all_code_xrefs: bool = False,
+    ) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths.
         """
@@ -169,6 +193,8 @@ class PathController:
             bv=self._bv,
             config_model=self.config_ctr.config_model,
             manual_src_inst=manual_src_inst,
+            manual_src_par_idxs=manual_src_par_idxs,
+            manual_src_all_code_xrefs=manual_src_all_code_xrefs,
             path_callback=self.add_path_to_view,
             initial_progress_text="Mole finds paths...",
             can_cancel=True,
@@ -177,13 +203,25 @@ class PathController:
         return
 
     def find_paths_from_manual_source(
-        self, bv: bn.BinaryView, inst: bn.MediumLevelILInstruction
+        self,
+        bv: bn.BinaryView,
+        inst: bn.MediumLevelILCall
+        | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILTailcall
+        | bn.MediumLevelILTailcallSsa,
     ) -> None:
-        """
+        """TODO
         This method analyzes the entire binary for interesting looking code paths using `inst` as
         the only source.
         """
-        self.find_paths(manual_src_inst=inst)
+        # popup = MyPopup()
+        # if popup.exec() == qtw.QDialog.DialogCode.Accepted:
+        #     log.info(tag, "Popup accepted")
+        self.find_paths(
+            manual_src_inst=inst,
+            manual_src_par_idxs=[],
+            manual_src_all_code_xrefs=False,
+        )
         return
 
     def load_paths(self) -> None:
