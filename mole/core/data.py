@@ -188,7 +188,9 @@ class SourceFunction(Function):
         ],
         Dict[
             Tuple[int, bn.MediumLevelILInstruction],  # src_par_idx, src_par_var
-            MediumLevelILInstructionGraph,  # src_inst_graph
+            Tuple[
+                MediumLevelILInstructionGraph, MediumLevelILFunctionGraph
+            ],  # src_inst_graph,  src_call_graph
         ],
     ] = field(default_factory=dict)
 
@@ -283,12 +285,16 @@ class SourceFunction(Function):
                         src_par_var, 0, src_par_var.function, origin="src"
                     )
                     src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
+                    src_slicer.call_graph.add_node(src_call_inst.function, call_level=0)
                     # Perform backward slicing of the parameter
                     if self.par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Store the instruction graph
                     if not cancelled():
-                        src_par_map[(src_par_idx, src_par_var)] = src_slicer.inst_graph
+                        src_par_map[(src_par_idx, src_par_var)] = (
+                            src_slicer.inst_graph,
+                            src_slicer.call_graph,
+                        )
         return
 
 
@@ -417,12 +423,16 @@ class SinkFunction(Function):
                                     break
                                 # Iterate source instruction's parameters
                                 for (src_par_idx, src_par_var), (
-                                    src_inst_graph
+                                    src_inst_graph,
+                                    src_call_graph,
                                 ) in src_par_map.items():
                                     if cancelled():
                                         break
                                     # Source parameter was not sliced
-                                    if not source.par_slice_fun(src_par_idx):
+                                    if (
+                                        source.par_slice_fun is None
+                                        or not source.par_slice_fun(src_par_idx)
+                                    ):
                                         src_par_idx = None
                                         src_par_var = None
                                     # Iterate source instructions (order of backward slicing)
@@ -483,7 +493,11 @@ class SinkFunction(Function):
                                             if path in paths:
                                                 continue
                                             # Fully initialize the path
-                                            path.init(snk_call_graph)
+                                            path.init(
+                                                nx.compose(
+                                                    src_call_graph, snk_call_graph
+                                                )
+                                            )
                                             # Store the path
                                             paths.append(path)
                                             # Execute callback on a newly found path
@@ -600,7 +614,7 @@ class Path:
             if func_name == old_func_name:
                 continue
             # Function calls
-            call_level = self.call_graph.nodes.get(func, {}).get("call_level", 0)
+            call_level = self.call_graph.nodes[func]["call_level"]
             self.calls.append((inst.address, func_name, call_level))
             # Function calls graph
             if func in self.call_graph:
@@ -670,16 +684,22 @@ class Path:
         if self.src_par_idx and self.src_par_var:
             src = f"{src:s}(arg#{self.src_par_idx:d}:{str(self.src_par_var):s})"
         else:
-            src = f"{src:s}()"
+            src = f"{src:s}"
         snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
         snk = f"{snk:s}(arg#{self.snk_par_idx:d}:{str(self.snk_par_var):s})"
         return f"{src:s} --> {snk:s}"
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, debug: bool = False) -> Dict:
         # Serialize instructions
         insts: List[Tuple[int, int]] = []
         for inst in self.insts:
-            insts.append((hex(inst.function.source_function.start), inst.expr_index))
+            inst_dict = {
+                "fun_addr": hex(inst.function.source_function.start),
+                "expr_idx": inst.expr_index,
+            }
+            if debug:
+                inst_dict["inst"] = InstructionHelper.get_inst_info(inst, True)
+            insts.append(inst_dict)
         return {
             "src_sym_addr": hex(self.src_sym_addr),
             "src_sym_name": self.src_sym_name,
@@ -689,7 +709,7 @@ class Path:
             "snk_sym_name": self.snk_sym_name,
             "snk_par_idx": self.snk_par_idx,
             "insts": insts,
-            "call_graph": self.call_graph.to_dict(),
+            "call_graph": self.call_graph.to_dict(debug),
             "comment": self.comment,
             "sha1_hash": self.sha1_hash,
             "ai_report": self.ai_report.to_dict() if self.ai_report else None,
@@ -699,9 +719,9 @@ class Path:
     def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Optional[Path]:
         # Deserialize instructions
         insts: List[bn.MediumLevelILInstruction] = []
-        for func_addr, expr_idx in d["insts"]:
-            func = bv.get_function_at(int(func_addr, 0))
-            inst = func.mlil.ssa_form.get_expr(expr_idx)
+        for inst_dict in d["insts"]:
+            func = bv.get_function_at(int(inst_dict["fun_addr"], 0))
+            inst = func.mlil.ssa_form.get_expr(inst_dict["expr_idx"])
             insts.append(inst)
         # Deserialize parameter variables
         src_par_idx = d["src_par_idx"]

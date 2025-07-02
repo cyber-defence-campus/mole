@@ -107,14 +107,20 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         graph.update(self)
         return graph
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, debug: bool = False) -> Dict:
         """
         This method serializes the graph to a dictionary.
         """
         # Serialize nodes
         nodes: List[Dict[str, Any]] = []
         for node, atts in self.nodes(data=True):
-            nodes.append({"adr": hex(node.source_function.start), "att": atts})
+            node_dict = {
+                "adr": hex(node.source_function.start),
+                "att": atts,
+            }
+            if debug:
+                node_dict["func"] = FunctionHelper.get_func_info(node, True)
+            nodes.append(node_dict)
         # Serialize edges
         edges: List[Dict[str, Any]] = []
         for src_node, tgt_node, atts in self.edges(data=True):
@@ -512,6 +518,7 @@ class MediumLevelILBackwardSlicer:
             ):
                 call_info = InstructionHelper.get_inst_info(inst, False)
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
+
                 match dest_inst:
                     # Direct function calls
                     case (
@@ -527,6 +534,7 @@ class MediumLevelILBackwardSlicer:
                         else:
                             func = func.mlil.ssa_form
                             symb = func.source_function.symbol
+
                             for func_inst in func.instructions:
                                 # TODO: Support all return instructions
                                 match func_inst:
