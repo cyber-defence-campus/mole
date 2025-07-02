@@ -18,7 +18,6 @@ class PathColumn(IndexedLabeledEnum):
     ID = (0, "Id")
     SRC_ADDR = (1, "Src Addr")
     SRC_FUNC = (2, "Src Func")
-    # SRC_FUNC = (2, "Src Func / Inst")
     SRC_PARM = (3, "Src Parm")
     SNK_ADDR = (4, "Snk Addr")
     SNK_FUNC = (5, "Snk Func")
