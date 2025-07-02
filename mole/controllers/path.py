@@ -412,7 +412,7 @@ class PathController:
                             if not path:
                                 continue
                             # Serialize and dump path
-                            s_path = path.to_dict()
+                            s_path = path.to_dict(debug=True)
                             if i != 0:
                                 f.write(",\n")
                             f.write(" " * ident)

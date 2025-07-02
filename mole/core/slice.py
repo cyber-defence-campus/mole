@@ -107,14 +107,20 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         graph.update(self)
         return graph
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, debug: bool = False) -> Dict:
         """
         This method serializes the graph to a dictionary.
         """
         # Serialize nodes
         nodes: List[Dict[str, Any]] = []
         for node, atts in self.nodes(data=True):
-            nodes.append({"adr": hex(node.source_function.start), "att": atts})
+            node_dict = {
+                "adr": hex(node.source_function.start),
+                "att": atts,
+            }
+            if debug:
+                node_dict["func"] = FunctionHelper.get_func_info(node, True)
+            nodes.append(node_dict)
         # Serialize edges
         edges: List[Dict[str, Any]] = []
         for src_node, tgt_node, atts in self.edges(data=True):
