@@ -512,6 +512,7 @@ class MediumLevelILBackwardSlicer:
             ):
                 call_info = InstructionHelper.get_inst_info(inst, False)
                 dest_info = InstructionHelper.get_inst_info(dest_inst)
+
                 match dest_inst:
                     # Direct function calls
                     case (
@@ -527,6 +528,7 @@ class MediumLevelILBackwardSlicer:
                         else:
                             func = func.mlil.ssa_form
                             symb = func.source_function.symbol
+
                             for func_inst in func.instructions:
                                 # TODO: Support all return instructions
                                 match func_inst:
