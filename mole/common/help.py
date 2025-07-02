@@ -25,6 +25,37 @@ class SymbolHelper:
         return None
 
     @staticmethod
+    def get_call_symbol_name(
+        bv: bn.BinaryView,
+        inst: bn.MediumLevelILCall
+        | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILTailcall
+        | bn.MediumLevelILTailcallSsa,
+    ) -> Optional[str]:
+        """
+        This method returns the symbol name associated with the call instruction `inst`.
+        """
+        if isinstance(
+            inst,
+            (
+                bn.MediumLevelILCall,
+                bn.MediumLevelILCallSsa,
+                bn.MediumLevelILTailcall,
+                bn.MediumLevelILTailcallSsa,
+            ),
+        ):
+            if isinstance(
+                inst.dest, (bn.MediumLevelILConstPtr, bn.MediumLevelILImport)
+            ):
+                symbol = bv.get_symbol_at(inst.dest.constant)
+                if symbol:
+                    return symbol.name
+                func = bv.get_function_at(inst.dest.constant)
+                if func:
+                    return func.name
+        return None
+
+    @staticmethod
     def get_code_refs(
         bv: bn.BinaryView, symbol_names: List[str]
     ) -> Dict[str, Set[bn.MediumLevelILInstruction]]:
@@ -127,37 +158,6 @@ class InstructionHelper:
         if with_class_name:
             info = f"{info:s} ({inst.__class__.__name__:s})"
         return info
-
-    @staticmethod
-    def get_call_symbol_name(
-        bv: bn.BinaryView,
-        inst: bn.MediumLevelILCall
-        | bn.MediumLevelILCallSsa
-        | bn.MediumLevelILTailcall
-        | bn.MediumLevelILTailcallSsa,
-    ) -> Optional[str]:
-        """
-        This method returns the symbol name associated with the call instruction `inst`.
-        """
-        if isinstance(
-            inst,
-            (
-                bn.MediumLevelILCall,
-                bn.MediumLevelILCallSsa,
-                bn.MediumLevelILTailcall,
-                bn.MediumLevelILTailcallSsa,
-            ),
-        ):
-            if isinstance(
-                inst.dest, (bn.MediumLevelILConstPtr, bn.MediumLevelILImport)
-            ):
-                symbol = bv.get_symbol_at(inst.dest.constant)
-                if symbol:
-                    return symbol.name
-                func = bv.get_function_at(inst.dest.constant)
-                if func:
-                    return func.name
-        return None
 
 
 class FunctionHelper:

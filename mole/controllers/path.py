@@ -171,7 +171,7 @@ class PathController:
             | bn.MediumLevelILTailcall
             | bn.MediumLevelILTailcallSsa
         ] = None,
-        manual_src_par_idxs: Optional[List[int]] = None,
+        manual_src_par_slice: Optional[str] = None,
         manual_src_all_code_xrefs: bool = False,
     ) -> None:
         """
@@ -193,7 +193,7 @@ class PathController:
             bv=self._bv,
             config_model=self.config_ctr.config_model,
             manual_src_inst=manual_src_inst,
-            manual_src_par_idxs=manual_src_par_idxs,
+            manual_src_par_slice=manual_src_par_slice,
             manual_src_all_code_xrefs=manual_src_all_code_xrefs,
             path_callback=self.add_path_to_view,
             initial_progress_text="Mole finds paths...",
@@ -219,7 +219,7 @@ class PathController:
         #     log.info(tag, "Popup accepted")
         self.find_paths(
             manual_src_inst=inst,
-            manual_src_par_idxs=[],
+            manual_src_par_slice="True",
             manual_src_all_code_xrefs=False,
         )
         return

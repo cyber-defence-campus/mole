@@ -8,7 +8,7 @@ from mole.core.slice import (
     MediumLevelILInstructionGraph,
 )
 from mole.models.ai import AiVulnerabilityReport
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 import binaryninja as bn
 import hashlib
 import networkx as nx
@@ -205,8 +205,14 @@ class SourceFunction(Function):
     def find_targets(
         self,
         bv: bn.BinaryView,
+        manual_src_inst: Optional[
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILTailcall
+            | bn.MediumLevelILTailcallSsa
+        ],
+        manual_src_all_code_xrefs: bool,
         cancelled: Callable[[], bool],
-        # manual_src_inst: Optional[bn.MediumLevelILInstruction] = None,
     ) -> None:
         """
         This method finds a set of target instructions that a static backward slice should hit on.
@@ -214,121 +220,19 @@ class SourceFunction(Function):
         custom_tag = f"{tag:s}.Src.{self.name:s}"
         # Clear map
         self.src_map.clear()
-        # # Manual source
-        # if manual_src_inst:
-        #     manual_src_inst_info = InstructionHelper.get_inst_info(
-        #         manual_src_inst, False
-        #     )
-        #     manual_src_inst_addr = manual_src_inst.address
-        #     log.info(custom_tag, f"Analyze manual source '{manual_src_inst_info:s}'")
-        #     src_par_map = self.src_map.setdefault(
-        #         (
-        #             manual_src_inst_addr,
-        #             f"MANUAL (0x{manual_src_inst_info:s})",
-        #             manual_src_inst,
-        #         ),
-        #         {},
-        #     )
-        #     # Create backward slicer
-        #     src_slicer = MediumLevelILBackwardSlicer(bv, custom_tag, 0, cancelled)
-        #     # Add node to the instruction graph
-        #     src_slicer.inst_graph.add_node(
-        #         manual_src_inst, 0, manual_src_inst.function, origin="src"
-        #     )
-        #     # Perform backward slicing
-        #     src_slicer.slice_backwards(manual_src_inst)
-        #     # Store the instruction graph
-        #     if not cancelled():
-        #         src_par_map[(0, manual_src_inst)] = src_slicer.inst_graph
-        # # Regular sources
-        # else:
-        #     # Get code references of symbols
-        #     code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
-        #     # Iterate code references
-        #     for src_sym_name, src_insts in code_refs.items():
-        #         if cancelled():
-        #             break
-        #         # Iterate source instructions
-        #         for src_inst in src_insts:
-        #             if cancelled():
-        #                 break
-        #             # Ignore everything but call instructions
-        #             if not (
-        #                 isinstance(src_inst, bn.MediumLevelILCallSsa)
-        #                 or isinstance(src_inst, bn.MediumLevelILTailcallSsa)
-        #             ):
-        #                 continue
-        #             src_sym_addr = src_inst.address
-        #             log.info(
-        #                 custom_tag,
-        #                 f"Analyze source function '0x{src_sym_addr:x} {src_sym_name:s}'",
-        #             )
-        #             src_call_inst = src_inst
-        #             # Ignore calls with an invalid number of parameters
-        #             if not self.par_cnt_fun(len(src_call_inst.params)):
-        #                 log.warn(
-        #                     custom_tag,
-        #                     f"0x{src_sym_addr:x} Ignore call '0x{src_sym_addr:x} {src_sym_name:s}' due to an invalid number of arguments",
-        #                 )
-        #                 continue
-        #             src_par_map = self.src_map.setdefault(
-        #                 (src_sym_addr, src_sym_name, src_call_inst), {}
-        #             )
-        #             # Iterate source instruction's parameters
-        #             for src_par_idx, src_par_var in enumerate(src_call_inst.params):
-        #                 if cancelled():
-        #                     break
-        #                 src_par_idx += 1
-        #                 log.debug(
-        #                     custom_tag,
-        #                     f"Analyze argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
-        #                 )
-        #                 # Perform dataflow analysis on the parameter
-        #                 if self.par_dataflow_fun(src_par_idx):
-        #                     # Ignore constant parameters
-        #                     if (
-        #                         src_par_var.operation
-        #                         != bn.MediumLevelILOperation.MLIL_VAR_SSA
-        #                     ):
-        #                         log.debug(
-        #                             custom_tag,
-        #                             f"0x{src_sym_addr:x} Ignore constant argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
-        #                         )
-        #                         continue
-        #                     # Ignore parameters that can be determined with dataflow analysis
-        #                     possible_sizes = src_par_var.possible_values
-        #                     if (
-        #                         possible_sizes.type
-        #                         != bn.RegisterValueType.UndeterminedValue
-        #                     ):
-        #                         log.debug(
-        #                             custom_tag,
-        #                             f"0x{src_sym_addr:x} Ignore dataflow determined argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
-        #                         )
-        #                         continue
-        #                 # Create backward slicer
-        #                 src_slicer = MediumLevelILBackwardSlicer(
-        #                     bv, custom_tag, 0, cancelled
-        #                 )
-        #                 # Add edge between call and parameter instructions
-        #                 src_slicer.inst_graph.add_node(
-        #                     src_call_inst, 0, src_call_inst.function, origin="src"
-        #                 )
-        #                 src_slicer.inst_graph.add_node(
-        #                     src_par_var, 0, src_par_var.function, origin="src"
-        #                 )
-        #                 src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
-        #                 # Perform backward slicing of the parameter
-        #                 if self.par_slice_fun(src_par_idx):
-        #                     src_slicer.slice_backwards(src_par_var)
-        #                 # Store the instruction graph
-        #                 if not cancelled():
-        #                     src_par_map[(src_par_idx, src_par_var)] = (
-        #                         src_slicer.inst_graph
-        #                     )
-
-        # Get code references of symbols
-        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
+        # Regular source
+        if not manual_src_inst or manual_src_all_code_xrefs:
+            # Get code references of symbols
+            code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
+        # Manual source
+        else:
+            code_refs = {}
+            for symbol_name in self.symbols:
+                mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                    symbol_name, set()
+                )
+                mlil_insts.add(manual_src_inst)
+                code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
             if cancelled():
@@ -350,7 +254,7 @@ class SourceFunction(Function):
                 )
                 src_call_inst = src_inst
                 # Ignore calls with an invalid number of parameters
-                if not self.par_cnt_fun(len(src_call_inst.params)):
+                if self.par_cnt_fun and not self.par_cnt_fun(len(src_call_inst.params)):
                     log.warn(
                         custom_tag,
                         f"0x{src_sym_addr:x} Ignore call '0x{src_sym_addr:x} {src_sym_name:s}' due to an invalid number of arguments",
@@ -369,7 +273,7 @@ class SourceFunction(Function):
                         f"Analyze argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
                     )
                     # Perform dataflow analysis on the parameter
-                    if self.par_dataflow_fun(src_par_idx):
+                    if self.par_dataflow_fun and self.par_dataflow_fun(src_par_idx):
                         # Ignore constant parameters
                         if (
                             src_par_var.operation
@@ -405,7 +309,7 @@ class SourceFunction(Function):
                     src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
                     src_slicer.call_graph.add_node(src_call_inst.function, call_level=0)
                     # Perform backward slicing of the parameter
-                    if self.par_slice_fun(src_par_idx):
+                    if self.par_slice_fun and self.par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Store the instruction graph
                     if not cancelled():
@@ -470,7 +374,7 @@ class SinkFunction(Function):
                 )
                 snk_call_inst = snk_inst
                 # Ignore calls with an invalid number of parameters
-                if not self.par_cnt_fun(len(snk_call_inst.params)):
+                if self.par_cnt_fun and not self.par_cnt_fun(len(snk_call_inst.params)):
                     log.warn(
                         custom_tag,
                         f"0x{snk_sym_addr:x} Ignore call '0x{snk_sym_addr:x} {snk_sym_name:s}' due to an invalid number of arguments",
@@ -486,7 +390,7 @@ class SinkFunction(Function):
                         f"Analyze argument 'arg#{snk_par_idx:d}:{str(snk_par_var):s}'",
                     )
                     # Perform dataflow analysis on the parameter
-                    if self.par_dataflow_fun(snk_par_idx):
+                    if self.par_dataflow_fun and self.par_dataflow_fun(snk_par_idx):
                         # Ignore constant parameters
                         if (
                             snk_par_var.operation
@@ -509,7 +413,7 @@ class SinkFunction(Function):
                             )
                             continue
                     # Peform backward slicing of the parameter
-                    if self.par_slice_fun(snk_par_idx):
+                    if self.par_slice_fun and self.par_slice_fun(snk_par_idx):
                         # Create backward slicer
                         snk_slicer = MediumLevelILBackwardSlicer(
                             bv, custom_tag, max_call_level, cancelled
@@ -548,7 +452,7 @@ class SinkFunction(Function):
                                         break
                                     # Source parameter was not sliced
                                     if (
-                                        source.par_slice_fun is None
+                                        not source.par_slice_fun
                                         or not source.par_slice_fun(src_par_idx)
                                     ):
                                         src_par_idx = None
