@@ -403,12 +403,16 @@ class SourceFunction(Function):
                         src_par_var, 0, src_par_var.function, origin="src"
                     )
                     src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
+                    src_slicer.call_graph.add_node(src_call_inst.function, call_level=0)
                     # Perform backward slicing of the parameter
                     if self.par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Store the instruction graph
                     if not cancelled():
-                        src_par_map[(src_par_idx, src_par_var)] = src_slicer.inst_graph
+                        src_par_map[(src_par_idx, src_par_var)] = (
+                            src_slicer.inst_graph,
+                            src_slicer.call_graph,
+                        )
         return
 
 
