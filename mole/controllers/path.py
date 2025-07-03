@@ -215,6 +215,7 @@ class PathController:
         This method analyzes the entire binary for interesting looking code paths using `inst` as
         the only source.
         """
+        inst = inst.ssa_form
         call_name = SymbolHelper.get_call_symbol_name(bv, inst)
         par_cnt = len(inst.params)
         dialog = ManualSourceDialog("Find Paths: Manual Source", call_name, par_cnt)
