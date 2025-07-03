@@ -1,6 +1,6 @@
 from __future__ import annotations
 from concurrent import futures
-from mole.common.help import InstructionHelper, SymbolHelper
+from mole.common.help import SymbolHelper
 from mole.common.log import log
 from mole.common.parse import LogicalExpressionParser
 from mole.common.task import BackgroundTask
@@ -114,8 +114,11 @@ class PathService(BackgroundTask):
             parser = LogicalExpressionParser()
             name = f"Manual.{call_name:s}" if call_name else "Manual.unknown"
             symbols = [call_name] if call_name else []
-            synopsis = InstructionHelper.get_inst_info(self._manual_src_inst, False)
-            par_cnt = f"i == {len(self._manual_src_inst.params):d}"
+            par_cnt = len(self._manual_src_inst.params)
+            synopsis = (
+                f"{call_name:s}({', '.join(f'arg#{i}' for i in range(1, par_cnt + 1))})"
+            )
+            par_cnt = f"i == {par_cnt:d}"
             par_cnt_fun = parser.parse(par_cnt)
             par_slice = (
                 "False"

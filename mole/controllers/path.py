@@ -6,8 +6,9 @@ from mole.controllers.ai import AiController
 from mole.controllers.config import ConfigController
 from mole.core.data import Path
 from mole.services.path import PathService
+from mole.views.config import ManualSourceDialog
 from mole.views.graph import GraphWidget
-from mole.views.path import PathView, MyPopup
+from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
 from typing import Dict, List, Literal, Tuple, Optional
 import binaryninja as bn
@@ -210,18 +211,18 @@ class PathController:
         | bn.MediumLevelILTailcall
         | bn.MediumLevelILTailcallSsa,
     ) -> None:
-        """TODO:
+        """
         This method analyzes the entire binary for interesting looking code paths using `inst` as
         the only source.
         """
         call_name = SymbolHelper.get_call_symbol_name(bv, inst)
         par_cnt = len(inst.params)
-        popup = MyPopup("Find Paths: Manual Source", call_name, par_cnt)
-        if popup.exec() == qtw.QDialog.DialogCode.Accepted:
+        dialog = ManualSourceDialog("Find Paths: Manual Source", call_name, par_cnt)
+        if dialog.exec() == qtw.QDialog.DialogCode.Accepted:
             self.find_paths(
                 manual_src_inst=inst,
-                manual_src_par_slice="True",
-                manual_src_all_code_xrefs=False,
+                manual_src_par_slice=dialog.get_par_slice(),
+                manual_src_all_code_xrefs=dialog.get_all_code_xrefs(),
             )
         return
 
