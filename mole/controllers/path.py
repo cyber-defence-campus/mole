@@ -47,17 +47,9 @@ class PathController:
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
         self.path_view.init(self)
-        # Register commands
-        # bn.PluginCommand.register_for_medium_level_il_instruction(
-        #     name="Mole\\Manual Source: MLIL Instruction",
-        #     description="Find paths using the selected MLIL instruction as source",
-        #     action=self.find_paths_from_manual_source,
-        # )
-        bn.PluginCommand.register_for_medium_level_il_instruction(
-            name="Mole\\Manual Source: MLIL_CALL Instruction",
-            description="Find paths using the selected MLIL_CALL or MLIL_TAILCALL instruction as source",
-            action=self.find_paths_from_manual_source,
-            is_valid=lambda _, inst: isinstance(
+
+        def is_mlil_call(bv: bn.BinaryView, inst: bn.MediumLevelILInstruction) -> bool:
+            return isinstance(
                 inst,
                 (
                     bn.MediumLevelILCall,
@@ -65,7 +57,24 @@ class PathController:
                     bn.MediumLevelILTailcall,
                     bn.MediumLevelILTailcallSsa,
                 ),
+            )
+
+        # Register plugin commands
+        bn.PluginCommand.register_for_medium_level_il_instruction(
+            name="Mole\\1. Select as Source",
+            description="Find paths using the selected MLIL_CALL or MLIL_TAILCALL instruction as source",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=True
             ),
+            is_valid=is_mlil_call,
+        )
+        bn.PluginCommand.register_for_medium_level_il_instruction(
+            name="Mole\\2. Select as Sink",
+            description="Find paths using the selected MLIL_CALL or MLIL_TAILCALL instruction as sink",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=False
+            ),
+            is_valid=is_mlil_call,
         )
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
@@ -166,14 +175,15 @@ class PathController:
 
     def find_paths(
         self,
-        manual_src_inst: Optional[
+        manual_inst: Optional[
             bn.MediumLevelILCall
             | bn.MediumLevelILCallSsa
             | bn.MediumLevelILTailcall
             | bn.MediumLevelILTailcallSsa
         ] = None,
-        manual_src_par_slice: Optional[str] = None,
-        manual_src_all_code_xrefs: bool = False,
+        manual_par_slice: Optional[str] = None,
+        manual_all_code_xrefs: bool = False,
+        manual_is_src: bool = True,
     ) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths.
@@ -193,9 +203,10 @@ class PathController:
         self._thread = PathService(
             bv=self._bv,
             config_model=self.config_ctr.config_model,
-            manual_src_inst=manual_src_inst,
-            manual_src_par_slice=manual_src_par_slice,
-            manual_src_all_code_xrefs=manual_src_all_code_xrefs,
+            manual_inst=manual_inst,
+            manual_par_slice=manual_par_slice,
+            manual_all_code_xrefs=manual_all_code_xrefs,
+            manual_is_src=manual_is_src,
             path_callback=self.add_path_to_view,
             initial_progress_text="Mole finds paths...",
             can_cancel=True,
@@ -203,27 +214,29 @@ class PathController:
         self._thread.start()
         return
 
-    def find_paths_from_manual_source(
+    def find_paths_from_manual_inst(
         self,
         bv: bn.BinaryView,
         inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallSsa
         | bn.MediumLevelILTailcall
         | bn.MediumLevelILTailcallSsa,
+        is_src: bool = True,
     ) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths using `inst` as
-        the only source.
+        the only source or sink (based on `is_src`).
         """
         inst = inst.ssa_form
         call_name = SymbolHelper.get_call_symbol_name(bv, inst)
         par_cnt = len(inst.params)
-        dialog = ManualSourceDialog("Find Paths: Manual Source", call_name, par_cnt)
+        dialog = ManualSourceDialog(is_src, call_name, par_cnt)
         if dialog.exec() == qtw.QDialog.DialogCode.Accepted:
             self.find_paths(
-                manual_src_inst=inst,
-                manual_src_par_slice=dialog.get_par_slice(),
-                manual_src_all_code_xrefs=dialog.get_all_code_xrefs(),
+                manual_inst=inst,
+                manual_par_slice=dialog.get_par_slice(),
+                manual_all_code_xrefs=dialog.get_all_code_xrefs(),
+                manual_is_src=is_src,
             )
         return
 

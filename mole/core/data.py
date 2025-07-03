@@ -205,13 +205,14 @@ class SourceFunction(Function):
     def find_targets(
         self,
         bv: bn.BinaryView,
-        manual_src_inst: Optional[
+        manual_inst: Optional[
             bn.MediumLevelILCall
             | bn.MediumLevelILCallSsa
             | bn.MediumLevelILTailcall
             | bn.MediumLevelILTailcallSsa
         ],
-        manual_src_all_code_xrefs: bool,
+        manual_all_code_xrefs: bool,
+        manual_is_src: bool,
         cancelled: Callable[[], bool],
     ) -> None:
         """
@@ -220,19 +221,19 @@ class SourceFunction(Function):
         custom_tag = f"{tag:s}.Src.{self.name:s}"
         # Clear map
         self.src_map.clear()
-        # Regular source
-        if not manual_src_inst or manual_src_all_code_xrefs:
-            # Get code references of symbols
-            code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
-        # Manual source
-        else:
+        # Manual source function
+        if manual_is_src and manual_inst and not manual_all_code_xrefs:
             code_refs = {}
             for symbol_name in self.symbols:
                 mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
                     symbol_name, set()
                 )
-                mlil_insts.add(manual_src_inst)
+                mlil_insts.add(manual_inst)
                 code_refs[symbol_name] = mlil_insts
+        # Regular source functions
+        else:
+            # Get code references of symbols
+            code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
             if cancelled():
@@ -338,6 +339,14 @@ class SinkFunction(Function):
         self,
         bv: bn.BinaryView,
         sources: List[SourceFunction],
+        manual_inst: Optional[
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILTailcall
+            | bn.MediumLevelILTailcallSsa
+        ],
+        manual_all_code_xrefs: bool,
+        manual_is_src: bool,
         max_call_level: int,
         max_slice_depth: int,
         found_path: Callable[[Path], None],
@@ -351,8 +360,19 @@ class SinkFunction(Function):
         custom_tag = f"{tag:s}.Snk.{self.name:s}"
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-        # Get code references of symbols
-        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
+        # Manual sink function
+        if not manual_is_src and manual_inst and not manual_all_code_xrefs:
+            code_refs = {}
+            for symbol_name in self.symbols:
+                mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                    symbol_name, set()
+                )
+                mlil_insts.add(manual_inst)
+                code_refs[symbol_name] = mlil_insts
+        # Regular sink functions
+        else:
+            # Get code references of symbols
+            code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
             if cancelled():

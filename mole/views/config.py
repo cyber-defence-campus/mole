@@ -338,9 +338,9 @@ class ManualSourceDialog(qtw.QDialog):
     This class implements a popup dialog that allows to configure a manual source.
     """
 
-    def __init__(self, title: str, call_name: str, par_cnt: int, parent=None) -> None:
+    def __init__(self, is_src: bool, call_name: str, par_cnt: int, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle(title)
+        self.setWindowTitle(f"Find Paths: Manual {'Source' if is_src else 'Sink'}")
         self.setMinimumWidth(250)
         # Information layout
         ifo_lay = qtw.QGridLayout()
