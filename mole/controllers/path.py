@@ -520,7 +520,11 @@ class PathController:
         path = self.path_tree_view.get_path(path_ids[0])
         if not path:
             return
-        msg = f"Path {path_id:d}: {str(path):s}"
+        path_str = str(path)
+        if reverse:
+            snk, src = [part.strip() for part in path_str.split("<--")]
+            path_str = f"{src:s} --> {snk:s}"
+        msg = f"Path {path_id:d}: {path_str:s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         log.info(tag, msg)
         if reverse:
@@ -641,7 +645,11 @@ class PathController:
         if not path:
             return
         path_id = path_ids[0]
-        msg = f"Path {path_id:d}: {str(path):s}"
+        path_str = str(path)
+        if reverse:
+            snk, src = [part.strip() for part in path_str.split("<--")]
+            path_str = f"{src:s} --> {snk:s}"
+        msg = f"Path {path_id:d}: {path_str:s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         log.info(tag, msg)
         if reverse:

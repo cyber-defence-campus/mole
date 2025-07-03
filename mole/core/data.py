@@ -709,7 +709,7 @@ class Path:
             src = f"{src:s}"
         snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
         snk = f"{snk:s}(arg#{self.snk_par_idx:d}:{str(self.snk_par_var):s})"
-        return f"{src:s} --> {snk:s}"
+        return f"{snk:s} <-- {src:s}"
 
     def to_dict(self, debug: bool = False) -> Dict:
         # Serialize instructions

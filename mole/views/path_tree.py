@@ -196,15 +196,15 @@ class PathTreeView(qtw.QTreeView):
 
             # Instruction actions
             log_path_action = self._add_menu_action(
-                menu, "Log instructions", len(rows) == 1
+                menu, "Log instructions (backward)", len(rows) == 1
             )
             log_path_action.triggered.connect(lambda: on_log_path(rows, False))
             log_path_reversed_action = self._add_menu_action(
-                menu, "Log instructions (reversed)", len(rows) == 1
+                menu, "Log instructions (forward)", len(rows) == 1
             )
             log_path_reversed_action.triggered.connect(lambda: on_log_path(rows, True))
             log_path_diff_action = self._add_menu_action(
-                menu, "Log instruction difference", len(rows) == 2
+                menu, "Log instruction difference (backward)", len(rows) == 2
             )
             log_path_diff_action.triggered.connect(lambda: on_log_path_diff(rows))
             highlight_path_action = self._add_menu_action(
@@ -213,10 +213,12 @@ class PathTreeView(qtw.QTreeView):
             highlight_path_action.triggered.connect(lambda: on_highlight_path(rows))
             menu.addSeparator()
             # Call actions
-            log_call_action = self._add_menu_action(menu, "Log calls", len(rows) == 1)
+            log_call_action = self._add_menu_action(
+                menu, "Log calls (backward)", len(rows) == 1
+            )
             log_call_action.triggered.connect(lambda: on_log_call(rows, False))
             log_call_reversed_action = self._add_menu_action(
-                menu, "Log calls (reversed)", len(rows) == 1
+                menu, "Log calls (forward)", len(rows) == 1
             )
             log_call_reversed_action.triggered.connect(lambda: on_log_call(rows, True))
             show_call_graph_action = self._add_menu_action(
