@@ -121,9 +121,7 @@ class PathService(BackgroundTask):
             par_cnt = f"i == {par_cnt:d}"
             par_cnt_fun = parser.parse(par_cnt)
             par_slice = (
-                "False"
-                if not self._manual_src_par_slice
-                else self._manual_src_par_slice
+                self._manual_src_par_slice if self._manual_src_par_slice else "False"
             )
             par_slice_fun = parser.parse(par_slice)
             src_fun = SourceFunction(
