@@ -221,33 +221,19 @@ class SourceFunction(Function):
         custom_tag = f"{tag:s}.Src.{self.name:s}"
         # Clear map
         self.src_map.clear()
-        # Manual parameters
-        if (
-            manual_fun
-            and isinstance(manual_fun, SourceFunction)
-            and manual_fun_all_code_xrefs
-        ):
-            old_par_slice = self.par_slice
-            old_par_slice_fun = self.par_slice_fun
-            self.par_slice = manual_fun.par_slice
-            self.par_slice_fun = manual_fun.par_slice_fun
-        # Manual source function
-        if (
-            manual_fun
-            and isinstance(manual_fun, SourceFunction)
-            and not manual_fun_all_code_xrefs
-        ):
-            code_refs = {}
-            for symbol_name in self.symbols:
-                mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                    symbol_name, set()
-                )
-                mlil_insts.add(manual_fun_inst)
-                code_refs[symbol_name] = mlil_insts
-        # Regular source functions
-        else:
-            # Get code references of symbols
-            code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
+        # Code x-refs
+        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
+        # Manually configured source function
+        if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
+            # Use only manually configured source function
+            if not manual_fun_all_code_xrefs:
+                code_refs = {}
+                for symbol_name in self.symbols:
+                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                        symbol_name, set()
+                    )
+                    mlil_insts.add(manual_fun_inst)
+                    code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
             if cancelled():
@@ -324,7 +310,19 @@ class SourceFunction(Function):
                     src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
                     src_slicer.call_graph.add_node(src_call_inst.function, call_level=0)
                     # Perform backward slicing of the parameter
-                    if self.par_slice_fun and self.par_slice_fun(src_par_idx):
+                    if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
+                        par_slice_fun = (
+                            manual_fun.par_slice_fun
+                            if manual_fun.par_slice_fun
+                            else lambda x: False
+                        )
+                    else:
+                        par_slice_fun = (
+                            self.par_slice_fun
+                            if self.par_slice_fun
+                            else lambda x: False
+                        )
+                    if par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Store the instruction graph
                     if not cancelled():
@@ -332,14 +330,6 @@ class SourceFunction(Function):
                             src_slicer.inst_graph,
                             src_slicer.call_graph,
                         )
-        # Restore parameters
-        if (
-            manual_fun
-            and isinstance(manual_fun, SourceFunction)
-            and manual_fun_all_code_xrefs
-        ):
-            self.par_slice = old_par_slice
-            self.par_slice_fun = old_par_slice_fun
         return
 
 
@@ -382,33 +372,19 @@ class SinkFunction(Function):
         custom_tag = f"{tag:s}.Snk.{self.name:s}"
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-        # Manual parameters
-        if (
-            manual_fun
-            and isinstance(manual_fun, SinkFunction)
-            and manual_fun_all_code_xrefs
-        ):
-            old_par_slice = self.par_slice
-            old_par_slice_fun = self.par_slice_fun
-            self.par_slice = manual_fun.par_slice
-            self.par_slice_fun = manual_fun.par_slice_fun
-        # Manual sink function
-        if (
-            manual_fun
-            and isinstance(manual_fun, SinkFunction)
-            and not manual_fun_all_code_xrefs
-        ):
-            code_refs = {}
-            for symbol_name in self.symbols:
-                mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                    symbol_name, set()
-                )
-                mlil_insts.add(manual_fun_inst)
-                code_refs[symbol_name] = mlil_insts
-        # Regular sink functions
-        else:
-            # Get code references of symbols
-            code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
+        # Code x-refs
+        code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
+        # Manually configured sink function
+        if isinstance(manual_fun, SinkFunction) and manual_fun_inst:
+            # Use only manually configured sink function
+            if not manual_fun_all_code_xrefs:
+                code_refs = {}
+                for symbol_name in self.symbols:
+                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                        symbol_name, set()
+                    )
+                    mlil_insts.add(manual_fun_inst)
+                    code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
             if cancelled():
@@ -469,7 +445,19 @@ class SinkFunction(Function):
                             )
                             continue
                     # Peform backward slicing of the parameter
-                    if self.par_slice_fun and self.par_slice_fun(snk_par_idx):
+                    if isinstance(manual_fun, SinkFunction) and manual_fun_inst:
+                        par_slice_fun = (
+                            manual_fun.par_slice_fun
+                            if manual_fun.par_slice_fun
+                            else lambda x: False
+                        )
+                    else:
+                        par_slice_fun = (
+                            self.par_slice_fun
+                            if self.par_slice_fun
+                            else lambda x: False
+                        )
+                    if par_slice_fun(snk_par_idx):
                         # Create backward slicer
                         snk_slicer = MediumLevelILBackwardSlicer(
                             bv, custom_tag, max_call_level, cancelled
@@ -507,10 +495,19 @@ class SinkFunction(Function):
                                     if cancelled():
                                         break
                                     # Source parameter was not sliced
-                                    if (
-                                        not source.par_slice_fun
-                                        or not source.par_slice_fun(src_par_idx)
-                                    ):
+                                    if isinstance(manual_fun, SourceFunction):
+                                        par_slice_fun = (
+                                            manual_fun.par_slice_fun
+                                            if manual_fun.par_slice_fun
+                                            else lambda x: False
+                                        )
+                                    else:
+                                        par_slice_fun = (
+                                            source.par_slice_fun
+                                            if source.par_slice_fun
+                                            else lambda x: False
+                                        )
+                                    if not par_slice_fun(src_par_idx):
                                         src_par_idx = None
                                         src_par_var = None
                                     # Iterate source instructions (order of backward slicing)
@@ -609,14 +606,6 @@ class SinkFunction(Function):
                                             )
                                         # Ignore all other source instructions since a path was found
                                         break
-        # Restore parameters
-        if (
-            manual_fun
-            and isinstance(manual_fun, SinkFunction)
-            and manual_fun_all_code_xrefs
-        ):
-            self.par_slice = old_par_slice
-            self.par_slice_fun = old_par_slice_fun
         return paths
 
 

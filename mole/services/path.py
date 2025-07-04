@@ -92,44 +92,44 @@ class PathService(BackgroundTask):
             if setting:
                 max_slice_depth = setting.value
         log.debug(tag, f"- max_slice_depth: '{max_slice_depth}'")
-        src_funs: List[SourceFunction] = self._config_model.get_functions(
-            fun_type="Sources", fun_enabled=(None if self._enable_all_funs else True)
-        )
         # Source functions
-        src_funs: List[SourceFunction] = []
-        if (
-            self._manual_fun
-            and isinstance(self._manual_fun, SourceFunction)
-            and not self._manual_fun_all_code_xrefs
-        ):
-            # Manual source function
-            src_funs.append(self._manual_fun)
-        else:
-            # Regular source functions
-            src_funs.extend(
-                self._config_model.get_functions(
-                    fun_type="Sources",
-                    fun_enabled=(None if self._enable_all_funs else True),
-                )
-            )
+        src_funs: List[SourceFunction] = self._config_model.get_functions(
+            fun_type="Sources",
+            fun_enabled=(None if self._enable_all_funs else True),
+        )
+        # Manually configured source function
+        if isinstance(self._manual_fun, SourceFunction):
+            # Use only manually configured source function
+            if not self._manual_fun_all_code_xrefs:
+                src_funs = [self._manual_fun]
+            # Use all configured source functions with the manually selected symbol
+            else:
+                src_funs = [
+                    src_fun
+                    for src_fun in src_funs
+                    if any(
+                        symbol in src_fun.symbols for symbol in self._manual_fun.symbols
+                    )
+                ]
         log.debug(tag, f"- number of sources: '{len(src_funs):d}'")
         # Sink functions
-        snk_funs: List[SinkFunction] = []
-        if (
-            self._manual_fun
-            and isinstance(self._manual_fun, SinkFunction)
-            and not self._manual_fun_all_code_xrefs
-        ):
-            # Manual sink function
-            snk_funs.append(self._manual_fun)
-        else:
-            # Regular sink functions
-            snk_funs.extend(
-                self._config_model.get_functions(
-                    fun_type="Sinks",
-                    fun_enabled=(None if self._enable_all_funs else True),
-                )
-            )
+        snk_funs: List[SinkFunction] = self._config_model.get_functions(
+            fun_type="Sinks", fun_enabled=(None if self._enable_all_funs else True)
+        )
+        # Manually configured sink function
+        if isinstance(self._manual_fun, SinkFunction):
+            # Use only manually configured sink function
+            if not self._manual_fun_all_code_xrefs:
+                snk_funs = [self._manual_fun]
+            # Use all configured sink functions with the manually selected symbol
+            else:
+                snk_funs = [
+                    snk_fun
+                    for snk_fun in snk_funs
+                    if any(
+                        symbol in snk_fun.symbols for symbol in self._manual_fun.symbols
+                    )
+                ]
         log.debug(tag, f"- number of sinks: '{len(snk_funs):d}'")
         # Backward slicing
         if not src_funs or not snk_funs:
