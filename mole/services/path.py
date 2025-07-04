@@ -111,6 +111,8 @@ class PathService(BackgroundTask):
                         symbol in src_fun.symbols for symbol in self._manual_fun.symbols
                     )
                 ]
+                if not src_funs:
+                    src_funs = [self._manual_fun]
         log.debug(tag, f"- number of sources: '{len(src_funs):d}'")
         # Sink functions
         snk_funs: List[SinkFunction] = self._config_model.get_functions(
@@ -130,6 +132,8 @@ class PathService(BackgroundTask):
                         symbol in snk_fun.symbols for symbol in self._manual_fun.symbols
                     )
                 ]
+                if not snk_funs:
+                    snk_funs = [self._manual_fun]
         log.debug(tag, f"- number of sinks: '{len(snk_funs):d}'")
         # Backward slicing
         if not src_funs or not snk_funs:
