@@ -1,5 +1,5 @@
 from __future__ import annotations
-from mole.common.help import InstructionHelper, SymbolHelper
+from mole.common.help import InstructionHelper
 from mole.common.log import log
 from mole.common.parse import LogicalExpressionParser
 from mole.common.task import BackgroundTask
@@ -227,23 +227,33 @@ class PathController:
         the only source or sink (based on `is_src`).
         """
         inst = inst.ssa_form
-        call_name = SymbolHelper.get_call_symbol_name(bv, inst)
-        par_cnt = len(inst.params)
-        dialog = ManualConfigDialog(is_src, call_name, par_cnt)
+        func = InstructionHelper.get_callee(bv, inst)
+        name = func.name if func else "unknown"
+        synopsis = (
+            func.type.get_string_before_name()
+            + " "
+            + name
+            + func.type.get_string_after_name()
+            if func
+            else ""
+        )
+        symbols = [name] if func else []
+        par_cnt = f"i == {len(inst.params):d}"
+
+        dialog = ManualConfigDialog(is_src, synopsis)
 
         def _create_fun(par_slice: str) -> SourceFunction | SinkFunction:
             parser = LogicalExpressionParser()
-            name = f"{call_name:s}" if call_name else "unknown"
-            symbols = [call_name] if call_name else []
-            par_cnt_fun = parser.parse(f"i == {par_cnt:d}")
+            par_cnt_fun = parser.parse(par_cnt)
             par_slice_fun = parser.parse(par_slice)
             # Create manual source function
             if is_src:
                 fun = SourceFunction(
                     name=name,
                     symbols=symbols,
-                    enabled=True,
-                    par_cnt=f"i == {par_cnt:d}",
+                    synopsis=synopsis,
+                    enabled=False,
+                    par_cnt=par_cnt,
                     par_cnt_fun=par_cnt_fun,
                     par_slice=par_slice,
                     par_slice_fun=par_slice_fun,
@@ -253,8 +263,9 @@ class PathController:
                 fun = SinkFunction(
                     name=name,
                     symbols=symbols,
-                    enabled=True,
-                    par_cnt=f"i == {par_cnt:d}",
+                    synopsis=synopsis,
+                    enabled=False,
+                    par_cnt=par_cnt,
                     par_cnt_fun=par_cnt_fun,
                     par_slice=par_slice,
                     par_slice_fun=par_slice_fun,

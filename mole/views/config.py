@@ -363,16 +363,14 @@ class ManualConfigDialog(qtw.QDialog):
     signal_find = qtc.Signal(str, bool)
     signal_add = qtc.Signal(str)
 
-    def __init__(self, is_src: bool, call_name: str, par_cnt: int, parent=None) -> None:
-        super().__init__(parent)
+    def __init__(self, is_src: bool, synopsis: str) -> None:
+        super().__init__()
         self.setWindowTitle(f"Manual {'Source' if is_src else 'Sink'}")
         self.setMinimumWidth(250)
         # Information layout
         ifo_lay = qtw.QGridLayout()
-        ifo_lay.addWidget(qtw.QLabel("symbol_name:"), 0, 0)
-        ifo_lay.addWidget(qtw.QLabel(call_name), 0, 1)
-        ifo_lay.addWidget(qtw.QLabel("par_cnt:"), 1, 0)
-        ifo_lay.addWidget(qtw.QLabel(str(par_cnt)), 1, 1)
+        ifo_lay.addWidget(qtw.QLabel("synopsis:"), 0, 0)
+        ifo_lay.addWidget(qtw.QLabel(synopsis), 0, 1)
         # Information widget
         ifo_wid = qtw.QGroupBox("Information:")
         ifo_wid.setLayout(ifo_lay)
