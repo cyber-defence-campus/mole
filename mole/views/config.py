@@ -333,14 +333,17 @@ class FullSelectLineEdit(qtw.QLineEdit):
         return self.selectAll()
 
 
-class ManualSourceDialog(qtw.QDialog):
+class ManualConfigDialog(qtw.QDialog):
     """
-    This class implements a popup dialog that allows to configure a manual source.
+    This class implements a popup dialog that allows to configure manual sources / sinks.
     """
+
+    signal_find = qtc.Signal(str, bool)
+    signal_save = qtc.Signal()
 
     def __init__(self, is_src: bool, call_name: str, par_cnt: int, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle(f"Find Paths: Manual {'Source' if is_src else 'Sink'}")
+        self.setWindowTitle(f"Manual {'Source' if is_src else 'Sink'}")
         self.setMinimumWidth(250)
         # Information layout
         ifo_lay = qtw.QGridLayout()
@@ -369,12 +372,19 @@ class ManualSourceDialog(qtw.QDialog):
         cnf_wid.setLayout(cnf_lay)
         # Buttons
         find_but = qtw.QPushButton("Find")
-        find_but.clicked.connect(self.accept)
+        find_but.clicked.connect(
+            lambda: self.signal_find.emit(
+                self.par_slice_wid.text().strip(), self.all_code_xrefs_wid.isChecked()
+            )
+        )
+        save_but = qtw.QPushButton("Save")
+        save_but.clicked.connect(self.signal_save.emit)
         cancel_but = qtw.QPushButton("Cancel")
         cancel_but.clicked.connect(self.reject)
         # Button layout
         but_lay = qtw.QHBoxLayout()
         but_lay.addWidget(find_but)
+        but_lay.addWidget(save_but)
         but_lay.addWidget(cancel_but)
         # Button widget
         but_wid = qtw.QWidget()

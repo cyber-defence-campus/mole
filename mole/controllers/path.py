@@ -1,12 +1,13 @@
 from __future__ import annotations
 from mole.common.help import InstructionHelper, SymbolHelper
 from mole.common.log import log
+from mole.common.parse import LogicalExpressionParser
 from mole.common.task import BackgroundTask
 from mole.controllers.ai import AiController
 from mole.controllers.config import ConfigController
-from mole.core.data import Path
+from mole.core.data import Path, SourceFunction, SinkFunction
 from mole.services.path import PathService
-from mole.views.config import ManualSourceDialog
+from mole.views.config import ManualConfigDialog
 from mole.views.graph import GraphWidget
 from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
@@ -61,7 +62,7 @@ class PathController:
 
         # Register plugin commands
         bn.PluginCommand.register_for_medium_level_il_instruction(
-            name="Mole\\1. Select as Source",
+            name="Mole\\1. Select as Source Function",
             description="Find paths using the selected MLIL_CALL or MLIL_TAILCALL instruction as source",
             action=lambda bv, inst: self.find_paths_from_manual_inst(
                 bv, inst, is_src=True
@@ -69,7 +70,7 @@ class PathController:
             is_valid=is_mlil_call,
         )
         bn.PluginCommand.register_for_medium_level_il_instruction(
-            name="Mole\\2. Select as Sink",
+            name="Mole\\2. Select as Sink Function",
             description="Find paths using the selected MLIL_CALL or MLIL_TAILCALL instruction as sink",
             action=lambda bv, inst: self.find_paths_from_manual_inst(
                 bv, inst, is_src=False
@@ -175,15 +176,14 @@ class PathController:
 
     def find_paths(
         self,
-        manual_inst: Optional[
+        manual_fun: Optional[SourceFunction | SinkFunction] = None,
+        manual_fun_inst: Optional[
             bn.MediumLevelILCall
             | bn.MediumLevelILCallSsa
             | bn.MediumLevelILTailcall
             | bn.MediumLevelILTailcallSsa
         ] = None,
-        manual_par_slice: Optional[str] = None,
-        manual_all_code_xrefs: bool = False,
-        manual_is_src: bool = True,
+        manual_fun_all_code_xrefs: bool = False,
     ) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths.
@@ -203,10 +203,9 @@ class PathController:
         self._thread = PathService(
             bv=self._bv,
             config_model=self.config_ctr.config_model,
-            manual_inst=manual_inst,
-            manual_par_slice=manual_par_slice,
-            manual_all_code_xrefs=manual_all_code_xrefs,
-            manual_is_src=manual_is_src,
+            manual_fun=manual_fun,
+            manual_fun_inst=manual_fun_inst,
+            manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
             path_callback=self.add_path_to_view,
             initial_progress_text="Mole finds paths...",
             can_cancel=True,
@@ -230,14 +229,51 @@ class PathController:
         inst = inst.ssa_form
         call_name = SymbolHelper.get_call_symbol_name(bv, inst)
         par_cnt = len(inst.params)
-        dialog = ManualSourceDialog(is_src, call_name, par_cnt)
-        if dialog.exec() == qtw.QDialog.DialogCode.Accepted:
-            self.find_paths(
-                manual_inst=inst,
-                manual_par_slice=dialog.get_par_slice(),
-                manual_all_code_xrefs=dialog.get_all_code_xrefs(),
-                manual_is_src=is_src,
+        dialog = ManualConfigDialog(is_src, call_name, par_cnt)
+
+        def _find_paths_from_manual_inst(par_slice: str, all_code_xrefs: bool) -> None:
+            parser = LogicalExpressionParser()
+            name = f"Manual.{call_name:s}" if call_name else "unknown"
+            symbols = [call_name] if call_name else []
+            par_cnt_fun = parser.parse(f"i == {par_cnt:d}")
+            par_slice_fun = parser.parse(par_slice)
+            # Create manual source function
+            if is_src:
+                fun = SourceFunction(
+                    name=name,
+                    symbols=symbols,
+                    enabled=True,
+                    par_cnt=f"i == {par_cnt:d}",
+                    par_cnt_fun=par_cnt_fun,
+                    par_slice=par_slice,
+                    par_slice_fun=par_slice_fun,
+                )
+            # Create manual sink function
+            else:
+                fun = SinkFunction(
+                    name=name,
+                    symbols=symbols,
+                    enabled=True,
+                    par_cnt=f"i == {par_cnt:d}",
+                    par_cnt_fun=par_cnt_fun,
+                    par_slice=par_slice,
+                    par_slice_fun=par_slice_fun,
+                )
+            # Close dialog
+            dialog.accept()
+            # Find paths using manual function
+            return self.find_paths(
+                manual_fun=fun,
+                manual_fun_inst=inst,
+                manual_fun_all_code_xrefs=all_code_xrefs,
             )
+
+        def _save_paths_from_manual_inst() -> None:
+            return
+
+        dialog.signal_find.connect(_find_paths_from_manual_inst)
+        dialog.signal_save.connect(_save_paths_from_manual_inst)
+        dialog.exec()
         return
 
     def load_paths(self) -> None:

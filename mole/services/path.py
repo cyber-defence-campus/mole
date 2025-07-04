@@ -1,8 +1,6 @@
 from __future__ import annotations
 from concurrent import futures
-from mole.common.help import SymbolHelper
 from mole.common.log import log
-from mole.common.parse import LogicalExpressionParser
 from mole.common.task import BackgroundTask
 from mole.core.data import Path, SourceFunction, SinkFunction
 from mole.models.config import ConfigModel
@@ -27,15 +25,14 @@ class PathService(BackgroundTask):
         max_call_level: Optional[int] = None,
         max_slice_depth: Optional[int] = None,
         enable_all_funs: bool = False,
-        manual_inst: Optional[
+        manual_fun: Optional[SourceFunction | SinkFunction] = None,
+        manual_fun_inst: Optional[
             bn.MediumLevelILCall
             | bn.MediumLevelILCallSsa
             | bn.MediumLevelILTailcall
             | bn.MediumLevelILTailcallSsa
         ] = None,
-        manual_par_slice: Optional[str] = None,
-        manual_all_code_xrefs: bool = False,
-        manual_is_src: bool = True,
+        manual_fun_all_code_xrefs: bool = False,
         path_callback: Optional[Callable[[Path], None]] = None,
         initial_progress_text: str = "",
         can_cancel: bool = False,
@@ -50,10 +47,9 @@ class PathService(BackgroundTask):
         self._max_call_level = max_call_level
         self._max_slice_depth = max_slice_depth
         self._enable_all_funs = enable_all_funs
-        self._manual_inst = manual_inst
-        self._manual_par_slice = manual_par_slice
-        self._manual_all_code_xrefs = manual_all_code_xrefs
-        self._manual_is_src = manual_is_src
+        self._manual_fun = manual_fun
+        self._manual_fun_inst = manual_fun_inst
+        self._manual_fun_all_code_xrefs = manual_fun_all_code_xrefs
         self._path_callback = path_callback
         return
 
@@ -99,39 +95,15 @@ class PathService(BackgroundTask):
         src_funs: List[SourceFunction] = self._config_model.get_functions(
             fun_type="Sources", fun_enabled=(None if self._enable_all_funs else True)
         )
-        # Manual source or sink function
-        if self._manual_inst:
-            call_name = SymbolHelper.get_call_symbol_name(self._bv, self._manual_inst)
-            parser = LogicalExpressionParser()
-            name = f"Manual.{call_name:s}" if call_name else "Manual.unknown"
-            symbols = [call_name] if call_name else []
-            par_cnt = len(self._manual_inst.params)
-            synopsis = (
-                f"{call_name:s}({', '.join(f'arg#{i}' for i in range(1, par_cnt + 1))})"
-            )
-            par_cnt = f"i == {par_cnt:d}"
-            par_cnt_fun = parser.parse(par_cnt)
-            par_slice = self._manual_par_slice if self._manual_par_slice else "False"
-            par_slice_fun = parser.parse(par_slice)
         # Source functions
         src_funs: List[SourceFunction] = []
         if (
-            self._manual_is_src
-            and self._manual_inst
-            and not self._manual_all_code_xrefs
+            self._manual_fun
+            and isinstance(self._manual_fun, SourceFunction)
+            and not self._manual_fun_all_code_xrefs
         ):
             # Manual source function
-            src_fun = SourceFunction(
-                name=name,
-                symbols=symbols,
-                synopsis=synopsis,
-                enabled=True,
-                par_cnt=par_cnt,
-                par_cnt_fun=par_cnt_fun,
-                par_slice=par_slice,
-                par_slice_fun=par_slice_fun,
-            )
-            src_funs.append(src_fun)
+            src_funs.append(self._manual_fun)
         else:
             # Regular source functions
             src_funs.extend(
@@ -144,22 +116,12 @@ class PathService(BackgroundTask):
         # Sink functions
         snk_funs: List[SinkFunction] = []
         if (
-            not self._manual_is_src
-            and self._manual_inst
-            and not self._manual_all_code_xrefs
+            self._manual_fun
+            and isinstance(self._manual_fun, SinkFunction)
+            and not self._manual_fun_all_code_xrefs
         ):
             # Manual sink function
-            snk_fun = SinkFunction(
-                name=name,
-                symbols=symbols,
-                synopsis=synopsis,
-                enabled=True,
-                par_cnt=par_cnt,
-                par_cnt_fun=par_cnt_fun,
-                par_slice=par_slice,
-                par_slice_fun=par_slice_fun,
-            )
-            snk_funs.append(snk_fun)
+            snk_funs.append(self._manual_fun)
         else:
             # Regular sink functions
             snk_funs.extend(
@@ -184,9 +146,9 @@ class PathService(BackgroundTask):
                         executor.submit(
                             src_fun.find_targets,
                             self._bv,
-                            self._manual_inst,
-                            self._manual_all_code_xrefs,
-                            self._manual_is_src,
+                            self._manual_fun,
+                            self._manual_fun_inst,
+                            self._manual_fun_all_code_xrefs,
                             lambda: self.cancelled,
                         )
                     )
@@ -206,9 +168,9 @@ class PathService(BackgroundTask):
                             snk_fun.find_paths,
                             self._bv,
                             src_funs,
-                            self._manual_inst,
-                            self._manual_all_code_xrefs,
-                            self._manual_is_src,
+                            self._manual_fun,
+                            self._manual_fun_inst,
+                            self._manual_fun_all_code_xrefs,
                             max_call_level,
                             max_slice_depth,
                             self._path_callback,

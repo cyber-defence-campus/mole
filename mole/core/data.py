@@ -205,14 +205,14 @@ class SourceFunction(Function):
     def find_targets(
         self,
         bv: bn.BinaryView,
-        manual_inst: Optional[
+        manual_fun: Optional[SourceFunction],
+        manual_fun_inst: Optional[
             bn.MediumLevelILCall
             | bn.MediumLevelILCallSsa
             | bn.MediumLevelILTailcall
             | bn.MediumLevelILTailcallSsa
         ],
-        manual_all_code_xrefs: bool,
-        manual_is_src: bool,
+        manual_fun_all_code_xrefs: bool,
         cancelled: Callable[[], bool],
     ) -> None:
         """
@@ -221,14 +221,28 @@ class SourceFunction(Function):
         custom_tag = f"{tag:s}.Src.{self.name:s}"
         # Clear map
         self.src_map.clear()
+        # Manual parameters
+        if (
+            manual_fun
+            and isinstance(manual_fun, SourceFunction)
+            and manual_fun_all_code_xrefs
+        ):
+            old_par_slice = self.par_slice
+            old_par_slice_fun = self.par_slice_fun
+            self.par_slice = manual_fun.par_slice
+            self.par_slice_fun = manual_fun.par_slice_fun
         # Manual source function
-        if manual_is_src and manual_inst and not manual_all_code_xrefs:
+        if (
+            manual_fun
+            and isinstance(manual_fun, SourceFunction)
+            and not manual_fun_all_code_xrefs
+        ):
             code_refs = {}
             for symbol_name in self.symbols:
                 mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
                     symbol_name, set()
                 )
-                mlil_insts.add(manual_inst)
+                mlil_insts.add(manual_fun_inst)
                 code_refs[symbol_name] = mlil_insts
         # Regular source functions
         else:
@@ -318,6 +332,14 @@ class SourceFunction(Function):
                             src_slicer.inst_graph,
                             src_slicer.call_graph,
                         )
+        # Restore parameters
+        if (
+            manual_fun
+            and isinstance(manual_fun, SourceFunction)
+            and manual_fun_all_code_xrefs
+        ):
+            self.par_slice = old_par_slice
+            self.par_slice_fun = old_par_slice_fun
         return
 
 
@@ -339,14 +361,14 @@ class SinkFunction(Function):
         self,
         bv: bn.BinaryView,
         sources: List[SourceFunction],
-        manual_inst: Optional[
+        manual_fun: Optional[SinkFunction],
+        manual_fun_inst: Optional[
             bn.MediumLevelILCall
             | bn.MediumLevelILCallSsa
             | bn.MediumLevelILTailcall
             | bn.MediumLevelILTailcallSsa
         ],
-        manual_all_code_xrefs: bool,
-        manual_is_src: bool,
+        manual_fun_all_code_xrefs: bool,
         max_call_level: int,
         max_slice_depth: int,
         found_path: Callable[[Path], None],
@@ -360,14 +382,28 @@ class SinkFunction(Function):
         custom_tag = f"{tag:s}.Snk.{self.name:s}"
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+        # Manual parameters
+        if (
+            manual_fun
+            and isinstance(manual_fun, SinkFunction)
+            and manual_fun_all_code_xrefs
+        ):
+            old_par_slice = self.par_slice
+            old_par_slice_fun = self.par_slice_fun
+            self.par_slice = manual_fun.par_slice
+            self.par_slice_fun = manual_fun.par_slice_fun
         # Manual sink function
-        if not manual_is_src and manual_inst and not manual_all_code_xrefs:
+        if (
+            manual_fun
+            and isinstance(manual_fun, SinkFunction)
+            and not manual_fun_all_code_xrefs
+        ):
             code_refs = {}
             for symbol_name in self.symbols:
                 mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
                     symbol_name, set()
                 )
-                mlil_insts.add(manual_inst)
+                mlil_insts.add(manual_fun_inst)
                 code_refs[symbol_name] = mlil_insts
         # Regular sink functions
         else:
@@ -573,6 +609,14 @@ class SinkFunction(Function):
                                             )
                                         # Ignore all other source instructions since a path was found
                                         break
+        # Restore parameters
+        if (
+            manual_fun
+            and isinstance(manual_fun, SinkFunction)
+            and manual_fun_all_code_xrefs
+        ):
+            self.par_slice = old_par_slice
+            self.par_slice_fun = old_par_slice_fun
         return paths
 
 
