@@ -1,9 +1,13 @@
 from __future__ import annotations
 from mole.core.data import (
+    Category,
     ComboboxSetting,
+    Configuration,
     DoubleSpinboxSetting,
     Function,
     Library,
+    SinkFunction,
+    SourceFunction,
     SpinboxSetting,
     TextSetting,
     WidgetSetting,
@@ -114,7 +118,44 @@ class ConfigController:
         This method saves the configuration.
         """
         self.config_service.save_config(self.config_model.get())
-        self.config_view.give_feedback("Save", "Saving...")
+        self.config_view.give_feedback("Save", "Saving...", "Save")
+        return
+
+    def save_manual_fun(
+        self, fun: SourceFunction | SinkFunction, category_name: str = "Default"
+    ) -> None:
+        """
+        This method saves the given function `fun` as a manual source or sink.
+        """
+        config = Configuration(
+            sources={
+                "manual": Library(
+                    name="manual",
+                    categories={
+                        category_name: Category(
+                            name=category_name, functions={fun.name: fun}
+                        )
+                    },
+                )
+            }
+            if isinstance(fun, SourceFunction)
+            else {},
+            sinks={
+                "manual": Library(
+                    name="manual",
+                    categories={
+                        category_name: Category(
+                            name=category_name, functions={fun.name: fun}
+                        )
+                    },
+                )
+            }
+            if isinstance(fun, SinkFunction)
+            else {},
+        )
+        self.config_service.update_config(self.config_model.get(), config)
+        self.config_view.refresh_tabs(1 if isinstance(fun, SinkFunction) else 0)
+        self.config_view.give_feedback("Save", "Save*", "Save*", 0)
         return
 
     def reset_config(self) -> None:
@@ -170,7 +211,8 @@ class ConfigController:
                 setting.widget.setText(setting.value)
         self.config_model.set(new_config)
         # User feedback
-        self.config_view.give_feedback("Reset", "Resetting...")
+        self.config_view.give_feedback("Reset", "Resetting...", "Reset")
+        self.config_view.give_feedback("Save", "Save", "Save", 0)
         return
 
     def check_functions(
@@ -195,6 +237,7 @@ class ConfigController:
             else:
                 fun.enabled = fun_enabled
             fun.checkbox.setChecked(fun.enabled)
+        self.config_view.give_feedback("Save", "Save*", "Save*", 0)
         return
 
     def change_setting(self, name: str, value: Any) -> None:
@@ -204,4 +247,5 @@ class ConfigController:
         setting = self.config_model.get_setting(name)
         if setting:
             setting.value = value
+        self.config_view.give_feedback("Save", "Save*", "Save*", 0)
         return

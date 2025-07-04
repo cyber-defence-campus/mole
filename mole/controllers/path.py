@@ -231,9 +231,9 @@ class PathController:
         par_cnt = len(inst.params)
         dialog = ManualConfigDialog(is_src, call_name, par_cnt)
 
-        def _find_paths_from_manual_inst(par_slice: str, all_code_xrefs: bool) -> None:
+        def _create_fun(par_slice: str) -> SourceFunction | SinkFunction:
             parser = LogicalExpressionParser()
-            name = f"Manual.{call_name:s}" if call_name else "unknown"
+            name = f"{call_name:s}" if call_name else "unknown"
             symbols = [call_name] if call_name else []
             par_cnt_fun = parser.parse(f"i == {par_cnt:d}")
             par_slice_fun = parser.parse(par_slice)
@@ -259,20 +259,24 @@ class PathController:
                     par_slice=par_slice,
                     par_slice_fun=par_slice_fun,
                 )
+            return fun
+
+        def _find_paths_from_manual_inst(par_slice: str, all_code_xrefs: bool) -> None:
             # Close dialog
             dialog.accept()
             # Find paths using manual function
             return self.find_paths(
-                manual_fun=fun,
+                manual_fun=_create_fun(par_slice),
                 manual_fun_inst=inst,
                 manual_fun_all_code_xrefs=all_code_xrefs,
             )
 
-        def _save_paths_from_manual_inst() -> None:
+        def _save_paths_from_manual_inst(par_slice: str) -> None:
+            self.config_ctr.save_manual_fun(_create_fun(par_slice))
             return
 
         dialog.signal_find.connect(_find_paths_from_manual_inst)
-        dialog.signal_save.connect(_save_paths_from_manual_inst)
+        dialog.signal_add.connect(_save_paths_from_manual_inst)
         dialog.exec()
         return
 

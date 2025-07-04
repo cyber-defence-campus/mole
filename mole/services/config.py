@@ -42,13 +42,24 @@ class ConfigService:
         This method loads all configuration files and returns a complete `Configuration` object.
         """
         # Initialize empty configuration
-        config = Configuration()
+        config = Configuration(
+            sources={
+                "manual": Library(
+                    name="manual",
+                )
+            },
+            sinks={
+                "manual": Library(
+                    name="manual",
+                )
+            },
+        )
         # Load custom configuration files
         custom_config = self.load_custom_config()
-        self._update_config(config, custom_config)
+        self.update_config(config, custom_config)
         # Load main configuration file
         main_config = self.load_main_config()
-        self._update_config(config, main_config)
+        self.update_config(config, main_config)
         return config
 
     def load_custom_config(self) -> Configuration:
@@ -77,7 +88,7 @@ class ConfigService:
                 continue
             # Parse configuration file
             custom_config = self._parse_config(config_dict)
-            self._update_config(config, custom_config)
+            self.update_config(config, custom_config)
         return config
 
     def load_main_config(self) -> Configuration:
@@ -114,7 +125,7 @@ class ConfigService:
             )
         return
 
-    def _update_config(self, target: Configuration, source: Configuration) -> None:
+    def update_config(self, target: Configuration, source: Configuration) -> None:
         """
         This method updates the `target` `Configuration` with data from `source` `Configuration`.
         """
@@ -129,9 +140,6 @@ class ConfigService:
                 case "sinks":
                     new_libs = source.sinks
                     old_libs = target.sinks
-                case _:
-                    new_libs = {}
-                    old_libs = {}
             for new_lib_name, new_lib in new_libs.items():
                 if new_lib_name not in old_libs:
                     old_libs[new_lib_name] = new_lib
