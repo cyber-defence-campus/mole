@@ -360,17 +360,19 @@ class ManualConfigDialog(qtw.QDialog):
     This class implements a popup dialog that allows to configure manual sources / sinks.
     """
 
-    signal_find = qtc.Signal(str, bool)
-    signal_add = qtc.Signal(str)
+    signal_find = qtc.Signal(str, str, bool)
+    signal_add = qtc.Signal(str, str)
 
     def __init__(self, is_src: bool, synopsis: str) -> None:
         super().__init__()
         self.setWindowTitle(f"Manual {'Source' if is_src else 'Sink'}")
-        self.setMinimumWidth(250)
+        self.setMinimumWidth(450)
+        # Synopsis widget
+        self.syn_wid = qtw.QLineEdit(synopsis)
         # Information layout
         ifo_lay = qtw.QGridLayout()
         ifo_lay.addWidget(qtw.QLabel("synopsis:"), 0, 0)
-        ifo_lay.addWidget(qtw.QLabel(synopsis), 0, 1)
+        ifo_lay.addWidget(self.syn_wid, 0, 1)
         # Information widget
         ifo_wid = qtw.QGroupBox("Information:")
         ifo_wid.setLayout(ifo_lay)
@@ -394,12 +396,16 @@ class ManualConfigDialog(qtw.QDialog):
         find_but = qtw.QPushButton("Find")
         find_but.clicked.connect(
             lambda: self.signal_find.emit(
-                self.par_slice_wid.text().strip(), self.all_code_xrefs_wid.isChecked()
+                self.syn_wid.text().strip(),
+                self.par_slice_wid.text().strip(),
+                self.all_code_xrefs_wid.isChecked(),
             )
         )
         add_but = qtw.QPushButton("Add")
         add_but.clicked.connect(
-            lambda: self.signal_add.emit(self.par_slice_wid.text().strip())
+            lambda: self.signal_add.emit(
+                self.syn_wid.text().strip(), self.par_slice_wid.text().strip()
+            )
         )
         cancel_but = qtw.QPushButton("Cancel")
         cancel_but.clicked.connect(self.reject)
@@ -418,9 +424,3 @@ class ManualConfigDialog(qtw.QDialog):
         main_lay.addWidget(but_wid)
         self.setLayout(main_lay)
         return
-
-    def get_par_slice(self) -> str:
-        return self.par_slice_wid.text().strip()
-
-    def get_all_code_xrefs(self) -> bool:
-        return self.all_code_xrefs_wid.isChecked()
