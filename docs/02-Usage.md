@@ -43,14 +43,14 @@ sources:                                             # Collection of function so
 
 The `par_slice` expression specifies which function parameters should be included in the backward slice. The selection of parameters depends on your specific use case and analysis goals. For example, when trying to identify potential vulnerabilities, you should slice parameters of source functions that introduce untrusted input, as well as parameters of sink functions that could result in dangerous behavior. It is relevant to slice source function parameters because the backward slice from a sink might not always reach the source's call site directly - it may instead trace back to where the parameter is defined or used.
 
-#### Via UI
+#### Via Binary Ninja UI
 In addition to defining source and sink functions in YAML files, *Mole* also lets you right-click a call instruction in Binary Ninja's UI to mark it as a source or sink for slicing:
 
 <p align="center">
   <img src="https://i.postimg.cc/xTbn34mN/manual-01.png" alt="Mole Manual Source / Sink"/>
 </p>
 
-If the selected instruction can be mapped to a valid MLIL call instruction, the following configuration dialog will appear:
+If the selected instruction corresponds to a valid **MLIL call instruction**, a configuration dialog like the one below will appear:
 
 <p align="center">
   <img src="https://i.postimg.cc/ZRRhB7ZR/manual-02.png" alt="Mole Manual Source / Sink"/>
@@ -66,7 +66,7 @@ Clicking the *Add* button adds the configured function to a special sub-tab name
   <img src="https://i.postimg.cc/Th88sTbL/manual-03.png" alt="Mole Manual Source / Sink"/>
 </p>
 
-Saving your configuration permanently stores any source or sink functions added through the UI. These entries are saved in the standard YAML format in the file `conf/000-foobar.yml` (as described above).
+Saving your configuration allows source and sink functions added through the UI to be persisted. These functions are stored in the previously mentioned YAML format in the file `conf/000-foobar.yml` (as described above).
 
 ### OpenAI API Endpoint
 *Mole* includes an AI-assisted analysis mode designed to provide deeper insights into identified paths. This feature leverages *Large Language Models* (*LLMs*) to examine potential vulnerabilities, evaluate their severity, and suggest inputs that could trigger the corresponding code paths.
