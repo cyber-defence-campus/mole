@@ -361,28 +361,35 @@ class ManualConfigDialog(qtw.QDialog):
     """
 
     signal_find = qtc.Signal(str, str, bool)
-    signal_add = qtc.Signal(str, str)
+    signal_add = qtc.Signal(str, str, str)
 
-    def __init__(self, is_src: bool, synopsis: str) -> None:
+    def __init__(self, is_src: bool, synopsis: str, category: str = "Default") -> None:
         super().__init__()
         self.setWindowTitle(f"Manual {'Source' if is_src else 'Sink'}")
         self.setMinimumWidth(450)
-        # Synopsis widget
+        # Metadata widgets
         self.syn_wid = qtw.QLineEdit(synopsis)
-        # Information layout
-        ifo_lay = qtw.QGridLayout()
-        ifo_lay.addWidget(qtw.QLabel("synopsis:"), 0, 0)
-        ifo_lay.addWidget(self.syn_wid, 0, 1)
-        # Information widget
-        ifo_wid = qtw.QGroupBox("Information:")
-        ifo_wid.setLayout(ifo_lay)
+        self.syn_wid.setToolTip(
+            "human-readable function signature (for reference only)"
+        )
+        self.cat_wid = qtw.QLineEdit(category)
+        self.cat_wid.setToolTip("category of the function (for reference only)")
+        # Metadata group layout
+        met_lay = qtw.QGridLayout()
+        met_lay.addWidget(qtw.QLabel("synopsis:"), 0, 0)
+        met_lay.addWidget(self.syn_wid, 0, 1)
+        met_lay.addWidget(qtw.QLabel("category:"), 1, 0)
+        met_lay.addWidget(self.cat_wid, 1, 1)
+        # Metadata group widget
+        met_wid = qtw.QGroupBox("Metadata:")
+        met_wid.setLayout(met_lay)
         # Parameter slice widget
         self.par_slice_wid = qtw.QLineEdit("False")
         self.par_slice_wid.setToolTip(
-            "Expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
+            "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
         )
         self.all_code_xrefs_wid = qtw.QCheckBox()
-        self.all_code_xrefs_wid.setToolTip("Include all symbol's code cross-references")
+        self.all_code_xrefs_wid.setToolTip("include all symbol's code cross-references")
         # Configuration layout
         cnf_lay = qtw.QGridLayout()
         cnf_lay.addWidget(qtw.QLabel("par_slice:"), 0, 0)
@@ -404,7 +411,9 @@ class ManualConfigDialog(qtw.QDialog):
         add_but = qtw.QPushButton("Add")
         add_but.clicked.connect(
             lambda: self.signal_add.emit(
-                self.syn_wid.text().strip(), self.par_slice_wid.text().strip()
+                self.cat_wid.text().strip(),
+                self.syn_wid.text().strip(),
+                self.par_slice_wid.text().strip(),
             )
         )
         cancel_but = qtw.QPushButton("Cancel")
@@ -419,7 +428,7 @@ class ManualConfigDialog(qtw.QDialog):
         but_wid.setLayout(but_lay)
         # Main layout
         main_lay = qtw.QVBoxLayout()
-        main_lay.addWidget(ifo_wid)
+        main_lay.addWidget(met_wid)
         main_lay.addWidget(cnf_wid)
         main_lay.addWidget(but_wid)
         self.setLayout(main_lay)

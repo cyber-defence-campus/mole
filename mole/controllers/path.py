@@ -284,8 +284,10 @@ class PathController:
                 manual_fun_all_code_xrefs=all_code_xrefs,
             )
 
-        def _save_paths_from_manual_inst(synopsis: str, par_slice: str) -> None:
-            self.config_ctr.save_manual_fun(_create_fun(synopsis, par_slice))
+        def _save_paths_from_manual_inst(
+            category: str, synopsis: str, par_slice: str
+        ) -> None:
+            self.config_ctr.save_manual_fun(_create_fun(synopsis, par_slice), category)
             return
 
         dialog.signal_find.connect(_find_paths_from_manual_inst)
