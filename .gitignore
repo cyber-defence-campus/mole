@@ -19,6 +19,7 @@ venv/
 
 # Custom YML Files
 mole/conf/*.yml
+mole/conf/*.yml.bak
 !mole/conf/001-settings.yml
 !mole/conf/002-libc.yml
 
