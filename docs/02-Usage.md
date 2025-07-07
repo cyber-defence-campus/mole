@@ -18,9 +18,10 @@ All configuration files are located in the [`conf/`](../mole/conf/) directory. T
 | `conf/002-libc.yml`     | Example configuration file for common `libc` source/sink functions  |
 | `conf/003-yourlib.yml`  | Custom configuration file(s) for user-defined source/sink functions |
 
-To add your own source and sink functions, create a custom file like `conf/003-yourlib.yml`. *Mole* will automatically load and show them in its *Configure* tab. For details on the expected format, refer to the next subsection.
+You can add your own source and sink functions either by creating a custom YAML file (e.g., `conf/003-yourlib.yml`) or by adding them manually through Binary Ninja's UI. For more details on how to do this and the expected format, refer to the next subsection.
 
 ### Source and Sink Functions
+#### Via YAML Files
 To define your own source or sink functions - such as those belonging to a custom third-party library - you can use [`conf/002-libc.yml`](../mole/conf/002-libc.yml) as a starting point. Duplicate this file and rename it, for example, to `conf/003-yourlib.yml`. The expected format is described below:
 ```YAML
 sources:                                             # Collection of function sources (or sinks)
@@ -41,6 +42,31 @@ sources:                                             # Collection of function so
 **Note**: The grammar and syntax for expressions such as `par_cnt` and `par_slice` is defined [here](../mole/common/parse.py#L14).
 
 The `par_slice` expression specifies which function parameters should be included in the backward slice. The selection of parameters depends on your specific use case and analysis goals. For example, when trying to identify potential vulnerabilities, you should slice parameters of source functions that introduce untrusted input, as well as parameters of sink functions that could result in dangerous behavior. It is relevant to slice source function parameters because the backward slice from a sink might not always reach the source's call site directly - it may instead trace back to where the parameter is defined or used.
+
+#### Via UI
+In addition to defining source and sink functions in YAML files, *Mole* also lets you right-click a call instruction in Binary Ninja's UI to mark it as a source or sink for slicing:
+
+<p align="center">
+  <img src="https://i.postimg.cc/xTbn34mN/manual-01.png" alt="Mole Manual Source / Sink"/>
+</p>
+
+If the selected instruction can be mapped to a valid MLIL call instruction, the following configuration dialog will appear:
+
+<p align="center">
+  <img src="https://i.postimg.cc/ZRRhB7ZR/manual-02.png" alt="Mole Manual Source / Sink"/>
+</p>
+
+The settings are identical to those described above for the YAML files, with one additional option: the `all_code_xrefs` checkbox. When enabled, *Mole* will treat not only the selected call instruction as a source or sink, but also all code references to the same symbol (e.g., all calls to `getenv`).
+
+Clicking the *Find* button starts the slicing process. If the selected instruction is a source, *Mole* uses it as the sole source and attempts to find paths to any sinks defined in the YAML files. Conversely, if the selected instruction is a sink, *Mole* performs backward slicing from that sink to all sources specified in the YAML configuration files.
+
+Clicking the *Add* button adds the configured function to a special sub-tab named **_manual_**, where you can enable or disable it for future analyses.
+
+<p align="center">
+  <img src="https://i.postimg.cc/Th88sTbL/manual-03.png" alt="Mole Manual Source / Sink"/>
+</p>
+
+Saving your configuration permanently stores any source or sink functions added through the UI. These entries are saved in the standard YAML format in the file `conf/000-foobar.yml` (as described above).
 
 ### OpenAI API Endpoint
 *Mole* includes an AI-assisted analysis mode designed to provide deeper insights into identified paths. This feature leverages *Large Language Models* (*LLMs*) to examine potential vulnerabilities, evaluate their severity, and suggest inputs that could trigger the corresponding code paths.
