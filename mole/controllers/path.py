@@ -49,33 +49,48 @@ class PathController:
         ] = (None, {})
         self.path_view.init(self)
 
-        def is_mlil_call(bv: bn.BinaryView, inst: bn.MediumLevelILInstruction) -> bool:
-            return isinstance(
-                inst,
-                (
-                    bn.MediumLevelILCall,
-                    bn.MediumLevelILCallSsa,
-                    bn.MediumLevelILTailcall,
-                    bn.MediumLevelILTailcallSsa,
-                ),
-            )
-
         # Register plugin commands
-        bn.PluginCommand.register_for_medium_level_il_instruction(
-            name="Mole\\1. Select as Source Function",
-            description="Find paths using the selected MLIL_CALL or MLIL_TAILCALL instruction as source",
+        bn.PluginCommand.register_for_high_level_il_instruction(
+            name="Mole\\1. Select HLIL Instruction as Source",
+            description="Find paths using the selected HLIL call instruction as source",
             action=lambda bv, inst: self.find_paths_from_manual_inst(
                 bv, inst, is_src=True
             ),
-            is_valid=is_mlil_call,
         )
-        bn.PluginCommand.register_for_medium_level_il_instruction(
-            name="Mole\\2. Select as Sink Function",
-            description="Find paths using the selected MLIL_CALL or MLIL_TAILCALL instruction as sink",
+        bn.PluginCommand.register_for_high_level_il_instruction(
+            name="Mole\\2. Select HLIL Instruction as Sink",
+            description="Find paths using the selected HLIL call instruction as sink",
             action=lambda bv, inst: self.find_paths_from_manual_inst(
                 bv, inst, is_src=False
             ),
-            is_valid=is_mlil_call,
+        )
+        bn.PluginCommand.register_for_medium_level_il_instruction(
+            name="Mole\\1. Select MLIL Instruction as Source",
+            description="Find paths using the selected MLIL call instruction as source",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=True
+            ),
+        )
+        bn.PluginCommand.register_for_medium_level_il_instruction(
+            name="Mole\\2. Select MLIL Instruction as Sink",
+            description="Find paths using the selected MLIL call instruction as sink",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=False
+            ),
+        )
+        bn.PluginCommand.register_for_low_level_il_instruction(
+            name="Mole\\1. Select LLIL Instruction as Source",
+            description="Find paths using the selected LLIL call instruction as source",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=True
+            ),
+        )
+        bn.PluginCommand.register_for_low_level_il_instruction(
+            name="Mole\\2. Select LLIL Instruction as Sink",
+            description="Find paths using the selected LLIL call instruction as sink",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=False
+            ),
         )
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
@@ -216,17 +231,26 @@ class PathController:
     def find_paths_from_manual_inst(
         self,
         bv: bn.BinaryView,
-        inst: bn.MediumLevelILCall
-        | bn.MediumLevelILCallSsa
-        | bn.MediumLevelILTailcall
-        | bn.MediumLevelILTailcallSsa,
+        inst: bn.HighLevelILInstruction
+        | bn.MediumLevelILInstruction
+        | bn.LowLevelILInstruction,
         is_src: bool = True,
     ) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths using `inst` as
         the only source or sink (based on `is_src`).
         """
-        inst = inst.ssa_form
+        # Map to MLIL call instruction
+        mlil_call_insts = InstructionHelper.get_mlil_call_insts(bv, inst)
+        if len(mlil_call_insts) <= 0:
+            log.warn(
+                tag,
+                "Selected instruction could not be mapped to a MLIL call instruction",
+            )
+        inst = mlil_call_insts[0].ssa_form
+        inst_info = InstructionHelper.get_inst_info(inst)
+        log.info(tag, f"Selected MLIL call instruction '{inst_info:s}'")
+        # Function information
         func = InstructionHelper.get_callee(bv, inst)
         name = func.name if func else "unknown"
         synopsis = (
@@ -239,7 +263,7 @@ class PathController:
         )
         symbols = [name] if func else []
         par_cnt = f"i == {len(inst.params):d}"
-
+        # Create popup dialog
         dialog = ManualConfigDialog(is_src, synopsis)
 
         def _create_fun(synopsis: str, par_slice: str) -> SourceFunction | SinkFunction:
@@ -290,6 +314,7 @@ class PathController:
             self.config_ctr.save_manual_fun(_create_fun(synopsis, par_slice), category)
             return
 
+        # Connect signals and execute dialog
         dialog.signal_find.connect(_find_paths_from_manual_inst)
         dialog.signal_add.connect(_save_paths_from_manual_inst)
         dialog.exec()

@@ -154,6 +154,50 @@ class InstructionHelper:
                 return bv.get_function_at(inst.dest.constant)
         return None
 
+    @staticmethod
+    def get_mlil_call_insts(
+        bv: bn.BinaryView,
+        inst: bn.HighLevelILInstruction
+        | bn.MediumLevelILInstruction
+        | bn.LowLevelILInstruction,
+    ) -> List[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa]:
+        """
+        This method iterates through all sub-instructions of `inst` and returns all
+        corresponding MLIL call instructions.
+        """
+
+        def find_mlil_call_inst(
+            inst: bn.HighLevelILInstruction | bn.MediumLevelILInstruction,
+        ) -> Optional[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa]:
+            # HLIL or LLIL
+            if isinstance(
+                inst,
+                (
+                    bn.HighLevelILCall,
+                    bn.HighLevelILCallSsa,
+                    bn.HighLevelILTailcall,
+                    bn.LowLevelILCall,
+                    bn.LowLevelILCallSsa,
+                    bn.LowLevelILTailcall,
+                    bn.LowLevelILTailcallSsa,
+                ),
+            ):
+                return find_mlil_call_inst(inst.mlil)
+            # MLIL
+            if isinstance(
+                inst,
+                (
+                    bn.MediumLevelILCall,
+                    bn.MediumLevelILCallSsa,
+                    bn.MediumLevelILTailcall,
+                    bn.MediumLevelILTailcallSsa,
+                ),
+            ):
+                return inst
+            return None
+
+        return list(inst.traverse(find_mlil_call_inst))
+
 
 class FunctionHelper:
     """
