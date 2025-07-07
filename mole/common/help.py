@@ -182,7 +182,11 @@ class InstructionHelper:
                     bn.LowLevelILTailcallSsa,
                 ),
             ):
-                return find_mlil_call_inst(inst.mlil)
+                try:
+                    mlil_inst = inst.mlil
+                except Exception:
+                    mlil_inst = None
+                return find_mlil_call_inst(mlil_inst)
             # MLIL
             if isinstance(
                 inst,
