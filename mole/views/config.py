@@ -362,6 +362,7 @@ class ManualConfigDialog(qtw.QDialog):
 
     signal_find = qtc.Signal(str, str, bool)
     signal_add = qtc.Signal(str, str, str)
+    signal_add_feedback = qtc.Signal(str)
 
     def __init__(self, is_src: bool, synopsis: str, category: str = "Default") -> None:
         super().__init__()
@@ -416,6 +417,7 @@ class ManualConfigDialog(qtw.QDialog):
                 self.par_slice_wid.text().strip(),
             )
         )
+        self.signal_add_feedback.connect(lambda text: self.give_feedback(add_but, text))
         cancel_but = qtw.QPushButton("Cancel")
         cancel_but.clicked.connect(self.reject)
         # Button layout
@@ -432,4 +434,17 @@ class ManualConfigDialog(qtw.QDialog):
         main_lay.addWidget(cnf_wid)
         main_lay.addWidget(but_wid)
         self.setLayout(main_lay)
+        return
+
+    def give_feedback(self, button: qtw.QPushButton, text: str) -> None:
+        def restore(text: str) -> None:
+            button.setText(text)
+            button.setEnabled(True)
+            return
+
+        if button:
+            old_text = button.text()
+            button.setEnabled(False)
+            button.setText(text)
+            qtc.QTimer.singleShot(1000, lambda: restore(old_text))
         return

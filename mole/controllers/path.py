@@ -313,6 +313,7 @@ class PathController:
             category: str, synopsis: str, par_slice: str
         ) -> None:
             self.config_ctr.save_manual_fun(_create_fun(synopsis, par_slice), category)
+            dialog.signal_add_feedback.emit("Adding...")
             return
 
         # Connect signals and execute dialog
