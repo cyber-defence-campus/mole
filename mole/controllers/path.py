@@ -247,6 +247,7 @@ class PathController:
                 tag,
                 "Selected instruction could not be mapped to a MLIL call instruction",
             )
+            return None
         inst = mlil_call_insts[0].ssa_form
         inst_info = InstructionHelper.get_inst_info(inst)
         log.info(tag, f"Selected MLIL call instruction '{inst_info:s}'")
