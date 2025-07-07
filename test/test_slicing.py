@@ -838,6 +838,49 @@ class TestPointerAnalysis(TestCase):
         return
 
 
+class TestStruct(TestCase):
+    @unittest.expectedFailure
+    def test_struct_01(self, filenames: List[str] = ["struct-01"]) -> None:
+        for file in TestCase.load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.get_paths(bv)
+            # Assert results
+            self.assertEqual(len(paths), 1, "1 path identified")
+            path = paths[0]
+
+            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIsInstance(
+                path.insts[-1],
+                bn.Call,
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, None, "hit call instruction")
+            self.assertIsInstance(
+                path.snk_par_var,
+                bn.MediumLevelILVarSsa,
+                "source argument is a MLIL variable",
+            )
+            self.assertEqual(path.snk_sym_name, "memcpy", "sink has symbol 'memcpy'")
+            self.assertIsInstance(
+                path.insts[0],
+                bn.Call,
+                "sink is a MLIL call instruction",
+            )
+            self.assertEqual(path.snk_par_idx, 2, "arg2")
+            self.assertIsInstance(
+                path.snk_par_var,
+                bn.MediumLevelILInstruction,
+                "sink argument is a MLIL variable",
+            )
+            calls = [call[1] for call in path.calls]
+            self.assertEqual(calls, ["main"], "calls")
+            bv.file.close()
+        return
+
+
 class TestSimpleServer(TestCase):
     def test_simple_http_server_01(
         self, filenames: List[str] = ["simple_http_server-01"]
