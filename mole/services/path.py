@@ -25,6 +25,14 @@ class PathService(BackgroundTask):
         max_call_level: Optional[int] = None,
         max_slice_depth: Optional[int] = None,
         enable_all_funs: bool = False,
+        manual_fun: Optional[SourceFunction | SinkFunction] = None,
+        manual_fun_inst: Optional[
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILTailcall
+            | bn.MediumLevelILTailcallSsa
+        ] = None,
+        manual_fun_all_code_xrefs: bool = False,
         path_callback: Optional[Callable[[Path], None]] = None,
         initial_progress_text: str = "",
         can_cancel: bool = False,
@@ -39,6 +47,9 @@ class PathService(BackgroundTask):
         self._max_call_level = max_call_level
         self._max_slice_depth = max_slice_depth
         self._enable_all_funs = enable_all_funs
+        self._manual_fun = manual_fun
+        self._manual_fun_inst = manual_fun_inst
+        self._manual_fun_all_code_xrefs = manual_fun_all_code_xrefs
         self._path_callback = path_callback
         return
 
@@ -81,13 +92,48 @@ class PathService(BackgroundTask):
             if setting:
                 max_slice_depth = setting.value
         log.debug(tag, f"- max_slice_depth: '{max_slice_depth}'")
+        # Source functions
         src_funs: List[SourceFunction] = self._config_model.get_functions(
-            fun_type="Sources", fun_enabled=(None if self._enable_all_funs else True)
+            fun_type="Sources",
+            fun_enabled=(None if self._enable_all_funs else True),
         )
+        # Manually configured source function
+        if isinstance(self._manual_fun, SourceFunction):
+            # Use only manually configured source function
+            if not self._manual_fun_all_code_xrefs:
+                src_funs = [self._manual_fun]
+            # Use all configured source functions with the manually selected symbol
+            else:
+                src_funs = [
+                    src_fun
+                    for src_fun in src_funs
+                    if any(
+                        symbol in src_fun.symbols for symbol in self._manual_fun.symbols
+                    )
+                ]
+                if not src_funs:
+                    src_funs = [self._manual_fun]
         log.debug(tag, f"- number of sources: '{len(src_funs):d}'")
+        # Sink functions
         snk_funs: List[SinkFunction] = self._config_model.get_functions(
             fun_type="Sinks", fun_enabled=(None if self._enable_all_funs else True)
         )
+        # Manually configured sink function
+        if isinstance(self._manual_fun, SinkFunction):
+            # Use only manually configured sink function
+            if not self._manual_fun_all_code_xrefs:
+                snk_funs = [self._manual_fun]
+            # Use all configured sink functions with the manually selected symbol
+            else:
+                snk_funs = [
+                    snk_fun
+                    for snk_fun in snk_funs
+                    if any(
+                        symbol in snk_fun.symbols for symbol in self._manual_fun.symbols
+                    )
+                ]
+                if not snk_funs:
+                    snk_funs = [self._manual_fun]
         log.debug(tag, f"- number of sinks: '{len(snk_funs):d}'")
         # Backward slicing
         if not src_funs or not snk_funs:
@@ -102,7 +148,12 @@ class PathService(BackgroundTask):
                         break
                     tasks.append(
                         executor.submit(
-                            src_fun.find_targets, self._bv, lambda: self.cancelled
+                            src_fun.find_targets,
+                            self._bv,
+                            self._manual_fun,
+                            self._manual_fun_inst,
+                            self._manual_fun_all_code_xrefs,
+                            lambda: self.cancelled,
                         )
                     )
                 # Wait for tasks to complete
@@ -121,6 +172,9 @@ class PathService(BackgroundTask):
                             snk_fun.find_paths,
                             self._bv,
                             src_funs,
+                            self._manual_fun,
+                            self._manual_fun_inst,
+                            self._manual_fun_all_code_xrefs,
                             max_call_level,
                             max_slice_depth,
                             self._path_callback,

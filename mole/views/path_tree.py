@@ -189,45 +189,43 @@ class PathTreeView(qtw.QTreeView):
             # Get selected rows and expanded export rows
             rows = self.get_selected_rows()
             export_rows = self._get_expanded_export_rows(pos, rows)
+            has_single_row_and_bv = len(rows) == 1 and bv is not None
 
             # Create context menu
             menu = qtw.QMenu(self)
 
-            # Log actions
+            # Instruction actions
             log_path_action = self._add_menu_action(
-                menu, "Log instructions", len(rows) == 1
+                menu, "Log instructions (backward)", len(rows) == 1
             )
             log_path_action.triggered.connect(lambda: on_log_path(rows, False))
             log_path_reversed_action = self._add_menu_action(
-                menu, "Log instructions (reversed)", len(rows) == 1
+                menu, "Log instructions (forward)", len(rows) == 1
             )
             log_path_reversed_action.triggered.connect(lambda: on_log_path(rows, True))
             log_path_diff_action = self._add_menu_action(
-                menu, "Log instruction difference", len(rows) == 2
+                menu, "Log instruction difference (backward)", len(rows) == 2
             )
             log_path_diff_action.triggered.connect(lambda: on_log_path_diff(rows))
-            log_call_action = self._add_menu_action(menu, "Log calls", len(rows) == 1)
-            log_call_action.triggered.connect(lambda: on_log_call(rows, False))
-            log_call_reversed_action = self._add_menu_action(
-                menu, "Log calls (reversed)", len(rows) == 1
-            )
-            log_call_reversed_action.triggered.connect(lambda: on_log_call(rows, True))
-
-            menu.addSeparator()
-
-            # Highlight and call graph actions
-            has_single_row_and_bv = len(rows) == 1 and bv is not None
             highlight_path_action = self._add_menu_action(
                 menu, "Un-/highlight instructions", has_single_row_and_bv
             )
             highlight_path_action.triggered.connect(lambda: on_highlight_path(rows))
+            menu.addSeparator()
+            # Call actions
+            log_call_action = self._add_menu_action(
+                menu, "Log calls (backward)", len(rows) == 1
+            )
+            log_call_action.triggered.connect(lambda: on_log_call(rows, False))
+            log_call_reversed_action = self._add_menu_action(
+                menu, "Log calls (forward)", len(rows) == 1
+            )
+            log_call_reversed_action.triggered.connect(lambda: on_log_call(rows, True))
             show_call_graph_action = self._add_menu_action(
                 menu, "Show call graph", has_single_row_and_bv
             )
             show_call_graph_action.triggered.connect(lambda: on_show_call_graph(rows))
-
             menu.addSeparator()
-
             # AI-generated vulnerability report actions
             run_ai_analysis_action = self._add_menu_action(
                 menu, "Run AI analysis", len(rows) >= 1

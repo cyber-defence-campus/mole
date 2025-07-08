@@ -42,10 +42,10 @@ class ConfigView(qtw.QWidget):
         # Set controller
         self.config_ctr = config_ctr
         # Tab widget
-        tab_wid = qtw.QTabWidget()
-        tab_wid.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
-        tab_wid.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
-        tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
+        self.tab_wid = qtw.QTabWidget()
+        self.tab_wid.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
+        self.tab_wid.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
+        self.tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
         # Script widget
         script_dir = os.path.dirname(os.path.abspath(__file__))
         script_dir = os.path.abspath(os.path.join(script_dir, "../conf/"))
@@ -63,7 +63,7 @@ class ConfigView(qtw.QWidget):
         but_wid = self._init_cnf_but()
         # Main layout
         main_lay = qtw.QVBoxLayout()
-        main_lay.addWidget(tab_wid)
+        main_lay.addWidget(self.tab_wid)
         main_lay.addWidget(dir_wid)
         main_lay.addWidget(but_wid)
         self.setLayout(main_lay)
@@ -299,10 +299,15 @@ class ConfigView(qtw.QWidget):
         return wid
 
     def give_feedback(
-        self, button_type: Literal["Save", "Reset"], text: str, msec: int = 1000
+        self,
+        button_type: Literal["Save", "Reset", "Reload"],
+        tmp_text: str,
+        new_text: str,
+        msec: int = 1000,
     ) -> None:
         """
-        This method gives user feedback by temporarily changing a button's text.
+        This method changes a button's text to `tmp_text` for `msec` milliseconds and then back to
+        `new_text`.
         """
         match button_type:
             case "Save":
@@ -316,10 +321,27 @@ class ConfigView(qtw.QWidget):
             return
 
         if button:
-            button.setEnabled(False)
-            old_text = button.text()
-            button.setText(text)
-            qtc.QTimer.singleShot(msec, lambda text=old_text: restore(text))
+            if msec > 0:
+                button.setEnabled(False)
+                button.setText(tmp_text)
+                qtc.QTimer.singleShot(msec, lambda text=new_text: restore(text))
+            else:
+                button.setText(new_text)
+        return
+
+    def refresh_tabs(self, index: int = 0) -> None:
+        if not self.tab_wid:
+            return
+        self.tab_wid.clear()
+        self.tab_wid.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
+        self.tab_wid.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
+        self.tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
+        if 0 <= index < self.tab_wid.count():
+            self.tab_wid.setCurrentIndex(index)
+        else:
+            self.tab_wid.setCurrentIndex(0)
+        self.tab_wid.repaint()
+        self.tab_wid.update()
         return
 
 
@@ -331,3 +353,112 @@ class FullSelectLineEdit(qtw.QLineEdit):
 
     def mouseDoubleClickEvent(self, event: any) -> None:
         return self.selectAll()
+
+
+class ManualConfigDialog(qtw.QDialog):
+    """
+    This class implements a popup dialog that allows to configure manual sources / sinks.
+    """
+
+    signal_find = qtc.Signal(str, str, str, bool)
+    signal_find_feedback = qtc.Signal(str)
+    signal_add = qtc.Signal(str, str, str, str)
+    signal_add_feedback = qtc.Signal(str)
+
+    def __init__(
+        self, is_src: bool, synopsis: str, category: str, par_cnt: str
+    ) -> None:
+        super().__init__()
+        self.setWindowTitle(f"Manual {'Source' if is_src else 'Sink'}")
+        self.setMinimumWidth(450)
+        # Metadata widgets
+        self.syn_wid = qtw.QLineEdit(synopsis)
+        self.syn_wid.setToolTip(
+            "human-readable function signature (for reference only)"
+        )
+        self.cat_wid = qtw.QLineEdit(category)
+        self.cat_wid.setToolTip("category of the function (for reference only)")
+        # Metadata group layout
+        met_lay = qtw.QGridLayout()
+        met_lay.addWidget(qtw.QLabel("synopsis:"), 0, 0)
+        met_lay.addWidget(self.syn_wid, 0, 1)
+        met_lay.addWidget(qtw.QLabel("category:"), 1, 0)
+        met_lay.addWidget(self.cat_wid, 1, 1)
+        # Metadata group widget
+        met_wid = qtw.QGroupBox("Metadata:")
+        met_wid.setLayout(met_lay)
+        # Parameter widgets
+        self.par_cnt_wid = qtw.QLineEdit(par_cnt)
+        self.par_cnt_wid.setToolTip(
+            "expression specifying the number of parameters (e.g. 'i >= 1')"
+        )
+        self.par_slice_wid = qtw.QLineEdit("False")
+        self.par_slice_wid.setToolTip(
+            "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
+        )
+        self.all_code_xrefs_wid = qtw.QCheckBox()
+        self.all_code_xrefs_wid.setToolTip("include all symbol's code cross-references")
+        # Configuration layout
+        cnf_lay = qtw.QGridLayout()
+        cnf_lay.addWidget(qtw.QLabel("par_cnt:"), 0, 0)
+        cnf_lay.addWidget(self.par_cnt_wid, 0, 1)
+        cnf_lay.addWidget(qtw.QLabel("par_slice:"), 1, 0)
+        cnf_lay.addWidget(self.par_slice_wid, 1, 1)
+        cnf_lay.addWidget(qtw.QLabel("all_code_xrefs:"), 2, 0)
+        cnf_lay.addWidget(self.all_code_xrefs_wid, 2, 1)
+        # Configuration widget
+        cnf_wid = qtw.QGroupBox("Configuration:")
+        cnf_wid.setLayout(cnf_lay)
+        # Buttons
+        find_but = qtw.QPushButton("Find")
+        find_but.clicked.connect(
+            lambda: self.signal_find.emit(
+                self.syn_wid.text().strip(),
+                self.par_cnt_wid.text().strip(),
+                self.par_slice_wid.text().strip(),
+                self.all_code_xrefs_wid.isChecked(),
+            )
+        )
+        self.signal_find_feedback.connect(
+            lambda text: self.give_feedback(find_but, text)
+        )
+        add_but = qtw.QPushButton("Add")
+        add_but.clicked.connect(
+            lambda: self.signal_add.emit(
+                self.cat_wid.text().strip(),
+                self.syn_wid.text().strip(),
+                self.par_cnt_wid.text().strip(),
+                self.par_slice_wid.text().strip(),
+            )
+        )
+        self.signal_add_feedback.connect(lambda text: self.give_feedback(add_but, text))
+        cancel_but = qtw.QPushButton("Cancel")
+        cancel_but.clicked.connect(self.reject)
+        # Button layout
+        but_lay = qtw.QHBoxLayout()
+        but_lay.addWidget(find_but)
+        but_lay.addWidget(add_but)
+        but_lay.addWidget(cancel_but)
+        # Button widget
+        but_wid = qtw.QWidget()
+        but_wid.setLayout(but_lay)
+        # Main layout
+        main_lay = qtw.QVBoxLayout()
+        main_lay.addWidget(met_wid)
+        main_lay.addWidget(cnf_wid)
+        main_lay.addWidget(but_wid)
+        self.setLayout(main_lay)
+        return
+
+    def give_feedback(self, button: qtw.QPushButton, text: str) -> None:
+        def restore(text: str) -> None:
+            button.setText(text)
+            button.setEnabled(True)
+            return
+
+        if button:
+            old_text = button.text()
+            button.setEnabled(False)
+            button.setText(text)
+            qtc.QTimer.singleShot(1000, lambda: restore(old_text))
+        return

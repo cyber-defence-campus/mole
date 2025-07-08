@@ -1,6 +1,6 @@
 from lark import Lark, Token, Transformer, v_args
 from mole.common.log import log
-from typing import Callable
+from typing import Callable, Optional
 
 
 tag = "Mole.Parse"
@@ -50,7 +50,7 @@ class LogicalExpressionParser:
         )
         return
 
-    def parse(self, expr: str) -> Callable[[int], bool]:
+    def parse(self, expr: str) -> Optional[Callable[[int], bool]]:
         """
         This method parses a logical exression.
         """
@@ -64,7 +64,7 @@ class LogicalExpressionParser:
                 return f
             except Exception as e:
                 log.warn(tag, f"Failed to parse expression '{expr}': {str(e):s}")
-        return lambda i: False
+        return None
 
 
 @v_args(inline=True)

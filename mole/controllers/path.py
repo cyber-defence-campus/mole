@@ -1,11 +1,13 @@
 from __future__ import annotations
 from mole.common.help import InstructionHelper
 from mole.common.log import log
+from mole.common.parse import LogicalExpressionParser
 from mole.common.task import BackgroundTask
 from mole.controllers.ai import AiController
 from mole.controllers.config import ConfigController
-from mole.core.data import Path
+from mole.core.data import Path, SourceFunction, SinkFunction
 from mole.services.path import PathService
+from mole.views.config import ManualConfigDialog
 from mole.views.graph import GraphWidget
 from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
@@ -46,6 +48,49 @@ class PathController:
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
         self.path_view.init(self)
+        # Register plugin commands
+        bn.PluginCommand.register_for_high_level_il_instruction(
+            name="Mole\\1. Select HLIL Instruction as Source",
+            description="Find paths using the selected HLIL call instruction as source",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=True
+            ),
+        )
+        bn.PluginCommand.register_for_high_level_il_instruction(
+            name="Mole\\2. Select HLIL Instruction as Sink",
+            description="Find paths using the selected HLIL call instruction as sink",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=False
+            ),
+        )
+        bn.PluginCommand.register_for_medium_level_il_instruction(
+            name="Mole\\1. Select MLIL Instruction as Source",
+            description="Find paths using the selected MLIL call instruction as source",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=True
+            ),
+        )
+        bn.PluginCommand.register_for_medium_level_il_instruction(
+            name="Mole\\2. Select MLIL Instruction as Sink",
+            description="Find paths using the selected MLIL call instruction as sink",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=False
+            ),
+        )
+        bn.PluginCommand.register_for_low_level_il_instruction(
+            name="Mole\\1. Select LLIL Instruction as Source",
+            description="Find paths using the selected LLIL call instruction as source",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=True
+            ),
+        )
+        bn.PluginCommand.register_for_low_level_il_instruction(
+            name="Mole\\2. Select LLIL Instruction as Sink",
+            description="Find paths using the selected LLIL call instruction as sink",
+            action=lambda bv, inst: self.find_paths_from_manual_inst(
+                bv, inst, is_src=False
+            ),
+        )
         # Connect signals
         self.connect_signal_find_paths(self.find_paths)
         self.connect_signal_load_paths(self.load_paths)
@@ -143,7 +188,17 @@ class PathController:
         bn.execute_on_main_thread(update_paths_view)
         return
 
-    def find_paths(self) -> None:
+    def find_paths(
+        self,
+        manual_fun: Optional[SourceFunction | SinkFunction] = None,
+        manual_fun_inst: Optional[
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILTailcall
+            | bn.MediumLevelILTailcallSsa
+        ] = None,
+        manual_fun_all_code_xrefs: bool = False,
+    ) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths.
         """
@@ -162,11 +217,119 @@ class PathController:
         self._thread = PathService(
             bv=self._bv,
             config_model=self.config_ctr.config_model,
+            manual_fun=manual_fun,
+            manual_fun_inst=manual_fun_inst,
+            manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
             path_callback=self.add_path_to_view,
             initial_progress_text="Mole finds paths...",
             can_cancel=True,
         )
         self._thread.start()
+        return
+
+    def find_paths_from_manual_inst(
+        self,
+        bv: bn.BinaryView,
+        inst: bn.HighLevelILInstruction
+        | bn.MediumLevelILInstruction
+        | bn.LowLevelILInstruction,
+        is_src: bool = True,
+    ) -> None:
+        """
+        This method analyzes the entire binary for interesting looking code paths using `inst` as
+        the only source or sink (based on `is_src`).
+        """
+        # Map to MLIL call instruction
+        mlil_call_insts = InstructionHelper.get_mlil_call_insts(bv, inst)
+        if len(mlil_call_insts) <= 0:
+            log.warn(
+                tag,
+                "Selected instruction could not be mapped to a MLIL call instruction",
+            )
+            return None
+        inst = mlil_call_insts[0].ssa_form
+        inst_info = InstructionHelper.get_inst_info(inst)
+        log.info(tag, f"Selected MLIL call instruction '{inst_info:s}'")
+        # Function information
+        name, synopsis = InstructionHelper.get_func_signature(bv, inst)
+        name = name if name else "unknown"
+        symbols = [name] if name else []
+        par_cnt = f"i == {len(inst.params):d}"
+        # Create popup dialog
+        dialog = ManualConfigDialog(is_src, synopsis, "Default", par_cnt)
+
+        def _create_fun(
+            synopsis: str, par_cnt: str, par_slice: str
+        ) -> Tuple[Optional[SourceFunction | SinkFunction], str]:
+            parser = LogicalExpressionParser()
+            par_cnt_fun = parser.parse(par_cnt)
+            if par_cnt_fun is None:
+                return None, "Invalid par_cnt..."
+            par_slice_fun = parser.parse(par_slice)
+            if par_slice_fun is None:
+                return None, "Invalid par_slice..."
+            # Create manual source function
+            if is_src:
+                fun = SourceFunction(
+                    name=name,
+                    symbols=symbols,
+                    synopsis=synopsis,
+                    enabled=False,
+                    par_cnt=par_cnt,
+                    par_cnt_fun=par_cnt_fun,
+                    par_slice=par_slice,
+                    par_slice_fun=par_slice_fun,
+                )
+            # Create manual sink function
+            else:
+                fun = SinkFunction(
+                    name=name,
+                    symbols=symbols,
+                    synopsis=synopsis,
+                    enabled=False,
+                    par_cnt=par_cnt,
+                    par_cnt_fun=par_cnt_fun,
+                    par_slice=par_slice,
+                    par_slice_fun=par_slice_fun,
+                )
+            return fun, ""
+
+        def _find_paths_from_manual_inst(
+            synopsis: str, par_cnt: str, par_slice: str, all_code_xrefs: bool
+        ) -> None:
+            # Create manual function
+            manual_fun, msg = _create_fun(synopsis, par_cnt, par_slice)
+            # Give user feedback if function creating failed
+            if manual_fun is None:
+                dialog.signal_find_feedback.emit(msg)
+            # Find paths using manual function
+            else:
+                self.find_paths(
+                    manual_fun=manual_fun,
+                    manual_fun_inst=inst,
+                    manual_fun_all_code_xrefs=all_code_xrefs,
+                )
+                dialog.accept()
+            return
+
+        def _save_paths_from_manual_inst(
+            category: str, synopsis: str, par_cnt: str, par_slice: str
+        ) -> None:
+            # Create manual function
+            manual_fun, msg = _create_fun(synopsis, par_cnt, par_slice)
+            # Give user feedback if function creating failed
+            if manual_fun is None:
+                dialog.signal_add_feedback.emit(msg)
+            # Save manual function
+            else:
+                self.config_ctr.save_manual_fun(manual_fun, category)
+                dialog.accept()
+            return
+
+        # Connect signals and execute dialog
+        dialog.signal_find.connect(_find_paths_from_manual_inst)
+        dialog.signal_add.connect(_save_paths_from_manual_inst)
+        dialog.exec()
         return
 
     def load_paths(self) -> None:
@@ -463,7 +626,11 @@ class PathController:
         path = self.path_tree_view.get_path(path_ids[0])
         if not path:
             return
-        msg = f"Path {path_id:d}: {str(path):s}"
+        path_str = str(path)
+        if reverse:
+            snk, src = [part.strip() for part in path_str.split("<--")]
+            path_str = f"{src:s} --> {snk:s}"
+        msg = f"Path {path_id:d}: {path_str:s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         log.info(tag, msg)
         if reverse:
@@ -584,7 +751,11 @@ class PathController:
         if not path:
             return
         path_id = path_ids[0]
-        msg = f"Path {path_id:d}: {str(path):s}"
+        path_str = str(path)
+        if reverse:
+            snk, src = [part.strip() for part in path_str.split("<--")]
+            path_str = f"{src:s} --> {snk:s}"
+        msg = f"Path {path_id:d}: {path_str:s}"
         msg = f"{msg:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
         log.info(tag, msg)
         if reverse:

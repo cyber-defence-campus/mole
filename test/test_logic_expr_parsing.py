@@ -22,9 +22,7 @@ class TestLogicalExpressionParser(unittest.TestCase):
         self.assertTrue(f(1), "true, where i= 1")
         self.assertTrue(f(-1), "true, where i=-1")
         f = self.parser.parse("TrUe")
-        self.assertFalse(f(0), "TrUe, where i= 0")
-        self.assertFalse(f(1), "TrUe, where i= 1")
-        self.assertFalse(f(-1), "TrUe, where i=-1")
+        self.assertIsNone(f, "TrUe")
         return
 
     def test_false(self) -> None:
@@ -37,9 +35,7 @@ class TestLogicalExpressionParser(unittest.TestCase):
         self.assertFalse(f(1), "false, where i= 1")
         self.assertFalse(f(-1), "false, where i=-1")
         f = self.parser.parse("FaLsE")
-        self.assertFalse(f(0), "FaLsE, where i= 0")
-        self.assertFalse(f(1), "FaLsE, where i= 1")
-        self.assertFalse(f(-1), "FaLsE, where i=-1")
+        self.assertIsNone(f, "FaLsE")
         return
 
     def test_eq(self) -> None:
