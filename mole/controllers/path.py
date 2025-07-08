@@ -265,12 +265,18 @@ class PathController:
         symbols = [name] if func else []
         par_cnt = f"i == {len(inst.params):d}"
         # Create popup dialog
-        dialog = ManualConfigDialog(is_src, synopsis)
+        dialog = ManualConfigDialog(is_src, synopsis, "Default", par_cnt)
 
-        def _create_fun(synopsis: str, par_slice: str) -> SourceFunction | SinkFunction:
+        def _create_fun(
+            synopsis: str, par_cnt: str, par_slice: str
+        ) -> Tuple[Optional[SourceFunction | SinkFunction], str]:
             parser = LogicalExpressionParser()
             par_cnt_fun = parser.parse(par_cnt)
+            if par_cnt_fun is None:
+                return None, "Invalid par_cnt..."
             par_slice_fun = parser.parse(par_slice)
+            if par_slice_fun is None:
+                return None, "Invalid par_slice..."
             # Create manual source function
             if is_src:
                 fun = SourceFunction(
@@ -295,25 +301,38 @@ class PathController:
                     par_slice=par_slice,
                     par_slice_fun=par_slice_fun,
                 )
-            return fun
+            return fun, ""
 
         def _find_paths_from_manual_inst(
-            synopsis: str, par_slice: str, all_code_xrefs: bool
+            synopsis: str, par_cnt: str, par_slice: str, all_code_xrefs: bool
         ) -> None:
-            # Close dialog
-            dialog.accept()
+            # Create manual function
+            manual_fun, msg = _create_fun(synopsis, par_cnt, par_slice)
+            # Give user feedback if function creating failed
+            if manual_fun is None:
+                dialog.signal_find_feedback.emit(msg)
             # Find paths using manual function
-            return self.find_paths(
-                manual_fun=_create_fun(synopsis, par_slice),
-                manual_fun_inst=inst,
-                manual_fun_all_code_xrefs=all_code_xrefs,
-            )
+            else:
+                self.find_paths(
+                    manual_fun=manual_fun,
+                    manual_fun_inst=inst,
+                    manual_fun_all_code_xrefs=all_code_xrefs,
+                )
+                dialog.accept()
+            return
 
         def _save_paths_from_manual_inst(
-            category: str, synopsis: str, par_slice: str
+            category: str, synopsis: str, par_cnt: str, par_slice: str
         ) -> None:
-            self.config_ctr.save_manual_fun(_create_fun(synopsis, par_slice), category)
-            dialog.signal_add_feedback.emit("Adding...")
+            # Create manual function
+            manual_fun, msg = _create_fun(synopsis, par_cnt, par_slice)
+            # Give user feedback if function creating failed
+            if manual_fun is None:
+                dialog.signal_add_feedback.emit(msg)
+            # Save manual function
+            else:
+                self.config_ctr.save_manual_fun(manual_fun, category)
+                dialog.accept()
             return
 
         # Connect signals and execute dialog

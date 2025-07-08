@@ -360,11 +360,14 @@ class ManualConfigDialog(qtw.QDialog):
     This class implements a popup dialog that allows to configure manual sources / sinks.
     """
 
-    signal_find = qtc.Signal(str, str, bool)
-    signal_add = qtc.Signal(str, str, str)
+    signal_find = qtc.Signal(str, str, str, bool)
+    signal_find_feedback = qtc.Signal(str)
+    signal_add = qtc.Signal(str, str, str, str)
     signal_add_feedback = qtc.Signal(str)
 
-    def __init__(self, is_src: bool, synopsis: str, category: str = "Default") -> None:
+    def __init__(
+        self, is_src: bool, synopsis: str, category: str, par_cnt: str
+    ) -> None:
         super().__init__()
         self.setWindowTitle(f"Manual {'Source' if is_src else 'Sink'}")
         self.setMinimumWidth(450)
@@ -384,7 +387,11 @@ class ManualConfigDialog(qtw.QDialog):
         # Metadata group widget
         met_wid = qtw.QGroupBox("Metadata:")
         met_wid.setLayout(met_lay)
-        # Parameter slice widget
+        # Parameter widgets
+        self.par_cnt_wid = qtw.QLineEdit(par_cnt)
+        self.par_cnt_wid.setToolTip(
+            "expression specifying the number of parameters (e.g. 'i >= 1')"
+        )
         self.par_slice_wid = qtw.QLineEdit("False")
         self.par_slice_wid.setToolTip(
             "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
@@ -393,10 +400,12 @@ class ManualConfigDialog(qtw.QDialog):
         self.all_code_xrefs_wid.setToolTip("include all symbol's code cross-references")
         # Configuration layout
         cnf_lay = qtw.QGridLayout()
-        cnf_lay.addWidget(qtw.QLabel("par_slice:"), 0, 0)
-        cnf_lay.addWidget(self.par_slice_wid, 0, 1)
-        cnf_lay.addWidget(qtw.QLabel("all_code_xrefs:"), 1, 0)
-        cnf_lay.addWidget(self.all_code_xrefs_wid, 1, 1)
+        cnf_lay.addWidget(qtw.QLabel("par_cnt"), 0, 0)
+        cnf_lay.addWidget(self.par_cnt_wid, 0, 1)
+        cnf_lay.addWidget(qtw.QLabel("par_slice:"), 1, 0)
+        cnf_lay.addWidget(self.par_slice_wid, 1, 1)
+        cnf_lay.addWidget(qtw.QLabel("all_code_xrefs:"), 2, 0)
+        cnf_lay.addWidget(self.all_code_xrefs_wid, 2, 1)
         # Configuration widget
         cnf_wid = qtw.QGroupBox("Configuration:")
         cnf_wid.setLayout(cnf_lay)
@@ -405,15 +414,20 @@ class ManualConfigDialog(qtw.QDialog):
         find_but.clicked.connect(
             lambda: self.signal_find.emit(
                 self.syn_wid.text().strip(),
+                self.par_cnt_wid.text().strip(),
                 self.par_slice_wid.text().strip(),
                 self.all_code_xrefs_wid.isChecked(),
             )
+        )
+        self.signal_find_feedback.connect(
+            lambda text: self.give_feedback(find_but, text)
         )
         add_but = qtw.QPushButton("Add")
         add_but.clicked.connect(
             lambda: self.signal_add.emit(
                 self.cat_wid.text().strip(),
                 self.syn_wid.text().strip(),
+                self.par_cnt_wid.text().strip(),
                 self.par_slice_wid.text().strip(),
             )
         )
