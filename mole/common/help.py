@@ -150,7 +150,9 @@ class InstructionHelper:
                 bn.MediumLevelILTailcallSsa,
             ),
         ):
-            if isinstance(inst.dest, bn.MediumLevelILConstPtr):
+            if isinstance(
+                inst.dest, (bn.MediumLevelILConstPtr, bn.MediumLevelILImport)
+            ):
                 func = bv.get_function_at(inst.dest.constant)
                 if func is not None:
                     func_name = func.name
@@ -160,19 +162,19 @@ class InstructionHelper:
                         + func_name
                         + func.type.get_string_after_name()
                     )
-            elif isinstance(inst.dest, bn.MediumLevelILImport):
-                data_var = bv.get_data_var_at(inst.dest.constant)
-                symbol = bv.get_symbol_at(inst.dest.constant)
-                if data_var is not None and symbol is not None:
-                    func_name = symbol.name
-                    b_name = data_var.type.get_string_before_name().strip()
-                    idx = b_name.rfind("(")
-                    if idx != -1:
-                        b_name = b_name[:idx].strip()
-                    a_name = data_var.type.get_string_after_name().strip()
-                    if a_name.startswith(")"):
-                        a_name = a_name[1:]
-                    func_sign = b_name + " " + func_name + a_name
+                else:
+                    data_var = bv.get_data_var_at(inst.dest.constant)
+                    symbol = bv.get_symbol_at(inst.dest.constant)
+                    if data_var is not None and symbol is not None:
+                        func_name = symbol.name
+                        b_name = data_var.type.get_string_before_name().strip()
+                        idx = b_name.rfind("(")
+                        if idx != -1:
+                            b_name = b_name[:idx].strip()
+                        a_name = data_var.type.get_string_after_name().strip()
+                        if a_name.startswith(")"):
+                            a_name = a_name[1:]
+                        func_sign = b_name + " " + func_name + a_name
         return func_name, func_sign
 
     @staticmethod
