@@ -48,7 +48,6 @@ class PathController:
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
         self.path_view.init(self)
-
         # Register plugin commands
         bn.PluginCommand.register_for_high_level_il_instruction(
             name="Mole\\1. Select HLIL Instruction as Source",
@@ -252,17 +251,9 @@ class PathController:
         inst_info = InstructionHelper.get_inst_info(inst)
         log.info(tag, f"Selected MLIL call instruction '{inst_info:s}'")
         # Function information
-        func = InstructionHelper.get_callee(bv, inst)
-        name = func.name if func else "unknown"
-        synopsis = (
-            func.type.get_string_before_name()
-            + " "
-            + name
-            + func.type.get_string_after_name()
-            if func
-            else ""
-        )
-        symbols = [name] if func else []
+        name, synopsis = InstructionHelper.get_func_signature(bv, inst)
+        name = name if name else "unknown"
+        symbols = [name] if name else []
         par_cnt = f"i == {len(inst.params):d}"
         # Create popup dialog
         dialog = ManualConfigDialog(is_src, synopsis, "Default", par_cnt)

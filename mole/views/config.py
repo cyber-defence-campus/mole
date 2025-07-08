@@ -400,7 +400,7 @@ class ManualConfigDialog(qtw.QDialog):
         self.all_code_xrefs_wid.setToolTip("include all symbol's code cross-references")
         # Configuration layout
         cnf_lay = qtw.QGridLayout()
-        cnf_lay.addWidget(qtw.QLabel("par_cnt"), 0, 0)
+        cnf_lay.addWidget(qtw.QLabel("par_cnt:"), 0, 0)
         cnf_lay.addWidget(self.par_cnt_wid, 0, 1)
         cnf_lay.addWidget(qtw.QLabel("par_slice:"), 1, 0)
         cnf_lay.addWidget(self.par_slice_wid, 1, 1)
