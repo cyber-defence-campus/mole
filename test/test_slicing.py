@@ -5,9 +5,20 @@ from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
 from mole.services.path import PathService
 from typing import List
+import atexit
 import binaryninja as bn
 import os as os
 import unittest as unittest
+
+tested_files = set()
+
+
+def print_tested_files():
+    print(f"\nTested slicing on {len(tested_files):d} files")
+    return
+
+
+atexit.register(print_tested_files)
 
 
 class TestCase(unittest.TestCase):
@@ -18,10 +29,10 @@ class TestCase(unittest.TestCase):
     def setUp(self) -> None:
         log.change_properties(level="debug", runs_headless=True)
         self._model = ConfigModel(ConfigService().load_config())
+        self._ext = os.environ.get("EXT", None)
         return
 
-    @staticmethod
-    def load_files(names: List[str]) -> List[str]:
+    def load_files(self, names: List[str]) -> List[str]:
         """
         This method returns all files in the `testcases` directory matching `name` but ignoring the
         file extension.
@@ -30,8 +41,11 @@ class TestCase(unittest.TestCase):
         files = []
         for dirpath, _, filenames in os.walk(directory):
             for filename in filenames:
-                if os.path.splitext(filename)[0] in names:
-                    files.append(os.path.join(dirpath, filename))
+                name, ext = os.path.splitext(filename)
+                if name in names:
+                    if self._ext is None or self._ext == ext:
+                        files.append(os.path.join(dirpath, filename))
+                        tested_files.add(filename)
         return files
 
     def get_paths(
@@ -59,7 +73,7 @@ class TestCase(unittest.TestCase):
 
 class TestVarious(TestCase):
     def test_gets_01(self, filenames: List[str] = ["gets-01"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -99,7 +113,7 @@ class TestVarious(TestCase):
         return
 
     def test_gets_02(self, filenames: List[str] = ["gets-02"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -137,7 +151,7 @@ class TestVarious(TestCase):
         return
 
     def test_sscanf_01(self, filenames: List[str] = ["sscanf-01"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -182,7 +196,7 @@ class TestVarious(TestCase):
         return
 
     def test_memcpy_01(self, filenames: List[str] = ["memcpy-01"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -222,7 +236,7 @@ class TestVarious(TestCase):
         return
 
     def test_memcpy_02(self, filenames: List[str] = ["memcpy-02"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -263,7 +277,7 @@ class TestVarious(TestCase):
         return
 
     def test_memcpy_03(self, filenames: List[str] = ["memcpy-03"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -303,7 +317,7 @@ class TestVarious(TestCase):
         return
 
     def test_memcpy_04(self, filenames: List[str] = ["memcpy-04"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -343,7 +357,7 @@ class TestVarious(TestCase):
         return
 
     def test_memcpy_05(self, filenames: List[str] = ["memcpy-05"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -385,7 +399,7 @@ class TestVarious(TestCase):
         return
 
     def test_memcpy_06(self, filenames: List[str] = ["memcpy-06"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -418,7 +432,7 @@ class TestFunctionCalling(TestCase):
     def test_function_calling_01(
         self, filenames: List[str] = ["function_calling-01"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -464,7 +478,7 @@ class TestFunctionCalling(TestCase):
     def test_function_calling_02(
         self, filenames: List[str] = ["function_calling-02"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -528,7 +542,7 @@ class TestFunctionCalling(TestCase):
     def test_function_calling_05(
         self, filenames: List[str] = ["function_calling-05"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -575,7 +589,7 @@ class TestFunctionCalling(TestCase):
     def test_function_calling_07(
         self, filenames: List[str] = ["function_calling-07"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -596,7 +610,7 @@ class TestPointerAnalysis(TestCase):
     def test_pointer_analysis_01(
         self, filenames: List[str] = ["pointer_analysis-01"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -648,7 +662,7 @@ class TestPointerAnalysis(TestCase):
     def test_pointer_analysis_04(
         self, filenames: List[str] = ["pointer_analysis-04"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -687,7 +701,7 @@ class TestPointerAnalysis(TestCase):
     def test_pointer_analysis_05(
         self, filenames: List[str] = ["pointer_analysis-05"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -701,7 +715,7 @@ class TestPointerAnalysis(TestCase):
     def test_pointer_analysis_06(
         self, filenames: List[str] = ["pointer_analysis-06"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -740,7 +754,7 @@ class TestPointerAnalysis(TestCase):
     def test_pointer_analysis_07(
         self, filenames: List[str] = ["pointer_analysis-07"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -798,7 +812,7 @@ class TestPointerAnalysis(TestCase):
     def test_pointer_analysis_11(
         self, filenames: List[str] = ["pointer_analysis-11"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -841,7 +855,7 @@ class TestPointerAnalysis(TestCase):
 class TestStruct(TestCase):
     @unittest.expectedFailure
     def test_struct_01(self, filenames: List[str] = ["struct-01"]) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -885,7 +899,7 @@ class TestSimpleServer(TestCase):
     def test_simple_http_server_01(
         self, filenames: List[str] = ["simple_http_server-01"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -933,7 +947,7 @@ class TestSimpleServer(TestCase):
     def test_simple_http_server_02(
         self, filenames: List[str] = ["simple_http_server-02"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -985,7 +999,7 @@ class TestSimpleServer(TestCase):
     def test_simple_http_server_03(
         self, filenames: List[str] = ["simple_http_server-03"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -1063,7 +1077,7 @@ class TestSimpleServer(TestCase):
     def test_simple_http_server_04(
         self, filenames: List[str] = ["simple_http_server-04"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -1116,7 +1130,7 @@ class TestSerialization(TestCase):
     def test_serialization_01(
         self, filenames: List[str] = ["function_calling-02"]
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
@@ -1171,7 +1185,7 @@ class TestMultiThreading(TestCase):
             "simple_http_server-02",
         ],
     ) -> None:
-        for file in TestCase.load_files(filenames):
+        for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
