@@ -240,7 +240,7 @@ class PathController:
         the only source or sink (based on `is_src`).
         """
         # Map to MLIL call instruction
-        mlil_call_insts = InstructionHelper.get_mlil_call_insts(bv, inst)
+        mlil_call_insts = InstructionHelper.get_mlil_call_insts(inst)
         if len(mlil_call_insts) <= 0:
             log.warn(
                 tag,

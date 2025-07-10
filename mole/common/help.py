@@ -61,10 +61,13 @@ class SymbolHelper:
                     if funcs is None:
                         continue
                     for func in funcs:
-                        try:
-                            func = func.mlil.ssa_form
-                        except Exception:
+                        if (
+                            func is None
+                            or func.mlil is None
+                            or func.mlil.ssa_form is None
+                        ):
                             continue
+                        func = func.mlil.ssa_form
                         for inst in func.instructions:
                             if inst.address == code_ref.address:
                                 mlil_insts.add(inst)
@@ -179,7 +182,6 @@ class InstructionHelper:
 
     @staticmethod
     def get_mlil_call_insts(
-        bv: bn.BinaryView,
         inst: bn.HighLevelILInstruction
         | bn.MediumLevelILInstruction
         | bn.LowLevelILInstruction,
@@ -223,7 +225,7 @@ class InstructionHelper:
                 return inst
             return None
 
-        return list(inst.traverse(find_mlil_call_inst))
+        return [i for i in inst.traverse(find_mlil_call_inst) if i is not None]
 
 
 class FunctionHelper:

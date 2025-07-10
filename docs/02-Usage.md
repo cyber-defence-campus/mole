@@ -53,7 +53,7 @@ In addition to defining source and sink functions in YAML files, *Mole* also let
 If the selected instruction corresponds to a valid **MLIL call instruction**, a configuration dialog like the one below will appear:
 
 <p align="center">
-  <img src="https://i.postimg.cc/ZRRhB7ZR/manual-02.png" alt="Mole Manual Source / Sink"/>
+  <img src="https://i.postimg.cc/66ZGfb62/manual-02.png" alt="Mole Manual Source / Sink"/>
 </p>
 
 The settings are identical to those described above for the YAML files, with one additional option: the `all_code_xrefs` checkbox. When enabled, *Mole* will treat not only the selected call instruction as a source or sink, but also all code references to the same symbol (e.g., all calls to `getenv`).
