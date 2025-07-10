@@ -558,6 +558,7 @@ class MediumLevelILBackwardSlicer:
                 bn.MediumLevelILSyscallSsa()
                 | bn.MediumLevelILSyscallUntypedSsa()
                 | bn.MediumLevelILIntrinsicSsa()
+                | bn.MediumLevelILSeparateParamList()
             ):
                 for par in inst.params:
                     self.inst_graph.add_node(
