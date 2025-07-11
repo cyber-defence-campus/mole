@@ -246,6 +246,45 @@ class FunctionHelper:
         return info
 
     @staticmethod
+    def get_mlil_parm_insts(
+        func: bn.MediumLevelILFunction,
+    ) -> List[Optional[bn.MediumLevelILVarSsa]]:
+        """
+        This method returns a list of `MediumLevelILVarSsa` instructions that correspond to the
+        parameters of function `func`. The order of the returned instructions corresponds to the one
+        of the parameters in the function signature.
+        """
+        parm_vars = list(func.source_function.parameter_vars)
+        parm_insts = len(parm_vars) * [None]
+
+        func = func.ssa_form
+        if func is None:
+            return parm_insts
+
+        # Find instructions corresponding to the function parameters
+        def find_mlil_parm_inst(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[int, Optional[bn.MediumLevelILVarSsa]]:
+            if isinstance(inst, bn.MediumLevelILVarSsa):
+                if inst.var.var in parm_vars:
+                    return (parm_vars.index(inst.var.var), inst)
+            return (-1, None)
+
+        # Iterate instructions in the function
+        for inst in func.instructions:
+            for parm_idx, parm_inst in inst.traverse(find_mlil_parm_inst):
+                if (
+                    parm_idx >= 0
+                    and parm_idx < len(parm_insts)
+                    and parm_insts[parm_idx] is None
+                    and parm_inst is not None
+                ):
+                    parm_insts[parm_idx] = parm_inst
+            if None not in parm_insts:
+                break
+        return parm_insts
+
+    @staticmethod
     def get_il_code(
         func: bn.HighLevelILFunction | bn.MediumLevelILFunction | bn.LowLevelILFunction,
     ) -> str:
