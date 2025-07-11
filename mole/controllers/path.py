@@ -63,6 +63,13 @@ class PathController:
                 bv, inst, is_src=False
             ),
         )
+        bn.PluginCommand.register_for_high_level_il_function(
+            name="Mole\\1. Select HLIL Function as Source",
+            description="Find paths using the selected HLIL function as source",
+            action=lambda bv, func: self.find_paths_from_manual_func(
+                bv, func, is_src=True
+            ),
+        )
         bn.PluginCommand.register_for_medium_level_il_instruction(
             name="Mole\\1. Select MLIL Instruction as Source",
             description="Find paths using the selected MLIL call instruction as source",
@@ -96,6 +103,13 @@ class PathController:
             description="Find paths using the selected LLIL call instruction as sink",
             action=lambda bv, inst: self.find_paths_from_manual_inst(
                 bv, inst, is_src=False
+            ),
+        )
+        bn.PluginCommand.register_for_low_level_il_function(
+            name="Mole\\1. Select LLIL Function as Source",
+            description="Find paths using the selected LLIL function as source",
+            action=lambda bv, func: self.find_paths_from_manual_func(
+                bv, func, is_src=True
             ),
         )
         # Connect signals
@@ -344,20 +358,20 @@ class PathController:
     def find_paths_from_manual_func(
         self,
         bv: bn.BinaryView,
-        func: bn.MediumLevelILFunction,
+        func: bn.HighLevelILFunction | bn.MediumLevelILFunction | bn.LowLevelILFunction,
         is_src: bool = True,
     ) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths using `func` as
         the only source or sink (based on `is_src`).
-
-        TODO: Handle other `func` types
         """
-        # Ensure function is in SSA form
-        func = func.ssa_form
-        if func is None:
+        # Ensure function is in MLIL SSA form
+        if not isinstance(func, bn.MediumLevelILFunction):
+            func = func.mlil
+        if func is None or func.ssa_form is None:
             log.warn(tag, "Selected function has no SSA form")
             return
+        func = func.ssa_form
         # Build a synthetic call instruction
         call_dest = func.const_pointer(bv.address_size, func.source_function.start)
         parm_insts = FunctionHelper.get_mlil_parm_insts(func)
