@@ -243,9 +243,14 @@ class SourceFunction(Function):
                 if cancelled():
                     break
                 # Ignore everything but call instructions
-                if not (
-                    isinstance(src_inst, bn.MediumLevelILCallSsa)
-                    or isinstance(src_inst, bn.MediumLevelILTailcallSsa)
+                if not isinstance(
+                    src_inst,
+                    (
+                        bn.MediumLevelILCall,
+                        bn.MediumLevelILCallSsa,
+                        bn.MediumLevelILTailcall,
+                        bn.MediumLevelILTailcallSsa,
+                    ),
                 ):
                     continue
                 src_sym_addr = src_inst.address
@@ -394,9 +399,14 @@ class SinkFunction(Function):
                 if cancelled():
                     break
                 # Ignore everything but call instructions
-                if not (
-                    isinstance(snk_inst, bn.MediumLevelILCallSsa)
-                    or isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                if not isinstance(
+                    snk_inst,
+                    (
+                        bn.MediumLevelILCall,
+                        bn.MediumLevelILCallSsa,
+                        bn.MediumLevelILTailcall,
+                        bn.MediumLevelILTailcallSsa,
+                    ),
                 ):
                     continue
                 snk_sym_addr = snk_inst.address

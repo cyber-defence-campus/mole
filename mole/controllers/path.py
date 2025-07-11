@@ -1,5 +1,5 @@
 from __future__ import annotations
-from mole.common.help import InstructionHelper
+from mole.common.help import FunctionHelper, InstructionHelper
 from mole.common.log import log
 from mole.common.parse import LogicalExpressionParser
 from mole.common.task import BackgroundTask
@@ -75,6 +75,13 @@ class PathController:
             description="Find paths using the selected MLIL call instruction as sink",
             action=lambda bv, inst: self.find_paths_from_manual_inst(
                 bv, inst, is_src=False
+            ),
+        )
+        bn.PluginCommand.register_for_medium_level_il_function(
+            name="Mole\\1. Select MLIL Function as Source",
+            description="Find paths using the selected MLIL function as source",
+            action=lambda bv, func: self.find_paths_from_manual_func(
+                bv, func, is_src=True
             ),
         )
         bn.PluginCommand.register_for_low_level_il_instruction(
@@ -247,7 +254,9 @@ class PathController:
                 "Selected instruction could not be mapped to a MLIL call instruction",
             )
             return None
-        inst = mlil_call_insts[0].ssa_form
+        inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa = mlil_call_insts[
+            0
+        ].ssa_form
         inst_info = InstructionHelper.get_inst_info(inst)
         log.info(tag, f"Selected MLIL call instruction '{inst_info:s}'")
         # Function information
@@ -331,6 +340,34 @@ class PathController:
         dialog.signal_add.connect(_save_paths_from_manual_inst)
         dialog.exec()
         return
+
+    def find_paths_from_manual_func(
+        self,
+        bv: bn.BinaryView,
+        func: bn.MediumLevelILFunction,
+        is_src: bool = True,
+    ) -> None:
+        """
+        This method analyzes the entire binary for interesting looking code paths using `func` as
+        the only source or sink (based on `is_src`).
+
+        TODO: Handle other `func` types
+        """
+        # Ensure function is in SSA form
+        func = func.ssa_form
+        if func is None:
+            log.warn(tag, "Selected function has no SSA form")
+            return
+        # Build a synthetic call instruction
+        call_dest = func.const_pointer(bv.address_size, func.source_function.start)
+        parm_insts = FunctionHelper.get_mlil_parm_insts(func)
+        call_parms = [
+            parm_inst.expr_index for parm_inst in parm_insts if parm_inst is not None
+        ]
+        expr_idx = func.call(output=[], dest=call_dest, params=call_parms)
+        call_inst = func.get_expr(expr_idx)
+        # Find paths using the synthetic call instruction
+        return self.find_paths_from_manual_inst(bv, call_inst, is_src)
 
     def load_paths(self) -> None:
         """

@@ -185,7 +185,12 @@ class InstructionHelper:
         inst: bn.HighLevelILInstruction
         | bn.MediumLevelILInstruction
         | bn.LowLevelILInstruction,
-    ) -> List[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa]:
+    ) -> List[
+        bn.MediumLevelILCall
+        | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILTailcall
+        | bn.MediumLevelILTailcallSsa
+    ]:
         """
         This method iterates through all sub-instructions of `inst` and returns all
         corresponding MLIL call instructions.
