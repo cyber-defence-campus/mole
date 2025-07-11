@@ -71,7 +71,8 @@ class SymbolHelper:
                         for inst in func.instructions:
                             if inst.address == code_ref.address:
                                 mlil_insts.add(inst)
-                mlil_ssa_code_refs[symbol_name] = mlil_insts
+                if mlil_insts:
+                    mlil_ssa_code_refs[symbol_name] = mlil_insts
         return mlil_ssa_code_refs
 
 

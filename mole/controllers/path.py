@@ -246,7 +246,7 @@ class PathController:
         This method analyzes the entire binary for interesting looking code paths using `inst` as
         the only source or sink (based on `is_src`).
         """
-        # Map to MLIL call instruction
+        # Map to MLIL call instruction in SSA form
         mlil_call_insts = InstructionHelper.get_mlil_call_insts(inst)
         if len(mlil_call_insts) <= 0:
             log.warn(

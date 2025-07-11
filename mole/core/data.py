@@ -226,7 +226,7 @@ class SourceFunction(Function):
         # Manually configured source function
         if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
             # Use only manually configured source function
-            if not manual_fun_all_code_xrefs:
+            if not manual_fun_all_code_xrefs or not code_refs:
                 code_refs = {}
                 for symbol_name in self.symbols:
                     mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
@@ -382,7 +382,7 @@ class SinkFunction(Function):
         # Manually configured sink function
         if isinstance(manual_fun, SinkFunction) and manual_fun_inst:
             # Use only manually configured sink function
-            if not manual_fun_all_code_xrefs:
+            if not manual_fun_all_code_xrefs or not code_refs:
                 code_refs = {}
                 for symbol_name in self.symbols:
                     mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
