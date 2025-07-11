@@ -292,6 +292,7 @@ class SourceFunction(Function):
                     if cancelled():
                         break
                     src_par_idx += 1
+                    src_par_var = src_par_var.ssa_form
                     log.debug(
                         custom_tag,
                         f"Analyze argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
@@ -323,15 +324,14 @@ class SourceFunction(Function):
                     src_slicer = MediumLevelILBackwardSlicer(
                         bv, custom_tag, 0, cancelled
                     )
-                    # TODO: src_par_var.ssa_form?
                     # Add edge between call and parameter instructions
                     src_slicer.inst_graph.add_node(
                         src_call_inst, 0, src_call_inst.function, origin="src"
                     )
                     src_slicer.inst_graph.add_node(
-                        src_par_var.ssa_form, 0, src_par_var.function, origin="src"
+                        src_par_var, 0, src_par_var.function, origin="src"
                     )
-                    src_slicer.inst_graph.add_edge(src_call_inst, src_par_var.ssa_form)
+                    src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
                     src_slicer.call_graph.add_node(src_call_inst.function, call_level=0)
                     # Perform backward slicing of the parameter
                     if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
@@ -559,7 +559,6 @@ class SinkFunction(Function):
                                         src_par_var = None
                                     # Iterate source instructions (order of backward slicing)
                                     for src_inst in src_inst_graph.nodes():
-                                        # TODO: src_inst.ssa_form in snk_inst_graph
                                         # Ignore source instructions that were not sliced in the sink
                                         if src_inst not in snk_inst_graph:
                                             continue
