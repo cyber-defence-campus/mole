@@ -255,6 +255,7 @@ class PathController:
         | bn.MediumLevelILInstruction
         | bn.LowLevelILInstruction,
         is_src: bool = True,
+        is_from_manual_func: bool = False,
     ) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths using `inst` as
@@ -279,7 +280,9 @@ class PathController:
         symbols = [name] if name else []
         par_cnt = f"i == {len(inst.params):d}"
         # Create popup dialog
-        dialog = ManualConfigDialog(is_src, synopsis, "Default", par_cnt)
+        dialog = ManualConfigDialog(
+            is_src, is_from_manual_func, synopsis, "Default", par_cnt
+        )
 
         def _create_fun(
             synopsis: str, par_cnt: str, par_slice: str
@@ -288,6 +291,8 @@ class PathController:
             par_cnt_fun = parser.parse(par_cnt)
             if par_cnt_fun is None:
                 return None, "Invalid par_cnt..."
+            if is_from_manual_func:
+                par_slice = "True"
             par_slice_fun = parser.parse(par_slice)
             if par_slice_fun is None:
                 return None, "Invalid par_slice..."
@@ -365,6 +370,7 @@ class PathController:
         This method analyzes the entire binary for interesting looking code paths using `func` as
         the only source or sink (based on `is_src`).
         """
+        # TODO: Should we always slice parameters?
         # Ensure function is in MLIL SSA form
         if not isinstance(func, bn.MediumLevelILFunction):
             func = func.mlil
@@ -373,15 +379,14 @@ class PathController:
             return
         func = func.ssa_form
         # Build a synthetic call instruction
-        call_dest = func.const_pointer(bv.address_size, func.source_function.start)
-        parm_insts = FunctionHelper.get_mlil_parm_insts(func)
-        call_parms = [
-            parm_inst.expr_index for parm_inst in parm_insts if parm_inst is not None
-        ]
-        expr_idx = func.call(output=[], dest=call_dest, params=call_parms)
-        call_inst = func.get_expr(expr_idx)
+        call_inst = FunctionHelper.get_mlil_synthetic_call_inst(bv, func)
+        if call_inst is None:
+            log.warn(
+                tag, "Could not create synthetic call instruction for selected function"
+            )
+            return
         # Find paths using the synthetic call instruction
-        return self.find_paths_from_manual_inst(bv, call_inst, is_src)
+        return self.find_paths_from_manual_inst(bv, call_inst, is_src, True)
 
     def load_paths(self) -> None:
         """

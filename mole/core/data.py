@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from mole.common.help import InstructionHelper, SymbolHelper
+from mole.common.help import FunctionHelper, InstructionHelper, SymbolHelper
 from mole.common.log import log
 from mole.core.slice import (
     MediumLevelILBackwardSlicer,
@@ -234,6 +234,24 @@ class SourceFunction(Function):
                     )
                     mlil_insts.add(manual_fun_inst)
                     code_refs[symbol_name] = mlil_insts
+        # Regular configured source function but no code references
+        elif not code_refs:
+            for symbol_name in self.symbols:
+                mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                    symbol_name, set()
+                )
+                for symbol in bv.symbols.get(symbol_name, []):
+                    func = bv.get_function_at(symbol.address)
+                    if func is None or func.mlil is None:
+                        continue
+                    # Build a synthetic call instruction
+                    call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
+                        bv, func.mlil
+                    )
+                    if call_inst is None:
+                        continue
+                    mlil_insts.add(call_inst)
+                code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
             if cancelled():
@@ -305,14 +323,15 @@ class SourceFunction(Function):
                     src_slicer = MediumLevelILBackwardSlicer(
                         bv, custom_tag, 0, cancelled
                     )
+                    # TODO: src_par_var.ssa_form?
                     # Add edge between call and parameter instructions
                     src_slicer.inst_graph.add_node(
                         src_call_inst, 0, src_call_inst.function, origin="src"
                     )
                     src_slicer.inst_graph.add_node(
-                        src_par_var, 0, src_par_var.function, origin="src"
+                        src_par_var.ssa_form, 0, src_par_var.function, origin="src"
                     )
-                    src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
+                    src_slicer.inst_graph.add_edge(src_call_inst, src_par_var.ssa_form)
                     src_slicer.call_graph.add_node(src_call_inst.function, call_level=0)
                     # Perform backward slicing of the parameter
                     if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
@@ -390,6 +409,24 @@ class SinkFunction(Function):
                     )
                     mlil_insts.add(manual_fun_inst)
                     code_refs[symbol_name] = mlil_insts
+        # Regular configured sink function but no code references
+        elif not code_refs:
+            for symbol_name in self.symbols:
+                mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                    symbol_name, set()
+                )
+                for symbol in bv.symbols.get(symbol_name, []):
+                    func = bv.get_function_at(symbol.address)
+                    if func is None or func.mlil is None:
+                        continue
+                    # Build a synthetic call instruction
+                    call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
+                        bv, func.mlil
+                    )
+                    if call_inst is None:
+                        continue
+                    mlil_insts.add(call_inst)
+                code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
             if cancelled():
@@ -522,6 +559,7 @@ class SinkFunction(Function):
                                         src_par_var = None
                                     # Iterate source instructions (order of backward slicing)
                                     for src_inst in src_inst_graph.nodes():
+                                        # TODO: src_inst.ssa_form in snk_inst_graph
                                         # Ignore source instructions that were not sliced in the sink
                                         if src_inst not in snk_inst_graph:
                                             continue

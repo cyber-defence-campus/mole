@@ -291,6 +291,29 @@ class FunctionHelper:
         return parm_insts
 
     @staticmethod
+    def get_mlil_synthetic_call_inst(
+        bv: bn.BinaryView,
+        func: bn.MediumLevelILFunction,
+    ) -> Optional[bn.MediumLevelILCallSsa]:
+        """
+        This method builds a synthetic call instruction for the function `func` in SSA form.
+        """
+        func_addr = func.source_function.start
+        call_dest = func.const_pointer(bv.address_size, func_addr)
+        parm_insts = FunctionHelper.get_mlil_parm_insts(func)
+        call_parms = [
+            parm_inst.expr_index for parm_inst in parm_insts if parm_inst is not None
+        ]
+        expr_idx = func.call(
+            output=[],
+            dest=call_dest,
+            params=call_parms,
+            loc=bn.ILSourceLocation(func_addr, 0),
+        )
+        call_inst = func.get_expr(expr_idx)
+        return call_inst
+
+    @staticmethod
     def get_il_code(
         func: bn.HighLevelILFunction | bn.MediumLevelILFunction | bn.LowLevelILFunction,
     ) -> str:

@@ -366,7 +366,12 @@ class ManualConfigDialog(qtw.QDialog):
     signal_add_feedback = qtc.Signal(str)
 
     def __init__(
-        self, is_src: bool, synopsis: str, category: str, par_cnt: str
+        self,
+        is_src: bool,
+        is_from_manual_func: bool,
+        synopsis: str,
+        category: str,
+        par_cnt: str,
     ) -> None:
         super().__init__()
         self.setWindowTitle(f"Manual {'Source' if is_src else 'Sink'}")
@@ -392,10 +397,12 @@ class ManualConfigDialog(qtw.QDialog):
         self.par_cnt_wid.setToolTip(
             "expression specifying the number of parameters (e.g. 'i >= 1')"
         )
-        self.par_slice_wid = qtw.QLineEdit("False")
+        self.par_slice_wid = qtw.QLineEdit("True" if is_from_manual_func else "False")
         self.par_slice_wid.setToolTip(
             "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
         )
+        if is_from_manual_func:
+            self.par_slice_wid.setEnabled(False)
         self.all_code_xrefs_wid = qtw.QCheckBox()
         self.all_code_xrefs_wid.setToolTip("include all symbol's code cross-references")
         # Configuration layout
