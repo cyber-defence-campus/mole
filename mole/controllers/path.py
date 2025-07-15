@@ -762,13 +762,21 @@ class PathController:
         lft_col = []
         rgt_col = []
         diff = difflib.ndiff(path_0_insts, path_1_insts)
-        path_0_msg = f"Path {path_0_id:d}: {str(path_0):s}"
-        path_0_msg = f"{path_0_msg:s} [L:{len(path_0.insts):d},P:{len(path_0.phiis):d},B:{len(path_0.bdeps):d}]!"
+        path_0_msg = f"Path {path_0_id:d} [L:{len(path_0.insts):d},P:{len(path_0.phiis):d},B:{len(path_0.bdeps):d}]:"
+        max_msg_size = max(max_msg_size, len(path_0_msg))
         lft_col.append(path_0_msg)
-        lft_col.append("-" * max_msg_size)
-        path_1_msg = f"Path {path_1_id:d}: {str(path_1):s}"
-        path_1_msg = f"{path_1_msg:s} [L:{len(path_1.insts):d},P:{len(path_1.phiis):d},B:{len(path_1.bdeps):d}]!"
+        path_0_msg = f"{str(path_0):s}"
+        path_0_msg = f"{path_0_msg:s}"
+        max_msg_size = max(max_msg_size, len(path_0_msg))
+        lft_col.append(path_0_msg)
+        path_1_msg = f"Path {path_1_id:d} [L:{len(path_1.insts):d},P:{len(path_1.phiis):d},B:{len(path_1.bdeps):d}]:"
+        max_msg_size = max(max_msg_size, len(path_1_msg))
         rgt_col.append(path_1_msg)
+        path_1_msg = f"{str(path_1):s}"
+        path_1_msg = f"{path_1_msg:s}"
+        max_msg_size = max(max_msg_size, len(path_1_msg))
+        rgt_col.append(path_1_msg)
+        lft_col.append("-" * max_msg_size)
         rgt_col.append("-" * max_msg_size)
         for line in diff:
             if line.startswith("- "):
