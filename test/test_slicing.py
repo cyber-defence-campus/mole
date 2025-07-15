@@ -28,7 +28,12 @@ class TestCase(unittest.TestCase):
 
     def setUp(self) -> None:
         log.change_properties(level="debug", runs_headless=True)
-        self._model = ConfigModel(ConfigService().load_config())
+        config = ConfigService().load_config()
+        config.sources = {
+            "libc": config.sources["libc"] if "libc" in config.sources else {}
+        }
+        config.sinks = {"libc": config.sinks["libc"] if "libc" in config.sinks else {}}
+        self._model = ConfigModel(config)
         self._ext = os.environ.get("EXT", None)
         return
 
