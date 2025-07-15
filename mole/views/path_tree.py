@@ -51,9 +51,6 @@ class PathTreeView(qtw.QTreeView):
         self.path_sort_proxy_model.rowsInserted.connect(
             self._handle_rows_inserted_or_changed
         )
-        self.path_sort_proxy_model.dataChanged.connect(
-            self._handle_rows_inserted_or_changed
-        )
         self.path_sort_proxy_model.modelReset.connect(self.refresh_view)
 
         # Connect to proxy model data changed signal to capture comment edits
