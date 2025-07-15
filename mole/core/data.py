@@ -638,14 +638,22 @@ class SinkFunction(Function):
                                             )
                                             basic_block = None
                                             for inst in path.insts:
-                                                if inst.il_basic_block != basic_block:
-                                                    basic_block = inst.il_basic_block
-                                                    fun_name = basic_block.function.name
-                                                    bb_addr = basic_block[0].address
-                                                    log.debug(
-                                                        custom_tag,
-                                                        f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}",
+                                                try:
+                                                    inst_basic_block = (
+                                                        inst.il_basic_block
                                                     )
+                                                    if inst_basic_block != basic_block:
+                                                        basic_block = inst_basic_block
+                                                        fun_name = (
+                                                            basic_block.function.name
+                                                        )
+                                                        bb_addr = basic_block[0].address
+                                                        log.debug(
+                                                            custom_tag,
+                                                            f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}",
+                                                        )
+                                                except Exception:
+                                                    pass
                                                 log.debug(
                                                     custom_tag,
                                                     InstructionHelper.get_inst_info(

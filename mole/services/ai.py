@@ -140,11 +140,17 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 custom_tag = f"[Snk] [{call_level:+d}]"
             else:
                 custom_tag = f"[Src] [{call_level:+d}]"
-            if inst.il_basic_block != basic_block:
-                basic_block = inst.il_basic_block
-                fun_name = basic_block.function.name
-                bb_addr = basic_block[0].address
-                prompt += f"{custom_tag:s} - FUN: '{fun_name:s}', BB: 0x{bb_addr:x}\n"
+            try:
+                inst_basic_block = inst.il_basic_block
+                if inst_basic_block != basic_block:
+                    basic_block = inst_basic_block
+                    fun_name = basic_block.function.name
+                    bb_addr = basic_block[0].address
+                    prompt += (
+                        f"{custom_tag:s} - FUN: '{fun_name:s}', BB: 0x{bb_addr:x}\n"
+                    )
+            except Exception:
+                pass
             prompt += f"{custom_tag:s} {InstructionHelper.get_inst_info(inst):s}\n"
         # Call sequence
         prompt += "\n--- Call Sequence ---\n"
