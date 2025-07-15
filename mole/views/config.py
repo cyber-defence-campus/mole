@@ -397,22 +397,28 @@ class ManualConfigDialog(qtw.QDialog):
         self.par_cnt_wid.setToolTip(
             "expression specifying the number of parameters (e.g. 'i >= 1')"
         )
-        self.par_slice_wid = qtw.QLineEdit("True" if is_from_manual_func else "False")
-        self.par_slice_wid.setToolTip(
-            "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
-        )
-        if is_from_manual_func:
-            self.par_slice_wid.setEnabled(False)
-        self.all_code_xrefs_wid = qtw.QCheckBox()
-        self.all_code_xrefs_wid.setToolTip("include all symbol's code cross-references")
         # Configuration layout
         cnf_lay = qtw.QGridLayout()
         cnf_lay.addWidget(qtw.QLabel("par_cnt:"), 0, 0)
         cnf_lay.addWidget(self.par_cnt_wid, 0, 1)
-        cnf_lay.addWidget(qtw.QLabel("par_slice:"), 1, 0)
-        cnf_lay.addWidget(self.par_slice_wid, 1, 1)
-        cnf_lay.addWidget(qtw.QLabel("all_code_xrefs:"), 2, 0)
-        cnf_lay.addWidget(self.all_code_xrefs_wid, 2, 1)
+        if not is_from_manual_func:
+            self.par_slice_wid = qtw.QLineEdit(
+                "True" if is_from_manual_func else "False"
+            )
+            self.par_slice_wid.setToolTip(
+                "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
+            )
+            cnf_lay.addWidget(qtw.QLabel("par_slice:"), 1, 0)
+            cnf_lay.addWidget(self.par_slice_wid, 1, 1)
+            self.all_code_xrefs_wid = qtw.QCheckBox()
+            self.all_code_xrefs_wid.setToolTip(
+                "include all symbol's code cross-references"
+            )
+            cnf_lay.addWidget(qtw.QLabel("all_code_xrefs:"), 2, 0)
+            cnf_lay.addWidget(self.all_code_xrefs_wid, 2, 1)
+        else:
+            self.par_slice_wid = None
+            self.all_code_xrefs_wid = None
         # Configuration widget
         cnf_wid = qtw.QGroupBox("Configuration:")
         cnf_wid.setLayout(cnf_lay)
@@ -422,8 +428,10 @@ class ManualConfigDialog(qtw.QDialog):
             lambda: self.signal_find.emit(
                 self.syn_wid.text().strip(),
                 self.par_cnt_wid.text().strip(),
-                self.par_slice_wid.text().strip(),
-                self.all_code_xrefs_wid.isChecked(),
+                self.par_slice_wid.text().strip() if self.par_slice_wid else "False",
+                self.all_code_xrefs_wid.isChecked()
+                if self.all_code_xrefs_wid
+                else True,
             )
         )
         self.signal_find_feedback.connect(
@@ -435,7 +443,7 @@ class ManualConfigDialog(qtw.QDialog):
                 self.cat_wid.text().strip(),
                 self.syn_wid.text().strip(),
                 self.par_cnt_wid.text().strip(),
-                self.par_slice_wid.text().strip(),
+                self.par_slice_wid.text().strip() if self.par_slice_wid else "False",
             )
         )
         self.signal_add_feedback.connect(lambda text: self.give_feedback(add_but, text))

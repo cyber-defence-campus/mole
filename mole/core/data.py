@@ -221,11 +221,11 @@ class SourceFunction(Function):
         custom_tag = f"{tag:s}.Src.{self.name:s}"
         # Clear map
         self.src_map.clear()
-        # Code x-refs
+        # Get code cross-references
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
-        # Manually configured source function
+        # Source manually configured via UI
         if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
-            # Use only manually configured source function
+            # Source without code cross-references
             if not manual_fun_all_code_xrefs or not code_refs:
                 code_refs = {}
                 for symbol_name in self.symbols:
@@ -234,24 +234,26 @@ class SourceFunction(Function):
                     )
                     mlil_insts.add(manual_fun_inst)
                     code_refs[symbol_name] = mlil_insts
-        # Regular configured source function but no code references
-        elif not code_refs:
-            for symbol_name in self.symbols:
-                mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                    symbol_name, set()
-                )
-                for symbol in bv.symbols.get(symbol_name, []):
-                    func = bv.get_function_at(symbol.address)
-                    if func is None or func.mlil is None:
-                        continue
-                    # Build a synthetic call instruction
-                    call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
-                        bv, func.mlil
+        # Source configured via configuration files
+        else:
+            # Source without code cross-references
+            if not code_refs:
+                for symbol_name in self.symbols:
+                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                        symbol_name, set()
                     )
-                    if call_inst is None:
-                        continue
-                    mlil_insts.add(call_inst)
-                code_refs[symbol_name] = mlil_insts
+                    for symbol in bv.symbols.get(symbol_name, []):
+                        func = bv.get_function_at(symbol.address)
+                        if func is None or func.mlil is None:
+                            continue
+                        # Build a synthetic call instruction
+                        call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
+                            bv, func.mlil
+                        )
+                        if call_inst is None:
+                            continue
+                        mlil_insts.add(call_inst)
+                    code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
             if cancelled():
@@ -396,11 +398,11 @@ class SinkFunction(Function):
         custom_tag = f"{tag:s}.Snk.{self.name:s}"
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-        # Code x-refs
+        # Get code cross-references
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
-        # Manually configured sink function
+        # Sink manually configured via UI
         if isinstance(manual_fun, SinkFunction) and manual_fun_inst:
-            # Use only manually configured sink function
+            # Sink without code cross-references
             if not manual_fun_all_code_xrefs or not code_refs:
                 code_refs = {}
                 for symbol_name in self.symbols:
@@ -409,24 +411,26 @@ class SinkFunction(Function):
                     )
                     mlil_insts.add(manual_fun_inst)
                     code_refs[symbol_name] = mlil_insts
-        # Regular configured sink function but no code references
-        elif not code_refs:
-            for symbol_name in self.symbols:
-                mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                    symbol_name, set()
-                )
-                for symbol in bv.symbols.get(symbol_name, []):
-                    func = bv.get_function_at(symbol.address)
-                    if func is None or func.mlil is None:
-                        continue
-                    # Build a synthetic call instruction
-                    call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
-                        bv, func.mlil
+        # Sink configured via configuration files
+        else:
+            # Sink without code cross-references
+            if not code_refs:
+                for symbol_name in self.symbols:
+                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                        symbol_name, set()
                     )
-                    if call_inst is None:
-                        continue
-                    mlil_insts.add(call_inst)
-                code_refs[symbol_name] = mlil_insts
+                    for symbol in bv.symbols.get(symbol_name, []):
+                        func = bv.get_function_at(symbol.address)
+                        if func is None or func.mlil is None:
+                            continue
+                        # Build a synthetic call instruction
+                        call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
+                            bv, func.mlil
+                        )
+                        if call_inst is None:
+                            continue
+                        mlil_insts.add(call_inst)
+                    code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
             if cancelled():

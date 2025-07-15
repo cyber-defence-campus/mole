@@ -370,7 +370,6 @@ class PathController:
         This method analyzes the entire binary for interesting looking code paths using `func` as
         the only source or sink (based on `is_src`).
         """
-        # TODO: Should we always slice parameters?
         # Ensure function is in MLIL SSA form
         if not isinstance(func, bn.MediumLevelILFunction):
             func = func.mlil
