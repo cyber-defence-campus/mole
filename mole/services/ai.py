@@ -175,29 +175,14 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         message = None
         try:
             # Send messages and receive completion message
-            completion = None
-            with client.beta.chat.completions.stream(
+            completion = client.beta.chat.completions.parse(
                 messages=messages,
                 model=self._model,
                 tools=self._tools,
                 max_completion_tokens=self._max_completion_tokens,
                 temperature=self._temperature,
                 response_format=VulnerabilityReport,
-                stream_options={"include_usage": True},
-            ) as stream:
-                for chunk_cnt, _ in enumerate(stream):
-                    if self.cancelled:
-                        log.warn(
-                            custom_tag,
-                            f"Cancel message streaming after {chunk_cnt:d} chunks",
-                        )
-                        return None
-                    chunk_cnt += 1
-                log.debug(
-                    custom_tag,
-                    f"Streaming messages finished after {chunk_cnt:d} chunks",
-                )
-                completion = stream.get_final_completion()
+            )
             message = completion.choices[0].message
             if completion.usage:
                 token_usage["prompt_tokens"] += completion.usage.prompt_tokens
