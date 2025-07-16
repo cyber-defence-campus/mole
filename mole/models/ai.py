@@ -109,6 +109,7 @@ class ToolFunction:
     description: str
     parameters: List[ToolParameter]
     required: List[str]
+    strict: bool
     handler: Optional[Callable[..., Any]] = None
 
     def to_dict(self) -> Dict:
@@ -131,6 +132,7 @@ class ToolFunction:
                     "properties": properties,
                     "required": self.required,
                 },
+                "strict": self.strict,
             },
         }
 
@@ -153,6 +155,7 @@ tools: Dict[str, ToolFunction] = {
             ),
         ],
         required=["addr", "il_type"],
+        strict=True,
         handler=get_code_for_functions_containing,
     ),
     "get_code_for_functions_by_name": ToolFunction(
@@ -172,6 +175,7 @@ tools: Dict[str, ToolFunction] = {
             ),
         ],
         required=["name", "il_type"],
+        strict=True,
         handler=get_code_for_functions_by_name,
     ),
     "get_callers_by_address": ToolFunction(
@@ -185,6 +189,7 @@ tools: Dict[str, ToolFunction] = {
             )
         ],
         required=["addr"],
+        strict=True,
         handler=get_callers_by_address,
     ),
     "get_callers_by_name": ToolFunction(
@@ -198,6 +203,7 @@ tools: Dict[str, ToolFunction] = {
             )
         ],
         required=["name"],
+        strict=True,
         handler=get_callers_by_name,
     ),
 }
