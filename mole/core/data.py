@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from mole.common.help import InstructionHelper, SymbolHelper
+from mole.common.help import FunctionHelper, InstructionHelper, SymbolHelper
 from mole.common.log import log
 from mole.core.slice import (
     MediumLevelILBackwardSlicer,
@@ -221,18 +221,38 @@ class SourceFunction(Function):
         custom_tag = f"{tag:s}.Src.{self.name:s}"
         # Clear map
         self.src_map.clear()
-        # Code x-refs
+        # Get code cross-references
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
-        # Manually configured source function
+        # Source manually configured via UI
         if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
-            # Use only manually configured source function
-            if not manual_fun_all_code_xrefs:
+            # Source without code cross-references
+            if not manual_fun_all_code_xrefs or not code_refs:
                 code_refs = {}
                 for symbol_name in self.symbols:
                     mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
                         symbol_name, set()
                     )
                     mlil_insts.add(manual_fun_inst)
+                    code_refs[symbol_name] = mlil_insts
+        # Source configured via configuration files
+        else:
+            # Source without code cross-references
+            if not code_refs:
+                for symbol_name in self.symbols:
+                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                        symbol_name, set()
+                    )
+                    for symbol in bv.symbols.get(symbol_name, []):
+                        func = bv.get_function_at(symbol.address)
+                        if func is None or func.mlil is None:
+                            continue
+                        # Build a synthetic call instruction
+                        call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
+                            bv, func.mlil
+                        )
+                        if call_inst is None:
+                            continue
+                        mlil_insts.add(call_inst)
                     code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
@@ -243,9 +263,14 @@ class SourceFunction(Function):
                 if cancelled():
                     break
                 # Ignore everything but call instructions
-                if not (
-                    isinstance(src_inst, bn.MediumLevelILCallSsa)
-                    or isinstance(src_inst, bn.MediumLevelILTailcallSsa)
+                if not isinstance(
+                    src_inst,
+                    (
+                        bn.MediumLevelILCall,
+                        bn.MediumLevelILCallSsa,
+                        bn.MediumLevelILTailcall,
+                        bn.MediumLevelILTailcallSsa,
+                    ),
                 ):
                     continue
                 src_sym_addr = src_inst.address
@@ -269,6 +294,7 @@ class SourceFunction(Function):
                     if cancelled():
                         break
                     src_par_idx += 1
+                    src_par_var = src_par_var.ssa_form
                     log.debug(
                         custom_tag,
                         f"Analyze argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
@@ -372,18 +398,38 @@ class SinkFunction(Function):
         custom_tag = f"{tag:s}.Snk.{self.name:s}"
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-        # Code x-refs
+        # Get code cross-references
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
-        # Manually configured sink function
+        # Sink manually configured via UI
         if isinstance(manual_fun, SinkFunction) and manual_fun_inst:
-            # Use only manually configured sink function
-            if not manual_fun_all_code_xrefs:
+            # Sink without code cross-references
+            if not manual_fun_all_code_xrefs or not code_refs:
                 code_refs = {}
                 for symbol_name in self.symbols:
                     mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
                         symbol_name, set()
                     )
                     mlil_insts.add(manual_fun_inst)
+                    code_refs[symbol_name] = mlil_insts
+        # Sink configured via configuration files
+        else:
+            # Sink without code cross-references
+            if not code_refs:
+                for symbol_name in self.symbols:
+                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
+                        symbol_name, set()
+                    )
+                    for symbol in bv.symbols.get(symbol_name, []):
+                        func = bv.get_function_at(symbol.address)
+                        if func is None or func.mlil is None:
+                            continue
+                        # Build a synthetic call instruction
+                        call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
+                            bv, func.mlil
+                        )
+                        if call_inst is None:
+                            continue
+                        mlil_insts.add(call_inst)
                     code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
@@ -394,9 +440,14 @@ class SinkFunction(Function):
                 if cancelled():
                     break
                 # Ignore everything but call instructions
-                if not (
-                    isinstance(snk_inst, bn.MediumLevelILCallSsa)
-                    or isinstance(snk_inst, bn.MediumLevelILTailcallSsa)
+                if not isinstance(
+                    snk_inst,
+                    (
+                        bn.MediumLevelILCall,
+                        bn.MediumLevelILCallSsa,
+                        bn.MediumLevelILTailcall,
+                        bn.MediumLevelILTailcallSsa,
+                    ),
                 ):
                     continue
                 snk_sym_addr = snk_inst.address
@@ -587,14 +638,22 @@ class SinkFunction(Function):
                                             )
                                             basic_block = None
                                             for inst in path.insts:
-                                                if inst.il_basic_block != basic_block:
-                                                    basic_block = inst.il_basic_block
-                                                    fun_name = basic_block.function.name
-                                                    bb_addr = basic_block[0].address
-                                                    log.debug(
-                                                        custom_tag,
-                                                        f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}",
+                                                try:
+                                                    inst_basic_block = (
+                                                        inst.il_basic_block
                                                     )
+                                                    if inst_basic_block != basic_block:
+                                                        basic_block = inst_basic_block
+                                                        fun_name = (
+                                                            basic_block.function.name
+                                                        )
+                                                        bb_addr = basic_block[0].address
+                                                        log.debug(
+                                                            custom_tag,
+                                                            f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}",
+                                                        )
+                                                except Exception:
+                                                    pass
                                                 log.debug(
                                                     custom_tag,
                                                     InstructionHelper.get_inst_info(

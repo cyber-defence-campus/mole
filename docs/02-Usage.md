@@ -44,13 +44,13 @@ sources:                                             # Collection of function so
 The `par_slice` expression specifies which function parameters should be included in the backward slice. The selection of parameters depends on your specific use case and analysis goals. For example, when trying to identify potential vulnerabilities, you should slice parameters of source functions that introduce untrusted input, as well as parameters of sink functions that could result in dangerous behavior. It is relevant to slice source function parameters because the backward slice from a sink might not always reach the source's call site directly - it may instead trace back to where the parameter is defined or used.
 
 #### Via Binary Ninja UI
-In addition to defining source and sink functions in YAML files, *Mole* also lets you right-click a call instruction in Binary Ninja's UI to mark it as a source or sink for slicing:
+In addition to defining source and sink functions in YAML files, *Mole* also lets you right-click a call instruction (or function) in Binary Ninja's UI to mark it as a source or sink for slicing:
 
 <p align="center">
-  <img src="https://i.postimg.cc/xTbn34mN/manual-01.png" alt="Mole Manual Source / Sink"/>
+  <img src="https://i.postimg.cc/kgMwMchG/manual-01.png" alt="Mole Manual Source / Sink"/>
 </p>
 
-If the selected instruction corresponds to a valid **MLIL call instruction**, a configuration dialog like the one below will appear:
+If the selected instruction corresponds to a valid **MLIL call instruction** (or **MLIL Function**), a configuration dialog like the one below will appear:
 
 <p align="center">
   <img src="https://i.postimg.cc/66ZGfb62/manual-02.png" alt="Mole Manual Source / Sink"/>

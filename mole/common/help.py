@@ -71,7 +71,8 @@ class SymbolHelper:
                         for inst in func.instructions:
                             if inst.address == code_ref.address:
                                 mlil_insts.add(inst)
-                mlil_ssa_code_refs[symbol_name] = mlil_insts
+                if mlil_insts:
+                    mlil_ssa_code_refs[symbol_name] = mlil_insts
         return mlil_ssa_code_refs
 
 
@@ -185,7 +186,12 @@ class InstructionHelper:
         inst: bn.HighLevelILInstruction
         | bn.MediumLevelILInstruction
         | bn.LowLevelILInstruction,
-    ) -> List[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa]:
+    ) -> List[
+        bn.MediumLevelILCall
+        | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILTailcall
+        | bn.MediumLevelILTailcallSsa
+    ]:
         """
         This method iterates through all sub-instructions of `inst` and returns all
         corresponding MLIL call instructions.
@@ -244,6 +250,68 @@ class FunctionHelper:
         if with_class_name:
             info = f"{info:s} ({func.__class__.__name__:s})"
         return info
+
+    @staticmethod
+    def get_mlil_parm_insts(
+        func: bn.MediumLevelILFunction,
+    ) -> List[Optional[bn.MediumLevelILVarSsa]]:
+        """
+        This method returns a list of `MediumLevelILVarSsa` instructions that correspond to the
+        parameters of function `func`. The order of the returned instructions corresponds to the one
+        of the parameters in the function signature.
+        """
+        parm_vars = list(func.source_function.parameter_vars)
+        parm_insts = len(parm_vars) * [None]
+
+        func = func.ssa_form
+        if func is None:
+            return parm_insts
+
+        # Find instructions corresponding to the function parameters
+        def find_mlil_parm_inst(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[int, Optional[bn.MediumLevelILVarSsa]]:
+            if isinstance(inst, bn.MediumLevelILVarSsa):
+                if inst.var.var in parm_vars:
+                    return (parm_vars.index(inst.var.var), inst)
+            return (-1, None)
+
+        # Iterate instructions in the function
+        for inst in func.instructions:
+            for parm_idx, parm_inst in inst.traverse(find_mlil_parm_inst):
+                if (
+                    parm_idx >= 0
+                    and parm_idx < len(parm_insts)
+                    and parm_insts[parm_idx] is None
+                    and parm_inst is not None
+                ):
+                    parm_insts[parm_idx] = parm_inst
+            if None not in parm_insts:
+                break
+        return parm_insts
+
+    @staticmethod
+    def get_mlil_synthetic_call_inst(
+        bv: bn.BinaryView,
+        func: bn.MediumLevelILFunction,
+    ) -> Optional[bn.MediumLevelILCallSsa]:
+        """
+        This method builds a synthetic call instruction for the function `func` in SSA form.
+        """
+        func_addr = func.source_function.start
+        call_dest = func.const_pointer(bv.address_size, func_addr)
+        parm_insts = FunctionHelper.get_mlil_parm_insts(func)
+        call_parms = [
+            parm_inst.expr_index for parm_inst in parm_insts if parm_inst is not None
+        ]
+        expr_idx = func.call(
+            output=[],
+            dest=call_dest,
+            params=call_parms,
+            loc=bn.ILSourceLocation(func_addr, 0),
+        )
+        call_inst = func.get_expr(expr_idx)
+        return call_inst
 
     @staticmethod
     def get_il_code(

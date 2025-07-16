@@ -1,5 +1,5 @@
 from __future__ import annotations
-from mole.common.help import InstructionHelper
+from mole.common.help import FunctionHelper, InstructionHelper
 from mole.common.log import log
 from mole.common.parse import LogicalExpressionParser
 from mole.common.task import BackgroundTask
@@ -63,6 +63,13 @@ class PathController:
                 bv, inst, is_src=False
             ),
         )
+        bn.PluginCommand.register_for_high_level_il_function(
+            name="Mole\\1. Select HLIL Function as Source",
+            description="Find paths using the selected HLIL function as source",
+            action=lambda bv, func: self.find_paths_from_manual_func(
+                bv, func, is_src=True
+            ),
+        )
         bn.PluginCommand.register_for_medium_level_il_instruction(
             name="Mole\\1. Select MLIL Instruction as Source",
             description="Find paths using the selected MLIL call instruction as source",
@@ -77,6 +84,13 @@ class PathController:
                 bv, inst, is_src=False
             ),
         )
+        bn.PluginCommand.register_for_medium_level_il_function(
+            name="Mole\\1. Select MLIL Function as Source",
+            description="Find paths using the selected MLIL function as source",
+            action=lambda bv, func: self.find_paths_from_manual_func(
+                bv, func, is_src=True
+            ),
+        )
         bn.PluginCommand.register_for_low_level_il_instruction(
             name="Mole\\1. Select LLIL Instruction as Source",
             description="Find paths using the selected LLIL call instruction as source",
@@ -89,6 +103,13 @@ class PathController:
             description="Find paths using the selected LLIL call instruction as sink",
             action=lambda bv, inst: self.find_paths_from_manual_inst(
                 bv, inst, is_src=False
+            ),
+        )
+        bn.PluginCommand.register_for_low_level_il_function(
+            name="Mole\\1. Select LLIL Function as Source",
+            description="Find paths using the selected LLIL function as source",
+            action=lambda bv, func: self.find_paths_from_manual_func(
+                bv, func, is_src=True
             ),
         )
         # Connect signals
@@ -234,12 +255,13 @@ class PathController:
         | bn.MediumLevelILInstruction
         | bn.LowLevelILInstruction,
         is_src: bool = True,
+        is_from_manual_func: bool = False,
     ) -> None:
         """
         This method analyzes the entire binary for interesting looking code paths using `inst` as
         the only source or sink (based on `is_src`).
         """
-        # Map to MLIL call instruction
+        # Map to MLIL call instruction in SSA form
         mlil_call_insts = InstructionHelper.get_mlil_call_insts(inst)
         if len(mlil_call_insts) <= 0:
             log.warn(
@@ -247,7 +269,9 @@ class PathController:
                 "Selected instruction could not be mapped to a MLIL call instruction",
             )
             return None
-        inst = mlil_call_insts[0].ssa_form
+        inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa = mlil_call_insts[
+            0
+        ].ssa_form
         inst_info = InstructionHelper.get_inst_info(inst)
         log.info(tag, f"Selected MLIL call instruction '{inst_info:s}'")
         # Function information
@@ -256,7 +280,9 @@ class PathController:
         symbols = [name] if name else []
         par_cnt = f"i == {len(inst.params):d}"
         # Create popup dialog
-        dialog = ManualConfigDialog(is_src, synopsis, "Default", par_cnt)
+        dialog = ManualConfigDialog(
+            is_src, is_from_manual_func, synopsis, "Default", par_cnt
+        )
 
         def _create_fun(
             synopsis: str, par_cnt: str, par_slice: str
@@ -265,6 +291,8 @@ class PathController:
             par_cnt_fun = parser.parse(par_cnt)
             if par_cnt_fun is None:
                 return None, "Invalid par_cnt..."
+            if is_from_manual_func:
+                par_slice = "True"
             par_slice_fun = parser.parse(par_slice)
             if par_slice_fun is None:
                 return None, "Invalid par_slice..."
@@ -331,6 +359,33 @@ class PathController:
         dialog.signal_add.connect(_save_paths_from_manual_inst)
         dialog.exec()
         return
+
+    def find_paths_from_manual_func(
+        self,
+        bv: bn.BinaryView,
+        func: bn.HighLevelILFunction | bn.MediumLevelILFunction | bn.LowLevelILFunction,
+        is_src: bool = True,
+    ) -> None:
+        """
+        This method analyzes the entire binary for interesting looking code paths using `func` as
+        the only source or sink (based on `is_src`).
+        """
+        # Ensure function is in MLIL SSA form
+        if not isinstance(func, bn.MediumLevelILFunction):
+            func = func.mlil
+        if func is None or func.ssa_form is None:
+            log.warn(tag, "Selected function has no SSA form")
+            return
+        func = func.ssa_form
+        # Build a synthetic call instruction
+        call_inst = FunctionHelper.get_mlil_synthetic_call_inst(bv, func)
+        if call_inst is None:
+            log.warn(
+                tag, "Could not create synthetic call instruction for selected function"
+            )
+            return
+        # Find paths using the synthetic call instruction
+        return self.find_paths_from_manual_inst(bv, call_inst, is_src, True)
 
     def load_paths(self) -> None:
         """
@@ -648,11 +703,15 @@ class PathController:
                 custom_tag = f"{tag}] [Snk] [{call_level:+d}"
             else:
                 custom_tag = f"{tag}] [Src] [{call_level:+d}"
-            if inst.il_basic_block != basic_block:
-                basic_block = inst.il_basic_block
-                fun_name = basic_block.function.name
-                bb_addr = basic_block[0].address
-                log.debug(custom_tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+            try:
+                inst_basic_block = inst.il_basic_block
+                if inst_basic_block != basic_block:
+                    basic_block = inst_basic_block
+                    fun_name = basic_block.function.name
+                    bb_addr = basic_block[0].address
+                    log.debug(custom_tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
+            except Exception:
+                pass
             log.debug(custom_tag, InstructionHelper.get_inst_info(inst))
         log.debug(tag, "----------------------")
         log.debug(tag, msg)
@@ -707,13 +766,21 @@ class PathController:
         lft_col = []
         rgt_col = []
         diff = difflib.ndiff(path_0_insts, path_1_insts)
-        path_0_msg = f"Path {path_0_id:d}: {str(path_0):s}"
-        path_0_msg = f"{path_0_msg:s} [L:{len(path_0.insts):d},P:{len(path_0.phiis):d},B:{len(path_0.bdeps):d}]!"
+        path_0_msg = f"Path {path_0_id:d} [L:{len(path_0.insts):d},P:{len(path_0.phiis):d},B:{len(path_0.bdeps):d}]:"
+        max_msg_size = max(max_msg_size, len(path_0_msg))
         lft_col.append(path_0_msg)
-        lft_col.append("-" * max_msg_size)
-        path_1_msg = f"Path {path_1_id:d}: {str(path_1):s}"
-        path_1_msg = f"{path_1_msg:s} [L:{len(path_1.insts):d},P:{len(path_1.phiis):d},B:{len(path_1.bdeps):d}]!"
+        path_0_msg = f"{str(path_0):s}"
+        path_0_msg = f"{path_0_msg:s}"
+        max_msg_size = max(max_msg_size, len(path_0_msg))
+        lft_col.append(path_0_msg)
+        path_1_msg = f"Path {path_1_id:d} [L:{len(path_1.insts):d},P:{len(path_1.phiis):d},B:{len(path_1.bdeps):d}]:"
+        max_msg_size = max(max_msg_size, len(path_1_msg))
         rgt_col.append(path_1_msg)
+        path_1_msg = f"{str(path_1):s}"
+        path_1_msg = f"{path_1_msg:s}"
+        max_msg_size = max(max_msg_size, len(path_1_msg))
+        rgt_col.append(path_1_msg)
+        lft_col.append("-" * max_msg_size)
         rgt_col.append("-" * max_msg_size)
         for line in diff:
             if line.startswith("- "):
