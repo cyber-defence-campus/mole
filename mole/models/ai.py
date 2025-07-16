@@ -130,7 +130,9 @@ class ToolFunction:
                     "type": "object",
                     "properties": properties,
                     "required": self.required,
+                    "additionalProperties": False,
                 },
+                "strict": True,
             },
         }
 
