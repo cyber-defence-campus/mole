@@ -307,6 +307,13 @@ sinks:
             enabled: true
             par_cnt: i == 3
             par_slice: 'True'
+          memset:
+            name: memset
+            symbols: [memset, _memset, __builtin_memset]
+            synopsis: void* memset(void* s, int c, size_t n)
+            enabled: true
+            par_cnt: i == 3
+            par_slice: 'True'
       String Copy:
         name: String Copy
         functions:
