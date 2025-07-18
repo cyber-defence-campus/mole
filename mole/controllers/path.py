@@ -291,8 +291,6 @@ class PathController:
             par_cnt_fun = parser.parse(par_cnt)
             if par_cnt_fun is None:
                 return None, "Invalid par_cnt..."
-            if is_from_manual_func:
-                par_slice = "True"
             par_slice_fun = parser.parse(par_slice)
             if par_slice_fun is None:
                 return None, "Invalid par_slice..."
@@ -326,6 +324,8 @@ class PathController:
             synopsis: str, par_cnt: str, par_slice: str, all_code_xrefs: bool
         ) -> None:
             # Create manual function
+            if is_from_manual_func and not all_code_xrefs:
+                par_slice = "True"
             manual_fun, msg = _create_fun(synopsis, par_cnt, par_slice)
             # Give user feedback if function creating failed
             if manual_fun is None:
