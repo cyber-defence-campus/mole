@@ -113,48 +113,13 @@ class PathController:
             ),
         )
         # Connect signals
-        self.connect_signal_find_paths(self.find_paths)
-        self.connect_signal_load_paths(self.load_paths)
-        self.connect_signal_save_paths(self.save_paths)
-        self.connect_signal_setup_paths_tree(self.setup_path_tree)
-        self.config_ctr.connect_signal_change_path_grouping(self._change_path_grouping)
-        return
-
-    def connect_signal_find_paths(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when paths should be found.
-        """
-        self.path_view.signal_find_paths.connect(slot)
-        return
-
-    def connect_signal_load_paths(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when paths should be loaded.
-        """
-        self.path_view.signal_load_paths.connect(slot)
-        return
-
-    def connect_signal_save_paths(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when paths should be saved.
-        """
-        self.path_view.signal_save_paths.connect(slot)
-        return
-
-    def connect_signal_setup_paths_tree(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when the Binary View changes.
-        """
-        self.path_view.signal_setup_path_tree.connect(slot)
-        return
-
-    def connect_signal_show_ai_report(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when the AI report should be
-        shown.
-        """
-        if self.path_tree_view:
-            self.path_tree_view.signal_show_ai_report.connect(slot)
+        self.path_view.signal_find_paths.connect(self.find_paths)
+        self.path_view.signal_load_paths.connect(self.load_paths)
+        self.path_view.signal_save_paths.connect(self.save_paths)
+        self.path_view.signal_setup_path_tree.connect(self.setup_path_tree)
+        self.config_ctr.config_view.signal_change_path_grouping.connect(
+            self.config_ctr.change_setting
+        )
         return
 
     def _change_path_grouping(self, new_strategy: str) -> None:
@@ -1027,7 +992,8 @@ class PathController:
         self._bv = bv
         self.path_tree_view = ptv
         # Set up signals
-        self.connect_signal_show_ai_report(self.show_ai_report)
+        if self.path_tree_view:
+            self.path_tree_view.signal_show_ai_report.connect(self.show_ai_report)
         # Set up context menu
         ptv.setup_context_menu(
             on_log_path=self.log_path,

@@ -38,49 +38,10 @@ class ConfigController:
         self.config_view = config_view
         self.config_view.init(self)
         # Connect signals
-        self.connect_signal_save_config(self.save_config)
-        self.connect_signal_reset_config(self.reset_config)
-        self.connect_signal_check_functions(self.check_functions)
-        self.connect_signal_change_seting(self.change_setting)
-        return
-
-    def connect_signal_save_config(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when the configuration should
-        be saved.
-        """
-        self.config_view.signal_save_config.connect(slot)
-        return
-
-    def connect_signal_reset_config(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when the configuration should
-        be reset.
-        """
-        self.config_view.signal_reset_config.connect(slot)
-        return
-
-    def connect_signal_check_functions(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when source/sink function
-        checkboxes are checked.
-        """
-        self.config_view.signal_check_functions.connect(slot)
-        return
-
-    def connect_signal_change_seting(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when a setting changes.
-        """
-        self.config_view.signal_change_setting.connect(slot)
-        return
-
-    def connect_signal_change_path_grouping(self, slot: object) -> None:
-        """
-        This method allows connecting to the signal that is triggered when the path grouping
-        strategy changes.
-        """
-        self.config_view.signal_change_path_grouping.connect(slot)
+        self.config_view.signal_save_config.connect(self.save_config)
+        self.config_view.signal_reset_config.connect(self.reset_config)
+        self.config_view.signal_check_functions.connect(self.check_functions)
+        self.config_view.signal_change_setting.connect(self.change_setting)
         return
 
     def get_libraries(
