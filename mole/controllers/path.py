@@ -167,6 +167,25 @@ class PathController:
             self.path_tree_view.model.regroup_paths(new_strategy)
         return
 
+    def _give_feedback(
+        self,
+        button_type: Optional[Literal["Find", "Load", "Save"]] = None,
+        tmp_text: str = None,
+        new_text: str = None,
+        msec: int = 1000,
+    ) -> None:
+        """
+        This method gives user feedback on buttons.
+        """
+        match button_type:
+            case "Find":
+                self.path_view.signal_find_paths_feedback.emit(tmp_text, new_text, msec)
+            case "Load":
+                self.path_view.signal_load_paths_feedback.emit(tmp_text, new_text, msec)
+            case "Save":
+                self.path_view.signal_save_paths_feedback.emit(tmp_text, new_text, msec)
+        return
+
     def _validate_bv(
         self,
         view_types: Optional[List[str]] = None,
@@ -177,14 +196,14 @@ class PathController:
         """
         if not self._bv:
             log.warn(tag, "No binary loaded")
-            self.path_view.give_feedback(button_type, "No Binary Loaded...")
+            self._give_feedback(button_type, "No Binary Loaded...")
             return False
         if view_types is not None and self._bv.view_type in view_types:
             log.warn(
                 tag,
                 f"Binary is in '{self._bv.view_type:s}' but must not be one of '{', '.join(view_types):s}'",
             )
-            self.path_view.give_feedback(button_type, "Incorrect Binary View")
+            self._give_feedback(button_type, "Incorrect Binary View")
             return False
         return True
 
@@ -231,10 +250,10 @@ class PathController:
         # Require previous background threads to have completed
         if self._thread and not self._thread.finished:
             log.warn(tag, "Wait for previous background thread to complete first")
-            self.path_view.give_feedback("Find", "Other Task Running...")
+            self._give_feedback("Find", "Other Task Running...")
             return
         # Start background thread
-        self.path_view.give_feedback("Find", "Finding Paths...")
+        self._give_feedback("Find", "Finding Paths...")
         self._thread = PathService(
             bv=self._bv,
             config_model=self.config_ctr.config_model,
@@ -399,7 +418,7 @@ class PathController:
         # Require previous background threads to have completed
         if self._thread and not self._thread.finished:
             log.warn(tag, "Wait for previous background thread to complete first")
-            self.path_view.give_feedback("Load", "Other Task Running...")
+            self._give_feedback("Load", "Other Task Running...")
             return
         # Remove all paths
         self.path_tree_view.clear_all_paths()
@@ -444,7 +463,7 @@ class PathController:
             return
 
         # Start a background task
-        self.path_view.give_feedback("Load", "Loading Paths...")
+        self._give_feedback("Load", "Loading Paths...")
         self._thread = BackgroundTask(
             initial_progress_text="Mole loads paths...",
             can_cancel=True,
@@ -497,7 +516,7 @@ class PathController:
             return
 
         # Start a background task
-        self.path_view.give_feedback("Save", "Saving Paths...")
+        self._give_feedback("Save", "Saving Paths...")
         self._thread = BackgroundTask(
             initial_progress_text="Mole saves paths...",
             can_cancel=True,
@@ -527,7 +546,7 @@ class PathController:
         # Require previous background threads to have completed
         if self._thread and not self._thread.finished:
             log.warn(tag, "Wait for previous background thread to complete first")
-            self.path_view.give_feedback("Find", "Other Task Running...")
+            self._give_feedback("Find", "Other Task Running...")
             return
 
         # Import paths in a background task

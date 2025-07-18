@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.views.graph import GraphWidget
 from mole.views.path_tree import PathTreeView
-from typing import Literal, Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING
 import binaryninja as bn
 import binaryninjaui as bnui
 import os as os
@@ -18,8 +18,11 @@ class PathView(bnui.SidebarWidget):
     """
 
     signal_find_paths = qtc.Signal()
+    signal_find_paths_feedback = qtc.Signal(object, object, int)
     signal_load_paths = qtc.Signal()
+    signal_load_paths_feedback = qtc.Signal(object, object, int)
     signal_save_paths = qtc.Signal()
+    signal_save_paths_feedback = qtc.Signal(object, object, int)
     signal_setup_path_tree = qtc.Signal(object, object, object)
 
     def __init__(self) -> None:
@@ -68,10 +71,25 @@ class PathView(bnui.SidebarWidget):
         # Create control buttons
         self._run_but = qtw.QPushButton("Find")
         self._run_but.clicked.connect(self.signal_find_paths.emit)
+        self.signal_find_paths_feedback.connect(
+            lambda tmp_text, new_text, msec: self.give_feedback(
+                self._run_but, tmp_text, new_text, msec
+            )
+        )
         self._load_but = qtw.QPushButton("Load")
         self._load_but.clicked.connect(self.signal_load_paths.emit)
+        self.signal_load_paths_feedback.connect(
+            lambda tmp_text, new_text, msec: self.give_feedback(
+                self._load_but, tmp_text, new_text, msec
+            )
+        )
         self._save_but = qtw.QPushButton("Save")
         self._save_but.clicked.connect(self.signal_save_paths.emit)
+        self.signal_save_paths_feedback.connect(
+            lambda tmp_text, new_text, msec: self.give_feedback(
+                self._save_but, tmp_text, new_text, msec
+            )
+        )
 
         # Set up button layout
         but_lay = qtw.QHBoxLayout()
@@ -95,22 +113,17 @@ class PathView(bnui.SidebarWidget):
 
     def give_feedback(
         self,
-        button_type: Optional[Literal["Find", "Load", "Save"]] = None,
-        button_text: str = "",
+        button: qtw.QPushButton,
+        tmp_text: str = None,
+        new_text: str = None,
         msec: int = 1000,
     ) -> None:
         """
-        This method gives user feedback by temporarily changing a button's text.
+        This method changes `button`'s text to `tmp_text` for `msec` milliseconds and then back to
+        `new_text`. If `tmp_text` is `None` or `msec` is less than or equal to 0, it directly sets
+        the button's text to `new_text`. If `new_text` is `None`, it restores the current text of
+        the button.
         """
-        match button_type:
-            case "Find":
-                button = self._run_but
-            case "Load":
-                button = self._load_but
-            case "Save":
-                button = self._save_but
-            case _:
-                return
 
         def restore(text: str) -> None:
             button.setText(text)
@@ -118,10 +131,14 @@ class PathView(bnui.SidebarWidget):
             return
 
         if button:
-            button.setEnabled(False)
-            old_text = button.text()
-            button.setText(button_text)
-            qtc.QTimer.singleShot(msec, lambda text=old_text: restore(text))
+            if new_text is None:
+                new_text = button.text()
+            if tmp_text is not None and msec > 0:
+                button.setEnabled(False)
+                button.setText(tmp_text)
+                qtc.QTimer.singleShot(msec, lambda text=new_text: restore(text))
+            else:
+                button.setText(new_text)
         return
 
     def notifyViewChanged(self, vf: bnui.ViewFrame) -> None:
