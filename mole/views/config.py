@@ -397,28 +397,20 @@ class ManualConfigDialog(qtw.QDialog):
         self.par_cnt_wid.setToolTip(
             "expression specifying the number of parameters (e.g. 'i >= 1')"
         )
+        self.par_slice_wid = qtw.QLineEdit("False")
+        self.par_slice_wid.setToolTip(
+            "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
+        )
+        self.all_code_xrefs_wid = qtw.QCheckBox()
+        self.all_code_xrefs_wid.setToolTip("include all symbol's code cross-references")
         # Configuration layout
         cnf_lay = qtw.QGridLayout()
         cnf_lay.addWidget(qtw.QLabel("par_cnt:"), 0, 0)
         cnf_lay.addWidget(self.par_cnt_wid, 0, 1)
-        if not is_from_manual_func:
-            self.par_slice_wid = qtw.QLineEdit(
-                "True" if is_from_manual_func else "False"
-            )
-            self.par_slice_wid.setToolTip(
-                "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
-            )
-            cnf_lay.addWidget(qtw.QLabel("par_slice:"), 1, 0)
-            cnf_lay.addWidget(self.par_slice_wid, 1, 1)
-            self.all_code_xrefs_wid = qtw.QCheckBox()
-            self.all_code_xrefs_wid.setToolTip(
-                "include all symbol's code cross-references"
-            )
-            cnf_lay.addWidget(qtw.QLabel("all_code_xrefs:"), 2, 0)
-            cnf_lay.addWidget(self.all_code_xrefs_wid, 2, 1)
-        else:
-            self.par_slice_wid = None
-            self.all_code_xrefs_wid = None
+        cnf_lay.addWidget(qtw.QLabel("par_slice:"), 1, 0)
+        cnf_lay.addWidget(self.par_slice_wid, 1, 1)
+        cnf_lay.addWidget(qtw.QLabel("all_code_xrefs:"), 2, 0)
+        cnf_lay.addWidget(self.all_code_xrefs_wid, 2, 1)
         # Configuration widget
         cnf_wid = qtw.QGroupBox("Configuration:")
         cnf_wid.setLayout(cnf_lay)
