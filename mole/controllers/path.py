@@ -218,7 +218,7 @@ class PathController:
             self._give_feedback("Find", "Other Task Running...")
             return
         # Start background thread
-        self._give_feedback("Find", "Finding Paths...")
+        self._give_feedback("Find", "Finding...")
         self._thread = PathService(
             bv=self._bv,
             config_model=self.config_ctr.config_model,
@@ -424,11 +424,12 @@ class PathController:
                 pass
             except Exception as e:
                 log.error(tag, f"Failed to load paths: {str(e):s}")
+            self._give_feedback("Save", "Save", "Save", 0)
             log.info(tag, f"Loaded {cnt_loaded_paths:d} path(s)")
             return
 
         # Start a background task
-        self._give_feedback("Load", "Loading Paths...")
+        self._give_feedback("Load", "Loading...")
         self._thread = BackgroundTask(
             initial_progress_text="Mole loads paths...",
             can_cancel=True,
@@ -481,7 +482,7 @@ class PathController:
             return
 
         # Start a background task
-        self._give_feedback("Save", "Saving Paths...")
+        self._give_feedback("Save", "Saving...", "Save")
         self._thread = BackgroundTask(
             initial_progress_text="Mole saves paths...",
             can_cancel=True,

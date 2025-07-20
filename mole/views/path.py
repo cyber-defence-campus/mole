@@ -106,6 +106,11 @@ class PathView(bnui.SidebarWidget):
         wid = qtw.QWidget()
         wid.setLayout(lay)
 
+        # Connect signals
+        self.path_tree_view.path_tree_model.signal_path_modified.connect(
+            lambda: self.give_feedback(self._save_but, "Save*", "Save*", 0)
+        )
+
         return wid, "Paths"
 
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:

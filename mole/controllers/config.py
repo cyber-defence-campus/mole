@@ -173,7 +173,7 @@ class ConfigController:
         self.config_model.set(new_config)
         # User feedback
         self.config_view.give_feedback("Reset", "Resetting...", "Reset")
-        self.config_view.give_feedback("Save", "Save*", "Save*", 0)
+        self.config_view.give_feedback("Save", "Save", "Save", 0)
         return
 
     def check_functions(
