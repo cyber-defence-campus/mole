@@ -92,6 +92,8 @@ class PathTreeModel(qtui.QStandardItemModel):
     This class implements a tree model for displaying paths grouped by source and sink.
     """
 
+    signal_path_modified = qtc.Signal()
+
     def __init__(self, parent=None) -> None:
         """
         This method initializes the path tree model.
@@ -273,8 +275,9 @@ class PathTreeModel(qtui.QStandardItemModel):
         ]
         parent_item.appendRow(path_row)
 
-        # Emit a dataChanged signal to ensure the view updates properly
+        # Emit signals
         self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
+        self.signal_path_modified.emit()
         return
 
     def clear(self) -> int:
@@ -286,6 +289,8 @@ class PathTreeModel(qtui.QStandardItemModel):
         self.setRowCount(0)
         self.path_map.clear()
         self.group_items.clear()
+        if path_cnt > 0:
+            self.signal_path_modified.emit()
         return path_cnt
 
     def find_path_item(
@@ -352,6 +357,8 @@ class PathTreeModel(qtui.QStandardItemModel):
                 del self.path_map[path_id]
         # Cleanup empty groups
         self._cleanup_empty_groups()
+        if cnt_removed_paths > 0:
+            self.signal_path_modified.emit()
         return cnt_removed_paths
 
     def _cleanup_empty_groups(self) -> None:
@@ -447,6 +454,7 @@ class PathTreeModel(qtui.QStandardItemModel):
                     severity_item.setForeground(qtui.QBrush(qtui.QColor("#008000")))
         else:
             severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFFFF")))
+        self.signal_path_modified.emit()
         return True
 
     def update_path_comment(self, path_id: int, comment: str) -> None:
@@ -460,6 +468,7 @@ class PathTreeModel(qtui.QStandardItemModel):
         path = self.path_map.get(path_id, None)
         if path:
             path.comment = comment
+            self.signal_path_modified.emit()
         return
 
     def regroup_paths(self, path_grouping: str = None) -> None:

@@ -75,7 +75,7 @@ class PathTreeView(qtw.QTreeView):
 
     def _handle_rows_inserted_or_changed(self, *args) -> None:
         """
-        This method a generic handler for when rows are inserted or data changes. It replaces the
+        This method is a generic handler for when rows are inserted or data changes. It replaces the
         separate handlers for each model's signals.
         """
         # Resize columns to fit content
