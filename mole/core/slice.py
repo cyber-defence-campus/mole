@@ -641,24 +641,37 @@ class MediumLevelILBackwardSlicer:
     @staticmethod
     @lru_cache(maxsize=None)
     def _get_mem_definitions(
-        inst: bn.MediumLevelILInstruction,
+        func: bn.MediumLevelILFunction,
+        ssa_memory_version: int,
         ssa_memory_versions: frozenset[int] = frozenset(),
     ) -> List[bn.MediumLevelILInstruction]:
-        # Empty instruction or memory version already seen
-        if inst is None or inst.ssa_memory_version in ssa_memory_versions:
+        """
+        This method returns a list of instructions defining the memory with version
+        `ssa_memory_version`. Only memory defining instructions withing the function `func` are
+        considered.
+        """
+        # Determine current memory defining instruction
+        if func is None or ssa_memory_version in ssa_memory_versions:
             return []
-        ssa_memory_versions = ssa_memory_versions.union({inst.ssa_memory_version})
-        # Current memory defining instruction
-        mem_def_inst = inst.function.get_ssa_memory_definition(inst.ssa_memory_version)
+        ssa_memory_versions = ssa_memory_versions.union({ssa_memory_version})
+        mem_def_inst = func.get_ssa_memory_definition(ssa_memory_version)
         if mem_def_inst is None:
             return []
         mem_def_insts: List[bn.MediumLevelILInstruction] = [mem_def_inst]
-        # Recursive memory defining instructions
-        for mem_def_inst in MediumLevelILBackwardSlicer._get_mem_definitions(
-            mem_def_inst, ssa_memory_versions
-        ):
-            if mem_def_inst not in mem_def_insts:
-                mem_def_insts.append(mem_def_inst)
+        # Determine source memory versions
+        src_memory_versions: List[int] = []
+        match mem_def_inst:
+            case bn.MediumLevelILMemPhi(src_memory=src_memory):
+                src_memory_versions.extend(src_memory)
+            case _:
+                src_memory_versions.append(mem_def_inst.ssa_memory_version)
+        # Recursively determine memory defining instructions
+        for src_memory_version in src_memory_versions:
+            mem_def_insts.extend(
+                MediumLevelILBackwardSlicer._get_mem_definitions(
+                    func, src_memory_version, ssa_memory_versions
+                )
+            )
         return mem_def_insts
 
     def get_mem_definitions(
@@ -666,10 +679,13 @@ class MediumLevelILBackwardSlicer:
         inst: bn.MediumLevelILInstruction,
     ) -> List[bn.MediumLevelILInstruction]:
         """
-        This method backtraces all the memory defining instructions of `inst` within its function
-        (i.e. `inst.function`).
+        This method returns a list of instructions defining the memory of `inst`. Only memory
+        defining instructions within the same function as `inst` are considered (i.e.
+        `inst.function`).
         """
-        return MediumLevelILBackwardSlicer._get_mem_definitions(inst)
+        return MediumLevelILBackwardSlicer._get_mem_definitions(
+            inst.function, inst.ssa_memory_version
+        )
 
     @staticmethod
     @lru_cache(maxsize=None)
