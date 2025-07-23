@@ -335,7 +335,7 @@ class FunctionHelper:
     ) -> List[bn.MediumLevelILInstruction]:
         """
         This method returns a list of all instructions within `func` that define the memory with
-        version `ssa_memory_version`. A memory defining instruction is an instruction that create a
+        version `ssa_memory_version`. A memory defining instruction is an instruction that creates a
         new memory version.
         """
         # Determine current memory defining instruction
