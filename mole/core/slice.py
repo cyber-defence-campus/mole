@@ -388,12 +388,12 @@ class MediumLevelILBackwardSlicer:
                 var, var_addr_ass_insts = self.get_var_addr_assignments(inst)
                 var_info = VariableHelper.get_var_info(var)
                 # Determine all use sites of assignment instructions' destinations
-                var_use_sites: Dict[
+                dest_var_use_sites: Dict[
                     bn.MediumLevelILInstruction, bn.MediumLevelILSetVarSsa
                 ] = {}
                 for var_addr_ass_inst in var_addr_ass_insts:
-                    for var_use_site in var_addr_ass_inst.dest.use_sites:
-                        var_use_sites[var_use_site] = var_addr_ass_inst
+                    for dest_var_use_site in var_addr_ass_inst.dest.use_sites:
+                        dest_var_use_sites[dest_var_use_site] = var_addr_ass_inst
                 # Iterate all memory defining instructions
                 for mem_def_inst in self.get_mem_definitions(inst):
                     mem_def_inst_info = InstructionHelper.get_inst_info(
@@ -408,8 +408,8 @@ class MediumLevelILBackwardSlicer:
                     match mem_def_inst:
                         # Slice calls having the same variable address as parameter
                         case bn.MediumLevelILCallSsa():
-                            if mem_def_inst in var_use_sites.keys():
-                                var_addr_ass_inst = var_use_sites[mem_def_inst]
+                            if mem_def_inst in dest_var_use_sites.keys():
+                                var_addr_ass_inst = dest_var_use_sites[mem_def_inst]
                                 var_addr_ass_inst_info = (
                                     InstructionHelper.get_inst_info(
                                         var_addr_ass_inst, False
