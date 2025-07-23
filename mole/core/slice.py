@@ -385,6 +385,7 @@ class MediumLevelILBackwardSlicer:
                                 )
             case (
                 bn.MediumLevelILVarAliased()
+                | bn.MediumLevelILVarAliasedField()
                 | bn.MediumLevelILAddressOf()
                 | bn.MediumLevelILAddressOfField()
             ):
@@ -394,8 +395,13 @@ class MediumLevelILBackwardSlicer:
                     inst.function
                 )
                 # Get variable being referenced by `inst` (`var_y`)
+                # TODO: Should we consider the `offset` in MLIL_VAR_ALIASED_FIELD and
+                # MLIL_ADDRESS_OF_FIELD as well?
                 match inst:
-                    case bn.MediumLevelILVarAliased(src=src):
+                    case (
+                        bn.MediumLevelILVarAliased(src=src)
+                        | bn.MediumLevelILVarAliasedField(src=src)
+                    ):
                         var = src.var
                     case (
                         bn.MediumLevelILAddressOf(src=src)
@@ -460,7 +466,6 @@ class MediumLevelILBackwardSlicer:
                             self._slice_backwards(mem_def_inst, call_level, caller_site)
             case (
                 bn.MediumLevelILVarSsa()
-                | bn.MediumLevelILVarAliasedField()
                 | bn.MediumLevelILVarSsaField()
                 | bn.MediumLevelILVarField()
                 | bn.MediumLevelILUnimplMem()
