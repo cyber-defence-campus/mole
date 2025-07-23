@@ -687,24 +687,6 @@ class MediumLevelILBackwardSlicer:
             inst.function, inst.ssa_memory_version
         )
 
-    @staticmethod
-    @lru_cache(maxsize=None)
-    def _get_var_addr_assignments(
-        func: bn.MediumLevelILFunction,
-    ) -> Dict[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
-        var_addr_assignments = {}
-        for bb in func.ssa_form:
-            for inst in bb:
-                # Match assignments of variable addresses (e.g. `var_x = &var_y`)
-                match inst:
-                    # TODO: Should we consider the `offset` in MLIL_ADDRESS_OF_FIELD as well?
-                    case bn.MediumLevelILSetVarSsa(
-                        src=bn.MediumLevelILAddressOf(src=src)
-                        | bn.MediumLevelILAddressOfField(src=src)
-                    ):
-                        var_addr_assignments.setdefault(src, []).append(inst)
-        return var_addr_assignments
-
     def get_var_addr_assignments(
         self,
         inst: bn.MediumLevelILInstruction,
@@ -714,9 +696,7 @@ class MediumLevelILBackwardSlicer:
         in their source the same variable as in `inst`. Only instructions within the same function
         as `inst` are considered.
         """
-        var_addr_assignments = MediumLevelILBackwardSlicer._get_var_addr_assignments(
-            inst.function
-        )
+        var_addr_assignments = FunctionHelper.get_var_addr_assignments(inst.function)
         match inst:
             case bn.MediumLevelILVarAliased(src=src):
                 return src.var, var_addr_assignments.get(src.var, [])

@@ -291,6 +291,37 @@ class FunctionHelper:
         return parm_insts
 
     @staticmethod
+    @lru_cache(maxsize=None)
+    def get_var_addr_assignments(
+        func: bn.MediumLevelILFunction,
+    ) -> Dict[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
+        # Find variable address assignments (e.g. `var_x = &var_y`) in `inst`
+        def find_var_addr_assignments(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[Optional[bn.Variable], Optional[bn.MediumLevelILSetVarSsa]]:
+            match inst:
+                # TODO: Should we consider the `offset` in MLIL_ADDRESS_OF_FIELD as well?
+                case bn.MediumLevelILSetVarSsa(
+                    src=bn.MediumLevelILAddressOf(src=src)
+                    | bn.MediumLevelILAddressOfField(src=src)
+                ):
+                    return (src, inst)
+            return (None, None)
+
+        # Find variable address assignments (e.g. `var_x = &var_y`) in `func`
+        var_addr_assignments = {}
+        func = func.ssa_form
+        if func is not None:
+            for var, inst in func.traverse(find_var_addr_assignments):
+                if var is None or inst is None:
+                    continue
+                insts: List[bn.MediumLevelILSetVarSsa] = (
+                    var_addr_assignments.setdefault(var, [])
+                )
+                insts.append(inst)
+        return var_addr_assignments
+
+    @staticmethod
     def get_mlil_synthetic_call_inst(
         bv: bn.BinaryView,
         func: bn.MediumLevelILFunction,
