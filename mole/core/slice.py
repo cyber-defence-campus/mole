@@ -1,6 +1,5 @@
 from __future__ import annotations
 from mole.common.help import FunctionHelper, InstructionHelper, VariableHelper
-from functools import lru_cache
 from mole.common.log import log
 from typing import Any, Callable, Dict, List, Set, Tuple
 import binaryninja as bn
@@ -332,7 +331,7 @@ class MediumLevelILBackwardSlicer:
             # NOTE: Case order matters
             case bn.MediumLevelILConstPtr():
                 # Iterate all memory defining instructions
-                for mem_def_inst in self.get_mem_definitions(inst):
+                for mem_def_inst in self.get_ssa_memory_definitions(inst):
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
@@ -395,7 +394,7 @@ class MediumLevelILBackwardSlicer:
                     for dest_var_use_site in var_addr_ass_inst.dest.use_sites:
                         dest_var_use_sites[dest_var_use_site] = var_addr_ass_inst
                 # Iterate all memory defining instructions
-                for mem_def_inst in self.get_mem_definitions(inst):
+                for mem_def_inst in self.get_ssa_memory_definitions(inst):
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
@@ -638,55 +637,6 @@ class MediumLevelILBackwardSlicer:
             pass
         return
 
-    @staticmethod
-    @lru_cache(maxsize=None)
-    def _get_mem_definitions(
-        func: bn.MediumLevelILFunction,
-        ssa_memory_version: int,
-        ssa_memory_versions: frozenset[int] = frozenset(),
-    ) -> List[bn.MediumLevelILInstruction]:
-        """
-        This method returns a list of instructions defining the memory with version
-        `ssa_memory_version`. Only memory defining instructions withing the function `func` are
-        considered.
-        """
-        # Determine current memory defining instruction
-        if func is None or ssa_memory_version in ssa_memory_versions:
-            return []
-        ssa_memory_versions = ssa_memory_versions.union({ssa_memory_version})
-        mem_def_inst = func.get_ssa_memory_definition(ssa_memory_version)
-        if mem_def_inst is None:
-            return []
-        mem_def_insts: List[bn.MediumLevelILInstruction] = [mem_def_inst]
-        # Determine source memory versions
-        src_memory_versions: List[int] = []
-        match mem_def_inst:
-            case bn.MediumLevelILMemPhi(src_memory=src_memory):
-                src_memory_versions.extend(src_memory)
-            case _:
-                src_memory_versions.append(mem_def_inst.ssa_memory_version)
-        # Recursively determine memory defining instructions
-        for src_memory_version in src_memory_versions:
-            mem_def_insts.extend(
-                MediumLevelILBackwardSlicer._get_mem_definitions(
-                    func, src_memory_version, ssa_memory_versions
-                )
-            )
-        return mem_def_insts
-
-    def get_mem_definitions(
-        self,
-        inst: bn.MediumLevelILInstruction,
-    ) -> List[bn.MediumLevelILInstruction]:
-        """
-        This method returns a list of instructions defining the memory of `inst`. Only memory
-        defining instructions within the same function as `inst` are considered (i.e.
-        `inst.function`).
-        """
-        return MediumLevelILBackwardSlicer._get_mem_definitions(
-            inst.function, inst.ssa_memory_version
-        )
-
     def get_var_addr_assignments(
         self,
         inst: bn.MediumLevelILInstruction,
@@ -707,3 +657,16 @@ class MediumLevelILBackwardSlicer:
             ):
                 return src, var_addr_assignments.get(src, [])
         return (None, [])
+
+    def get_ssa_memory_definitions(
+        self,
+        inst: bn.MediumLevelILInstruction,
+    ) -> List[bn.MediumLevelILInstruction]:
+        """
+        This method returns a list of all instructions within `inst.function` that define the memory
+        of `inst`. A memory defining instruction is an instruction that creates a new memory
+        version.
+        """
+        return FunctionHelper.get_ssa_memory_definitions(
+            inst.function, inst.ssa_memory_version
+        )

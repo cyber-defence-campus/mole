@@ -295,6 +295,12 @@ class FunctionHelper:
     def get_var_addr_assignments(
         func: bn.MediumLevelILFunction,
     ) -> Dict[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
+        """
+        This method returns a dictionary mapping variables (`var_y`) to assignment instructions
+        (`var_x = &var_y`) within `func`, where the variable's address (`&var_y`) is assigned to
+        another variable (`var_x`).
+        """
+
         # Find variable address assignments (e.g. `var_x = &var_y`) in `inst`
         def find_var_addr_assignments(
             inst: bn.MediumLevelILInstruction,
@@ -319,6 +325,42 @@ class FunctionHelper:
                 )
                 insts.append(inst)
         return var_addr_assignments
+
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def get_ssa_memory_definitions(
+        func: bn.MediumLevelILFunction,
+        ssa_memory_version: int,
+        ssa_memory_versions: frozenset[int] = frozenset(),
+    ) -> List[bn.MediumLevelILInstruction]:
+        """
+        This method returns a list of all instructions within `func` that define the memory with
+        version `ssa_memory_version`. A memory defining instruction is an instruction that create a
+        new memory version.
+        """
+        # Determine current memory defining instruction
+        if func is None or ssa_memory_version in ssa_memory_versions:
+            return []
+        ssa_memory_versions = ssa_memory_versions.union({ssa_memory_version})
+        mem_def_inst = func.get_ssa_memory_definition(ssa_memory_version)
+        if mem_def_inst is None:
+            return []
+        mem_def_insts: List[bn.MediumLevelILInstruction] = [mem_def_inst]
+        # Determine source memory versions
+        src_memory_versions: List[int] = []
+        match mem_def_inst:
+            case bn.MediumLevelILMemPhi(src_memory=src_memory):
+                src_memory_versions.extend(src_memory)
+            case _:
+                src_memory_versions.append(mem_def_inst.ssa_memory_version)
+        # Recursively determine memory defining instructions
+        for src_memory_version in src_memory_versions:
+            mem_def_insts.extend(
+                FunctionHelper.get_ssa_memory_definitions(
+                    func, src_memory_version, ssa_memory_versions
+                )
+            )
+        return mem_def_insts
 
     @staticmethod
     def get_mlil_synthetic_call_inst(
