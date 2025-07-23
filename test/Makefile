@@ -17,10 +17,6 @@ $(shell mkdir -p bin)
 # Default target
 all: $(BIN_FILES)
 
-# Compile target pointer_analysis-12 with specific flags
-$(BIN_DIR)/pointer_analysis-12$(EXT): $(SRC_DIR)/pointer_analysis-12.c
-	$(CC) $(CFLAGS) -D_FORTIFY_SOURCE=2 -o $@ $<
-
 # Compile all other targets
 $(BIN_DIR)/%$(EXT): $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -o $@ $<
