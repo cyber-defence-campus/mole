@@ -310,9 +310,8 @@ class FunctionHelper:
 
         # Find variable address assignments (e.g. `var_x = &var_y`) in `func`
         var_addr_assignments = {}
-        func = func.ssa_form
-        if func is not None:
-            for var, inst in func.traverse(find_var_addr_assignments):
+        if func is not None and func.ssa_form is not None:
+            for var, inst in func.ssa_form.traverse(find_var_addr_assignments):
                 if var is None or inst is None:
                     continue
                 insts: List[bn.MediumLevelILSetVarSsa] = (
