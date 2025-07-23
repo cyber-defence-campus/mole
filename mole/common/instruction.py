@@ -1,6 +1,5 @@
 from __future__ import annotations
 from functools import lru_cache
-from mole.common.function import FunctionHelper
 from typing import List, Optional, Tuple
 import binaryninja as bn
 
@@ -89,28 +88,6 @@ class InstructionHelper:
                             a_name = a_name[1:]
                         func_sign = b_name + " " + func_name + a_name
         return func_name, func_sign
-
-    @staticmethod
-    @lru_cache(maxsize=None)
-    def get_var_addr_assignments(
-        inst: bn.MediumLevelILInstruction,
-    ) -> Tuple[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
-        """
-        This method returns a list of assignment instructions (`bn.MediumLevelILSetVarSSA`) that use
-        in their source the same variable as in `inst`. Only instructions within the same function
-        as `inst` are considered.
-        """
-        var_addr_assignments = FunctionHelper.get_var_addr_assignments(inst.function)
-        match inst:
-            case bn.MediumLevelILVarAliased(src=src):
-                return src.var, var_addr_assignments.get(src.var, [])
-            # TODO: Should we consider the `offset` in MLIL_ADDRESS_OF_FIELD as well?
-            case (
-                bn.MediumLevelILAddressOf(src=src)
-                | bn.MediumLevelILAddressOfField(src=src)
-            ):
-                return src, var_addr_assignments.get(src, [])
-        return (None, [])
 
     @staticmethod
     def get_mlil_call_insts(

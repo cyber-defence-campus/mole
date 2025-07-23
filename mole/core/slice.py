@@ -388,19 +388,33 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILAddressOf()
                 | bn.MediumLevelILAddressOfField()
             ):
-                # Find all assignment instructions using the same variable as a source
-                var, var_addr_ass_insts = InstructionHelper.get_var_addr_assignments(
-                    inst
+                # Get all assignment instructions of the form `var_x = &var_y` in the current
+                # function
+                var_addr_assignments = FunctionHelper.get_var_addr_assignments(
+                    inst.function
                 )
+                # Get variable being referenced by `inst` (`var_y`)
+                match inst:
+                    case bn.MediumLevelILVarAliased(src=src):
+                        var = src.var
+                    case (
+                        bn.MediumLevelILAddressOf(src=src)
+                        | bn.MediumLevelILAddressOfField(src=src)
+                    ):
+                        var = src
                 var_info = VariableHelper.get_var_info(var)
-                # Determine all use sites of assignment instructions' destinations
+                # Get all assignment instructions (`var_x = &var_y`) using the address of the
+                # referenced variable (`var_y`) as a source
+                var_addr_ass_insts = var_addr_assignments.get(var, [])
+                # Get all use sites (e.g. `var_z = call(var_x)`) of assignment instructions'
+                # destinations (`var_x`)
                 dest_var_use_sites: Dict[
                     bn.MediumLevelILInstruction, bn.MediumLevelILSetVarSsa
                 ] = {}
                 for var_addr_ass_inst in var_addr_ass_insts:
                     for dest_var_use_site in var_addr_ass_inst.dest.use_sites:
                         dest_var_use_sites[dest_var_use_site] = var_addr_ass_inst
-                # Iterate all memory defining instructions
+                # Get all instructions in the current function defining the current memory version
                 mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
                     inst.function, inst.ssa_memory_version
                 )
@@ -408,44 +422,42 @@ class MediumLevelILBackwardSlicer:
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
+                    # Check if sliced before
                     if mem_def_inst in self._inst_visited:
                         log.debug(
                             self._tag,
                             f"Ignore '{mem_def_inst_info:s}' since sliced before",
                         )
                         continue
+                    # Check if memory defining instruction is in the use sites
+                    if mem_def_inst not in dest_var_use_sites:
+                        log.debug(
+                            self._tag,
+                            f"Do not follow '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'",
+                        )
+                        continue
                     match mem_def_inst:
-                        # Slice calls having the same variable address as parameter
+                        # Slice calls having the referenced variable address (`&var_y`) as parameter
                         case bn.MediumLevelILCallSsa():
-                            if mem_def_inst in dest_var_use_sites.keys():
-                                var_addr_ass_inst = dest_var_use_sites[mem_def_inst]
-                                var_addr_ass_inst_info = (
-                                    InstructionHelper.get_inst_info(
-                                        var_addr_ass_inst, False
-                                    )
-                                )
-                                log.debug(
-                                    self._tag,
-                                    f"Follow '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'",
-                                )
-                                self.inst_graph.add_node(
-                                    inst, call_level, caller_site, origin=self._origin
-                                )
-                                self.inst_graph.add_node(
-                                    mem_def_inst,
-                                    call_level,
-                                    caller_site,
-                                    origin=self._origin,
-                                )
-                                self.inst_graph.add_edge(inst, mem_def_inst)
-                                self._slice_backwards(
-                                    mem_def_inst, call_level, caller_site
-                                )
-                            else:
-                                log.debug(
-                                    self._tag,
-                                    f"Do not follow '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'",
-                                )
+                            var_addr_ass_inst = dest_var_use_sites[mem_def_inst]
+                            var_addr_ass_inst_info = InstructionHelper.get_inst_info(
+                                var_addr_ass_inst, False
+                            )
+                            log.debug(
+                                self._tag,
+                                f"Follow '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'",
+                            )
+                            self.inst_graph.add_node(
+                                inst, call_level, caller_site, origin=self._origin
+                            )
+                            self.inst_graph.add_node(
+                                mem_def_inst,
+                                call_level,
+                                caller_site,
+                                origin=self._origin,
+                            )
+                            self.inst_graph.add_edge(inst, mem_def_inst)
+                            self._slice_backwards(mem_def_inst, call_level, caller_site)
             case (
                 bn.MediumLevelILVarSsa()
                 | bn.MediumLevelILVarAliasedField()
