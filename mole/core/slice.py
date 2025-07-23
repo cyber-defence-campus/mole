@@ -1,7 +1,7 @@
 from __future__ import annotations
-from mole.common.function import FunctionHelper
-from mole.common.instruction import InstructionHelper
-from mole.common.variable import VariableHelper
+from mole.common.helper.function import FunctionHelper
+from mole.common.helper.instruction import InstructionHelper
+from mole.common.helper.variable import VariableHelper
 from mole.common.log import log
 from typing import Any, Callable, Dict, List, Set
 import binaryninja as bn
