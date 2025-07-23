@@ -856,6 +856,45 @@ class TestPointerAnalysis(TestCase):
             bv.file.close()
         return
 
+    def test_pointer_analysis_12(
+        self, filenames: List[str] = ["pointer_analysis-12"]
+    ) -> None:
+        for file in self.load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.get_paths(bv)
+            # Assert results
+            self.assertEqual(len(paths), 4, "4 paths identified")
+            for path in paths:
+                self.assertEqual(
+                    path.src_sym_name, "getenv", "source has symbol 'getenv'"
+                )
+                self.assertIsInstance(
+                    path.insts[-1],
+                    bn.Call,
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, None, "hit call instruction")
+                self.assertIsInstance(
+                    path.snk_par_var,
+                    bn.MediumLevelILVarSsa,
+                    "source argument is a MLIL variable",
+                )
+                self.assertEqual(
+                    path.snk_sym_name, "system", "sink has symbol 'system'"
+                )
+                self.assertIsInstance(
+                    path.insts[0],
+                    bn.MediumLevelILCallSsa,
+                    "sink is a MLIL call instruction",
+                )
+                calls = [call[1] for call in path.calls]
+                self.assertEqual(calls, ["execute", "main"], "calls")
+            bv.file.close()
+        return
+
 
 class TestStruct(TestCase):
     @unittest.expectedFailure
