@@ -1,5 +1,6 @@
 from __future__ import annotations
-from mole.common.help import FunctionHelper, InstructionHelper
+from mole.common.function import FunctionHelper
+from mole.common.instruction import InstructionHelper
 from mole.common.log import log
 from mole.common.parse import LogicalExpressionParser
 from mole.common.task import BackgroundTask

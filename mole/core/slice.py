@@ -1,7 +1,9 @@
 from __future__ import annotations
-from mole.common.help import FunctionHelper, InstructionHelper, VariableHelper
+from mole.common.function import FunctionHelper
+from mole.common.instruction import InstructionHelper
+from mole.common.variable import VariableHelper
 from mole.common.log import log
-from typing import Any, Callable, Dict, List, Set, Tuple
+from typing import Any, Callable, Dict, List, Set
 import binaryninja as bn
 import networkx as nx
 
@@ -331,7 +333,10 @@ class MediumLevelILBackwardSlicer:
             # NOTE: Case order matters
             case bn.MediumLevelILConstPtr():
                 # Iterate all memory defining instructions
-                for mem_def_inst in self.get_ssa_memory_definitions(inst):
+                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                    inst.function, inst.ssa_memory_version
+                )
+                for mem_def_inst in mem_def_insts:
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
@@ -384,7 +389,9 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILAddressOfField()
             ):
                 # Find all assignment instructions using the same variable as a source
-                var, var_addr_ass_insts = self.get_var_addr_assignments(inst)
+                var, var_addr_ass_insts = InstructionHelper.get_var_addr_assignments(
+                    inst
+                )
                 var_info = VariableHelper.get_var_info(var)
                 # Determine all use sites of assignment instructions' destinations
                 dest_var_use_sites: Dict[
@@ -394,7 +401,10 @@ class MediumLevelILBackwardSlicer:
                     for dest_var_use_site in var_addr_ass_inst.dest.use_sites:
                         dest_var_use_sites[dest_var_use_site] = var_addr_ass_inst
                 # Iterate all memory defining instructions
-                for mem_def_inst in self.get_ssa_memory_definitions(inst):
+                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                    inst.function, inst.ssa_memory_version
+                )
+                for mem_def_inst in mem_def_insts:
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
@@ -636,37 +646,3 @@ class MediumLevelILBackwardSlicer:
         for _ in inst.ssa_form.traverse(self._slice_backwards):
             pass
         return
-
-    def get_var_addr_assignments(
-        self,
-        inst: bn.MediumLevelILInstruction,
-    ) -> Tuple[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
-        """
-        This method returns a list of assignment instructions (`bn.MediumLevelILSetVarSSA`) that use
-        in their source the same variable as in `inst`. Only instructions within the same function
-        as `inst` are considered.
-        """
-        var_addr_assignments = FunctionHelper.get_var_addr_assignments(inst.function)
-        match inst:
-            case bn.MediumLevelILVarAliased(src=src):
-                return src.var, var_addr_assignments.get(src.var, [])
-            # TODO: Should we consider the `offset` in MLIL_ADDRESS_OF_FIELD as well?
-            case (
-                bn.MediumLevelILAddressOf(src=src)
-                | bn.MediumLevelILAddressOfField(src=src)
-            ):
-                return src, var_addr_assignments.get(src, [])
-        return (None, [])
-
-    def get_ssa_memory_definitions(
-        self,
-        inst: bn.MediumLevelILInstruction,
-    ) -> List[bn.MediumLevelILInstruction]:
-        """
-        This method returns a list of all instructions within `inst.function` that define the memory
-        of `inst`. A memory defining instruction is an instruction that creates a new memory
-        version.
-        """
-        return FunctionHelper.get_ssa_memory_definitions(
-            inst.function, inst.ssa_memory_version
-        )
