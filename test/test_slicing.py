@@ -901,6 +901,11 @@ class TestPointerAnalysis(TestCase):
     ) -> None:
         return self.test_pointer_analysis_12(filenames)
 
+    def test_pointer_analysis_14(
+        self, filenames: List[str] = ["pointer_analysis-14"]
+    ) -> None:
+        return self.test_pointer_analysis_01(filenames)
+
 
 class TestStruct(TestCase):
     @unittest.expectedFailure
@@ -1199,9 +1204,17 @@ class TestMultiThreading(TestCase):
     def test_consistency_01(
         self,
         filenames: List[str] = [
+            "fread-01",
+            "function_calling-01",
+            "function_calling-02",
+            "function_calling-03",
+            "function_calling-04",
+            "function_calling-05",
+            "function_calling-06",
+            "function_calling-07",
+            "function_calling-08",
             "gets-01",
             "gets-02",
-            "sscanf-01",
             "memcpy-01",
             "memcpy-02",
             "memcpy-03",
@@ -1213,14 +1226,6 @@ class TestMultiThreading(TestCase):
             "memcpy-09",
             "memcpy-10",
             "memcpy-11",
-            "function_calling-01",
-            "function_calling-02",
-            "function_calling-03",
-            "function_calling-04",
-            "function_calling-05",
-            "function_calling-06",
-            "function_calling-07",
-            "function_calling-08",
             "pointer_analysis-01",
             "pointer_analysis-02",
             "pointer_analysis-03",
@@ -1231,8 +1236,16 @@ class TestMultiThreading(TestCase):
             "pointer_analysis-08",
             "pointer_analysis-09",
             "pointer_analysis-10",
+            "pointer_analysis-11",
+            "pointer_analysis-12",
+            "pointer_analysis-13",
+            "pointer_analysis-14",
             "simple_http_server-01",
             "simple_http_server-02",
+            "simple_http_server-03",
+            "simple_http_server-04",
+            "sscanf-01",
+            "struct-01",
         ],
     ) -> None:
         for file in self.load_files(filenames):
