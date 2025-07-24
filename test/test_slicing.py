@@ -856,6 +856,56 @@ class TestPointerAnalysis(TestCase):
             bv.file.close()
         return
 
+    def test_pointer_analysis_12(
+        self, filenames: List[str] = ["pointer_analysis-12"]
+    ) -> None:
+        for file in self.load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = self.get_paths(bv)
+            # Assert results
+            self.assertEqual(len(paths), 12, "12 paths identified")
+            for path in paths:
+                self.assertEqual(
+                    path.src_sym_name, "getenv", "source has symbol 'getenv'"
+                )
+                self.assertIsInstance(
+                    path.insts[-1],
+                    bn.Call,
+                    "source is a MLIL call instruction",
+                )
+                self.assertEqual(path.src_par_idx, None, "hit call instruction")
+                self.assertIsInstance(
+                    path.snk_par_var,
+                    bn.MediumLevelILVarSsa,
+                    "source argument is a MLIL variable",
+                )
+                self.assertEqual(
+                    path.snk_sym_name, "system", "sink has symbol 'system'"
+                )
+                self.assertIsInstance(
+                    path.insts[0],
+                    bn.MediumLevelILCallSsa,
+                    "sink is a MLIL call instruction",
+                )
+                calls = [call[1] for call in path.calls]
+                self.assertEqual(calls, ["main", "create_cmd", "main"], "calls")
+            bv.file.close()
+        return
+
+    @unittest.expectedFailure
+    def test_pointer_analysis_13(
+        self, filenames: List[str] = ["pointer_analysis-13"]
+    ) -> None:
+        return self.test_pointer_analysis_12(filenames)
+
+    def test_pointer_analysis_14(
+        self, filenames: List[str] = ["pointer_analysis-14"]
+    ) -> None:
+        return self.test_pointer_analysis_01(filenames)
+
 
 class TestStruct(TestCase):
     @unittest.expectedFailure
@@ -1154,9 +1204,17 @@ class TestMultiThreading(TestCase):
     def test_consistency_01(
         self,
         filenames: List[str] = [
+            "fread-01",
+            "function_calling-01",
+            "function_calling-02",
+            "function_calling-03",
+            "function_calling-04",
+            "function_calling-05",
+            "function_calling-06",
+            "function_calling-07",
+            "function_calling-08",
             "gets-01",
             "gets-02",
-            "sscanf-01",
             "memcpy-01",
             "memcpy-02",
             "memcpy-03",
@@ -1168,14 +1226,6 @@ class TestMultiThreading(TestCase):
             "memcpy-09",
             "memcpy-10",
             "memcpy-11",
-            "function_calling-01",
-            "function_calling-02",
-            "function_calling-03",
-            "function_calling-04",
-            "function_calling-05",
-            "function_calling-06",
-            "function_calling-07",
-            "function_calling-08",
             "pointer_analysis-01",
             "pointer_analysis-02",
             "pointer_analysis-03",
@@ -1186,8 +1236,16 @@ class TestMultiThreading(TestCase):
             "pointer_analysis-08",
             "pointer_analysis-09",
             "pointer_analysis-10",
+            "pointer_analysis-11",
+            "pointer_analysis-12",
+            "pointer_analysis-13",
+            "pointer_analysis-14",
             "simple_http_server-01",
             "simple_http_server-02",
+            "simple_http_server-03",
+            "simple_http_server-04",
+            "sscanf-01",
+            "struct-01",
         ],
     ) -> None:
         for file in self.load_files(filenames):

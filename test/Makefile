@@ -17,7 +17,7 @@ $(shell mkdir -p bin)
 # Default target
 all: $(BIN_FILES)
 
-# Compile all programs
+# Compile all other targets
 $(BIN_DIR)/%$(EXT): $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -o $@ $<
 

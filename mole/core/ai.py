@@ -1,5 +1,5 @@
 from __future__ import annotations
-from mole.common.help import FunctionHelper
+from mole.common.helper.function import FunctionHelper
 from mole.common.log import log
 import binaryninja as bn
 

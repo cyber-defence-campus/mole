@@ -1,6 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from mole.common.help import FunctionHelper, InstructionHelper, SymbolHelper
+from mole.common.helper.function import FunctionHelper
+from mole.common.helper.instruction import InstructionHelper
+from mole.common.helper.symbol import SymbolHelper
 from mole.common.log import log
 from mole.core.slice import (
     MediumLevelILBackwardSlicer,
