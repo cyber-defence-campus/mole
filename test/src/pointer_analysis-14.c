@@ -10,16 +10,15 @@ Testcase Description:
 - system with user-controllabel command
 */
 
-int main(int argc, char *argv[]) {
+int main() {
     char cmd[CMD_LEN];
-
-    char *env_cmd = getenv("SYSTEM_COMMAND");
+    char *env_cmd = getenv("CMD");
     if(env_cmd == NULL) {
-        fprintf(stderr, "SYSTEM_COMMAND environment variable not set.\n");
+        printf("CMD not set.\n");
         return EXIT_FAILURE;
     }
     snprintf(cmd, CMD_LEN, "%s", env_cmd);
     int res = system(cmd);
-    fprintf(stdout, "Executed command: %s\n", cmd);
+    printf("CMD: %s\n", cmd);
     return res;
 }
