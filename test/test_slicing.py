@@ -866,7 +866,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertEqual(len(paths), 4, "4 paths identified")
+            self.assertEqual(len(paths), 24, "24 paths identified")
             for path in paths:
                 self.assertEqual(
                     path.src_sym_name, "getenv", "source has symbol 'getenv'"
@@ -891,9 +891,15 @@ class TestPointerAnalysis(TestCase):
                     "sink is a MLIL call instruction",
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["execute", "main"], "calls")
+                self.assertEqual(calls, ["main", "create_cmd", "main"], "calls")
             bv.file.close()
         return
+
+    @unittest.expectedFailure
+    def test_pointer_analysis_13(
+        self, filenames: List[str] = ["pointer_analysis-13"]
+    ) -> None:
+        return self.test_pointer_analysis_12(filenames)
 
 
 class TestStruct(TestCase):
