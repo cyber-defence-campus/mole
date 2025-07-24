@@ -36,8 +36,7 @@ int main(int argc, char *argv[]) {
     // Source: User inputs via environment variables
     char *env_user_id   = getenv("USER_ID");
     char *env_user_name = getenv("USER_NAME");
-    char *env_user_pass = getenv("USER_PASS");
-    if(env_user_id == NULL || env_user_name == NULL || env_user_pass == NULL) {
+    if(env_user_id == NULL || env_user_name == NULL) {
         fprintf(stderr, "Missing environment variables.\n");
         return EXIT_FAILURE;
     }
@@ -45,12 +44,12 @@ int main(int argc, char *argv[]) {
     // Create command string
     char *cmd = NULL;
     if(user_id == 0) {
-        if(create_cmd(&cmd, "echo %s:%s", env_user_name, env_user_pass) < 0) {
+        if(create_cmd(&cmd, "echo %s", env_user_name) < 0) {
             fprintf(stderr, "Failed to create command for root user '%s'.\n", env_user_name);
             return EXIT_FAILURE;
         }
     } else {
-        if(create_cmd(&cmd, "echo %s:%s", env_user_name, env_user_pass) < 0) {
+        if(create_cmd(&cmd, "echo %s", env_user_name) < 0) {
             fprintf(stderr, "Failed to create command for user '%s'.\n", env_user_name);
             return EXIT_FAILURE;
         }

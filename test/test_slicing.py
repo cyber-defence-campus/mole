@@ -866,7 +866,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertEqual(len(paths), 24, "24 paths identified")
+            self.assertEqual(len(paths), 12, "12 paths identified")
             for path in paths:
                 self.assertEqual(
                     path.src_sym_name, "getenv", "source has symbol 'getenv'"
