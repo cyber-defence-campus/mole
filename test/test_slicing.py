@@ -59,6 +59,7 @@ class TestCase(unittest.TestCase):
         max_workers: int | None = -1,
         max_call_level: int = 3,
         max_slice_depth: int = -1,
+        max_memory_slice_depth: int = -1,
         enable_all_funs: bool = True,
     ) -> List[Path]:
         """
@@ -70,6 +71,7 @@ class TestCase(unittest.TestCase):
             max_workers=max_workers,
             max_call_level=max_call_level,
             max_slice_depth=max_slice_depth,
+            max_memory_slice_depth=max_memory_slice_depth,
             enable_all_funs=enable_all_funs,
         )
         slicer.start()
@@ -1253,13 +1255,9 @@ class TestMultiThreading(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Assert results
-            paths = self.get_paths(
-                bv, max_workers=1, max_call_level=3, enable_all_funs=True
-            )
+            paths = self.get_paths(bv, max_workers=1, enable_all_funs=True)
             for max_workers in [2, 4, 8, -1]:
-                paths_mt = self.get_paths(
-                    bv, max_workers, max_call_level=3, enable_all_funs=True
-                )
+                paths_mt = self.get_paths(bv, max_workers, enable_all_funs=True)
                 self.assertCountEqual(paths, paths_mt, f"{max_workers:d} workers")
             # Close binary
             bv.file.close()

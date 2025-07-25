@@ -17,6 +17,12 @@ settings:
     value: -1
     min_value: -1
     max_value: 9999
+  max_memory_slice_depth:
+    name: max_memory_slice_depth
+    help: maximum memory slice depth to stop the search
+    value: -1
+    min_value: -1
+    max_value: 9999
   src_highlight_color:
     name: src_highlight_color
     help: color used to highlight instructions originating from slicing a source function

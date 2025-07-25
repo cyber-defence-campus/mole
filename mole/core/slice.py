@@ -169,6 +169,7 @@ class MediumLevelILBackwardSlicer:
         bv: bn.BinaryView,
         custom_tag: str = "",
         max_call_level: int = -1,
+        max_memory_slice_depth: int = -1,
         cancelled: Callable[[], bool] = None,
     ) -> None:
         """
@@ -182,6 +183,7 @@ class MediumLevelILBackwardSlicer:
         elif "snk" in self._tag.lower():
             self._origin = "snk"
         self._max_call_level: int = max_call_level
+        self._max_memory_slice_depth: int = max_memory_slice_depth
         self._cancelled = cancelled
         self._inst_visited: Set[bn.MediumLevelILInstruction] = set()
         self.inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
@@ -338,7 +340,9 @@ class MediumLevelILBackwardSlicer:
             case bn.MediumLevelILConstPtr():
                 # Iterate all memory defining instructions
                 mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
-                    inst.function, inst.ssa_memory_version
+                    inst.function,
+                    inst.ssa_memory_version,
+                    self._max_memory_slice_depth,
                 )
                 for mem_def_inst in mem_def_insts:
                     mem_def_inst_info = InstructionHelper.get_inst_info(
@@ -426,7 +430,9 @@ class MediumLevelILBackwardSlicer:
                         dest_var_use_sites[dest_var_use_site] = var_addr_ass_inst
                 # Get all instructions in the current function defining the current memory version
                 mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
-                    inst.function, inst.ssa_memory_version
+                    inst.function,
+                    inst.ssa_memory_version,
+                    self._max_memory_slice_depth,
                 )
                 for mem_def_inst in mem_def_insts:
                     mem_def_inst_info = InstructionHelper.get_inst_info(

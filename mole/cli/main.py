@@ -51,6 +51,12 @@ def main() -> None:
         help="maximum slice depth to stop the search",
     )
     parser.add_argument(
+        "--max_memory_slice_depth",
+        type=int,
+        default=None,
+        help="maximum memory slice depth to stop the search",
+    )
+    parser.add_argument(
         "--export_paths_to_json_file", help="export identified paths in JSON format"
     )
     parser.add_argument(
@@ -71,6 +77,7 @@ def main() -> None:
             max_workers=args["max_workers"],
             max_call_level=args["max_call_level"],
             max_slice_depth=args["max_slice_depth"],
+            max_memory_slice_depth=args["max_memory_slice_depth"],
         )
         slicer.start()
         paths = slicer.paths()
