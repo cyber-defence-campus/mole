@@ -61,7 +61,7 @@ class FunctionHelper:
         return parm_insts
 
     @staticmethod
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=32)
     def get_var_addr_assignments(
         func: bn.MediumLevelILFunction,
     ) -> Dict[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
@@ -97,7 +97,7 @@ class FunctionHelper:
         return var_addr_assignments
 
     @staticmethod
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=32)
     def get_ssa_memory_definitions(
         func: bn.MediumLevelILFunction,
         ssa_memory_version: int,
