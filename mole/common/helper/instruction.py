@@ -10,7 +10,7 @@ class InstructionHelper:
     """
 
     @staticmethod
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=64)
     def format_inst(inst: bn.MediumLevelILInstruction) -> str:
         """
         This method replaces function addresses with their names.
