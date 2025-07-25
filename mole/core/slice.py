@@ -282,7 +282,11 @@ class MediumLevelILBackwardSlicer:
                     call_parm = call_inst.params[parm_idx]
                     # Visit specific caller site if we go up the call stack (all caller sites otherwise)
                     if caller_level is not None and caller_level <= call_level:
+                        # Ignore if the actual call instruction is not within the caller site
                         if caller_site != call_inst.function:
+                            continue
+                        # Ignore if the actual call instruction was not sliced before
+                        if call_inst not in self.inst_graph:
                             continue
                     var_info = VariableHelper.get_ssavar_info(ssa_var)
                     call_info = InstructionHelper.get_inst_info(call_inst, False)
