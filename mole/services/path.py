@@ -24,6 +24,7 @@ class PathService(BackgroundTask):
         max_workers: Optional[int] = None,
         max_call_level: Optional[int] = None,
         max_slice_depth: Optional[int] = None,
+        max_memory_slice_depth: Optional[int] = None,
         enable_all_funs: bool = False,
         manual_fun: Optional[SourceFunction | SinkFunction] = None,
         manual_fun_inst: Optional[
@@ -46,6 +47,7 @@ class PathService(BackgroundTask):
         self._max_workers = max_workers
         self._max_call_level = max_call_level
         self._max_slice_depth = max_slice_depth
+        self._max_memory_slice_depth = max_memory_slice_depth
         self._enable_all_funs = enable_all_funs
         self._manual_fun = manual_fun
         self._manual_fun_inst = manual_fun_inst
@@ -92,6 +94,12 @@ class PathService(BackgroundTask):
             if setting:
                 max_slice_depth = setting.value
         log.debug(tag, f"- max_slice_depth: '{max_slice_depth}'")
+        max_memory_slice_depth = self._max_memory_slice_depth
+        if max_memory_slice_depth is None:
+            setting = self._config_model.get_setting("max_memory_slice_depth")
+            if setting:
+                max_memory_slice_depth = setting.value
+        log.debug(tag, f"- max_memory_slice_depth: '{max_memory_slice_depth}'")
         # Source functions
         src_funs: List[SourceFunction] = self._config_model.get_functions(
             fun_type="Sources",
@@ -177,6 +185,7 @@ class PathService(BackgroundTask):
                             self._manual_fun_all_code_xrefs,
                             max_call_level,
                             max_slice_depth,
+                            max_memory_slice_depth,
                             self._path_callback,
                             lambda: self.cancelled,
                         )

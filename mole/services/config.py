@@ -196,6 +196,7 @@ class ConfigService:
                 "max_workers",
                 "max_call_level",
                 "max_slice_depth",
+                "max_memory_slice_depth",
                 "max_turns",
                 "max_completion_tokens",
             ]:
