@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections import deque
 from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
 import binaryninja as bn
@@ -100,36 +101,41 @@ class FunctionHelper:
     @lru_cache(maxsize=32)
     def get_ssa_memory_definitions(
         func: bn.MediumLevelILFunction,
-        ssa_memory_version: int,
-        ssa_memory_versions: frozenset[int] = frozenset(),
+        memory_version: int,
+        max_memory_slice_depth: int = -1,
     ) -> List[bn.MediumLevelILInstruction]:
         """
         This method returns a list of all instructions within `func` that define the memory with
-        version `ssa_memory_version`. A memory defining instruction is an instruction that creates a
-        new memory version.
+        version `memory_version` (using breadth-first search). A memory defining instruction is an
+        instruction that creates a new memory version.
         """
-        # Determine current memory defining instruction
-        if func is None or ssa_memory_version in ssa_memory_versions:
+        if func is None:
             return []
-        ssa_memory_versions = ssa_memory_versions.union({ssa_memory_version})
-        mem_def_inst = func.get_ssa_memory_definition(ssa_memory_version)
-        if mem_def_inst is None:
-            return []
-        mem_def_insts: List[bn.MediumLevelILInstruction] = [mem_def_inst]
-        # Determine source memory versions
-        src_memory_versions: List[int] = []
-        match mem_def_inst:
-            case bn.MediumLevelILMemPhi(src_memory=src_memory):
-                src_memory_versions.extend(src_memory)
-            case _:
-                src_memory_versions.append(mem_def_inst.ssa_memory_version)
-        # Recursively determine memory defining instructions
-        for src_memory_version in src_memory_versions:
-            mem_def_insts.extend(
-                FunctionHelper.get_ssa_memory_definitions(
-                    func, src_memory_version, ssa_memory_versions
-                )
-            )
+        mem_def_insts: List[bn.MediumLevelILInstruction] = []
+        visited_memory_versions = set()
+        queue = deque([memory_version])
+        while queue:
+            # Break if maximum number of memory versions visited
+            if (
+                max_memory_slice_depth >= 0
+                and len(visited_memory_versions) >= max_memory_slice_depth
+            ):
+                break
+            # Get current memory version
+            current_memory_version = queue.popleft()
+            if current_memory_version not in visited_memory_versions:
+                # Visit current memory version
+                visited_memory_versions.add(current_memory_version)
+                mem_def_inst = func.get_ssa_memory_definition(current_memory_version)
+                if mem_def_inst is None:
+                    continue
+                mem_def_insts.append(mem_def_inst)
+                # Add new memory versions to queue
+                match mem_def_inst:
+                    case bn.MediumLevelILMemPhi(src_memory=src_memory):
+                        queue.extend(src_memory)
+                    case _:
+                        queue.append(mem_def_inst.ssa_memory_version)
         return mem_def_insts
 
     @staticmethod
