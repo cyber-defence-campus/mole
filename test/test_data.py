@@ -84,6 +84,13 @@ class TestData(unittest.TestCase):
                     max_value=9999,
                     help="maximum slice depth to stop the search",
                 ),
+                "max_memory_slice_depth": SpinboxSetting(
+                    name="max_memory_slice_depth",
+                    value=-1,
+                    min_value=-1,
+                    max_value=9999,
+                    help="maximum memory slice depth to stop the search",
+                ),
                 "src_highlight_color": ComboboxSetting(
                     name="src_highlight_color",
                     value="Orange",
@@ -271,6 +278,7 @@ class TestData(unittest.TestCase):
             "max_workers",
             "max_call_level",
             "max_slice_depth",
+            "max_memory_slice_depth",
             "max_turns",
             "max_completion_tokens",
         ]:

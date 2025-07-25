@@ -326,7 +326,7 @@ class SourceFunction(Function):
                             continue
                     # Create backward slicer
                     src_slicer = MediumLevelILBackwardSlicer(
-                        bv, custom_tag, 0, cancelled
+                        bv, custom_tag, 0, 0, cancelled
                     )
                     # Add edge between call and parameter instructions
                     src_slicer.inst_graph.add_node(
@@ -389,6 +389,7 @@ class SinkFunction(Function):
         manual_fun_all_code_xrefs: bool,
         max_call_level: int,
         max_slice_depth: int,
+        max_memory_slice_depth: int,
         found_path: Callable[[Path], None],
         cancelled: Callable[[], bool],
     ) -> List[Path]:
@@ -513,7 +514,11 @@ class SinkFunction(Function):
                     if par_slice_fun(snk_par_idx):
                         # Create backward slicer
                         snk_slicer = MediumLevelILBackwardSlicer(
-                            bv, custom_tag, max_call_level, cancelled
+                            bv,
+                            custom_tag,
+                            max_call_level,
+                            max_memory_slice_depth,
+                            cancelled,
                         )
                         snk_inst_graph = snk_slicer.inst_graph
                         snk_call_graph = snk_slicer.call_graph

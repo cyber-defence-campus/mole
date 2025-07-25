@@ -166,7 +166,9 @@ class ConfigView(qtw.QWidget):
         gen_wid.setLayout(gen_lay)
         # Find layout
         fnd_lay = qtw.QGridLayout()
-        for i, name in enumerate(["max_call_level", "max_slice_depth"]):
+        for i, name in enumerate(
+            ["max_call_level", "max_slice_depth", "max_memory_slice_depth"]
+        ):
             setting: SpinboxSetting = self.config_ctr.get_setting(name)
             if not setting:
                 continue
