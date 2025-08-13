@@ -400,8 +400,8 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 task = executor.submit(self._analyze_path, path_id, path)
                 tasks[task] = path_id
             # Wait for tasks to complete
-            for cnt, task in enumerate(futures.as_completed(tasks)):
-                self.progress = f"Mole analyzed path {cnt + 1:d}/{len(self._paths):d}"
+            for cnt, task in enumerate(futures.as_completed(tasks), start=1):
+                self.progress = f"Mole analyzed path {cnt:d}/{len(self._paths):d}"
                 path_id = tasks[task]
                 # Collect vulnerability reports from task results
                 if task.done() and not task.exception():
