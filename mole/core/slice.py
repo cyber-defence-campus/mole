@@ -325,7 +325,7 @@ class MediumLevelILBackwardSlicer:
                     self.call_graph.add_node(call_inst.function, call_level - 1)
                     self.call_graph.add_node(inst.function, call_level)
                     self.call_graph.add_edge(call_inst.function, inst.function)
-                    self._slice_backwards(call_param, call_level - 1, call_inst)
+                    self._slice_backwards(call_param, call_level - 1, None)
         return
 
     def _slice_backwards(
