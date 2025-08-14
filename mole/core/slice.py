@@ -1,8 +1,10 @@
 from __future__ import annotations
+from collections import deque
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.variable import VariableHelper
 from mole.common.log import log
+from mole.core.call import MediumLevelILCallTracker
 from typing import Any, Callable, Dict, List, Set
 import binaryninja as bn
 import networkx as nx
@@ -672,4 +674,192 @@ class MediumLevelILBackwardSlicer:
         """
         for _ in inst.ssa_form.traverse(self._slice_backwards):
             pass
+        return
+
+
+class NewMediumLevelILBackwardSlicer:
+    """
+    This class implements backward slicing for MLIL instructions.
+    """
+
+    def __init__(
+        self,
+        custom_tag: str = "",
+        max_call_level: int = -1,
+        cancelled: Callable[[], bool] = None,
+    ) -> None:
+        self._tag = custom_tag if custom_tag else tag
+        self._max_call_level = max_call_level
+        self._cancelled = cancelled if cancelled else lambda: False
+        self.call_tracker: MediumLevelILCallTracker = MediumLevelILCallTracker()
+        return
+
+    def _slice_ssa_var_definition(
+        self,
+        ssa_var: bn.SSAVariable,
+        inst: bn.MediumLevelILInstruction,
+    ) -> None:
+        """
+        TODO
+        """
+        # If an instruction containing the SSA variable definition exists in the current
+        # function, proceed slicing there (otherwise try find it in callers)
+        inst_def = inst.function.get_ssa_var_definition(ssa_var)
+        if inst_def:
+            self._slice_backwards(inst_def)
+            return
+        # Determine all instructions calling the current function
+        call_insts: Set[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa] = set()
+        for caller_site in inst.function.source_function.caller_sites:
+            # Ensure the caller site is a valid function
+            caller_func = caller_site.function
+            if caller_func is None:
+                log.warn(
+                    self._tag,
+                    f"Caller site at address 0x{caller_site.address:x} contains no valid function",
+                )
+                continue
+            # Ensure the caller site has a valid MLIL representation
+            if (
+                caller_func.mlil is None or caller_func.mlil.ssa_form is None
+            ) and caller_func.analysis_skipped:
+                log.info(
+                    self._tag,
+                    f"Forcing analysis of caller site at address 0x{caller_site.address:x}",
+                )
+                caller_func.analysis_skipped = False
+                if caller_func.mlil is None or caller_func.mlil.ssa_form is None:
+                    log.warn(
+                        self._tag,
+                        f"Caller site at address 0x{caller_site.address:x} contains no valid function even after forcing analysis",
+                    )
+                    continue
+            # Find all instructions calling the current function
+            for caller_inst in caller_func.mlil.ssa_form.instructions:
+                if caller_inst.address == caller_site.address:
+                    call_insts.update(
+                        InstructionHelper.get_mlil_call_insts(caller_inst)
+                    )
+        # Iterate the current function's parameters
+        for param_idx, param_var in enumerate(
+            inst.function.source_function.parameter_vars,
+            start=1,
+        ):
+            # Ignore parameters not corresponding to the intended variable
+            if param_var != ssa_var.var:
+                continue
+            # Iterate instructions calling the current function
+            for call_inst in call_insts:
+                #
+                ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
+                call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
+                log.debug(
+                    self._tag,
+                    f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to caller '{call_inst_info:s}'",
+                )
+                #
+                if self.call_tracker.is_top(call_inst.function):
+                    self.call_tracker.leave()
+                else:
+                    self.call_tracker.leave(call_inst.function)
+                self._slice_backwards(call_inst.params[param_idx - 1])
+                self.call_tracker.leave()
+        return
+
+    def _slice_backwards(
+        self,
+        inst: bn.MediumLevelILInstruction,
+    ) -> None:
+        """
+        This method backward slices instruction `inst` based on its type.
+        """
+        # Check if slicing should be cancelled
+        if self._cancelled():
+            return
+        # Check if maximum call level is reached
+        call_level = len(self.call_tracker.call_stack) - 1
+        if self._max_call_level >= 0 and abs(call_level) > self._max_call_level:
+            log.debug(self._tag, f"Maximum call level {self._max_call_level:d} reached")
+            return
+        # TODO: Slice instruction
+        inst_info = InstructionHelper.get_inst_info(inst)
+        log.debug(self._tag, f"[{call_level:+d}] {inst_info:s}")
+        match inst:
+            # NOTE: Case order matters
+            # case bn.MediumLevelILConstPtr():
+            #     pass
+            # case (
+            #     bn.MediumLevelILVarAliased()
+            #     | bn.MediumLevelILVarAliasedField()
+            #     | bn.MediumLevelILAddressOf()
+            #     | bn.MediumLevelILAddressOfField()
+            # ):
+            #     pass
+            case (
+                bn.MediumLevelILVarSsa()
+                | bn.MediumLevelILVarSsaField()
+                | bn.MediumLevelILVarField()
+                | bn.MediumLevelILUnimplMem()
+            ):
+                self._slice_ssa_var_definition(inst.src, inst)
+            # case bn.MediumLevelILRet():
+            #     pass
+            # case bn.MediumLevelILVarSplitSsa():
+            #     pass
+            # case bn.MediumLevelILVarPhi():
+            #     pass
+            # case (
+            #     bn.MediumLevelILCallSsa(dest=dest_inst)
+            #     | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
+            #     | bn.MediumLevelILTailcallSsa(dest=dest_inst)
+            #     | bn.MediumLevelILTailcallUntypedSsa(dest=dest_inst)
+            # ):
+            #     pass
+            # case (
+            #     bn.MediumLevelILSyscallSsa()
+            #     | bn.MediumLevelILSyscallUntypedSsa()
+            #     | bn.MediumLevelILIntrinsicSsa()
+            #     | bn.MediumLevelILSeparateParamList()
+            # ):
+            #     pass
+            # case (
+            #     bn.MediumLevelILConstBase()
+            #     | bn.MediumLevelILNop()
+            #     | bn.MediumLevelILBp()
+            #     | bn.MediumLevelILTrap()
+            #     | bn.MediumLevelILFreeVarSlotSsa()
+            #     | bn.MediumLevelILUndef()
+            #     | bn.MediumLevelILUnimpl()
+            # ):
+            #     pass
+            # case (
+            #     bn.MediumLevelILSetVarSsa()
+            #     | bn.MediumLevelILSetVarAliased()
+            #     | bn.MediumLevelILSetVarAliasedField()
+            #     | bn.MediumLevelILSetVarSsaField()
+            #     | bn.MediumLevelILSetVarSplitSsa()
+            #     | bn.MediumLevelILUnaryBase()
+            #     | bn.MediumLevelILBoolToInt()
+            #     | bn.MediumLevelILLoadSsa()
+            #     | bn.MediumLevelILLoadStructSsa()
+            #     | bn.MediumLevelILStoreSsa()
+            #     | bn.MediumLevelILStoreStructSsa()
+            # ):
+            #     pass
+            # case bn.MediumLevelILBinaryBase() | bn.MediumLevelILCarryBase():
+            #     pass
+            # case bn.MediumLevelILJump() | bn.MediumLevelILJumpTo():
+            #     pass
+            case _:
+                log.warn(
+                    self._tag,
+                    f"[{call_level:+d}] {inst_info:s}: Missing instruction handler",
+                )
+        return
+
+    def slice_backwards(self, inst: bn.MediumLevelILInstruction) -> None:
+        """
+        This method backward slices the instruction `inst`.
+        """
+        deque(inst.ssa_form.traverse(self._slice_backwards), maxlen=0)
         return

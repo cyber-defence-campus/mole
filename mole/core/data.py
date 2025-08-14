@@ -8,6 +8,7 @@ from mole.core.slice import (
     MediumLevelILBackwardSlicer,
     MediumLevelILFunctionGraph,
     MediumLevelILInstructionGraph,
+    NewMediumLevelILBackwardSlicer,
 )
 from mole.models.ai import AiVulnerabilityReport
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
@@ -533,6 +534,12 @@ class SinkFunction(Function):
                         snk_call_graph.add_node(snk_call_inst.function, call_level=0)
                         # Backward slice the parameter instruction
                         snk_slicer.slice_backwards(snk_par_var)
+                        # TODO: TEST
+                        new_snk_slicer = NewMediumLevelILBackwardSlicer(
+                            custom_tag, max_call_level, cancelled
+                        )
+                        new_snk_slicer.call_tracker.leave(snk_par_var.function)
+                        new_snk_slicer.slice_backwards(snk_par_var)
                         # Iterate sources
                         for source in sources:
                             if cancelled():
