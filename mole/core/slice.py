@@ -750,20 +750,22 @@ class NewMediumLevelILBackwardSlicer:
                 continue
             # Iterate instructions calling the current function
             for call_inst in call_insts:
-                #
+                # Log the parameter being followed
                 ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
                 call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
                 log.debug(
                     self._tag,
                     f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to caller '{call_inst_info:s}'",
                 )
-                #
+                # TODO if caller is at the top of the call stack
                 if self.call_tracker.is_top(call_inst.function):
-                    self.call_tracker.leave()
+                    self.call_tracker.pop_func()
+                # TODO if caller is not at the top of the call stack
                 else:
-                    self.call_tracker.leave(call_inst.function)
+                    # self.call_tracker.pop_func(call_inst.function)
+                    self.call_tracker.push_func(call_inst.function, reverse=True)
                 self._slice_backwards(call_inst.params[param_idx - 1])
-                self.call_tracker.leave()
+                self.call_tracker.pop_func()
         return
 
     def _slice_backwards(
@@ -784,6 +786,7 @@ class NewMediumLevelILBackwardSlicer:
         # TODO: Slice instruction
         inst_info = InstructionHelper.get_inst_info(inst)
         log.debug(self._tag, f"[{call_level:+d}] {inst_info:s}")
+        self.call_tracker.push_inst(inst)
         match inst:
             # NOTE: Case order matters
             # case bn.MediumLevelILConstPtr():
@@ -855,6 +858,7 @@ class NewMediumLevelILBackwardSlicer:
                     self._tag,
                     f"[{call_level:+d}] {inst_info:s}: Missing instruction handler",
                 )
+        self.call_tracker.pop_inst()
         return
 
     def slice_backwards(self, inst: bn.MediumLevelILInstruction) -> None:

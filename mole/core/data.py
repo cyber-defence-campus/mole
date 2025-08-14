@@ -538,7 +538,9 @@ class SinkFunction(Function):
                         new_snk_slicer = NewMediumLevelILBackwardSlicer(
                             custom_tag, max_call_level, cancelled
                         )
-                        new_snk_slicer.call_tracker.leave(snk_par_var.function)
+                        new_snk_slicer.call_tracker.push_func(
+                            snk_call_inst.function, reverse=True
+                        )
                         new_snk_slicer.slice_backwards(snk_par_var)
                         # Iterate sources
                         for source in sources:
