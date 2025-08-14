@@ -758,7 +758,7 @@ class NewMediumLevelILBackwardSlicer:
                     f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to caller '{call_inst_info:s}'",
                 )
                 # TODO if caller is at the top of the call stack
-                if self.call_tracker.is_top(call_inst.function):
+                if self.call_tracker.is_top_func(call_inst.function):
                     self.call_tracker.pop_func()
                 # TODO if caller is not at the top of the call stack
                 else:

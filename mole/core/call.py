@@ -31,14 +31,15 @@ class MediumLevelILCallTracker:
     """
 
     def __init__(self) -> None:
-        # self.call_stack: List[bn.MediumLevelILFunction] = []
         self.call_stack: List[MediumLevelILCallFrame] = []
         self.call_graph = nx.DiGraph()  # TODO: Maybe use MediumLevelILFunctionGraph
         return
 
     def push_func(self, func: bn.MediumLevelILFunction, reverse: bool = False) -> None:
         """
-        TODO
+        This method creates a new call frame with the given function `func` and pushes it to the top
+        of the call stack. Also, it updates the call graph. If `reverse` is True, `func` is
+        considered to be the caller (not the callee).
         """
         # Update call stack
         self.call_stack.append(MediumLevelILCallFrame(func))
@@ -52,41 +53,41 @@ class MediumLevelILCallTracker:
                 self.call_graph.add_edge(func, callee)
         return
 
-    def push_inst(self, inst: bn.MediumLevelILInstruction) -> None:
+    def pop_func(self) -> bn.MediumLevelILFunction | None:
         """
-        TODO
-        """
-        if self.call_stack:
-            self.call_stack[-1].inst_stack.append(inst)
-        return
-
-    def pop_func(
-        self, caller: bn.MediumLevelILFunction = None
-    ) -> bn.MediumLevelILFunction | None:
-        """
-        TODO
+        This method pops the top call frame from the call stack and returns the call frame's
+        function.
         """
         if self.call_stack:
             return self.call_stack.pop().func
         return None
 
+    def is_top_func(self, func: bn.MediumLevelILFunction) -> bool:
+        """
+        This method checks if the given function `func` is at the top of the call stack.
+        """
+        return self.call_stack and self.call_stack[-1].func == func
+
+    def push_inst(self, inst: bn.MediumLevelILInstruction) -> None:
+        """
+        This method pushes the given instruction `inst` to the call frame on the top of the call
+        stack.
+        """
+        if self.call_stack:
+            self.call_stack[-1].inst_stack.append(inst)
+        return
+
     def pop_inst(self) -> bn.MediumLevelILInstruction | None:
         """
-        TODO
+        This method pops an instruction from the call frame on the top of the call stack.
         """
         if self.call_stack:
             return self.call_stack[-1].inst_stack.pop()
         return None
 
-    def is_top(self, func: bn.MediumLevelILFunction) -> bool:
-        """
-        This method checks if the given function is at the top of the call stack.
-        """
-        return self.call_stack and self.call_stack[-1].func == func
-
     def print_call_stack(self) -> None:
         """
-        TODO
+        TODO: This method prints the call stack.
         """
         for call_frame in self.call_stack:
             print(str(call_frame))
@@ -94,7 +95,7 @@ class MediumLevelILCallTracker:
 
     def print_call_graph(self) -> None:
         """
-        TODO
+        TODO: This method prints the call graph.
         """
         for caller, callee in self.call_graph.edges():
             caller_info = FunctionHelper.get_func_info(caller, False)
@@ -104,7 +105,7 @@ class MediumLevelILCallTracker:
 
     def print_inst_slice(self) -> None:
         """
-        TODO
+        TODO: This method prints the instruction slice.
         """
         for call_frame in self.call_stack:
             print(str(call_frame))
