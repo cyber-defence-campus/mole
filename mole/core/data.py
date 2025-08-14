@@ -541,7 +541,9 @@ class SinkFunction(Function):
                         new_snk_slicer.call_tracker.push_func(
                             snk_call_inst.function, reverse=True
                         )
+                        log.warn(tag, "NewMediumLevelILBackwardSlicer: Start")
                         new_snk_slicer.slice_backwards(snk_par_var)
+                        log.warn(tag, "NewMediumLevelILBackwardSlicer: End")
                         # Iterate sources
                         for source in sources:
                             if cancelled():

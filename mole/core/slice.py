@@ -809,8 +809,9 @@ class NewMediumLevelILBackwardSlicer:
             #     pass
             # case bn.MediumLevelILVarSplitSsa():
             #     pass
-            # case bn.MediumLevelILVarPhi():
-            #     pass
+            case bn.MediumLevelILVarPhi():
+                for var in inst.src:
+                    self._slice_ssa_var_definition(var, inst)
             # case (
             #     bn.MediumLevelILCallSsa(dest=dest_inst)
             #     | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
@@ -835,20 +836,20 @@ class NewMediumLevelILBackwardSlicer:
             #     | bn.MediumLevelILUnimpl()
             # ):
             #     pass
-            # case (
-            #     bn.MediumLevelILSetVarSsa()
-            #     | bn.MediumLevelILSetVarAliased()
-            #     | bn.MediumLevelILSetVarAliasedField()
-            #     | bn.MediumLevelILSetVarSsaField()
-            #     | bn.MediumLevelILSetVarSplitSsa()
-            #     | bn.MediumLevelILUnaryBase()
-            #     | bn.MediumLevelILBoolToInt()
-            #     | bn.MediumLevelILLoadSsa()
-            #     | bn.MediumLevelILLoadStructSsa()
-            #     | bn.MediumLevelILStoreSsa()
-            #     | bn.MediumLevelILStoreStructSsa()
-            # ):
-            #     pass
+            case (
+                bn.MediumLevelILSetVarSsa()
+                | bn.MediumLevelILSetVarAliased()
+                | bn.MediumLevelILSetVarAliasedField()
+                | bn.MediumLevelILSetVarSsaField()
+                | bn.MediumLevelILSetVarSplitSsa()
+                | bn.MediumLevelILUnaryBase()
+                | bn.MediumLevelILBoolToInt()
+                | bn.MediumLevelILLoadSsa()
+                | bn.MediumLevelILLoadStructSsa()
+                | bn.MediumLevelILStoreSsa()
+                | bn.MediumLevelILStoreStructSsa()
+            ):
+                self._slice_backwards(inst.src)
             # case bn.MediumLevelILBinaryBase() | bn.MediumLevelILCarryBase():
             #     pass
             # case bn.MediumLevelILJump() | bn.MediumLevelILJumpTo():
