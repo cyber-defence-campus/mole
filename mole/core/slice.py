@@ -699,20 +699,27 @@ class NewMediumLevelILBackwardSlicer:
     def _slice_ssa_var_definition(
         self,
         ssa_var: bn.SSAVariable,
-        inst: bn.MediumLevelILInstruction,
+        func: bn.MediumLevelILFunction,
     ) -> None:
         """
-        TODO
+        This method tries to find the instruction containing the SSA variable definition of
+        `ssa_var`. It first tries to find the defining instruction within the current function
+        `func`. If found, slicing proceeds there. If no defining instruction is found within `func`,
+        the method checks whether `ssa_var` is used as a parameter of function `func`. If so, the
+        method next distinguishes whether or not slicing entered `func`. If slicing entered `func`,
+        nothing needs to be done, since we will step out later automatically. If slicing did not
+        enter `func`, the method determines all possible callers and follows the corresponding
+        parameter.
         """
         # If an instruction containing the SSA variable definition exists in the current
         # function, proceed slicing there (otherwise try find it in callers)
-        inst_def = inst.function.get_ssa_var_definition(ssa_var)
+        inst_def = func.get_ssa_var_definition(ssa_var)
         if inst_def:
             self._slice_backwards(inst_def)
             return
         # Determine all instructions calling the current function
         call_insts: Set[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa] = set()
-        for caller_site in inst.function.source_function.caller_sites:
+        for caller_site in func.source_function.caller_sites:
             # Ensure the caller site is a valid function
             caller_func = caller_site.function
             if caller_func is None:
@@ -744,7 +751,7 @@ class NewMediumLevelILBackwardSlicer:
                     )
         # Iterate the current function's parameters
         for param_idx, param_var in enumerate(
-            inst.function.source_function.parameter_vars,
+            func.source_function.parameter_vars,
             start=1,
         ):
             # Ignore parameters not corresponding to the intended variable
@@ -816,14 +823,14 @@ class NewMediumLevelILBackwardSlicer:
                 | bn.MediumLevelILVarField()
                 | bn.MediumLevelILUnimplMem()
             ):
-                self._slice_ssa_var_definition(inst.src, inst)
+                self._slice_ssa_var_definition(inst.src, inst.function)
             # case bn.MediumLevelILRet():
             #     pass
             # case bn.MediumLevelILVarSplitSsa():
             #     pass
             case bn.MediumLevelILVarPhi():
                 for var in inst.src:
-                    self._slice_ssa_var_definition(var, inst)
+                    self._slice_ssa_var_definition(var, inst.function)
             case (
                 bn.MediumLevelILCallSsa(dest=dest_inst)
                 | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
