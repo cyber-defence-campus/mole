@@ -31,8 +31,8 @@ class MediumLevelILCallTracker:
     """
 
     def __init__(self) -> None:
-        self.call_stack: List[MediumLevelILCallFrame] = []
-        self.call_graph = nx.DiGraph()  # TODO: Maybe use MediumLevelILFunctionGraph
+        self._call_stack: List[MediumLevelILCallFrame] = []
+        self._call_graph = nx.DiGraph()  # TODO: Maybe use MediumLevelILFunctionGraph
         return
 
     def push_func(self, func: bn.MediumLevelILFunction, reverse: bool = False) -> None:
@@ -42,54 +42,103 @@ class MediumLevelILCallTracker:
         considered to be the caller (not the callee).
         """
         # Update call stack
-        self.call_stack.append(MediumLevelILCallFrame(func))
+        self._call_stack.append(MediumLevelILCallFrame(func))
         # Update call graph
-        if len(self.call_stack) >= 2:
+        if len(self._call_stack) >= 2:
             if not reverse:
-                caller = self.call_stack[-2].func
-                self.call_graph.add_edge(caller, func)
+                caller = self._call_stack[-2].func
+                self._call_graph.add_edge(caller, func)
             else:
-                callee = self.call_stack[-2].func
-                self.call_graph.add_edge(func, callee)
+                callee = self._call_stack[-2].func
+                self._call_graph.add_edge(func, callee)
         return
+
+    # def new_push_func(self, func: bn.MediumLevelILFunction) -> None:
+    #     """
+    #     TODO: c005d4d
+    #     """
+    #     # Update call stack
+    #     self._call_stack.append(MediumLevelILCallFrame(func))
+    #     # Update call graph
+    #     if len(self._call_stack) >= 2:
+    #         caller = self._call_stack[-2].func
+    #         self._call_graph.add_edge(caller, func)
+    #     return
 
     def pop_func(self) -> bn.MediumLevelILFunction | None:
         """
         This method pops the top call frame from the call stack and returns the call frame's
         function.
         """
-        if self.call_stack:
-            return self.call_stack.pop().func
+        if self._call_stack:
+            return self._call_stack.pop().func
         return None
 
-    def is_top_func(self, func: bn.MediumLevelILFunction) -> bool:
+    # def new_pop_func(
+    #     self, func: bn.MediumLevelILFunction
+    # ) -> bn.MediumLevelILFunction | None:
+    #     """
+    #     TODO: c005d4d
+    #     """
+    #     # Update call stack
+    #     if self._call_stack and func is None:
+    #         return self._call_stack.pop().func
+    #     self._call_stack.append(MediumLevelILCallFrame(func))
+    #     # Update call graph
+    #     if len(self._call_stack) >= 2:
+    #         self._call_graph.add_edge(func, self._call_stack[-2].func)
+    #     return
+
+    def is_func_at(self, func: bn.MediumLevelILFunction, idx: int = -1) -> bool:
         """
-        This method checks if the given function `func` is at the top of the call stack.
+        This method checks if the given function `func` is at the given stack position `idx` (-1 for
+        top).
         """
-        return self.call_stack and self.call_stack[-1].func == func
+        try:
+            return self._call_stack[idx].func == func
+        except IndexError:
+            pass
+        return False
+
+    def goes_downwards(self) -> bool:
+        """
+        TODO
+        """
+        if len(self._call_stack) >= 2:
+            callee = self._call_stack[-1].func
+            caller = self._call_stack[-2].func
+            if self._call_graph.has_edge(caller, callee):
+                return True
+        return False
+
+    def get_call_level(self) -> int:
+        """
+        This method returns the current call level.
+        """
+        return len(self._call_stack) - 1
 
     def push_inst(self, inst: bn.MediumLevelILInstruction) -> None:
         """
         This method pushes the given instruction `inst` to the call frame on the top of the call
         stack.
         """
-        if self.call_stack:
-            self.call_stack[-1].inst_stack.append(inst)
+        if self._call_stack:
+            self._call_stack[-1].inst_stack.append(inst)
         return
 
     def pop_inst(self) -> bn.MediumLevelILInstruction | None:
         """
         This method pops an instruction from the call frame on the top of the call stack.
         """
-        if self.call_stack:
-            return self.call_stack[-1].inst_stack.pop()
+        if self._call_stack:
+            return self._call_stack[-1].inst_stack.pop()
         return None
 
     def print_call_stack(self) -> None:
         """
         TODO: This method prints the call stack.
         """
-        for call_frame in self.call_stack:
+        for call_frame in self._call_stack:
             print(str(call_frame))
         return
 
@@ -97,7 +146,7 @@ class MediumLevelILCallTracker:
         """
         TODO: This method prints the call graph.
         """
-        for caller, callee in self.call_graph.edges():
+        for caller, callee in self._call_graph.edges():
             caller_info = FunctionHelper.get_func_info(caller, False)
             callee_info = FunctionHelper.get_func_info(callee, False)
             print(f"{caller_info} -> {callee_info}")
@@ -107,7 +156,7 @@ class MediumLevelILCallTracker:
         """
         TODO: This method prints the instruction slice.
         """
-        for call_frame in self.call_stack:
+        for call_frame in self._call_stack:
             print(str(call_frame))
             for inst in call_frame.inst_stack:
                 inst_info = InstructionHelper.get_inst_info(inst, False)

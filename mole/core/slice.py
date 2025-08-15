@@ -684,10 +684,12 @@ class NewMediumLevelILBackwardSlicer:
 
     def __init__(
         self,
+        bv: bn.BinaryView,
         custom_tag: str = "",
         max_call_level: int = -1,
         cancelled: Callable[[], bool] = None,
     ) -> None:
+        self._bv = bv
         self._tag = custom_tag if custom_tag else tag
         self._max_call_level = max_call_level
         self._cancelled = cancelled if cancelled else lambda: False
@@ -748,24 +750,34 @@ class NewMediumLevelILBackwardSlicer:
             # Ignore parameters not corresponding to the intended variable
             if param_var != ssa_var.var:
                 continue
-            # Iterate instructions calling the current function
-            for call_inst in call_insts:
-                # Log the parameter being followed
+            # Follow the parameter to all possible callers if we did not go down the call graph
+            if not self.call_tracker.goes_downwards():
                 ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
-                call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
-                log.debug(
-                    self._tag,
-                    f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to caller '{call_inst_info:s}'",
-                )
-                # TODO if caller is at the top of the call stack
-                if self.call_tracker.is_top_func(call_inst.function):
-                    self.call_tracker.pop_func()
-                # TODO if caller is not at the top of the call stack
-                else:
-                    # self.call_tracker.pop_func(call_inst.function)
+                for call_inst in call_insts:
+                    call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
+                    log.debug(
+                        self._tag,
+                        f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to caller '{call_inst_info:s}'",
+                    )
                     self.call_tracker.push_func(call_inst.function, reverse=True)
-                self._slice_backwards(call_inst.params[param_idx - 1])
-                self.call_tracker.pop_func()
+                    self._slice_backwards(call_inst.params[param_idx - 1])
+                    self.call_tracker.pop_func()
+        return
+
+    def _slice_call_params(
+        self, inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa
+    ) -> None:
+        """
+        This method slices all parameters of the call instruction `inst`.
+        """
+        inst_info = InstructionHelper.get_inst_info(inst, False)
+        for param_idx, param in enumerate(inst.params, start=1):
+            param_info = InstructionHelper.get_inst_info(param, False)
+            log.debug(
+                self._tag,
+                f"Follow parameter {param_idx:d} '{param_info:s}' to caller '{inst_info:s}'",
+            )
+            self._slice_backwards(param)
         return
 
     def _slice_backwards(
@@ -779,7 +791,7 @@ class NewMediumLevelILBackwardSlicer:
         if self._cancelled():
             return
         # Check if maximum call level is reached
-        call_level = len(self.call_tracker.call_stack) - 1
+        call_level = self.call_tracker.get_call_level()
         if self._max_call_level >= 0 and abs(call_level) > self._max_call_level:
             log.debug(self._tag, f"Maximum call level {self._max_call_level:d} reached")
             return
@@ -812,13 +824,73 @@ class NewMediumLevelILBackwardSlicer:
             case bn.MediumLevelILVarPhi():
                 for var in inst.src:
                     self._slice_ssa_var_definition(var, inst)
-            # case (
-            #     bn.MediumLevelILCallSsa(dest=dest_inst)
-            #     | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
-            #     | bn.MediumLevelILTailcallSsa(dest=dest_inst)
-            #     | bn.MediumLevelILTailcallUntypedSsa(dest=dest_inst)
-            # ):
-            #     pass
+            case (
+                bn.MediumLevelILCallSsa(dest=dest_inst)
+                | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
+                | bn.MediumLevelILTailcallSsa(dest=dest_inst)
+                | bn.MediumLevelILTailcallUntypedSsa(dest=dest_inst)
+            ):
+                inst_info = InstructionHelper.get_inst_info(inst, False)
+                dest_inst_info = InstructionHelper.get_inst_info(dest_inst, False)
+                match dest_inst:
+                    # Direct function calls
+                    case (
+                        bn.MediumLevelILConstPtr(constant=func_addr)
+                        | bn.MediumLevelILImport(constant=func_addr)
+                    ):
+                        # Get destination function
+                        dest_func = self._bv.get_function_at(func_addr)
+                        # Proceed slicing the parameters if we cannot go into the callee (callee is
+                        # not a valid function - e.g. external function)
+                        if (
+                            not dest_func
+                            or not dest_func.mlil
+                            or not dest_func.mlil.ssa_form
+                        ):
+                            self._slice_call_params(inst)
+                        # Proceed slicing the callee's return instructions if we can go into the
+                        # callee (callee is a valid function)
+                        else:
+                            dest_func = dest_func.mlil.ssa_form
+                            dest_symb = dest_func.source_function.symbol
+                            for dest_func_inst in dest_func.instructions:
+                                match dest_func_inst:
+                                    case (
+                                        bn.MediumLevelILRet()
+                                        | bn.MediumLevelILTailcallSsa()
+                                    ):
+                                        # Function
+                                        if dest_symb.type in [
+                                            bn.SymbolType.FunctionSymbol,
+                                            bn.SymbolType.LibraryFunctionSymbol,
+                                        ]:
+                                            dest_func_inst_info = (
+                                                InstructionHelper.get_inst_info(
+                                                    dest_func_inst, False
+                                                )
+                                            )
+                                            log.debug(
+                                                self._tag,
+                                                f"Follow return instruction '{dest_func_inst_info:s}' of function '{dest_inst_info:s}'",
+                                            )
+                                            self.call_tracker.push_func(dest_func)
+                                            self._slice_backwards(dest_func_inst)
+                                            self.call_tracker.pop_func()
+                                        # Imported function
+                                        elif (
+                                            dest_symb.type
+                                            == bn.SymbolType.ImportedFunctionSymbol
+                                        ):
+                                            self._slice_call_params(inst)
+                    # Indirect function calls
+                    case bn.MediumLevelILVarSsa():
+                        self._slice_call_params(inst)
+                    # Unhandled function calls
+                    case _:
+                        log.warn(
+                            self._tag,
+                            f"[{call_level:+d}] {dest_inst_info:s}: Missing call handler",
+                        )
             # case (
             #     bn.MediumLevelILSyscallSsa()
             #     | bn.MediumLevelILSyscallUntypedSsa()
