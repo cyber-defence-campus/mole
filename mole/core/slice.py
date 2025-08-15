@@ -687,11 +687,13 @@ class NewMediumLevelILBackwardSlicer:
         bv: bn.BinaryView,
         custom_tag: str = "",
         max_call_level: int = -1,
+        max_memory_slice_depth: int = -1,
         cancelled: Callable[[], bool] = None,
     ) -> None:
         self._bv = bv
         self._tag = custom_tag if custom_tag else tag
         self._max_call_level = max_call_level
+        self._max_memory_slice_depth = max_memory_slice_depth
         self._cancelled = cancelled if cancelled else lambda: False
         self.call_tracker: MediumLevelILCallTracker = MediumLevelILCallTracker()
         return
@@ -797,8 +799,40 @@ class NewMediumLevelILBackwardSlicer:
         self.call_tracker.push_inst(inst)
         match inst:
             # NOTE: Case order matters
-            # case bn.MediumLevelILConstPtr():
-            #     pass
+            case bn.MediumLevelILConstPtr():
+                # Iterate all memory defining instructions
+                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                    inst.function,
+                    inst.ssa_memory_version,
+                    self._max_memory_slice_depth,
+                )
+                for mem_def_inst in mem_def_insts:
+                    mem_def_inst_info = InstructionHelper.get_inst_info(
+                        mem_def_inst, False
+                    )
+                    match mem_def_inst:
+                        # Slice calls having the same pointer as parameter
+                        case bn.MediumLevelILCallSsa(params=params):
+                            followed = False
+                            for param in params:
+                                match param:
+                                    case bn.MediumLevelILConstPtr(
+                                        constant=constant
+                                    ) if constant == inst.constant:
+                                        log.debug(
+                                            self._tag,
+                                            f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'",
+                                        )
+                                        self._slice_backwards(mem_def_inst)
+                                        followed = True
+                                if followed:
+                                    break
+                            if not followed:
+                                log.debug(
+                                    self._tag,
+                                    f"Do not follow instruction '{mem_def_inst_info:s}' since it does not use '0x{inst.constant:x}'",
+                                )
+
             # case (
             #     bn.MediumLevelILVarAliased()
             #     | bn.MediumLevelILVarAliasedField()

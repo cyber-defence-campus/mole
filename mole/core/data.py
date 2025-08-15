@@ -536,7 +536,11 @@ class SinkFunction(Function):
                         snk_slicer.slice_backwards(snk_par_var)
                         # TODO: TEST
                         new_snk_slicer = NewMediumLevelILBackwardSlicer(
-                            bv, custom_tag, max_call_level, cancelled
+                            bv,
+                            custom_tag,
+                            max_call_level,
+                            max_memory_slice_depth,
+                            cancelled,
                         )
                         new_snk_slicer.call_tracker.push_func(
                             snk_call_inst.function, reverse=True
