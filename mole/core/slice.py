@@ -757,34 +757,23 @@ class NewMediumLevelILBackwardSlicer:
             # Ignore parameters not corresponding to the intended variable
             if param_var != ssa_var.var:
                 continue
+            ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
             # Follow the parameter to all possible callers if we did not go down the call graph
             if not self.call_tracker.goes_downwards():
-                ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
                 for call_inst in call_insts:
                     call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
                     log.debug(
                         self._tag,
-                        f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to caller '{call_inst_info:s}'",
+                        f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to possible caller '{call_inst_info:s}'",
                     )
                     self.call_tracker.push_func(call_inst.function, reverse=True)
                     self._slice_backwards(call_inst.params[param_idx - 1])
                     self.call_tracker.pop_func()
-        return
-
-    def _slice_call_params(
-        self, inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa
-    ) -> None:
-        """
-        This method slices all parameters of the call instruction `inst`.
-        """
-        inst_info = InstructionHelper.get_inst_info(inst, False)
-        for param_idx, param in enumerate(inst.params, start=1):
-            param_info = InstructionHelper.get_inst_info(param, False)
-            log.debug(
-                self._tag,
-                f"Follow parameter {param_idx:d} '{param_info:s}' to caller '{inst_info:s}'",
-            )
-            self._slice_backwards(param)
+            else:
+                log.debug(
+                    self._tag,
+                    f"Do not follow parameter {param_idx:d} '{ssa_var_info:s}' to possible callers",
+                )
         return
 
     def _slice_backwards(
@@ -854,7 +843,8 @@ class NewMediumLevelILBackwardSlicer:
                             or not dest_func.mlil
                             or not dest_func.mlil.ssa_form
                         ):
-                            self._slice_call_params(inst)
+                            for param in inst.params:
+                                self._slice_backwards(param)
                         # Proceed slicing the callee's return instructions if we can go into the
                         # callee (callee is a valid function)
                         else:
@@ -888,10 +878,12 @@ class NewMediumLevelILBackwardSlicer:
                                             dest_symb.type
                                             == bn.SymbolType.ImportedFunctionSymbol
                                         ):
-                                            self._slice_call_params(inst)
+                                            for param in inst.params:
+                                                self._slice_backwards(param)
                     # Indirect function calls
                     case bn.MediumLevelILVarSsa():
-                        self._slice_call_params(inst)
+                        for param in inst.params:
+                            self._slice_backwards(param)
                     # Unhandled function calls
                     case _:
                         log.warn(
