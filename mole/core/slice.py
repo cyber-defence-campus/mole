@@ -793,7 +793,7 @@ class NewMediumLevelILBackwardSlicer:
         if self._max_call_level >= 0 and abs(call_level) > self._max_call_level:
             log.debug(self._tag, f"Maximum call level {self._max_call_level:d} reached")
             return
-        # TODO: Slice instruction
+        # Slice instruction
         inst_info = InstructionHelper.get_inst_info(inst)
         log.debug(self._tag, f"[{call_level:+d}] {inst_info:s}")
         self.call_tracker.push_inst(inst)
@@ -832,14 +832,73 @@ class NewMediumLevelILBackwardSlicer:
                                     self._tag,
                                     f"Do not follow instruction '{mem_def_inst_info:s}' since it does not use '0x{inst.constant:x}'",
                                 )
-
-            # case (
-            #     bn.MediumLevelILVarAliased()
-            #     | bn.MediumLevelILVarAliasedField()
-            #     | bn.MediumLevelILAddressOf()
-            #     | bn.MediumLevelILAddressOfField()
-            # ):
-            #     pass
+            case (
+                bn.MediumLevelILVarAliased()
+                | bn.MediumLevelILVarAliasedField()
+                | bn.MediumLevelILAddressOf()
+                | bn.MediumLevelILAddressOfField()
+            ):
+                # Get all assignment instructions of the form `var_x = &var_y` in the current
+                # function
+                var_addr_assignments = FunctionHelper.get_var_addr_assignments(
+                    inst.function
+                )
+                # Get variable being referenced by `inst` (`var_y`)
+                # TODO: Should we consider the `offset` in MLIL_VAR_ALIASED_FIELD and
+                # MLIL_ADDRESS_OF_FIELD as well?
+                match inst:
+                    case (
+                        bn.MediumLevelILVarAliased(src=src)
+                        | bn.MediumLevelILVarAliasedField(src=src)
+                    ):
+                        var = src.var
+                    case (
+                        bn.MediumLevelILAddressOf(src=src)
+                        | bn.MediumLevelILAddressOfField(src=src)
+                    ):
+                        var = src
+                var_info = VariableHelper.get_var_info(var)
+                # Get all assignment instructions (`var_x = &var_y`) using the address of the
+                # referenced variable (`var_y`) as a source
+                var_addr_ass_insts = var_addr_assignments.get(var, [])
+                # Get all use sites (e.g. `var_z = call(var_x)`) of assignment instructions'
+                # destinations (`var_x`)
+                dest_var_use_sites: Dict[
+                    bn.MediumLevelILInstruction, bn.MediumLevelILSetVarSsa
+                ] = {}
+                for var_addr_ass_inst in var_addr_ass_insts:
+                    for dest_var_use_site in var_addr_ass_inst.dest.use_sites:
+                        dest_var_use_sites[dest_var_use_site] = var_addr_ass_inst
+                # Iterate all instructions in the current function defining the current memory
+                # version
+                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                    inst.function,
+                    inst.ssa_memory_version,
+                    self._max_memory_slice_depth,
+                )
+                for mem_def_inst in mem_def_insts:
+                    mem_def_inst_info = InstructionHelper.get_inst_info(
+                        mem_def_inst, False
+                    )
+                    # Check if memory defining instruction is in the use sites
+                    if mem_def_inst not in dest_var_use_sites:
+                        log.debug(
+                            self._tag,
+                            f"Do not follow instruction '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'",
+                        )
+                        continue
+                    match mem_def_inst:
+                        # Slice calls having the referenced variable address (`&var_y`) as parameter
+                        case bn.MediumLevelILCallSsa():
+                            var_addr_ass_inst = dest_var_use_sites[mem_def_inst]
+                            var_addr_ass_inst_info = InstructionHelper.get_inst_info(
+                                var_addr_ass_inst, False
+                            )
+                            log.debug(
+                                self._tag,
+                                f"Follow call instruction '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'",
+                            )
+                            self._slice_backwards(mem_def_inst)
             case (
                 bn.MediumLevelILVarSsa()
                 | bn.MediumLevelILVarSsaField()
@@ -847,10 +906,12 @@ class NewMediumLevelILBackwardSlicer:
                 | bn.MediumLevelILUnimplMem()
             ):
                 self._slice_ssa_var_definition(inst.src, inst.function)
-            # case bn.MediumLevelILRet():
-            #     pass
-            # case bn.MediumLevelILVarSplitSsa():
-            #     pass
+            case bn.MediumLevelILRet():
+                for ret_inst in inst.src:
+                    self._slice_backwards(ret_inst)
+            case bn.MediumLevelILVarSplitSsa():
+                self._slice_ssa_var_definition(inst.high, inst.function)
+                self._slice_ssa_var_definition(inst.low, inst.function)
             case bn.MediumLevelILVarPhi():
                 for var in inst.src:
                     self._slice_ssa_var_definition(var, inst.function)
@@ -924,23 +985,24 @@ class NewMediumLevelILBackwardSlicer:
                             self._tag,
                             f"[{call_level:+d}] {dest_inst_info:s}: Missing call handler",
                         )
-            # case (
-            #     bn.MediumLevelILSyscallSsa()
-            #     | bn.MediumLevelILSyscallUntypedSsa()
-            #     | bn.MediumLevelILIntrinsicSsa()
-            #     | bn.MediumLevelILSeparateParamList()
-            # ):
-            #     pass
-            # case (
-            #     bn.MediumLevelILConstBase()
-            #     | bn.MediumLevelILNop()
-            #     | bn.MediumLevelILBp()
-            #     | bn.MediumLevelILTrap()
-            #     | bn.MediumLevelILFreeVarSlotSsa()
-            #     | bn.MediumLevelILUndef()
-            #     | bn.MediumLevelILUnimpl()
-            # ):
-            #     pass
+            case (
+                bn.MediumLevelILSyscallSsa()
+                | bn.MediumLevelILSyscallUntypedSsa()
+                | bn.MediumLevelILIntrinsicSsa()
+                | bn.MediumLevelILSeparateParamList()
+            ):
+                for param in inst.params:
+                    self._slice_backwards(param)
+            case (
+                bn.MediumLevelILConstBase()
+                | bn.MediumLevelILNop()
+                | bn.MediumLevelILBp()
+                | bn.MediumLevelILTrap()
+                | bn.MediumLevelILFreeVarSlotSsa()
+                | bn.MediumLevelILUndef()
+                | bn.MediumLevelILUnimpl()
+            ):
+                pass
             case (
                 bn.MediumLevelILSetVarSsa()
                 | bn.MediumLevelILSetVarAliased()
@@ -955,10 +1017,11 @@ class NewMediumLevelILBackwardSlicer:
                 | bn.MediumLevelILStoreStructSsa()
             ):
                 self._slice_backwards(inst.src)
-            # case bn.MediumLevelILBinaryBase() | bn.MediumLevelILCarryBase():
-            #     pass
-            # case bn.MediumLevelILJump() | bn.MediumLevelILJumpTo():
-            #     pass
+            case bn.MediumLevelILBinaryBase() | bn.MediumLevelILCarryBase():
+                self._slice_backwards(inst.left)
+                self._slice_backwards(inst.right)
+            case bn.MediumLevelILJump() | bn.MediumLevelILJumpTo():
+                self._slice_backwards(inst.dest)
             case _:
                 log.warn(
                     self._tag,
