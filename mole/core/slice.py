@@ -761,7 +761,7 @@ class NewMediumLevelILBackwardSlicer:
                 continue
             ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
             # Follow the parameter to all possible callers if we did not go down the call graph
-            if not self.call_tracker.goes_downwards():
+            if not self.call_tracker.goes_down():
                 for call_inst in call_insts:
                     call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
                     log.debug(
@@ -771,12 +771,12 @@ class NewMediumLevelILBackwardSlicer:
                     self.call_tracker.push_func(call_inst.function, reverse=True)
                     self._slice_backwards(call_inst.params[param_idx - 1])
                     self.call_tracker.pop_func()
+            # Follow the parameter in specific caller later
             else:
                 log.debug(
                     self._tag,
-                    f"Do not follow parameter {param_idx:d} '{ssa_var_info:s}' to possible callers",
+                    f"Follow parameter {param_idx:d} '{ssa_var_info:s}' in specific caller later",
                 )
-                # TODO: Add param_idx to call_frame
                 self.call_tracker.push_param(param_idx)
         return
 

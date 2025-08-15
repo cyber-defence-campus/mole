@@ -54,27 +54,6 @@ class MediumLevelILCallTracker:
                 self._call_graph.add_edge(func, callee)
         return
 
-    # def new_push_func(self, func: bn.MediumLevelILFunction) -> None:
-    #     """
-    #     TODO: c005d4d
-    #     """
-    #     # Update call stack
-    #     self._call_stack.append(MediumLevelILCallFrame(func))
-    #     # Update call graph
-    #     if len(self._call_stack) >= 2:
-    #         caller = self._call_stack[-2].func
-    #         self._call_graph.add_edge(caller, func)
-    #     return
-
-    # def old_pop_func(self) -> bn.MediumLevelILFunction | None:
-    #     """
-    #     This method pops the top call frame from the call stack and returns the call frame's
-    #     function.
-    #     """
-    #     if self._call_stack:
-    #         return self._call_stack.pop().func
-    #     return None
-
     def pop_func(self) -> List[int]:
         """
         This method pops the top call frame from the call stack and returns a list function
@@ -83,21 +62,6 @@ class MediumLevelILCallTracker:
         if self._call_stack:
             return self._call_stack.pop().func_params
         return []
-
-    # def new_pop_func(
-    #     self, func: bn.MediumLevelILFunction
-    # ) -> bn.MediumLevelILFunction | None:
-    #     """
-    #     TODO: c005d4d
-    #     """
-    #     # Update call stack
-    #     if self._call_stack and func is None:
-    #         return self._call_stack.pop().func
-    #     self._call_stack.append(MediumLevelILCallFrame(func))
-    #     # Update call graph
-    #     if len(self._call_stack) >= 2:
-    #         self._call_graph.add_edge(func, self._call_stack[-2].func)
-    #     return
 
     def is_func_at(self, func: bn.MediumLevelILFunction, idx: int = -1) -> bool:
         """
@@ -110,9 +74,10 @@ class MediumLevelILCallTracker:
             pass
         return False
 
-    def goes_downwards(self) -> bool:
+    def goes_down(self) -> bool:
         """
-        TODO
+        This method returns `True` if we are currently going down the call graph and `False`
+        otherwise.
         """
         if len(self._call_stack) >= 2:
             callee = self._call_stack[-1].func
@@ -152,14 +117,6 @@ class MediumLevelILCallTracker:
         if self._call_stack:
             self._call_stack[-1].func_params.append(param_idx)
         return
-
-    # def pop_param(self) -> int | None:
-    #     """
-    #     This method pops a parameter index from the call frame on the top of the call stack.
-    #     """
-    #     if self._call_stack:
-    #         return self._call_stack[-1].func_params.pop()
-    #     return None
 
     def print_call_stack(self) -> None:
         """
