@@ -13,6 +13,7 @@ class MediumLevelILCallFrame:
 
     def __init__(self, func: bn.MediumLevelILFunction) -> None:
         self.func = func
+        self.func_params: List[int] = []
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
         return
 
@@ -65,14 +66,23 @@ class MediumLevelILCallTracker:
     #         self._call_graph.add_edge(caller, func)
     #     return
 
-    def pop_func(self) -> bn.MediumLevelILFunction | None:
+    # def old_pop_func(self) -> bn.MediumLevelILFunction | None:
+    #     """
+    #     This method pops the top call frame from the call stack and returns the call frame's
+    #     function.
+    #     """
+    #     if self._call_stack:
+    #         return self._call_stack.pop().func
+    #     return None
+
+    def pop_func(self) -> List[int]:
         """
-        This method pops the top call frame from the call stack and returns the call frame's
-        function.
+        This method pops the top call frame from the call stack and returns a list function
+        parameter instructions that should be sliced further.
         """
         if self._call_stack:
-            return self._call_stack.pop().func
-        return None
+            return self._call_stack.pop().func_params
+        return []
 
     # def new_pop_func(
     #     self, func: bn.MediumLevelILFunction
@@ -133,6 +143,23 @@ class MediumLevelILCallTracker:
         if self._call_stack:
             return self._call_stack[-1].inst_stack.pop()
         return None
+
+    def push_param(self, param_idx: int) -> None:
+        """
+        This method pushes the given parameter index `param_idx` to the call frame on the top of the
+        stack.
+        """
+        if self._call_stack:
+            self._call_stack[-1].func_params.append(param_idx)
+        return
+
+    # def pop_param(self) -> int | None:
+    #     """
+    #     This method pops a parameter index from the call frame on the top of the call stack.
+    #     """
+    #     if self._call_stack:
+    #         return self._call_stack[-1].func_params.pop()
+    #     return None
 
     def print_call_stack(self) -> None:
         """
