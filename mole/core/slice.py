@@ -775,7 +775,7 @@ class NewMediumLevelILBackwardSlicer:
             else:
                 log.debug(
                     self._tag,
-                    f"Follow parameter {param_idx:d} '{ssa_var_info:s}' in specific caller later",
+                    f"Follow parameter {param_idx:d} '{ssa_var_info:s}' when going back to specific caller",
                 )
                 self.call_tracker.push_param(param_idx)
         return
