@@ -150,7 +150,8 @@ class FunctionHelper:
         call_dest = func.const_pointer(bv.address_size, func_addr)
         parm_insts = FunctionHelper.get_mlil_parm_insts(func)
         call_parms = [
-            parm_inst.expr_index for parm_inst in parm_insts if parm_inst is not None
+            parm_inst.expr_index if parm_inst is not None else -1
+            for parm_inst in parm_insts
         ]
         expr_idx = func.call(
             output=[],
