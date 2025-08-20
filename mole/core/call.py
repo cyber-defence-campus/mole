@@ -122,6 +122,12 @@ class MediumLevelILCallTracker:
             print(str(call_frame))
         return
 
+    def get_call_graph(self) -> nx.DiGraph:
+        """
+        This method returns a copy of the current call graph.
+        """
+        return self._call_graph.copy()
+
     def print_call_graph(self) -> None:
         """
         TODO: This method prints the call graph.
@@ -131,6 +137,15 @@ class MediumLevelILCallTracker:
             callee_info = FunctionHelper.get_func_info(callee, False)
             print(f"{caller_info} -> {callee_info}")
         return
+
+    def get_inst_slice(self) -> List[bn.MediumLevelILInstruction]:
+        """
+        This method returns the current instruction slice.
+        """
+        inst_slice = []
+        for call_frame in self._call_stack if self._call_stack else []:
+            inst_slice.extend(call_frame.inst_stack)
+        return inst_slice
 
     def print_inst_slice(self) -> None:
         """

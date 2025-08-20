@@ -695,7 +695,7 @@ class NewMediumLevelILBackwardSlicer:
         self._max_call_level = max_call_level
         self._max_memory_slice_depth = max_memory_slice_depth
         self._cancelled = cancelled if cancelled else lambda: False
-        self.call_tracker: MediumLevelILCallTracker = MediumLevelILCallTracker()
+        self.call_tracker: MediumLevelILCallTracker = None
         return
 
     def _slice_ssa_var_definition(
@@ -783,9 +783,15 @@ class NewMediumLevelILBackwardSlicer:
     def _slice_backwards(
         self,
         inst: bn.MediumLevelILInstruction,
+        target_insts: List[bn.MediumLevelILInstruction] = [],
+        found_callback: Callable[
+            [List[bn.MediumLevelILInstruction], nx.DiGraph], None
+        ] = lambda *_: None,
     ) -> None:
         """
-        This method backward slices instruction `inst` based on its type.
+        This method backward slices instruction `inst` based on its type. Whenever slicing hits an
+        instruction in `target_insts`, the `found_callback` method is called with the following
+        arguments: 1st the list of sliced instructions and 2nd the corresponding call graph.
         """
         # Check if slicing should be cancelled
         if self._cancelled():
@@ -813,6 +819,12 @@ class NewMediumLevelILBackwardSlicer:
                 return
         log.debug(self._tag, f"[{call_level:+d}] {inst_info:s}")
         self.call_tracker.push_inst(inst)
+        # Invoke the callback method if slicing hit a target instruction
+        if inst in target_insts:
+            log.debug(self._tag, f"Found target instruction '{inst_info:s}'")
+            inst_slice = self.call_tracker.get_inst_slice()
+            call_graph = self.call_tracker.get_call_graph()
+            found_callback(inst_slice, call_graph)
         match inst:
             # NOTE: Case order matters
             case bn.MediumLevelILConstPtr():
@@ -1064,9 +1076,25 @@ class NewMediumLevelILBackwardSlicer:
         self.call_tracker.pop_inst()
         return
 
-    def slice_backwards(self, inst: bn.MediumLevelILInstruction) -> None:
+    def slice_backwards(
+        self,
+        snk_inst: bn.MediumLevelILInstruction,
+        src_insts: List[bn.MediumLevelILInstruction] = [],
+        found_callback: Callable[
+            [List[bn.MediumLevelILInstruction], nx.DiGraph], None
+        ] = lambda *_: None,
+    ) -> None:
         """
-        This method backward slices the instruction `inst`.
+        This method backward slices the instruction `snk_inst`. Whenever slicing hits an instruction
+        in `src_insts`, the `found_callback` method is called with the following arguments: 1st the
+        list of sliced instructions and 2nd the corresponding call graph.
         """
-        deque(inst.ssa_form.traverse(self._slice_backwards), maxlen=0)
+        self.call_tracker = MediumLevelILCallTracker()
+        self.call_tracker.push_func(snk_inst.function, reverse=True)
+        deque(
+            snk_inst.ssa_form.traverse(
+                lambda inst: self._slice_backwards(inst, src_insts, found_callback)
+            ),
+            maxlen=0,
+        )
         return
