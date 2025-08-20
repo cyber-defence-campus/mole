@@ -202,11 +202,11 @@ class MediumLevelILBackwardSlicer:
         This method slices all parameters of the function call instruction `inst`.
         """
         call_info = InstructionHelper.get_inst_info(inst, False)
-        for parm_idx, parm in enumerate(inst.params):
+        for parm_idx, parm in enumerate(inst.params, start=1):
             parm_info = InstructionHelper.get_inst_info(parm, False)
             log.debug(
                 self._tag,
-                f"Follow parameter {parm_idx + 1:d} '{parm_info:s}' of function call '{call_info:s}'",
+                f"Follow parameter {parm_idx:d} '{parm_info:s}' of function call '{call_info:s}'",
             )
             self.inst_graph.add_node(inst, call_level, caller_site, origin=self._origin)
             self.inst_graph.add_node(parm, call_level, caller_site, origin=self._origin)
@@ -246,7 +246,7 @@ class MediumLevelILBackwardSlicer:
             "call_level", None
         )
         for parm_idx, parm_var in enumerate(
-            inst.function.source_function.parameter_vars
+            inst.function.source_function.parameter_vars, start=1
         ):
             if parm_var != ssa_var.var:
                 continue
@@ -283,7 +283,7 @@ class MediumLevelILBackwardSlicer:
                         )
                 # Iterate all call instructions
                 for call_inst in call_insts:
-                    call_parm = call_inst.params[parm_idx]
+                    call_parm = call_inst.params[parm_idx - 1]
                     # Visit specific caller site if we go up the call stack (all caller sites otherwise)
                     if caller_level is not None and caller_level <= call_level:
                         # Ignore if the actual call instruction is not within the caller site

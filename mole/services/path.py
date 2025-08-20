@@ -166,8 +166,8 @@ class PathService(BackgroundTask):
                     )
                 # Wait for tasks to complete
                 self.progress = f"Mole processes {len(tasks):d} source functions"
-                for cnt, _ in enumerate(futures.as_completed(tasks)):
-                    self.progress = f"Mole processed source {cnt + 1:d}/{len(tasks):d}"
+                for cnt, _ in enumerate(futures.as_completed(tasks), start=1):
+                    self.progress = f"Mole processed source {cnt:d}/{len(tasks):d}"
             # Backward slice sink functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks
@@ -192,8 +192,8 @@ class PathService(BackgroundTask):
                     )
                 # Wait for tasks to complete and collect paths
                 self.progress = f"Mole processes {len(tasks):d} sink functions"
-                for cnt, task in enumerate(futures.as_completed(tasks)):
-                    self.progress = f"Mole processed sink {cnt + 1:d}/{len(tasks):d}"
+                for cnt, task in enumerate(futures.as_completed(tasks), start=1):
+                    self.progress = f"Mole processed sink {cnt:d}/{len(tasks):d}"
                     # Collect paths from task results
                     if task.done() and not task.exception():
                         paths = task.result()

@@ -293,10 +293,11 @@ class SourceFunction(Function):
                     (src_sym_addr, src_sym_name, src_call_inst), {}
                 )
                 # Iterate source instruction's parameters
-                for src_par_idx, src_par_var in enumerate(src_call_inst.params):
+                for src_par_idx, src_par_var in enumerate(
+                    src_call_inst.params, start=1
+                ):
                     if cancelled():
                         break
-                    src_par_idx += 1
                     src_par_var = src_par_var.ssa_form
                     log.debug(
                         custom_tag,
@@ -468,10 +469,11 @@ class SinkFunction(Function):
                     )
                     continue
                 # Iterate sink instruction's parameters
-                for snk_par_idx, snk_par_var in enumerate(snk_call_inst.params):
+                for snk_par_idx, snk_par_var in enumerate(
+                    snk_call_inst.params, start=1
+                ):
                     if cancelled():
                         break
-                    snk_par_idx += 1
                     log.debug(
                         custom_tag,
                         f"Analyze argument 'arg#{snk_par_idx:d}:{str(snk_par_var):s}'",

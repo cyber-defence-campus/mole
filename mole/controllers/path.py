@@ -399,7 +399,7 @@ class PathController:
                 ).hexdigest()
                 # Load paths from database
                 s_paths: List[Dict] = json.loads(self._bv.query_metadata("mole_paths"))
-                for i, s_path in enumerate(s_paths):
+                for i, s_path in enumerate(s_paths, start=1):
                     try:
                         # Check if user cancelled the background task
                         if self._thread.cancelled:
@@ -408,7 +408,7 @@ class PathController:
                         if s_path["sha1_hash"] != sha1_hash:
                             log.warn(
                                 tag,
-                                f"Path #{i + 1:d} seems to origin from another binary",
+                                f"Path #{i:d} seems to origin from another binary",
                             )
                         # Deserialize and add path
                         path = Path.from_dict(self._bv, s_path)
@@ -416,10 +416,10 @@ class PathController:
                         # Increment loaded path counter
                         cnt_loaded_paths += 1
                     except Exception as e:
-                        log.error(tag, f"Failed to load path #{i + 1:d}: {str(e):s}")
+                        log.error(tag, f"Failed to load path #{i:d}: {str(e):s}")
                     finally:
                         self._thread.progress = (
-                            f"Mole loaded path: {i + 1:d}/{len(s_paths):d}"
+                            f"Mole loaded path: {i:d}/{len(s_paths):d}"
                         )
             except KeyError:
                 pass
@@ -460,7 +460,7 @@ class PathController:
                 # Save paths to database
                 paths = self.path_tree_view.get_all_paths()
                 s_paths: List[Dict] = []
-                for i, path in enumerate(paths):
+                for i, path in enumerate(paths, start=1):
                     try:
                         # Check if user cancelled the background task
                         if self._thread.cancelled:
@@ -471,11 +471,9 @@ class PathController:
                         # Increment exported path counter
                         cnt_saved_paths += 1
                     except Exception as e:
-                        log.error(tag, f"Failed to save path #{i + 1:d}: {str(e):s}")
+                        log.error(tag, f"Failed to save path #{i:d}: {str(e):s}")
                     finally:
-                        self._thread.progress = (
-                            f"Mole saved path: {i + 1:d}/{len(paths):d}"
-                        )
+                        self._thread.progress = f"Mole saved path: {i:d}/{len(paths):d}"
                 self._bv.store_metadata("mole_paths", json.dumps(s_paths))
             except Exception as e:
                 log.error(tag, f"Failed to save paths: {str(e):s}")
@@ -531,7 +529,7 @@ class PathController:
                         cnt_total_paths += 1
                 # Iteratively import paths from the JSON file
                 with open(filepath, "r") as f:
-                    for i, s_path in enumerate(ijson.items(f, "item")):
+                    for i, s_path in enumerate(ijson.items(f, "item"), start=1):
                         try:
                             # Check if user cancelled the background task
                             if self._thread.cancelled:
@@ -540,7 +538,7 @@ class PathController:
                             if s_path["sha1_hash"] != sha1_hash:
                                 log.warn(
                                     tag,
-                                    f"Path #{i + 1:d} seems to origin from another binary",
+                                    f"Path #{i:d} seems to origin from another binary",
                                 )
                             # Deserialize and add path
                             path = Path.from_dict(self._bv, s_path)
@@ -548,12 +546,10 @@ class PathController:
                             # Increment imported path counter
                             cnt_imported_paths += 1
                         except Exception as e:
-                            log.error(
-                                tag, f"Failed to import path #{i + 1:d}: {str(e):s}"
-                            )
+                            log.error(tag, f"Failed to import path #{i:d}: {str(e):s}")
                         finally:
                             self._thread.progress = (
-                                f"Mole imported path: {i + 1:d}/{cnt_total_paths:d}"
+                                f"Mole imported path: {i:d}/{cnt_total_paths:d}"
                             )
             except Exception as e:
                 log.error(tag, f"Failed to import paths: {str(e):s}")
@@ -606,7 +602,7 @@ class PathController:
                         else list(self.path_tree_view.model.path_map.keys())
                     )
                     f.write("[\n")
-                    for i, path_id in enumerate(path_ids):
+                    for i, path_id in enumerate(path_ids, start=1):
                         try:
                             # Check if user cancelled the background task
                             if self._thread.cancelled:
@@ -617,7 +613,7 @@ class PathController:
                                 continue
                             # Serialize and dump path
                             s_path = path.to_dict(debug=True)
-                            if i != 0:
+                            if i != 1:
                                 f.write(",\n")
                             f.write(" " * ident)
                             f.write(
@@ -628,12 +624,10 @@ class PathController:
                             # Increment exported path counter
                             cnt_exported_paths += 1
                         except Exception as e:
-                            log.error(
-                                tag, f"Failed to export path #{i + 1:d}: {str(e):s}"
-                            )
+                            log.error(tag, f"Failed to export path #{i:d}: {str(e):s}")
                         finally:
                             self._thread.progress = (
-                                f"Mole exported path: {i + 1:d}/{len(path_ids):d}"
+                                f"Mole exported path: {i:d}/{len(path_ids):d}"
                             )
                     f.write("\n]")
             except Exception as e:
