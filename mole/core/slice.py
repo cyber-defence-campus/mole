@@ -797,6 +797,20 @@ class NewMediumLevelILBackwardSlicer:
             return
         # Slice instruction
         inst_info = InstructionHelper.get_inst_info(inst)
+        # For all non-call instructions stop slicing if we did before in the current call frame
+        if not isinstance(
+            inst,
+            bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntypedSsa,
+        ):
+            if self.call_tracker.is_in_current_call_frame(inst):
+                log.debug(
+                    self._tag,
+                    f"Do not follow instruction '{inst_info:s}' since followed before in the current call frame",
+                )
+                return
         log.debug(self._tag, f"[{call_level:+d}] {inst_info:s}")
         self.call_tracker.push_inst(inst)
         match inst:
@@ -812,6 +826,13 @@ class NewMediumLevelILBackwardSlicer:
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
+                    # Check if memory defining instruction was followed before
+                    if self.call_tracker.is_in_current_call_frame(mem_def_inst):
+                        log.debug(
+                            self._tag,
+                            f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                        )
+                        continue
                     match mem_def_inst:
                         # Slice calls having the same pointer as parameter
                         case bn.MediumLevelILCallSsa(params=params):
@@ -887,6 +908,13 @@ class NewMediumLevelILBackwardSlicer:
                         log.debug(
                             self._tag,
                             f"Do not follow instruction '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'",
+                        )
+                        continue
+                    # Check if memory defining instruction was followed before
+                    if self.call_tracker.is_in_current_call_frame(mem_def_inst):
+                        log.debug(
+                            self._tag,
+                            f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                         )
                         continue
                     match mem_def_inst:
