@@ -63,16 +63,12 @@ class MediumLevelILCallTracker:
             return self._call_stack.pop().func_params
         return []
 
-    def is_func_at(self, func: bn.MediumLevelILFunction, idx: int = -1) -> bool:
+    def is_in_current_call_frame(self, inst: bn.MediumLevelILInstruction) -> bool:
         """
-        This method checks if the given function `func` is at the given stack position `idx` (-1 for
-        top).
+        This method checks if the given instruction `inst` is included in the instruction stack of
+        the frame at top of the call stack.
         """
-        try:
-            return self._call_stack[idx].func == func
-        except IndexError:
-            pass
-        return False
+        return inst in self._call_stack[-1].inst_stack if self._call_stack else False
 
     def goes_down(self) -> bool:
         """
