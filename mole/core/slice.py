@@ -1147,4 +1147,5 @@ class NewMediumLevelILBackwardSlicer:
             ),
             maxlen=0,
         )
+        self._call_tracker.pop_func()
         return

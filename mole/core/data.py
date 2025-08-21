@@ -369,6 +369,7 @@ class SourceFunction(Function):
                     new_src_slicer = NewMediumLevelILBackwardSlicer(
                         bv, custom_tag, 0, 0, cancelled
                     )
+
                     src_call_graph = None
                     src_inst_slices = []
 
@@ -619,6 +620,35 @@ class SinkFunction(Function):
                             snk_call_graph: nx.DiGraph,
                         ) -> None:
                             snk_insts.insert(0, snk_call_inst)
+                            snk_path = snk_insts
+
+                            src_path = []
+                            for new_src_inst_slice in new_src_inst_slices:
+                                try:
+                                    idx = new_src_inst_slice.index(snk_path[-1])
+                                    src_path = new_src_inst_slice[:idx]
+                                    break
+                                except ValueError:
+                                    continue
+                            insts = snk_path + src_path
+
+                            # Create a new path object
+                            path = Path(
+                                src_sym_addr=src_sym_addr,
+                                src_sym_name=src_sym_name,
+                                src_par_idx=src_par_idx,
+                                src_par_var=src_par_var,
+                                src_inst_idx=len(snk_path),
+                                snk_sym_addr=snk_sym_addr,
+                                snk_sym_name=snk_sym_name,
+                                snk_par_idx=snk_par_idx,
+                                snk_par_var=snk_par_var,
+                                insts=insts,
+                                sha1_hash=sha1_hash,
+                            )
+                            # Ignore the path if we found it before
+                            if path in paths:
+                                return
                             return
 
                         new_snk_slicer.slice_backwards(
