@@ -695,13 +695,17 @@ class NewMediumLevelILBackwardSlicer:
         self._max_call_level = max_call_level
         self._max_memory_slice_depth = max_memory_slice_depth
         self._cancelled = cancelled if cancelled else lambda: False
-        self.call_tracker: MediumLevelILCallTracker = None
+        self._call_tracker: MediumLevelILCallTracker = None
         return
 
     def _slice_ssa_var_definition(
         self,
         ssa_var: bn.SSAVariable,
         inst: bn.MediumLevelILInstruction,
+        target_insts: List[bn.MediumLevelILInstruction] = None,
+        found_callback: Callable[
+            [List[bn.MediumLevelILInstruction], nx.DiGraph], None
+        ] = lambda *_: None,
     ) -> None:
         """
         This method tries to find the instruction containing the SSA variable definition of
@@ -717,7 +721,7 @@ class NewMediumLevelILBackwardSlicer:
         # function, proceed slicing there (otherwise try find it in callers)
         inst_def = inst.function.get_ssa_var_definition(ssa_var)
         if inst_def:
-            self._slice_backwards(inst_def)
+            self._slice_backwards(inst_def, target_insts, found_callback)
             return
         # Determine all instructions calling the current function
         call_insts: Set[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa] = set()
@@ -761,29 +765,31 @@ class NewMediumLevelILBackwardSlicer:
                 continue
             ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
             # Follow the parameter to all possible callers if we did not go down the call graph
-            if not self.call_tracker.goes_down():
+            if not self._call_tracker.goes_down():
                 for call_inst in call_insts:
                     call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
                     log.debug(
                         self._tag,
                         f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to possible caller '{call_inst_info:s}'",
                     )
-                    self.call_tracker.push_func(call_inst.function, reverse=True)
-                    self._slice_backwards(call_inst.params[param_idx - 1])
-                    self.call_tracker.pop_func()
+                    self._call_tracker.push_func(call_inst.function, reverse=True)
+                    self._slice_backwards(
+                        call_inst.params[param_idx - 1], target_insts, found_callback
+                    )
+                    self._call_tracker.pop_func()
             # Follow the parameter in specific caller later
             else:
                 log.debug(
                     self._tag,
                     f"Follow parameter {param_idx:d} '{ssa_var_info:s}' when going back to specific caller",
                 )
-                self.call_tracker.push_param(param_idx)
+                self._call_tracker.push_param(param_idx)
         return
 
     def _slice_backwards(
         self,
         inst: bn.MediumLevelILInstruction,
-        target_insts: List[bn.MediumLevelILInstruction] = [],
+        target_insts: List[bn.MediumLevelILInstruction] = None,
         found_callback: Callable[
             [List[bn.MediumLevelILInstruction], nx.DiGraph], None
         ] = lambda *_: None,
@@ -791,13 +797,14 @@ class NewMediumLevelILBackwardSlicer:
         """
         This method backward slices instruction `inst` based on its type. Whenever slicing hits an
         instruction in `target_insts`, the `found_callback` method is called with the following
-        arguments: 1st the list of sliced instructions and 2nd the corresponding call graph.
+        arguments: 1st the list of sliced instructions and 2nd the corresponding call graph. If
+        `target_insts` is None, the `found_callback` method is called on every sliced instruction.
         """
         # Check if slicing should be cancelled
         if self._cancelled():
             return
         # Check if maximum call level is reached
-        call_level = self.call_tracker.get_call_level()
+        call_level = self._call_tracker.get_call_level()
         if self._max_call_level >= 0 and abs(call_level) > self._max_call_level:
             log.debug(self._tag, f"Maximum call level {self._max_call_level:d} reached")
             return
@@ -811,19 +818,18 @@ class NewMediumLevelILBackwardSlicer:
             | bn.MediumLevelILTailcallSsa
             | bn.MediumLevelILTailcallUntypedSsa,
         ):
-            if self.call_tracker.is_in_current_call_frame(inst):
+            if self._call_tracker.is_in_current_call_frame(inst):
                 log.debug(
                     self._tag,
                     f"Do not follow instruction '{inst_info:s}' since followed before in the current call frame",
                 )
                 return
         log.debug(self._tag, f"[{call_level:+d}] {inst_info:s}")
-        self.call_tracker.push_inst(inst)
-        # Invoke the callback method if slicing hit a target instruction
-        if inst in target_insts:
-            log.debug(self._tag, f"Found target instruction '{inst_info:s}'")
-            inst_slice = self.call_tracker.get_inst_slice()
-            call_graph = self.call_tracker.get_call_graph()
+        self._call_tracker.push_inst(inst)
+        # Invoke callback method if hitting a target instruction
+        if target_insts is None or inst in target_insts:
+            inst_slice = self._call_tracker.get_inst_slice()
+            call_graph = self._call_tracker.get_call_graph()
             found_callback(inst_slice, call_graph)
         match inst:
             # NOTE: Case order matters
@@ -839,7 +845,7 @@ class NewMediumLevelILBackwardSlicer:
                         mem_def_inst, False
                     )
                     # Check if memory defining instruction was followed before
-                    if self.call_tracker.is_in_current_call_frame(mem_def_inst):
+                    if self._call_tracker.is_in_current_call_frame(mem_def_inst):
                         log.debug(
                             self._tag,
                             f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
@@ -858,7 +864,9 @@ class NewMediumLevelILBackwardSlicer:
                                             self._tag,
                                             f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'",
                                         )
-                                        self._slice_backwards(mem_def_inst)
+                                        self._slice_backwards(
+                                            mem_def_inst, target_insts, found_callback
+                                        )
                                         followed = True
                                 if followed:
                                     break
@@ -923,7 +931,7 @@ class NewMediumLevelILBackwardSlicer:
                         )
                         continue
                     # Check if memory defining instruction was followed before
-                    if self.call_tracker.is_in_current_call_frame(mem_def_inst):
+                    if self._call_tracker.is_in_current_call_frame(mem_def_inst):
                         log.debug(
                             self._tag,
                             f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
@@ -940,23 +948,33 @@ class NewMediumLevelILBackwardSlicer:
                                 self._tag,
                                 f"Follow call instruction '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'",
                             )
-                            self._slice_backwards(mem_def_inst)
+                            self._slice_backwards(
+                                mem_def_inst, target_insts, found_callback
+                            )
             case (
                 bn.MediumLevelILVarSsa()
                 | bn.MediumLevelILVarSsaField()
                 | bn.MediumLevelILVarField()
                 | bn.MediumLevelILUnimplMem()
             ):
-                self._slice_ssa_var_definition(inst.src, inst)
+                self._slice_ssa_var_definition(
+                    inst.src, inst, target_insts, found_callback
+                )
             case bn.MediumLevelILRet():
                 for ret_inst in inst.src:
-                    self._slice_backwards(ret_inst)
+                    self._slice_backwards(ret_inst, target_insts, found_callback)
             case bn.MediumLevelILVarSplitSsa():
-                self._slice_ssa_var_definition(inst.high, inst)
-                self._slice_ssa_var_definition(inst.low, inst)
+                self._slice_ssa_var_definition(
+                    inst.high, inst, target_insts, found_callback
+                )
+                self._slice_ssa_var_definition(
+                    inst.low, inst, target_insts, found_callback
+                )
             case bn.MediumLevelILVarPhi():
                 for var in inst.src:
-                    self._slice_ssa_var_definition(var, inst)
+                    self._slice_ssa_var_definition(
+                        var, inst, target_insts, found_callback
+                    )
             case (
                 bn.MediumLevelILCallSsa(dest=dest_inst)
                 | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
@@ -981,7 +999,9 @@ class NewMediumLevelILBackwardSlicer:
                             or not dest_func.mlil.ssa_form
                         ):
                             for param in inst.params:
-                                self._slice_backwards(param)
+                                self._slice_backwards(
+                                    param, target_insts, found_callback
+                                )
                         # Proceed slicing the callee's return instructions if we can go into the
                         # callee (callee is a valid function)
                         else:
@@ -1007,24 +1027,53 @@ class NewMediumLevelILBackwardSlicer:
                                                 self._tag,
                                                 f"Follow return instruction '{dest_func_inst_info:s}' of function '{dest_inst_info:s}'",
                                             )
-                                            self.call_tracker.push_func(dest_func)
-                                            self._slice_backwards(dest_func_inst)
-                                            param_idxs = self.call_tracker.pop_func()
-                                            for param_idx in param_idxs:
-                                                self._slice_backwards(
-                                                    inst.params[param_idx - 1]
-                                                )
+                                            self._call_tracker.push_func(dest_func)
+                                            self._slice_backwards(
+                                                dest_func_inst,
+                                                target_insts,
+                                                found_callback,
+                                            )
+                                            # Get call level of the callee
+                                            call_level = (
+                                                self._call_tracker.get_call_level()
+                                            )
+                                            # Get parameters reached in the callee
+                                            param_idxs = self._call_tracker.pop_func()
+                                            # If maximum call level was reached in the callee, slice
+                                            # all parameters
+                                            if (
+                                                self._max_call_level >= 0
+                                                and abs(call_level)
+                                                > self._max_call_level
+                                            ):
+                                                for param in inst.params:
+                                                    self._slice_backwards(
+                                                        param,
+                                                        target_insts,
+                                                        found_callback,
+                                                    )
+                                            # If maximum call level was not reached in the callee,
+                                            # slice only the specifically reached parameters
+                                            else:
+                                                for param_idx in param_idxs:
+                                                    self._slice_backwards(
+                                                        inst.params[param_idx - 1],
+                                                        target_insts,
+                                                        found_callback,
+                                                    )
                                         # Imported function
                                         elif (
                                             dest_symb.type
                                             == bn.SymbolType.ImportedFunctionSymbol
                                         ):
                                             for param in inst.params:
-                                                self._slice_backwards(param)
+                                                self._slice_backwards(
+                                                    param, target_insts, found_callback
+                                                )
                     # Indirect function calls
                     case bn.MediumLevelILVarSsa():
                         for param in inst.params:
-                            self._slice_backwards(param)
+                            self._slice_backwards(param, target_insts, found_callback)
                     # Unhandled function calls
                     case _:
                         log.warn(
@@ -1038,7 +1087,7 @@ class NewMediumLevelILBackwardSlicer:
                 | bn.MediumLevelILSeparateParamList()
             ):
                 for param in inst.params:
-                    self._slice_backwards(param)
+                    self._slice_backwards(param, target_insts, found_callback)
             case (
                 bn.MediumLevelILConstBase()
                 | bn.MediumLevelILNop()
@@ -1062,38 +1111,39 @@ class NewMediumLevelILBackwardSlicer:
                 | bn.MediumLevelILStoreSsa()
                 | bn.MediumLevelILStoreStructSsa()
             ):
-                self._slice_backwards(inst.src)
+                self._slice_backwards(inst.src, target_insts, found_callback)
             case bn.MediumLevelILBinaryBase() | bn.MediumLevelILCarryBase():
-                self._slice_backwards(inst.left)
-                self._slice_backwards(inst.right)
+                self._slice_backwards(inst.left, target_insts, found_callback)
+                self._slice_backwards(inst.right, target_insts, found_callback)
             case bn.MediumLevelILJump() | bn.MediumLevelILJumpTo():
-                self._slice_backwards(inst.dest)
+                self._slice_backwards(inst.dest, target_insts, found_callback)
             case _:
                 log.warn(
                     self._tag,
                     f"[{call_level:+d}] {inst_info:s}: Missing instruction handler",
                 )
-        self.call_tracker.pop_inst()
+        self._call_tracker.pop_inst()
         return
 
     def slice_backwards(
         self,
-        snk_inst: bn.MediumLevelILInstruction,
-        src_insts: List[bn.MediumLevelILInstruction] = [],
+        inst: bn.MediumLevelILInstruction,
+        target_insts: List[bn.MediumLevelILInstruction] = None,
         found_callback: Callable[
             [List[bn.MediumLevelILInstruction], nx.DiGraph], None
         ] = lambda *_: None,
     ) -> None:
         """
-        This method backward slices the instruction `snk_inst`. Whenever slicing hits an instruction
-        in `src_insts`, the `found_callback` method is called with the following arguments: 1st the
-        list of sliced instructions and 2nd the corresponding call graph.
+        This method backward slices the instruction `inst`. Whenever slicing hits an instruction in
+        `target_insts`, the `found_callback` method is called with the following arguments: 1st the
+        list of sliced instructions and 2nd the corresponding call graph. If `target_insts` is None,
+        the `found_callback` method is called on every sliced instruction.
         """
-        self.call_tracker = MediumLevelILCallTracker()
-        self.call_tracker.push_func(snk_inst.function, reverse=True)
+        self._call_tracker = MediumLevelILCallTracker()
+        self._call_tracker.push_func(inst.function, reverse=True)
         deque(
-            snk_inst.ssa_form.traverse(
-                lambda inst: self._slice_backwards(inst, src_insts, found_callback)
+            inst.ssa_form.traverse(
+                lambda inst: self._slice_backwards(inst, target_insts, found_callback)
             ),
             maxlen=0,
         )
