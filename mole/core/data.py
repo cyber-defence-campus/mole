@@ -192,7 +192,10 @@ class SourceFunction(Function):
         Dict[
             Tuple[int, bn.MediumLevelILInstruction],  # src_par_idx, src_par_var
             Tuple[
-                MediumLevelILInstructionGraph, MediumLevelILFunctionGraph
+                MediumLevelILInstructionGraph,
+                MediumLevelILFunctionGraph,
+                List[bn.MediumLevelILInstruction],
+                nx.DiGraph,
             ],  # src_inst_graph,  src_call_graph
             # Tuple[
             #     List[bn.MediumLevelILInstruction],
@@ -362,7 +365,7 @@ class SourceFunction(Function):
                     if par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # TODO: TEST
-                    log.warn(tag, "START NewMediumLevelILBackwardSlicer")
+                    log.warn(tag, "START SRC NewMediumLevelILBackwardSlicer")
                     new_src_slicer = NewMediumLevelILBackwardSlicer(
                         bv, custom_tag, 0, 0, cancelled
                     )
@@ -384,12 +387,14 @@ class SourceFunction(Function):
                     new_src_slicer.slice_backwards(
                         src_par_var, None, src_slicer_callback
                     )
-                    log.warn(tag, "END NewMediumLevelILBackwardSlicer")
+                    log.warn(tag, "END SRC NewMediumLevelILBackwardSlicer")
                     # Store the instruction graph
                     if not cancelled():
                         src_par_map[(src_par_idx, src_par_var)] = (
                             src_slicer.inst_graph,
                             src_slicer.call_graph,
+                            src_inst_slices,
+                            src_call_graph,
                         )
                         # src_par_map[(src_par_idx, src_par_var)] = (
                         #     [src_call_inst] + src_slicer.get_inst_visited(),
@@ -584,7 +589,7 @@ class SinkFunction(Function):
                         # # )
                         snk_slicer.slice_backwards(snk_par_var)
                         # TODO: TEST
-                        log.warn(tag, "START NewMediumLevelILBackwardSlicer")
+                        log.warn(tag, "START SNK NewMediumLevelILBackwardSlicer")
                         new_snk_slicer = NewMediumLevelILBackwardSlicer(
                             bv,
                             custom_tag,
@@ -592,8 +597,34 @@ class SinkFunction(Function):
                             max_memory_slice_depth,
                             cancelled,
                         )
-                        new_snk_slicer.slice_backwards(snk_par_var)
-                        log.warn(tag, "END NewMediumLevelILBackwardSlicer")
+
+                        new_src_insts = set()
+                        for source in sources:
+                            for (
+                                src_sym_addr,
+                                src_sym_name,
+                                src_call_inst,
+                            ), src_par_map in source.src_map.items():
+                                for (src_par_idx, src_par_var), (
+                                    src_inst_graph,
+                                    src_call_graph,
+                                    new_src_inst_slices,
+                                    new_src_call_graph,
+                                ) in src_par_map.items():
+                                    for new_src_inst_slice in new_src_inst_slices:
+                                        new_src_insts.update(new_src_inst_slice)
+
+                        def found_callback(
+                            snk_insts: bn.MediumLevelILInstruction,
+                            snk_call_graph: nx.DiGraph,
+                        ) -> None:
+                            snk_insts.insert(0, snk_call_inst)
+                            return
+
+                        new_snk_slicer.slice_backwards(
+                            snk_par_var, list(new_src_insts), found_callback
+                        )
+                        log.warn(tag, "END SNK NewMediumLevelILBackwardSlicer")
                         # Iterate sources
                         for source in sources:
                             if cancelled():
@@ -610,6 +641,8 @@ class SinkFunction(Function):
                                 for (src_par_idx, src_par_var), (
                                     src_inst_graph,
                                     src_call_graph,
+                                    new_src_inst_slices,
+                                    new_src_call_graph,
                                 ) in src_par_map.items():
                                     if cancelled():
                                         break
