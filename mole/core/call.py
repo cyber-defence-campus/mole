@@ -16,9 +16,7 @@ class MediumLevelILCallFrame:
         self.func_params: List[int] = []
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
         self.last_inst: bn.MediumLevelILInstruction = None
-        self.inst_graph: nx.DiGraph = (
-            nx.DiGraph()
-        )  # TODO: Maybe use MediumLevelILInstructionGraph
+        self.inst_graph: nx.DiGraph = nx.DiGraph()
         return
 
     def __repr__(self) -> str:
@@ -37,13 +35,46 @@ class MediumLevelILCallTracker:
 
     def __init__(self) -> None:
         self._call_stack: List[MediumLevelILCallFrame] = []
-        self._call_graph: nx.DiGraph = (
-            nx.DiGraph()
-        )  # TODO: Maybe use MediumLevelILFunctionGraph
-        self._inst_graph: nx.DiGraph = (
-            nx.DiGraph()
-        )  # TODO: Maybe use MediumLevelILInstructionGraph
+        self._call_graph: nx.DiGraph = nx.DiGraph()
+        self._inst_graph: nx.DiGraph = nx.DiGraph()
         return
+
+    def get_call_level(self) -> int:
+        """
+        This method returns the current call level.
+        """
+        return len(self._call_stack) - 1
+
+    def get_call_graph(self) -> nx.DiGraph:
+        """
+        This method returns the current call graph.
+        """
+        return self._call_graph
+
+    def get_inst_graph(self) -> nx.DiGraph:
+        """
+        This method returns the current instruction graph.
+        """
+        return self._inst_graph
+
+    def is_in_current_call_frame(self, inst: bn.MediumLevelILInstruction) -> bool:
+        """
+        This method checks if the given instruction `inst` is included in the instruction stack of
+        the frame at top of the call stack.
+        """
+        return inst in self._call_stack[-1].inst_stack if self._call_stack else False
+
+    def is_going_downwards(self) -> bool:
+        """
+        This method returns `True` if we are currently going down the call graph and `False`
+        otherwise.
+        """
+        if len(self._call_stack) >= 2:
+            callee = self._call_stack[-1].func
+            caller = self._call_stack[-2].func
+            if self._call_graph.has_edge(caller, callee):
+                return True
+        return False
 
     def push_func(self, func: bn.MediumLevelILFunction, reverse: bool = False) -> None:
         """
@@ -70,9 +101,6 @@ class MediumLevelILCallTracker:
         This method pops the top call frame from the call stack and returns a list of function
         parameter instructions that should be sliced further.
         """
-        # if self._call_stack:
-        #     return self._call_stack.pop().func_params
-        # return []
         if self._call_stack:
             # Pop old call frame and get its last instruction
             old_call_frame = self._call_stack.pop()
@@ -102,38 +130,11 @@ class MediumLevelILCallTracker:
             return old_call_frame.func_params
         return []
 
-    def is_in_current_call_frame(self, inst: bn.MediumLevelILInstruction) -> bool:
-        """
-        This method checks if the given instruction `inst` is included in the instruction stack of
-        the frame at top of the call stack.
-        """
-        return inst in self._call_stack[-1].inst_stack if self._call_stack else False
-
-    def goes_down(self) -> bool:
-        """
-        This method returns `True` if we are currently going down the call graph and `False`
-        otherwise.
-        """
-        if len(self._call_stack) >= 2:
-            callee = self._call_stack[-1].func
-            caller = self._call_stack[-2].func
-            if self._call_graph.has_edge(caller, callee):
-                return True
-        return False
-
-    def get_call_level(self) -> int:
-        """
-        This method returns the current call level.
-        """
-        return len(self._call_stack) - 1
-
     def push_inst(self, inst: bn.MediumLevelILInstruction) -> None:
         """
         This method pushes the given instruction `inst` to the call frame on the top of the call
         stack.
         """
-        # if self._call_stack:
-        #     self._call_stack[-1].inst_stack.append(inst)
         if self._call_stack:
             curr_call_frame = self._call_stack[-1]
             # Update instruction stack
@@ -165,11 +166,13 @@ class MediumLevelILCallTracker:
             self._call_stack[-1].func_params.append(param_idx)
         return
 
-    def get_call_graph(self) -> nx.DiGraph:
+    def print_call_stack(self) -> None:
         """
-        This method returns the current call graph.
+        TODO: This method prints the call stack.
         """
-        return self._call_graph
+        for call_frame in self._call_stack:
+            print(str(call_frame))
+        return
 
     def print_call_graph(self) -> None:
         """
@@ -180,23 +183,6 @@ class MediumLevelILCallTracker:
             callee_info = FunctionHelper.get_func_info(callee, False)
             print(f"{caller_info} -> {callee_info}")
         return
-
-    def print_call_stack(self) -> None:
-        """
-        TODO: This method prints the call stack.
-        """
-        for call_frame in self._call_stack:
-            print(str(call_frame))
-        return
-
-    def get_inst_slice(self) -> List[bn.MediumLevelILInstruction]:
-        """
-        This method returns the current instruction slice.
-        """
-        inst_slice = []
-        for call_frame in self._call_stack if self._call_stack else []:
-            inst_slice.extend(call_frame.inst_stack)
-        return inst_slice
 
     def print_inst_slice(self) -> None:
         """
@@ -209,21 +195,10 @@ class MediumLevelILCallTracker:
                 print(f"- {inst_info:s}")
         return
 
-    # def get_inst_graph(self) -> nx.DiGraph:
-    #     """
-    #     """
-    #     inst_graph = nx.DiGraph()
-    #     return inst_graph
-
     def print_inst_graph(self) -> None:
         """
         TODO: This method prints the instruction graph.
         """
-        # for caller, callee in self._call_graph.edges():
-        #     caller_info = FunctionHelper.get_func_info(caller, False)
-        #     callee_info = FunctionHelper.get_func_info(callee, False)
-        #     print(f"{caller_info} -> {callee_info}")
-        # return
         for (from_call_inst, from_inst), (
             to_call_inst,
             to_inst,
