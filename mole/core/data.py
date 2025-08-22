@@ -4,6 +4,7 @@ from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.symbol import SymbolHelper
 from mole.common.log import log
+from mole.core.call import MediumLevelILCallFrame
 from mole.core.slice import (
     MediumLevelILBackwardSlicer,
     MediumLevelILFunctionGraph,
@@ -194,13 +195,9 @@ class SourceFunction(Function):
             Tuple[
                 MediumLevelILInstructionGraph,
                 MediumLevelILFunctionGraph,
-                List[bn.MediumLevelILInstruction],
+                nx.DiGraph,
                 nx.DiGraph,
             ],  # src_inst_graph,  src_call_graph
-            # Tuple[
-            #     List[bn.MediumLevelILInstruction],
-            #     nx.DiGraph,  # TODO: Maybe use MediumLevelILFunctionGraph
-            # ],  # src_inst_slice,  src_call_graph
         ],
     ] = field(default_factory=dict)
 
@@ -364,43 +361,42 @@ class SourceFunction(Function):
                         )
                     if par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
-                    # TODO: TEST
-                    log.warn(tag, "START SRC NewMediumLevelILBackwardSlicer")
+                    # TODO: Implement new slicing core
+                    # Initialize backward slicer
                     new_src_slicer = NewMediumLevelILBackwardSlicer(
                         bv, custom_tag, 0, 0, cancelled
                     )
-
-                    src_call_graph = None
-                    src_inst_slices = []
-
-                    def src_slicer_callback(
-                        inst_slice: List[bn.MediumLevelILInstruction],
-                        call_graph: nx.DiGraph,
-                    ) -> None:
-                        nonlocal src_call_graph
-                        inst_slice.insert(0, src_call_inst)
-                        if inst_slice[:-1] in src_inst_slices:
-                            src_inst_slices.remove(inst_slice[:-1])
-                        src_inst_slices.append(inst_slice)
-                        src_call_graph = call_graph
-                        return
-
-                    new_src_slicer.slice_backwards(
-                        src_par_var, None, src_slicer_callback
-                    )
-                    log.warn(tag, "END SRC NewMediumLevelILBackwardSlicer")
-                    # Store the instruction graph
+                    # Initialize the function that decides which parameters to slice
+                    if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
+                        par_slice_fun = (
+                            manual_fun.par_slice_fun
+                            if manual_fun.par_slice_fun
+                            else lambda x: False
+                        )
+                    else:
+                        par_slice_fun = (
+                            self.par_slice_fun
+                            if self.par_slice_fun
+                            else lambda x: False
+                        )
+                    # Backward slice the parameter
+                    if par_slice_fun(src_par_idx):
+                        new_src_slicer.slice_backwards(src_par_var)
+                    # Add edge to instruction graph
+                    inst_graph = new_src_slicer.get_inst_graph()
+                    inst_graph.add_edge((None, src_call_inst), (None, src_par_var))
+                    # Add node to call graph
+                    call_graph = new_src_slicer.get_call_graph()
+                    call_graph.add_node(MediumLevelILCallFrame(src_call_inst.function))
+                    # TODO: Implement new core slicing
+                    # Store the resulting instruction and call graphs
                     if not cancelled():
                         src_par_map[(src_par_idx, src_par_var)] = (
                             src_slicer.inst_graph,
                             src_slicer.call_graph,
-                            src_inst_slices,
-                            src_call_graph,
+                            inst_graph,
+                            call_graph,
                         )
-                        # src_par_map[(src_par_idx, src_par_var)] = (
-                        #     [src_call_inst] + src_slicer.get_inst_visited(),
-                        #     src_slicer.get_call_graph(),
-                        # )
         return
 
 
@@ -577,20 +573,8 @@ class SinkFunction(Function):
                         snk_call_graph.add_node(snk_call_inst.function, call_level=0)
                         # Backward slice the parameter instruction
                         snk_slicer.slice_backwards(snk_par_var)
-                        # # TODO: TEST
-                        # snk_slicer = NewMediumLevelILBackwardSlicer(
-                        #     bv,
-                        #     custom_tag,
-                        #     max_call_level,
-                        #     max_memory_slice_depth,
-                        #     cancelled,
-                        # )
-                        # # snk_slicer.call_tracker.push_func(
-                        # #     snk_call_inst.function, reverse=True
-                        # # )
-                        snk_slicer.slice_backwards(snk_par_var)
-                        # TODO: TEST
-                        log.warn(tag, "START SNK NewMediumLevelILBackwardSlicer")
+                        # TODO: Implement new slicing core
+                        # Initialize backward slicer
                         new_snk_slicer = NewMediumLevelILBackwardSlicer(
                             bv,
                             custom_tag,
@@ -598,63 +582,11 @@ class SinkFunction(Function):
                             max_memory_slice_depth,
                             cancelled,
                         )
-
-                        new_src_insts = set()
-                        for source in sources:
-                            for (
-                                src_sym_addr,
-                                src_sym_name,
-                                src_call_inst,
-                            ), src_par_map in source.src_map.items():
-                                for (src_par_idx, src_par_var), (
-                                    src_inst_graph,
-                                    src_call_graph,
-                                    new_src_inst_slices,
-                                    new_src_call_graph,
-                                ) in src_par_map.items():
-                                    for new_src_inst_slice in new_src_inst_slices:
-                                        new_src_insts.update(new_src_inst_slice)
-
-                        def found_callback(
-                            snk_insts: bn.MediumLevelILInstruction,
-                            snk_call_graph: nx.DiGraph,
-                        ) -> None:
-                            snk_insts.insert(0, snk_call_inst)
-                            snk_path = snk_insts
-
-                            src_path = []
-                            for new_src_inst_slice in new_src_inst_slices:
-                                try:
-                                    idx = new_src_inst_slice.index(snk_path[-1])
-                                    src_path = new_src_inst_slice[:idx]
-                                    break
-                                except ValueError:
-                                    continue
-                            insts = snk_path + src_path
-
-                            # Create a new path object
-                            path = Path(
-                                src_sym_addr=src_sym_addr,
-                                src_sym_name=src_sym_name,
-                                src_par_idx=src_par_idx,
-                                src_par_var=src_par_var,
-                                src_inst_idx=len(snk_path),
-                                snk_sym_addr=snk_sym_addr,
-                                snk_sym_name=snk_sym_name,
-                                snk_par_idx=snk_par_idx,
-                                snk_par_var=snk_par_var,
-                                insts=insts,
-                                sha1_hash=sha1_hash,
-                            )
-                            # Ignore the path if we found it before
-                            if path in paths:
-                                return
-                            return
-
-                        new_snk_slicer.slice_backwards(
-                            snk_par_var, list(new_src_insts), found_callback
-                        )
-                        log.warn(tag, "END SNK NewMediumLevelILBackwardSlicer")
+                        # Backward slice the parameter
+                        new_snk_slicer.slice_backwards(snk_par_var)
+                        # new_snk_inst_graph = new_snk_slicer.get_inst_graph()
+                        # new_snk_call_graph = new_snk_slicer.get_call_graph()
+                        # TODO: Implement new slicing core
                         # Iterate sources
                         for source in sources:
                             if cancelled():
@@ -671,7 +603,7 @@ class SinkFunction(Function):
                                 for (src_par_idx, src_par_var), (
                                     src_inst_graph,
                                     src_call_graph,
-                                    new_src_inst_slices,
+                                    new_src_inst_graph,
                                     new_src_call_graph,
                                 ) in src_par_map.items():
                                     if cancelled():
@@ -694,7 +626,6 @@ class SinkFunction(Function):
                                         src_par_var = None
                                     # Iterate source instructions (order of backward slicing)
                                     for src_inst in src_inst_graph.nodes():
-                                        # for src_inst in src_insts:
                                         # Ignore source instructions that were not sliced in the sink
                                         if src_inst not in snk_inst_graph:
                                             continue
@@ -797,6 +728,14 @@ class SinkFunction(Function):
                                             )
                                         # Ignore all other source instructions since a path was found
                                         break
+                                    # TODO: Implement new slicing core
+                                    # Iterate source instructions (order of backward slicing)
+                                    for (
+                                        src_call_inst,
+                                        src_inst,
+                                    ) in new_src_inst_graph.nodes():
+                                        pass
+                                    # TODO: Implement new slicing core
         return paths
 
 
