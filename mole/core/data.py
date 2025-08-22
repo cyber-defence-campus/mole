@@ -584,8 +584,16 @@ class SinkFunction(Function):
                         )
                         # Backward slice the parameter
                         new_snk_slicer.slice_backwards(snk_par_var)
-                        # new_snk_inst_graph = new_snk_slicer.get_inst_graph()
-                        # new_snk_call_graph = new_snk_slicer.get_call_graph()
+                        # Add edge to instruction graph
+                        new_snk_inst_graph = new_snk_slicer.get_inst_graph()
+                        new_snk_inst_graph.add_edge(
+                            (None, snk_call_inst), (None, snk_par_var)
+                        )
+                        # Add node to call graph
+                        new_snk_call_graph = new_snk_slicer.get_call_graph()
+                        new_snk_call_graph.add_node(
+                            MediumLevelILCallFrame(snk_call_inst.function)
+                        )
                         # TODO: Implement new slicing core
                         # Iterate sources
                         for source in sources:
@@ -730,11 +738,50 @@ class SinkFunction(Function):
                                         break
                                     # TODO: Implement new slicing core
                                     # Iterate source instructions (order of backward slicing)
-                                    for (
-                                        src_call_inst,
-                                        src_inst,
-                                    ) in new_src_inst_graph.nodes():
-                                        pass
+                                    for src_inst in new_src_inst_graph.nodes():
+                                        # Ignore source instructions that were not sliced in the sink
+                                        if src_inst not in new_snk_inst_graph:
+                                            continue
+                                        # Adjust negative `max_slice_depth` values
+                                        if (
+                                            max_slice_depth is not None
+                                            and max_slice_depth < 0
+                                        ):
+                                            max_slice_depth = None
+                                        # Find all simple paths starting at the sink's call
+                                        # instruction and ending in the current source instruction
+                                        snk_paths: List[
+                                            List[bn.MediumLevelILInstruction]
+                                        ] = []
+                                        try:
+                                            snk_paths = nx.all_simple_paths(
+                                                new_snk_inst_graph,
+                                                (None, snk_call_inst),
+                                                src_inst,
+                                                max_slice_depth,
+                                            )
+                                        except (nx.NodeNotFound, nx.NetworkXNoPath):
+                                            # Go to the next source instruction if no path found
+                                            continue
+                                        # Find shortest path starting at the source's call
+                                        # instruction and ending in the current source instruction
+                                        src_path: List[bn.MediumLevelILInstruction] = []
+                                        try:
+                                            src_path = nx.shortest_path(
+                                                new_src_inst_graph,
+                                                (None, src_call_inst),
+                                                src_inst,
+                                            )
+                                        except (nx.NodeNotFound, nx.NetworkXNoPath):
+                                            # Go to the next source instruction if no path found
+                                            continue
+                                        # Reverse the source path so it can be appended to the sink path
+                                        src_path = list(reversed(src_path))
+                                        # Iterate found paths
+                                        for snk_path in snk_paths:
+                                            pass
+                                        # Ignore all other source instructions since a path was found
+                                        break
                                     # TODO: Implement new slicing core
         return paths
 
