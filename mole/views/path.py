@@ -49,10 +49,15 @@ class PathView(bnui.SidebarWidget):
         self._wid.addTab(*self._init_graph_tab())
         self._wid.addTab(self.path_ctr.ai_ctr.ai_view, "AI Report")
         self._wid.addTab(self.path_ctr.config_ctr.config_view, "Configure")
+
         # Scroll widget
         scr_wid = qtw.QScrollArea()
         scr_wid.setWidgetResizable(True)
+        # We take into account the binary ninja sidebar
+        # TODO: how to properly add margin only when docked?
+        scr_wid.setViewportMargins(0, 0, 30, 0)
         scr_wid.setWidget(self._wid)
+
         # Main layout
         main_lay = qtw.QVBoxLayout()
         main_lay.addWidget(scr_wid)
