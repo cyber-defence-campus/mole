@@ -1112,4 +1112,4 @@ class NewMediumLevelILBackwardSlicer:
         """
         if not self._call_tracker:
             return nx.DiGraph()
-        return self._call_tracker.get_inst_graph().copy()
+        return self._call_tracker.get_inst_graph()

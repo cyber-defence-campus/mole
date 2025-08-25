@@ -384,8 +384,9 @@ class SourceFunction(Function):
                         new_src_slicer.slice_backwards(src_par_var)
                         log.warn(tag, "END SRC NewMediumLevelILBackwardSlicer")
                     # Add edge to instruction graph
-                    inst_graph = new_src_slicer.get_inst_graph()
+                    inst_graph = nx.DiGraph()
                     inst_graph.add_edge((None, src_call_inst), (None, src_par_var))
+                    inst_graph = nx.compose(inst_graph, new_src_slicer.get_inst_graph())
                     # Add node to call graph
                     call_graph = new_src_slicer.get_call_graph()
                     call_graph.add_node(src_call_inst.function)
@@ -588,9 +589,12 @@ class SinkFunction(Function):
                         new_snk_slicer.slice_backwards(snk_par_var)
                         log.warn(tag, "END SNK NewMediumLevelILBackwardSlicer")
                         # Add edge to instruction graph
-                        new_snk_inst_graph = new_snk_slicer.get_inst_graph()
+                        new_snk_inst_graph = nx.DiGraph()
                         new_snk_inst_graph.add_edge(
                             (None, snk_call_inst), (None, snk_par_var)
+                        )
+                        new_snk_inst_graph = nx.compose(
+                            new_snk_inst_graph, new_snk_slicer.get_inst_graph()
                         )
                         # Add node to call graph
                         new_snk_call_graph = new_snk_slicer.get_call_graph()
@@ -742,9 +746,8 @@ class SinkFunction(Function):
                                     for src_inst in new_src_inst_graph.nodes():
                                         # Ignore source instructions that were not sliced in the sink
                                         if not any(
-                                            inst
+                                            inst[1] == src_inst[1]
                                             for inst in new_snk_inst_graph
-                                            if inst[1] == src_inst[1]
                                         ):
                                             continue
                                         # Adjust negative `max_slice_depth` values
