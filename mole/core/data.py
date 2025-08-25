@@ -380,7 +380,9 @@ class SourceFunction(Function):
                         )
                     # Backward slice the parameter
                     if par_slice_fun(src_par_idx):
+                        log.warn(tag, "BEGIN SRC NewMediumLevelILBackwardSlicer")
                         new_src_slicer.slice_backwards(src_par_var)
+                        log.warn(tag, "END SRC NewMediumLevelILBackwardSlicer")
                     # Add edge to instruction graph
                     inst_graph = new_src_slicer.get_inst_graph()
                     inst_graph.add_edge((None, src_call_inst), (None, src_par_var))
@@ -582,7 +584,9 @@ class SinkFunction(Function):
                             cancelled,
                         )
                         # Backward slice the parameter
+                        log.warn(tag, "BEGIN SNK NewMediumLevelILBackwardSlicer")
                         new_snk_slicer.slice_backwards(snk_par_var)
+                        log.warn(tag, "END SNK NewMediumLevelILBackwardSlicer")
                         # Add edge to instruction graph
                         new_snk_inst_graph = new_snk_slicer.get_inst_graph()
                         new_snk_inst_graph.add_edge(
