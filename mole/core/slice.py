@@ -1100,15 +1100,15 @@ class NewMediumLevelILBackwardSlicer:
 
     def get_call_graph(self) -> nx.DiGraph:
         """
-        This method returns a copy of the call graph built during slicing.
+        This method returns the call graph built during slicing.
         """
         if not self._call_tracker:
             return nx.DiGraph()
-        return self._call_tracker.get_call_graph().copy()
+        return self._call_tracker.get_call_graph()
 
     def get_inst_graph(self) -> nx.DiGraph:
         """
-        This method returns a copy of the instruction graph built during slicing.
+        This method returns the instruction graph built during slicing.
         """
         if not self._call_tracker:
             return nx.DiGraph()

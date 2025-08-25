@@ -388,7 +388,7 @@ class SourceFunction(Function):
                     inst_graph.add_edge((None, src_call_inst), (None, src_par_var))
                     inst_graph = nx.compose(inst_graph, new_src_slicer.get_inst_graph())
                     # Add node to call graph
-                    call_graph = new_src_slicer.get_call_graph()
+                    call_graph = new_src_slicer.get_call_graph().copy()
                     call_graph.add_node(src_call_inst.function)
                     # TODO: Implement new core slicing
                     # Store the resulting instruction and call graphs
@@ -597,7 +597,7 @@ class SinkFunction(Function):
                             new_snk_inst_graph, new_snk_slicer.get_inst_graph()
                         )
                         # Add node to call graph
-                        new_snk_call_graph = new_snk_slicer.get_call_graph()
+                        new_snk_call_graph = new_snk_slicer.get_call_graph().copy()
                         new_snk_call_graph.add_node(snk_call_inst.function)
                         # TODO: Implement new slicing core
                         # Iterate sources
