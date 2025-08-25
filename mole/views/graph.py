@@ -111,6 +111,7 @@ class GraphWidget(QWidget):
         self._path_id = path_id
 
         # Only recreate the widget if the binary view has changed
+        # Couldn't find a proper API on FlowGraphWidget to avoid this
         if self.flowgraph_widget.getData() != bv:
             # Remove the old widget from layout
             self.v_layout.removeWidget(self.flowgraph_widget)
@@ -142,7 +143,7 @@ class GraphWidget(QWidget):
                 )
             ]
 
-            # Set node color based on type (sink/source)
+            # Set node color based on type
             node_data = path.call_graph.nodes[node]
             if "snk" in node_data:
                 # Red for sink nodes
@@ -182,34 +183,8 @@ class GraphWidget(QWidget):
         self.flowgraph_widget.enableInitialSizeToFit()
 
         # Reset zoom to default scale
-        self.flowgraph_widget.zoomToScale()
+        self.flowgraph_widget.zoomToScale(1.0)
 
-        # Use a timer to zoom out after the graph has been rendered
-        # This ensures the graph is fully laid out before we try to fit it
-        def delayed_zoom():
-            # Zoom out a few times to fit more content
-            for _ in range(3):
-                self.flowgraph_widget.zoom(False)
-
-        # Schedule the zoom for after the current event processing
-        QTimer.singleShot(100, delayed_zoom)
-
-        return
-
-    def clear_graph(self) -> None:
-        """Clear the current graph and show the helper message"""
-        self._bv = None
-        self._path = None
-        self._path_id = None
-        self._nodes_map = {}
-
-        # Override paint event to show helper message
-        if hasattr(self, "flowgraph_widget_paintEvent"):
-            self.flowgraph_widget.paintEvent = self.helperPaintEvent
-
-        # Clear the graph
-        empty_graph = FlowGraph()
-        self.flowgraph_widget.setGraph(empty_graph)
         return
 
     def on_checkbox_toggled(self, _: bool) -> None:
