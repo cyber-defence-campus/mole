@@ -30,9 +30,12 @@ class ColoredLegendLabel(QLabel):
 
         red_color = getThemeColor(ThemeColor.RedStandardHighlightColor)
         green_color = getThemeColor(ThemeColor.GreenStandardHighlightColor)
+        blue_color = getThemeColor(ThemeColor.BlueStandardHighlightColor)
         html_text = (
+            "CTRL+Scroll to zoom | "
             f'<span style="color: {red_color.name()};">Sink</span> | '
-            f'<span style="color: {green_color.name()};">Source</span>'
+            f'<span style="color: {green_color.name()};">Source</span> | '
+            f'<span style="color: {blue_color.name()};">Off-path</span>'
         )
 
         self.setText(html_text)
@@ -151,10 +154,7 @@ class GraphWidget(QWidget):
             elif "src" in node_data:
                 # Green for source nodes
                 new_node.highlight = HighlightStandardColor.GreenHighlightColor
-            elif node_data.get("in_path", False):
-                # Yellow for nodes in path
-                new_node.highlight = HighlightStandardColor.YellowHighlightColor
-            else:
+            elif not node_data.get("in_path", False):
                 # Blue for other nodes
                 new_node.highlight = HighlightStandardColor.BlueHighlightColor
 
