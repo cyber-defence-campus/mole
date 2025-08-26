@@ -55,7 +55,7 @@ class PathView(bnui.SidebarWidget):
         scr_wid.setWidgetResizable(True)
         # We take into account the binary ninja sidebar
         # TODO: how to properly add margin only when docked?
-        scr_wid.setViewportMargins(0, 0, 30, 0)
+        scr_wid.setViewportMargins(0, 0, self.SIDEBAR_RIGHT_MARGIN, 0)
         scr_wid.setWidget(self._wid)
 
         # Main layout
