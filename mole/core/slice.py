@@ -824,8 +824,9 @@ class NewMediumLevelILBackwardSlicer:
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
-                    # Check if memory defining instruction was followed before
-                    if self._call_tracker.is_in_current_call_frame(mem_def_inst):
+                    # TODO: Check if memory defining instruction was followed before
+                    if mem_def_inst in self._call_tracker._call_stack[-1].mem_def_insts:
+                        # if self._call_tracker.is_in_current_call_frame(mem_def_inst):
                         log.debug(
                             self._tag,
                             f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
@@ -844,6 +845,9 @@ class NewMediumLevelILBackwardSlicer:
                                             self._tag,
                                             f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'",
                                         )
+                                        self._call_tracker._call_stack[
+                                            -1
+                                        ].mem_def_insts.add(mem_def_inst)
                                         self._slice_backwards(mem_def_inst)
                                         followed = True
                                 if followed:
@@ -908,23 +912,30 @@ class NewMediumLevelILBackwardSlicer:
                             f"Do not follow instruction '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'",
                         )
                         continue
-                    # Check if memory defining instruction was followed before
-                    if self._call_tracker.is_in_current_call_frame(mem_def_inst):
+                    # TODO: Check if memory defining instruction was followed before
+                    if mem_def_inst in self._call_tracker._call_stack[-1].mem_def_insts:
+                        # if self._call_tracker.is_in_current_call_frame(mem_def_inst):
                         log.debug(
                             self._tag,
                             f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                         )
                         continue
+
                     match mem_def_inst:
                         # Slice calls having the referenced variable address (`&var_y`) as parameter
                         case bn.MediumLevelILCallSsa():
-                            var_addr_ass_inst = dest_var_use_sites[mem_def_inst]
+                            var_addr_ass_inst = dest_var_use_sites[
+                                mem_def_inst
+                            ]  # TODO: Should be add this to the instruction slice?
                             var_addr_ass_inst_info = InstructionHelper.get_inst_info(
                                 var_addr_ass_inst, False
                             )
                             log.debug(
                                 self._tag,
                                 f"Follow call instruction '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'",
+                            )
+                            self._call_tracker._call_stack[-1].mem_def_insts.add(
+                                mem_def_inst
                             )
                             self._slice_backwards(mem_def_inst)
             case (

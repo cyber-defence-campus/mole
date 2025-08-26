@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
-from typing import List
+from typing import List, Set
 import binaryninja as bn
 import networkx as nx
 
@@ -17,6 +17,7 @@ class MediumLevelILCallFrame:
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
         self.last_inst: bn.MediumLevelILInstruction = None
         self.inst_graph: nx.DiGraph = nx.DiGraph()
+        self.mem_def_insts: Set[bn.MediumLevelILInstruction] = set()
         return
 
     def __repr__(self) -> str:
