@@ -1,12 +1,5 @@
 from __future__ import annotations
-from mole.core.data import Path
-import binaryninja as bn
 import math as math
-
-from binaryninjaui import FlowGraphWidget, getApplicationFont, getThemeColor
-from binaryninja import FlowGraph, FlowGraphNode
-from binaryninja.function import DisassemblyTextLine
-from binaryninja.enums import BranchType, HighlightStandardColor, ThemeColor
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -18,6 +11,13 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPalette, QPainter, QAction
 from PySide6.QtCore import Qt, QTimer
+
+from binaryninjaui import FlowGraphWidget, getApplicationFont, getThemeColor
+from binaryninja import FlowGraph, FlowGraphNode, BinaryView
+from binaryninja.function import DisassemblyTextLine
+from binaryninja.enums import BranchType, HighlightStandardColor, ThemeColor
+
+from mole.core.data import Path
 
 tag = "Mole.Graph"
 
@@ -47,7 +47,6 @@ class GraphWidget(QWidget):
         self._bv = None
         self._path = None
         self._path_id = None
-        self._nodes_map = {}
 
         self.flowgraph_widget = FlowGraphWidget(self, None)
         self.v_layout = QVBoxLayout(self)
@@ -60,7 +59,6 @@ class GraphWidget(QWidget):
         self.toolbar = QToolBar("Graph Toolbar")
         self.addToolBarActions()
         self.v_layout.addWidget(self.toolbar)
-        return
 
     def helperPaintEvent(self, event):
         p = QPainter(self.flowgraph_widget.viewport())
@@ -100,9 +98,7 @@ class GraphWidget(QWidget):
         legend_label = ColoredLegendLabel()
         self.toolbar.addWidget(legend_label)
 
-        return
-
-    def load_path(self, bv: bn.BinaryView, path: Path, path_id: int) -> None:
+    def load_path(self, bv: BinaryView, path: Path, path_id: int) -> None:
         """Load a new graph into the flowgraph
         Args:
             bv (bn.BinaryView): The BinaryView object
@@ -128,14 +124,15 @@ class GraphWidget(QWidget):
             self.flowgraph_widget_paintEvent = self.flowgraph_widget.paintEvent
 
         # Clear previous nodes mapping
-        self._nodes_map = {}
+        nodes_map = {}
+        call_graph = path.call_graph
 
         # Create a new flowgraph
         flowgraph = FlowGraph()
-        for node in path.call_graph:
+        for node in call_graph:
             if (
                 self._show_in_path_checkbox.isChecked()
-                and not path.call_graph.nodes[node]["in_path"]
+                and not call_graph.nodes[node]["in_path"]
             ):
                 continue
 
@@ -147,7 +144,7 @@ class GraphWidget(QWidget):
             ]
 
             # Set node color based on type
-            node_data = path.call_graph.nodes[node]
+            node_data = call_graph.nodes[node]
             if "snk" in node_data:
                 # Red for sink nodes
                 new_node.highlight = HighlightStandardColor.RedHighlightColor
@@ -159,13 +156,13 @@ class GraphWidget(QWidget):
                 new_node.highlight = HighlightStandardColor.BlueHighlightColor
 
             flowgraph.append(new_node)
-            self._nodes_map[node] = new_node
+            nodes_map[node] = new_node
 
-        for a, b in path.call_graph.edges:
-            if a in self._nodes_map and b in self._nodes_map:
-                source = self._nodes_map[a]
-                dest = self._nodes_map[b]
-                source.add_outgoing_edge(BranchType.UnconditionalBranch, dest)
+        for source_node, dest_node in call_graph.edges:
+            if source_node in nodes_map and dest_node in nodes_map:
+                nodes_map[source_node].add_outgoing_edge(
+                    BranchType.UnconditionalBranch, nodes_map[dest_node]
+                )
 
         self.flowgraph_widget.setGraph(flowgraph)
 
@@ -175,8 +172,6 @@ class GraphWidget(QWidget):
         # Fit the graph to window after loading
         QTimer.singleShot(200, self.fit_to_window)
 
-        return
-
     def fit_to_window(self) -> None:
         """Fit the flowgraph to window"""
         # Enable initial size to fit for better auto-sizing
@@ -185,10 +180,7 @@ class GraphWidget(QWidget):
         # Reset zoom to default scale
         self.flowgraph_widget.zoomToScale(1.0)
 
-        return
-
     def on_checkbox_toggled(self, _: bool) -> None:
         # Reload the graph with the new filter state if a graph was loaded
         if self._bv and self._path is not None and self._path_id is not None:
             self.load_path(self._bv, self._path, self._path_id)
-        return
