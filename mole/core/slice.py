@@ -813,50 +813,61 @@ class NewMediumLevelILBackwardSlicer:
         self._call_tracker.push_inst(inst)
         match inst:
             # NOTE: Case order matters
-            case bn.MediumLevelILConstPtr():
-                # Iterate all memory defining instructions
-                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
-                    inst.function,
-                    inst.ssa_memory_version,
-                    self._max_memory_slice_depth,
-                )
-                for mem_def_inst in mem_def_insts:
-                    mem_def_inst_info = InstructionHelper.get_inst_info(
-                        mem_def_inst, False
+            case bn.MediumLevelILConstPtr(constant=constant):
+                # Ignore pointers that are in non-writable segments
+                segment = self._bv.get_segment_at(constant)
+                if segment and segment.writable:
+                    # Iterate all memory defining instructions
+                    mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                        inst.function,
+                        inst.ssa_memory_version,
+                        self._max_memory_slice_depth,
                     )
-                    # TODO: Check if memory defining instruction was followed before
-                    if mem_def_inst in self._call_tracker._call_stack[-1].mem_def_insts:
-                        # if self._call_tracker.is_in_current_call_frame(mem_def_inst):
-                        log.debug(
-                            self._tag,
-                            f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                    for mem_def_inst in mem_def_insts:
+                        mem_def_inst_info = InstructionHelper.get_inst_info(
+                            mem_def_inst, False
                         )
-                        continue
-                    match mem_def_inst:
-                        # Slice calls having the same pointer as parameter
-                        case bn.MediumLevelILCallSsa(params=params):
-                            followed = False
-                            for param in params:
-                                match param:
-                                    case bn.MediumLevelILConstPtr(
-                                        constant=constant
-                                    ) if constant == inst.constant:
-                                        log.debug(
-                                            self._tag,
-                                            f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'",
-                                        )
-                                        self._call_tracker._call_stack[
-                                            -1
-                                        ].mem_def_insts.add(mem_def_inst)
-                                        self._slice_backwards(mem_def_inst)
-                                        followed = True
-                                if followed:
-                                    break
-                            if not followed:
-                                log.debug(
-                                    self._tag,
-                                    f"Do not follow instruction '{mem_def_inst_info:s}' since it does not use '0x{inst.constant:x}'",
-                                )
+                        # TODO: Check if memory defining instruction was followed before
+                        if (
+                            mem_def_inst
+                            in self._call_tracker._call_stack[-1].mem_def_insts
+                        ):
+                            # if self._call_tracker.is_in_current_call_frame(mem_def_inst):
+                            log.debug(
+                                self._tag,
+                                f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                            )
+                            continue
+                        match mem_def_inst:
+                            # Slice calls having the same pointer as parameter
+                            case bn.MediumLevelILCallSsa(params=params):
+                                followed = False
+                                for param in params:
+                                    match param:
+                                        case bn.MediumLevelILConstPtr(
+                                            constant=constant
+                                        ) if constant == inst.constant:
+                                            log.debug(
+                                                self._tag,
+                                                f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'",
+                                            )
+                                            self._call_tracker._call_stack[
+                                                -1
+                                            ].mem_def_insts.add(mem_def_inst)
+                                            self._slice_backwards(mem_def_inst)
+                                            followed = True
+                                    if followed:
+                                        break
+                                if not followed:
+                                    log.debug(
+                                        self._tag,
+                                        f"Do not follow instruction '{mem_def_inst_info:s}' since it does not use '0x{inst.constant:x}'",
+                                    )
+                else:
+                    log.debug(
+                        self._tag,
+                        f"Do not follow pointer '0x{constant:x}' since it is in a non-writable segment",
+                    )
             case (
                 bn.MediumLevelILVarAliased()
                 | bn.MediumLevelILVarAliasedField()
