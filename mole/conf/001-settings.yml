@@ -8,7 +8,7 @@ settings:
   max_call_level:
     name: max_call_level
     help: backward slicing visits called functions up to the given level
-    value: 3
+    value: 5
     min_value: -1
     max_value: 99
   max_slice_depth:

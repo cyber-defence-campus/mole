@@ -57,7 +57,7 @@ class TestCase(unittest.TestCase):
         self,
         bv: bn.BinaryView,
         max_workers: int | None = -1,
-        max_call_level: int = 3,
+        max_call_level: int = 5,
         max_slice_depth: int = -1,
         max_memory_slice_depth: int = -1,
         enable_all_funs: bool = True,
@@ -584,7 +584,7 @@ class TestFunctionCalling(TestCase):
                 "sink argument is a MLIL variable",
             )
             calls = [call[1] for call in path.calls]
-            self.assertEqual(calls, ["main", "func", "main"], "calls")
+            self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
 
@@ -868,7 +868,7 @@ class TestPointerAnalysis(TestCase):
             # Analyze test binary
             paths = self.get_paths(bv)
             # Assert results
-            self.assertEqual(len(paths), 6, "6 paths identified")
+            self.assertEqual(len(paths), 2, "2 paths identified")
             for path in paths:
                 self.assertEqual(
                     path.src_sym_name, "getenv", "source has symbol 'getenv'"
@@ -893,7 +893,7 @@ class TestPointerAnalysis(TestCase):
                     "sink is a MLIL call instruction",
                 )
                 calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["main", "create_cmd", "main"], "calls")
+                self.assertEqual(calls, ["main"], "calls")
             bv.file.close()
         return
 

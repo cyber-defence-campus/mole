@@ -1028,12 +1028,12 @@ class NewMediumLevelILBackwardSlicer:
                                                     self._slice_backwards(
                                                         inst.params[param_idx - 1]
                                                     )
-                                                    # TODO: Test and prettify
-                                                    self._call_tracker._call_stack[
-                                                        -1
-                                                    ].inst_graph.remove_edge(
-                                                        inst, inst.params[param_idx - 1]
-                                                    )
+                                                    # # TODO: Test and prettify
+                                                    # self._call_tracker._call_stack[
+                                                    #     -1
+                                                    # ].inst_graph.remove_edge(
+                                                    #     inst, inst.params[param_idx - 1]
+                                                    # )
                                         # Imported function
                                         elif (
                                             dest_symb.type
