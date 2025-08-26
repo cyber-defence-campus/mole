@@ -35,6 +35,8 @@ class PathView(bnui.SidebarWidget):
         self._wid: Optional[qtw.QTabWidget] = None
         self.path_ctr: Optional[PathController] = None
         self.path_tree_view: Optional[PathTreeView] = None
+
+        self.SIDEBAR_RIGHT_MARGIN = 30
         return
 
     def init(self, path_ctr: PathController) -> PathView:
