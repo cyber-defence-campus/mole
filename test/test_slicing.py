@@ -612,6 +612,11 @@ class TestFunctionCalling(TestCase):
     ) -> None:
         return self.test_function_calling_07(filenames)
 
+    def test_function_calling_09(
+        self, filenames: List[str] = ["function_calling-09"]
+    ) -> None:
+        return self.test_function_calling_05(filenames)
+
 
 class TestPointerAnalysis(TestCase):
     def test_pointer_analysis_01(
