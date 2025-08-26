@@ -178,6 +178,7 @@ class GraphWidget(QWidget):
         self.flowgraph_widget.enableInitialSizeToFit()
 
         # Reset zoom to default scale
+        # The zoom-to-scale calculation seems to ignore the actual viewport size and instead uses absolute values.
         self.flowgraph_widget.zoomToScale(1.0)
 
     def on_checkbox_toggled(self, _: bool) -> None:
