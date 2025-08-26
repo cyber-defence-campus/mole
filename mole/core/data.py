@@ -691,20 +691,20 @@ class SinkFunction(Function):
                                                 insts=snk_path + src_path[1:],
                                                 sha1_hash=sha1_hash,
                                             )
-                                            # Ignore the path if we found it before
-                                            if path in paths:
-                                                continue
-                                            # Fully initialize the path
-                                            path.init(
-                                                nx.compose(
-                                                    src_call_graph, snk_call_graph
-                                                )
-                                            )
-                                            # Store the path
-                                            paths.append(path)
-                                            # Execute callback on a newly found path
-                                            if found_path:
-                                                found_path(path)
+                                            # # Ignore the path if we found it before
+                                            # if path in paths:
+                                            #     continue
+                                            # # Fully initialize the path
+                                            # path.init(
+                                            #     nx.compose(
+                                            #         src_call_graph, snk_call_graph
+                                            #     )
+                                            # )
+                                            # # Store the path
+                                            # paths.append(path)
+                                            # # Execute callback on a newly found path
+                                            # if found_path:
+                                            #     found_path(path)
                                             # Log newly found path
                                             t_log = f"Interesting path: {str(path):s}"
                                             t_log = f"{t_log:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
@@ -832,7 +832,9 @@ class SinkFunction(Function):
                                             if found_path:
                                                 found_path(path)
                                             # Log newly found path
-                                            t_log = f"Interesting path: {str(path):s}"
+                                            t_log = (
+                                                f"New Interesting path: {str(path):s}"
+                                            )
                                             t_log = f"{t_log:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
                                             log.info(custom_tag, t_log)
                                             log.debug(
