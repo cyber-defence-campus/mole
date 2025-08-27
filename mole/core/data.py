@@ -4,10 +4,8 @@ from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.symbol import SymbolHelper
 from mole.common.log import log
-from mole.core.slice import (
-    MediumLevelILFunctionGraph,
-    NewMediumLevelILBackwardSlicer,
-)
+from mole.core.graph import MediumLevelILFunctionGraph
+from mole.core.slice import NewMediumLevelILBackwardSlicer
 from mole.models.ai import AiVulnerabilityReport
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 import binaryninja as bn
@@ -191,7 +189,7 @@ class ParamKey:
 @dataclass
 class Graphs:
     inst_graph: nx.DiGraph
-    call_graph: nx.DiGraph
+    call_graph: MediumLevelILFunctionGraph
 
 
 @dataclass
@@ -357,7 +355,7 @@ class SourceFunction(Function):
                     inst_graph = nx.compose(inst_graph, src_slicer.get_inst_graph())
                     # Add node to call graph
                     call_graph = src_slicer.get_call_graph().copy()
-                    call_graph.add_node(src_call_inst.function)
+                    call_graph.add_node(src_call_inst.function, 0)
                     # Store the resulting instruction and call graphs
                     if not cancelled():
                         src_par_map[ParamKey(src_par_idx, src_par_var)] = Graphs(
@@ -538,7 +536,7 @@ class SinkFunction(Function):
                         )
                         # Add node to call graph
                         snk_call_graph = snk_slicer.get_call_graph().copy()
-                        snk_call_graph.add_node(snk_call_inst.function)
+                        snk_call_graph.add_node(snk_call_inst.function, 0)
                         # Iterate sources
                         for source in sources:
                             if cancelled():
@@ -782,7 +780,7 @@ class Path:
             if func_name == old_func_name:
                 continue
             # Function calls
-            call_level = self.call_graph.nodes[func]["call_level"]
+            call_level = self.call_graph.nodes[func]["level"]
             self.calls.append((inst.address, func_name, call_level))
             # Function calls graph
             if func in self.call_graph:
@@ -791,13 +789,17 @@ class Path:
             old_func_name = func_name
         # Copy all edges with added attribute `in_path` stating whether or not both nodes have
         # `in_path == True`
-        for node_from, node_to, attrs in call_graph.edges(data=True):
+        for from_node, to_node, attrs in call_graph.edges(data=True):
+            from_level = call_graph.nodes[from_node]["level"]
+            to_level = call_graph.nodes[to_node]["level"]
             in_path = (
-                self.call_graph.nodes[node_from]["in_path"]
-                and self.call_graph.nodes[node_to]["in_path"]
+                self.call_graph.nodes[from_node]["in_path"]
+                and self.call_graph.nodes[to_node]["in_path"]
             )
             new_attrs = {**attrs, "in_path": in_path}
-            self.call_graph.add_edge(node_from, node_to, **new_attrs)
+            self.call_graph.add_edge(
+                from_node, to_node, from_level, to_level, **new_attrs
+            )
         # Add `src` node attribute
         src_func = self.insts[-1].function
         if src_func in self.call_graph:

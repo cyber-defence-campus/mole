@@ -135,7 +135,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         # Backward slice
         basic_block = None
         for i, inst in enumerate(path.insts):
-            call_level = path.call_graph.nodes[inst.function]["call_level"]
+            call_level = path.call_graph.nodes[inst.function]["level"]
             if i < path.src_inst_idx:
                 custom_tag = f"[Snk] [{call_level:+d}]"
             else:

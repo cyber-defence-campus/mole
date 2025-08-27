@@ -5,7 +5,8 @@ from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.variable import VariableHelper
 from mole.common.log import log
 from mole.core.call import MediumLevelILCallTracker
-from typing import Any, Callable, Dict, List, Set
+from mole.core.graph import MediumLevelILFunctionGraph
+from typing import Any, Callable, Dict, Set
 import binaryninja as bn
 import networkx as nx
 
@@ -58,107 +59,6 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
             return
         super().add_edge(from_inst, to_inst, **attr)
         return
-
-
-class MediumLevelILFunctionGraph(nx.DiGraph):
-    """
-    This class represents a directed graph that stores the `MediumLevelILFunction` call graph of a
-    slice.
-    """
-
-    def add_node(
-        self, call_site: bn.MediumLevelILFunction, call_level: int = None, **attr: Any
-    ) -> None:
-        """
-        This method adds a node for the given `call_site`, with the following node attribute: The
-        attribute `call_level` is expected to be the `call_site`'s level within the call stack.
-        """
-        super().add_node(call_site, call_level=call_level, **attr)
-        return
-
-    def add_edge(
-        self,
-        from_call_site: bn.MediumLevelILFunction,
-        to_call_site: bn.MediumLevelILFunction,
-        **attr: Any,
-    ) -> None:
-        """
-        This method adds an edge from `from_call_site` to `to_call_site`.
-        """
-        if from_call_site not in self.nodes:
-            info = FunctionHelper.get_func_info(from_call_site)
-            log.warn(
-                tag,
-                f"Edge not added to function graph due to an inexisting from node ({info:s})",
-            )
-            return
-        if to_call_site not in self.nodes:
-            info = FunctionHelper.get_func_info(to_call_site)
-            log.warn(
-                tag,
-                f"Edge not added to function graph due to an inexisting to node ({info:s})",
-            )
-            return
-        super().add_edge(from_call_site, to_call_site, **attr)
-        return
-
-    def copy(self) -> MediumLevelILFunctionGraph:
-        """
-        This method returns a copy of the graph.
-        """
-        graph = MediumLevelILFunctionGraph()
-        graph.update(self)
-        return graph
-
-    def to_dict(self, debug: bool = False) -> Dict:
-        """
-        This method serializes the graph to a dictionary.
-        """
-        # Serialize nodes
-        nodes: List[Dict[str, Any]] = []
-        for node, atts in self.nodes(data=True):
-            node_dict = {
-                "adr": hex(node.source_function.start),
-                "att": atts,
-            }
-            if debug:
-                node_dict["func"] = FunctionHelper.get_func_info(node, True)
-            nodes.append(node_dict)
-        # Serialize edges
-        edges: List[Dict[str, Any]] = []
-        for src_node, tgt_node, atts in self.edges(data=True):
-            edges.append(
-                {
-                    "src": hex(src_node.source_function.start),
-                    "snk": hex(tgt_node.source_function.start),
-                    "att": atts,
-                }
-            )
-        return {"nodes": nodes, "edges": edges}
-
-    @classmethod
-    def from_dict(
-        cls: MediumLevelILFunctionGraph, bv: bn.BinaryView, d: Dict
-    ) -> MediumLevelILFunctionGraph:
-        """
-        This method deserializes a dictionary to a graph.
-        """
-        call_graph: MediumLevelILFunctionGraph = cls()
-        # Deserialize nodes
-        for node in d["nodes"]:
-            addr = int(node["adr"], 0)
-            func = bv.get_function_at(addr)
-            atts = node["att"]
-            call_graph.add_node(func.mlil.ssa_form, **atts)
-        # Deserialize edges
-        for edge in d["edges"]:
-            src_addr = int(edge["src"], 0)
-            src_func = bv.get_function_at(src_addr)
-            tgt_addr = int(edge["snk"], 0)
-            tgt_func = bv.get_function_at(tgt_addr)
-            atts = edge["att"]
-            call_graph.add_edge(src_func.mlil.ssa_form, tgt_func.mlil.ssa_form, **atts)
-        return call_graph
 
 
 class NewMediumLevelILBackwardSlicer:
@@ -604,12 +504,12 @@ class NewMediumLevelILBackwardSlicer:
         self._call_tracker.pop_func()
         return
 
-    def get_call_graph(self) -> nx.DiGraph:
+    def get_call_graph(self) -> MediumLevelILFunctionGraph:
         """
         This method returns the call graph built during slicing.
         """
         if not self._call_tracker:
-            return nx.DiGraph()
+            return MediumLevelILFunctionGraph()
         return self._call_tracker.get_call_graph()
 
     def get_inst_graph(self) -> nx.DiGraph:

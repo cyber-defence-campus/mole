@@ -1,6 +1,7 @@
 from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
+from mole.core.graph import MediumLevelILFunctionGraph
 from typing import List, Set
 import binaryninja as bn
 import networkx as nx
@@ -36,7 +37,7 @@ class MediumLevelILCallTracker:
 
     def __init__(self) -> None:
         self._call_stack: List[MediumLevelILCallFrame] = []
-        self._call_graph: nx.DiGraph = nx.DiGraph()
+        self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
         self._inst_graph: nx.DiGraph = nx.DiGraph()
         return
 
@@ -46,7 +47,7 @@ class MediumLevelILCallTracker:
         """
         return len(self._call_stack) - 1
 
-    def get_call_graph(self) -> nx.DiGraph:
+    def get_call_graph(self) -> MediumLevelILFunctionGraph:
         """
         This method returns the current call graph.
         """
@@ -85,16 +86,17 @@ class MediumLevelILCallTracker:
         """
         # Update call stack
         self._call_stack.append(MediumLevelILCallFrame(func))
+        call_level = self.get_call_level()
         # Update call graph
         if len(self._call_stack) >= 2:
             if not reverse:
                 caller = self._call_stack[-2].func
-                self._call_graph.add_edge(caller, func)
+                self._call_graph.add_edge(caller, func, call_level - 1, call_level)
             else:
                 callee = self._call_stack[-2].func
-                self._call_graph.add_edge(func, callee)
+                self._call_graph.add_edge(func, callee, call_level, call_level - 1)
         else:
-            self._call_graph.add_node(func)
+            self._call_graph.add_node(func, call_level)
         return
 
     def pop_func(self) -> List[int]:
@@ -180,9 +182,15 @@ class MediumLevelILCallTracker:
         TODO: This method prints the call graph.
         """
         for caller, callee in self._call_graph.edges():
+            caller = caller  # type: bn.MediumLevelILFunction
+            callee = callee  # type: bn.MediumLevelILFunction
+            caller_level = self._call_graph.nodes[caller]["level"]
+            callee_level = self._call_graph.nodes[callee]["level"]
             caller_info = FunctionHelper.get_func_info(caller, False)
             callee_info = FunctionHelper.get_func_info(callee, False)
-            print(f"{caller_info} -> {callee_info}")
+            print(
+                f"[{caller_level:+d}] {caller_info} -> [{callee_level:+d}] {callee_info}"
+            )
         return
 
     def print_inst_slice(self) -> None:

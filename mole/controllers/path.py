@@ -678,7 +678,7 @@ class PathController:
             insts = path.insts
         basic_block = None
         for i, inst in enumerate(insts):
-            call_level = path.call_graph.nodes[inst.function]["call_level"]
+            call_level = path.call_graph.nodes[inst.function]["level"]
             if (not reverse and i < src_inst_idx) or (reverse and i >= src_inst_idx):
                 custom_tag = f"{tag}] [Snk] [{call_level:+d}"
             else:
@@ -717,7 +717,7 @@ class PathController:
         path_0_id = path_ids[0]
         path_0_insts = []
         for i, inst in enumerate(path_0.insts):
-            call_level = path_0.call_graph.nodes[inst.function]["call_level"]
+            call_level = path_0.call_graph.nodes[inst.function]["level"]
             if i < path_0.src_inst_idx:
                 ori = f"[Snk] [{call_level:+d}]"
             else:
@@ -733,7 +733,7 @@ class PathController:
         path_1_id = path_ids[1]
         path_1_insts = []
         for i, inst in enumerate(path_1.insts):
-            call_level = path_1.call_graph.nodes[inst.function]["call_level"]
+            call_level = path_1.call_graph.nodes[inst.function]["level"]
             if i < path_1.src_inst_idx:
                 ori = f"[Snk] [{call_level:+d}]"
             else:
