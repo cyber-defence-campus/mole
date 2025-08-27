@@ -86,17 +86,16 @@ class MediumLevelILCallTracker:
         """
         # Update call stack
         self._call_stack.append(MediumLevelILCallFrame(func))
-        call_level = self.get_call_level()
         # Update call graph
         if len(self._call_stack) >= 2:
             if not reverse:
                 caller = self._call_stack[-2].func
-                self._call_graph.add_edge(caller, func, call_level - 1, call_level)
+                self._call_graph.add_edge(caller, func)
             else:
                 callee = self._call_stack[-2].func
-                self._call_graph.add_edge(func, callee, call_level, call_level - 1)
+                self._call_graph.add_edge(func, callee)
         else:
-            self._call_graph.add_node(func, call_level)
+            self._call_graph.add_node(func)
         return
 
     def pop_func(self) -> List[int]:
@@ -171,7 +170,7 @@ class MediumLevelILCallTracker:
 
     def print_call_stack(self) -> None:
         """
-        TODO: This method prints the call stack.
+        This method prints the call stack (for debugging).
         """
         for call_frame in self._call_stack:
             print(str(call_frame))
@@ -179,13 +178,11 @@ class MediumLevelILCallTracker:
 
     def print_call_graph(self) -> None:
         """
-        TODO: This method prints the call graph.
+        This method prints the call graph (for debugging).
         """
         for caller, callee in self._call_graph.edges():
-            caller = caller  # type: bn.MediumLevelILFunction
-            callee = callee  # type: bn.MediumLevelILFunction
-            caller_level = self._call_graph.nodes[caller]["level"]
-            callee_level = self._call_graph.nodes[callee]["level"]
+            caller_level = self._call_graph.nodes[caller].get("level", 0)
+            callee_level = self._call_graph.nodes[callee].get("level", 0)
             caller_info = FunctionHelper.get_func_info(caller, False)
             callee_info = FunctionHelper.get_func_info(callee, False)
             print(
@@ -195,7 +192,7 @@ class MediumLevelILCallTracker:
 
     def print_inst_slice(self) -> None:
         """
-        TODO: This method prints the instruction slice.
+        This method prints the instruction slice (for debugging).
         """
         for call_frame in self._call_stack:
             print(str(call_frame))
@@ -206,7 +203,7 @@ class MediumLevelILCallTracker:
 
     def print_inst_graph(self) -> None:
         """
-        TODO: This method prints the instruction graph.
+        This method prints the instruction graph (for debugging).
         """
         for (from_call_inst, from_inst), (
             to_call_inst,

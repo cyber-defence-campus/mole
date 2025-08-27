@@ -1,6 +1,6 @@
 from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Type
 import binaryninja as bn
 import networkx as nx
 
@@ -13,38 +13,59 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
     def add_node(
         self,
         func: bn.MediumLevelILFunction,
-        level: Optional[int] = None,
         **attr: Any,
     ) -> None:
         """
-        This method adds a node for the given `func`, with the following node attribute: The
-        attribute `level` is expected to be `func`'s level within the call stack.
+        This method adds a node for the given `func`.
         """
         if not isinstance(func, bn.MediumLevelILFunction):
             raise TypeError("Node is not of type 'bn.MediumLevelILFunction'")
-        super().add_node(func, level=level, **attr)
+        super().add_node(func, **attr)
         return
 
     def add_edge(
         self,
         from_func: bn.MediumLevelILFunction,
         to_func: bn.MediumLevelILFunction,
-        from_level: Optional[int] = None,
-        to_level: Optional[int] = None,
         **attr: Any,
     ) -> None:
         """
-        This method adds an edge between `from_func` and `to_func`, with the given levels as node
-        attributes.
+        This method adds an edge between `from_func` and `to_func`.
         """
         if not isinstance(from_func, bn.MediumLevelILFunction):
             raise TypeError("Source node is not of type 'bn.MediumLevelILFunction'")
         if not isinstance(to_func, bn.MediumLevelILFunction):
             raise TypeError("Target node is not of type 'bn.MediumLevelILFunction'")
-        self.add_node(from_func, from_level)
-        self.add_node(to_func, to_level)
+        self.add_node(from_func)
+        self.add_node(to_func)
         super().add_edge(from_func, to_func, **attr)
         return
+
+    def update_call_levels(self) -> bool:
+        """
+        This method updates the call levels of the functions in the call graph. It returns True if
+        the update was successful, False otherwise.
+        """
+        # Ensure call graph is a directed acyclic graph
+        if not nx.is_directed_acyclic_graph(self):
+            nx.set_node_attributes(self, 0, "level")
+            return False
+        # Ensure call graph is weakly connected
+        if not nx.is_weakly_connected(self):
+            nx.set_node_attributes(self, 0, "level")
+            return False
+        # Determine root candidates (i.e. nodes with in-degree 0)
+        roots = [node for node, in_degree in self.in_degree() if in_degree == 0]
+        # Ensure call graph has exactly one root
+        if len(roots) != 1:
+            nx.set_node_attributes(self, 0, "level")
+            return False
+        root = roots[0]
+        # Compute call levels (distance from root)
+        levels = dict(nx.single_source_shortest_path_length(self, root))
+        # Assign call levels as node attribute
+        nx.set_node_attributes(self, levels, "level")
+        return True
 
     def to_dict(self, debug: bool = False) -> Dict:
         """

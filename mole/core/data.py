@@ -350,16 +350,23 @@ class SourceFunction(Function):
                     if par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Add edge to instruction graph
-                    inst_graph = nx.DiGraph()
-                    inst_graph.add_edge((None, src_call_inst), (None, src_par_var))
-                    inst_graph = nx.compose(inst_graph, src_slicer.get_inst_graph())
+                    src_inst_graph = nx.DiGraph()
+                    src_inst_graph.add_edge((None, src_call_inst), (None, src_par_var))
+                    src_inst_graph = nx.compose(
+                        src_inst_graph, src_slicer.get_inst_graph()
+                    )
                     # Add node to call graph
-                    call_graph = src_slicer.get_call_graph().copy()
-                    call_graph.add_node(src_call_inst.function, 0)
+                    src_call_graph = src_slicer.get_call_graph()
+                    src_call_graph.add_node(src_call_inst.function)
+                    if not src_call_graph.update_call_levels():
+                        log.warn(
+                            custom_tag, "Failed to update levels on source call graph"
+                        )
+                    src_call_graph = src_call_graph.copy()
                     # Store the resulting instruction and call graphs
                     if not cancelled():
                         src_par_map[ParamKey(src_par_idx, src_par_var)] = Graphs(
-                            inst_graph, call_graph
+                            src_inst_graph, src_call_graph
                         )
         return
 
@@ -535,8 +542,13 @@ class SinkFunction(Function):
                             snk_inst_graph, snk_slicer.get_inst_graph()
                         )
                         # Add node to call graph
-                        snk_call_graph = snk_slicer.get_call_graph().copy()
-                        snk_call_graph.add_node(snk_call_inst.function, 0)
+                        snk_call_graph = snk_slicer.get_call_graph()
+                        snk_call_graph.add_node(snk_call_inst.function)
+                        if not snk_call_graph.update_call_levels():
+                            log.warn(
+                                custom_tag, "Failed to update levels on sink call graph"
+                            )
+                        snk_call_graph = snk_call_graph.copy()
                         # Iterate sources
                         for source in sources:
                             if cancelled():
@@ -591,7 +603,6 @@ class SinkFunction(Function):
                                         snk_paths: List[
                                             List[bn.MediumLevelILInstruction]
                                         ] = []
-                                        # TODO: Test
                                         _src_insts = [
                                             inst
                                             for inst in snk_inst_graph
@@ -790,16 +801,12 @@ class Path:
         # Copy all edges with added attribute `in_path` stating whether or not both nodes have
         # `in_path == True`
         for from_node, to_node, attrs in call_graph.edges(data=True):
-            from_level = call_graph.nodes[from_node]["level"]
-            to_level = call_graph.nodes[to_node]["level"]
             in_path = (
                 self.call_graph.nodes[from_node]["in_path"]
                 and self.call_graph.nodes[to_node]["in_path"]
             )
             new_attrs = {**attrs, "in_path": in_path}
-            self.call_graph.add_edge(
-                from_node, to_node, from_level, to_level, **new_attrs
-            )
+            self.call_graph.add_edge(from_node, to_node, **new_attrs)
         # Add `src` node attribute
         src_func = self.insts[-1].function
         if src_func in self.call_graph:
