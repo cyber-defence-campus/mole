@@ -66,6 +66,13 @@ class MediumLevelILCallTracker:
         """
         return inst in self._call_stack[-1].inst_stack if self._call_stack else False
 
+    def is_in_current_mem_def_insts(self, inst: bn.MediumLevelILInstruction) -> bool:
+        """
+        This method checks if the given instruction `inst` is included in the memory definition
+        instructions of the frame at the top of the call stack.
+        """
+        return inst in self._call_stack[-1].mem_def_insts if self._call_stack else False
+
     def is_going_downwards(self) -> bool:
         """
         This method returns `True` if we are currently going down the call graph and `False`
