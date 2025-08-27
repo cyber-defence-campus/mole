@@ -175,26 +175,32 @@ class Function:
         }
 
 
+@dataclass(frozen=True)
+class CallSiteKey:
+    sym_addr: int
+    sym_name: str
+    call_inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa
+
+
+@dataclass(frozen=True)
+class ParamKey:
+    par_idx: int
+    par_var: bn.MediumLevelILInstruction
+
+
+@dataclass
+class Graphs:
+    inst_graph: nx.DiGraph
+    call_graph: nx.DiGraph
+
+
 @dataclass
 class SourceFunction(Function):
     """
     This class is a representation of the data associated with source functions.
     """
 
-    src_map: Dict[
-        Tuple[
-            int,  # src_sym_addr
-            str,  # src_sym_name
-            bn.MediumLevelILInstruction,  # src_call_inst
-        ],
-        Dict[
-            Tuple[int, bn.MediumLevelILInstruction],  # src_par_idx, src_par_var
-            Tuple[
-                nx.DiGraph,  # src_inst_graph
-                nx.DiGraph,  # src_call_graph
-            ],
-        ],
-    ] = field(default_factory=dict)
+    src_map: Dict[CallSiteKey, Dict[ParamKey, Graphs]] = field(default_factory=dict)
 
     def __eq__(self, other: Function) -> bool:
         if not isinstance(other, SourceFunction):
@@ -289,7 +295,7 @@ class SourceFunction(Function):
                     )
                     continue
                 src_par_map = self.src_map.setdefault(
-                    (src_sym_addr, src_sym_name, src_call_inst), {}
+                    CallSiteKey(src_sym_addr, src_sym_name, src_call_inst), {}
                 )
                 # Iterate source instruction's parameters
                 for src_par_idx, src_par_var in enumerate(
@@ -354,9 +360,8 @@ class SourceFunction(Function):
                     call_graph.add_node(src_call_inst.function)
                     # Store the resulting instruction and call graphs
                     if not cancelled():
-                        src_par_map[(src_par_idx, src_par_var)] = (
-                            inst_graph,
-                            call_graph,
+                        src_par_map[ParamKey(src_par_idx, src_par_var)] = Graphs(
+                            inst_graph, call_graph
                         )
         return
 
@@ -539,18 +544,18 @@ class SinkFunction(Function):
                             if cancelled():
                                 break
                             # Iterate source instructions
-                            for (
-                                src_sym_addr,
-                                src_sym_name,
-                                src_call_inst,
-                            ), src_par_map in source.src_map.items():
+                            for src_call_site, src_par_map in source.src_map.items():
+                                src_sym_addr = src_call_site.sym_addr
+                                src_sym_name = src_call_site.sym_name
+                                src_call_inst = src_call_site.call_inst
                                 if cancelled():
                                     break
                                 # Iterate source instruction's parameters
-                                for (src_par_idx, src_par_var), (
-                                    src_inst_graph,
-                                    src_call_graph,
-                                ) in src_par_map.items():
+                                for src_param, src_graphs in src_par_map.items():
+                                    src_par_idx = src_param.par_idx
+                                    src_par_var = src_param.par_var
+                                    src_inst_graph = src_graphs.inst_graph
+                                    src_call_graph = src_graphs.call_graph
                                     if cancelled():
                                         break
                                     # Source parameter was not sliced
