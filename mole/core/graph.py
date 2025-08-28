@@ -103,10 +103,6 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         This method updates the call levels of the functions in the call graph. It returns True if
         the update was successful, False otherwise.
         """
-        # Ensure call graph is a directed acyclic graph
-        if not nx.is_directed_acyclic_graph(self):
-            nx.set_node_attributes(self, 0, "level")
-            return False
         # Ensure call graph is weakly connected
         if not nx.is_weakly_connected(self):
             nx.set_node_attributes(self, 0, "level")
