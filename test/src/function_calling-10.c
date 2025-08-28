@@ -37,7 +37,7 @@ int system_1(char *cmd) {
 int main(int argc, char *argv[]) {
     char *env_cmd = getenv_1();
     if(env_cmd == NULL) {
-        fprintf(stderr, "SYSTEM_COMMAND environment variable not set.\n");
+        fprintf(stderr, "CMD environment variable not set.\n");
         return EXIT_FAILURE;
     }
     system_1(env_cmd);

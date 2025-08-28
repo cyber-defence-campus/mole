@@ -97,13 +97,22 @@ class MediumLevelILBackwardSlicer:
             # Follow the parameter to all possible callers if we did not go down the call graph
             if not self._call_tracker.is_going_downwards():
                 for call_inst in call_insts:
-                    call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
-                    log.debug(
-                        self._tag,
-                        f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to possible caller '{call_inst_info:s}'",
-                    )
                     self._call_tracker.push_func(call_inst.function, reverse=True)
-                    self._slice_backwards(call_inst.params[param_idx - 1])
+                    from_inst = call_inst
+                    to_inst = call_inst.params[param_idx - 1]
+                    is_recursive = self._call_tracker.is_recursive(from_inst, to_inst)
+                    from_inst_info = InstructionHelper.get_inst_info(from_inst, False)
+                    if not is_recursive:
+                        log.debug(
+                            self._tag,
+                            f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to possible caller '{from_inst_info:s}'",
+                        )
+                        self._slice_backwards(to_inst)
+                    else:
+                        log.debug(
+                            self._tag,
+                            f"Do not follow parameter {param_idx:d} '{ssa_var_info:s}' to possible caller '{from_inst_info:s}' since followed before",
+                        )
                     self._call_tracker.pop_func()
             # Follow the parameter in specific caller later
             else:
@@ -335,17 +344,30 @@ class MediumLevelILBackwardSlicer:
                                             bn.SymbolType.FunctionSymbol,
                                             bn.SymbolType.LibraryFunctionSymbol,
                                         ]:
-                                            dest_func_inst_info = (
-                                                InstructionHelper.get_inst_info(
-                                                    dest_func_inst, False
+                                            self._call_tracker.push_func(dest_func)
+                                            from_inst = inst
+                                            to_inst = dest_func_inst
+                                            is_recursive = (
+                                                self._call_tracker.is_recursive(
+                                                    from_inst, to_inst
                                                 )
                                             )
-                                            log.debug(
-                                                self._tag,
-                                                f"Follow return instruction '{dest_func_inst_info:s}' of function '{dest_inst_info:s}'",
+                                            to_inst_info = (
+                                                InstructionHelper.get_inst_info(
+                                                    to_inst, False
+                                                )
                                             )
-                                            self._call_tracker.push_func(dest_func)
-                                            self._slice_backwards(dest_func_inst)
+                                            if not is_recursive:
+                                                log.debug(
+                                                    self._tag,
+                                                    f"Follow return instruction '{to_inst_info:s}' of function '{dest_inst_info:s}'",
+                                                )
+                                                self._slice_backwards(to_inst)
+                                            else:
+                                                log.debug(
+                                                    self._tag,
+                                                    f"Do not follow return instruction '{to_inst_info:s}' of function '{dest_inst_info:s}' since followed before",
+                                                )
                                             # Get call level of the callee
                                             call_level = (
                                                 self._call_tracker.get_call_level()

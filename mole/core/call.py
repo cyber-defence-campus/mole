@@ -1,4 +1,5 @@
 from __future__ import annotations
+from itertools import pairwise
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
@@ -87,6 +88,29 @@ class MediumLevelILCallTracker:
                 return True
         return False
 
+    def is_recursive(
+        self,
+        from_inst: bn.MediumLevelILInstruction,
+        to_inst: bn.MediumLevelILInstruction,
+    ) -> bool:
+        """
+        This method checks if there are two consecutive call frames in the call stack (caller_frame
+        and callee_frame), where the caller_frame's last instruction (the call instruction) is equal
+        to `from_inst` and the callee_frame's first instruction (the function return point) is equal
+        to `to_inst`. If so, there is a recursion and the method returns True, False otherwise.
+        """
+        is_recursive = False
+        for curr_call_frame, prev_call_frame in pairwise(reversed(self._call_stack)):
+            if not curr_call_frame.inst_stack or not prev_call_frame.inst_stack:
+                continue
+            if (
+                prev_call_frame.inst_stack[-1] == from_inst
+                and curr_call_frame.inst_stack[0] == to_inst
+            ):
+                is_recursive = True
+                break
+        return is_recursive
+
     def push_func(self, func: bn.MediumLevelILFunction, reverse: bool = False) -> None:
         """
         This method creates a new call frame with the given function `func` and pushes it to the top
@@ -98,11 +122,11 @@ class MediumLevelILCallTracker:
         # Update call graph
         if len(self._call_stack) >= 2:
             if not reverse:
-                caller = self._call_stack[-2].func
-                self._call_graph.add_edge(caller, func)
+                caller_frame = self._call_stack[-2]
+                self._call_graph.add_edge(caller_frame.func, func)
             else:
-                callee = self._call_stack[-2].func
-                self._call_graph.add_edge(func, callee)
+                callee_frame = self._call_stack[-2]
+                self._call_graph.add_edge(func, callee_frame.func)
         else:
             self._call_graph.add_node(func)
         return
@@ -235,6 +259,6 @@ class MediumLevelILCallTracker:
                 InstructionHelper.get_inst_info(to_inst, False) if to_inst else ""
             )
             print(
-                f"({from_call_inst_info:s}, {from_inst_info:s}) -> ({to_call_inst_info:s}, {to_inst_info:s})"
+                f"('{from_call_inst_info:s}', '{from_inst_info:s}') -> ('{to_call_inst_info:s}', '{to_inst_info:s}')"
             )
         return
