@@ -4,8 +4,8 @@ from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.symbol import SymbolHelper
 from mole.common.log import log
-from mole.core.graph import MediumLevelILFunctionGraph
-from mole.core.slice import NewMediumLevelILBackwardSlicer
+from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
+from mole.core.slice import MediumLevelILBackwardSlicer
 from mole.models.ai import AiVulnerabilityReport
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 import binaryninja as bn
@@ -188,7 +188,7 @@ class ParamKey:
 
 @dataclass
 class Graphs:
-    inst_graph: nx.DiGraph
+    inst_graph: MediumLevelILInstructionGraph
     call_graph: MediumLevelILFunctionGraph
 
 
@@ -330,7 +330,7 @@ class SourceFunction(Function):
                             )
                             continue
                     # Initialize backward slicer
-                    src_slicer = NewMediumLevelILBackwardSlicer(
+                    src_slicer = MediumLevelILBackwardSlicer(
                         bv, custom_tag, 0, 0, cancelled
                     )
                     # Initialize the function that decides which parameters to slice
@@ -350,7 +350,7 @@ class SourceFunction(Function):
                     if par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Add edge to instruction graph
-                    src_inst_graph = nx.DiGraph()
+                    src_inst_graph = MediumLevelILInstructionGraph()
                     src_inst_graph.add_edge((None, src_call_inst), (None, src_par_var))
                     src_inst_graph = nx.compose(
                         src_inst_graph, src_slicer.get_inst_graph()
@@ -524,7 +524,7 @@ class SinkFunction(Function):
                         )
                     if par_slice_fun(snk_par_idx):
                         # Initialize backward slicer
-                        snk_slicer = NewMediumLevelILBackwardSlicer(
+                        snk_slicer = MediumLevelILBackwardSlicer(
                             bv,
                             custom_tag,
                             max_call_level,
@@ -534,7 +534,7 @@ class SinkFunction(Function):
                         # Backward slice the parameter
                         snk_slicer.slice_backwards(snk_par_var)
                         # Add edge to instruction graph
-                        snk_inst_graph = nx.DiGraph()
+                        snk_inst_graph = MediumLevelILInstructionGraph()
                         snk_inst_graph.add_edge(
                             (None, snk_call_inst), (None, snk_par_var)
                         )

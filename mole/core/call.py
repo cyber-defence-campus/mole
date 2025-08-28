@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
-from mole.core.graph import MediumLevelILFunctionGraph
+from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
 from typing import List, Set
 import binaryninja as bn
 import networkx as nx
@@ -17,7 +17,7 @@ class MediumLevelILCallFrame:
         self.func_params: List[int] = []
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
         self.last_inst: bn.MediumLevelILInstruction = None
-        self.inst_graph: nx.DiGraph = nx.DiGraph()
+        self.inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
         self.mem_def_insts: Set[bn.MediumLevelILInstruction] = set()
         return
 
@@ -38,7 +38,9 @@ class MediumLevelILCallTracker:
     def __init__(self) -> None:
         self._call_stack: List[MediumLevelILCallFrame] = []
         self._call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
-        self._inst_graph: nx.DiGraph = nx.DiGraph()
+        self._inst_graph: MediumLevelILInstructionGraph = (
+            MediumLevelILInstructionGraph()
+        )
         return
 
     def get_call_level(self) -> int:
@@ -53,7 +55,7 @@ class MediumLevelILCallTracker:
         """
         return self._call_graph
 
-    def get_inst_graph(self) -> nx.DiGraph:
+    def get_inst_graph(self) -> MediumLevelILInstructionGraph:
         """
         This method returns the current instruction graph.
         """

@@ -5,63 +5,15 @@ from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.variable import VariableHelper
 from mole.common.log import log
 from mole.core.call import MediumLevelILCallTracker
-from mole.core.graph import MediumLevelILFunctionGraph
-from typing import Any, Callable, Dict, Set
+from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
+from typing import Callable, Dict, Set
 import binaryninja as bn
-import networkx as nx
 
 
 tag = "Mole.Slice"
 
 
-class MediumLevelILInstructionGraph(nx.DiGraph):
-    """
-    This class represents a directed graph that stores the `MediumLevelILInstruction` of a slice.
-    """
-
-    def add_node(
-        self,
-        inst: bn.MediumLevelILInstruction,
-        call_level: int = None,
-        caller_site: bn.MediumLevelILFunction = None,
-        **attr: Any,
-    ) -> None:
-        """
-        This method adds a node for the given instruction `inst` with the following node attributes:
-        The attribute `call_level` is expected to be `inst`'s level within the call stack. The
-        attribute `caller_site` is expected to be the function that called `inst.function`.
-        """
-        super().add_node(inst, call_level=call_level, caller_site=caller_site, **attr)
-        return
-
-    def add_edge(
-        self,
-        from_inst: bn.MediumLevelILInstruction,
-        to_inst: bn.MediumLevelILInstruction,
-        **attr: Any,
-    ) -> None:
-        """
-        This method adds an edge from `from_inst` to `to_inst`.
-        """
-        if from_inst not in self.nodes:
-            info = InstructionHelper.get_inst_info(from_inst)
-            log.warn(
-                tag,
-                f"Edge not added to instruction graph due to an inexisting from node ({info:s})",
-            )
-            return
-        if to_inst not in self.nodes:
-            info = InstructionHelper.get_inst_info(to_inst)
-            log.warn(
-                tag,
-                f"Edge not added to instruction graph due to an inexisting to node ({info:s})",
-            )
-            return
-        super().add_edge(from_inst, to_inst, **attr)
-        return
-
-
-class NewMediumLevelILBackwardSlicer:
+class MediumLevelILBackwardSlicer:
     """
     This class implements backward slicing for MLIL instructions.
     """
@@ -499,10 +451,10 @@ class NewMediumLevelILBackwardSlicer:
             return MediumLevelILFunctionGraph()
         return self._call_tracker.get_call_graph()
 
-    def get_inst_graph(self) -> nx.DiGraph:
+    def get_inst_graph(self) -> MediumLevelILInstructionGraph:
         """
         This method returns the instruction graph built during slicing.
         """
         if not self._call_tracker:
-            return nx.DiGraph()
+            return MediumLevelILInstructionGraph()
         return self._call_tracker.get_inst_graph()

@@ -5,6 +5,63 @@ import binaryninja as bn
 import networkx as nx
 
 
+class MediumLevelILInstructionGraph(nx.DiGraph):
+    """
+    This class represents a directed graph that stores the `MediumLevelILInstruction` slice graph.
+    """
+
+    def add_node(
+        self,
+        inst: bn.MediumLevelILInstruction,
+        **attr: Any,
+    ) -> None:
+        """
+        This method adds a node for the given `inst`.
+        """
+        if not isinstance(inst, bn.MediumLevelILInstruction | None) and not (
+            isinstance(inst, tuple)
+            and len(inst) == 2
+            and all(isinstance(i, bn.MediumLevelILInstruction | None) for i in inst)
+        ):
+            raise TypeError(
+                "Node is not of type 'MediumLevelILInstruction' or '(MediumLevelILInstruction, MediumLevelILInstruction)'"
+            )
+        super().add_node(inst, **attr)
+        return
+
+    def add_edge(
+        self,
+        from_inst: bn.MediumLevelILInstruction,
+        to_inst: bn.MediumLevelILInstruction,
+        **attr: Any,
+    ) -> None:
+        """
+        This method adds an edge from `from_inst` and `to_inst`.
+        """
+        if not isinstance(from_inst, bn.MediumLevelILInstruction | None) and not (
+            isinstance(from_inst, tuple)
+            and len(from_inst) == 2
+            and all(
+                isinstance(i, bn.MediumLevelILInstruction | None) for i in from_inst
+            )
+        ):
+            raise TypeError(
+                "Source node is not of type 'MediumLevelILInstruction' or '(MediumLevelILInstruction, MediumLevelILInstruction)'"
+            )
+        if not isinstance(to_inst, bn.MediumLevelILInstruction | None) and not (
+            isinstance(to_inst, tuple)
+            and len(to_inst) == 2
+            and all(isinstance(i, bn.MediumLevelILInstruction | None) for i in to_inst)
+        ):
+            raise TypeError(
+                "Target node is not of type 'MediumLevelILInstruction' or '(MediumLevelILInstruction, MediumLevelILInstruction)'"
+            )
+        self.add_node(from_inst)
+        self.add_node(to_inst)
+        super().add_edge(from_inst, to_inst, **attr)
+        return
+
+
 class MediumLevelILFunctionGraph(nx.DiGraph):
     """
     This class represents a directed graph that stores a `MediumLevelILFunction` call graph.
@@ -19,7 +76,7 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         This method adds a node for the given `func`.
         """
         if not isinstance(func, bn.MediumLevelILFunction):
-            raise TypeError("Node is not of type 'bn.MediumLevelILFunction'")
+            raise TypeError("Node is not of type 'MediumLevelILFunction'")
         super().add_node(func, **attr)
         return
 
@@ -33,9 +90,9 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         This method adds an edge between `from_func` and `to_func`.
         """
         if not isinstance(from_func, bn.MediumLevelILFunction):
-            raise TypeError("Source node is not of type 'bn.MediumLevelILFunction'")
+            raise TypeError("Source node is not of type 'MediumLevelILFunction'")
         if not isinstance(to_func, bn.MediumLevelILFunction):
-            raise TypeError("Target node is not of type 'bn.MediumLevelILFunction'")
+            raise TypeError("Target node is not of type 'MediumLevelILFunction'")
         self.add_node(from_func)
         self.add_node(to_func)
         super().add_edge(from_func, to_func, **attr)
