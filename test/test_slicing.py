@@ -669,38 +669,81 @@ class TestFunctionCalling(TestCase):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Analyze test binary
-            paths = self.get_paths(bv)
+            paths = paths = self.get_paths(bv)
             # Assert results
-            self.assertEqual(len(paths), 2, "2 paths identified")
-            for path in paths:
-                self.assertEqual(
-                    path.src_sym_name, "getenv", "source has symbol 'getenv'"
-                )
-                self.assertIsInstance(
-                    path.insts[-1],
-                    bn.Call,
-                    "source is a MLIL call instruction",
-                )
-                self.assertEqual(path.src_par_idx, None, "hit call instruction")
-                self.assertEqual(
-                    path.src_par_var, None, "source argument hit call instruction"
-                )
-                self.assertEqual(
-                    path.snk_sym_name, "system", "sink has symbol 'system'"
-                )
-                self.assertIsInstance(
-                    path.insts[0],
-                    bn.Call,
-                    "sink is a MLIL call instruction",
-                )
-                self.assertEqual(path.snk_par_idx, 1, "arg1")
-                self.assertIsInstance(
-                    path.snk_par_var,
-                    bn.MediumLevelILVarSsa,
-                    "sink argument is a MLIL variable",
-                )
-                calls = [call[1] for call in path.calls]
-                self.assertEqual(calls, ["main", "getenv_1", "getenv_2"], "calls")
+            self.assertEqual(len(paths), 1, "1 path identified")
+            path = paths[0]
+
+            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIsInstance(
+                path.insts[-1],
+                bn.Call,
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, None, "hit call instruction")
+            self.assertIsInstance(
+                path.snk_par_var,
+                bn.MediumLevelILVarSsa,
+                "source argument is a MLIL variable",
+            )
+            self.assertEqual(path.snk_sym_name, "system", "sink has symbol 'system'")
+            self.assertIsInstance(
+                path.insts[0],
+                bn.Call,
+                "sink is a MLIL call instruction",
+            )
+            self.assertEqual(path.snk_par_idx, 1, "arg1")
+            self.assertIsInstance(
+                path.snk_par_var,
+                bn.MediumLevelILVarSsa,
+                "sink argument is a MLIL variable",
+            )
+            calls = [call[1] for call in path.calls]
+            self.assertEqual(calls, ["main", "getenv_1", "getenv_2"], "calls")
+            bv.file.close()
+        return
+
+    def test_function_calling_12(
+        self, filenames: List[str] = ["function_calling-12"]
+    ) -> None:
+        for file in self.load_files(filenames):
+            # Load and analyze test binary with Binary Ninja
+            bv = bn.load(file)
+            bv.update_analysis_and_wait()
+            # Analyze test binary
+            paths = paths = self.get_paths(bv)
+            # Assert results
+            self.assertEqual(len(paths), 1, "1 path identified")
+            path = paths[0]
+
+            self.assertEqual(path.src_sym_name, "getenv", "source has symbol 'getenv'")
+            self.assertIsInstance(
+                path.insts[-1],
+                bn.Call,
+                "source is a MLIL call instruction",
+            )
+            self.assertEqual(path.src_par_idx, None, "hit call instruction")
+            self.assertIsInstance(
+                path.snk_par_var,
+                bn.MediumLevelILVarSsa,
+                "source argument is a MLIL variable",
+            )
+            self.assertEqual(path.snk_sym_name, "system", "sink has symbol 'system'")
+            self.assertIsInstance(
+                path.insts[0],
+                bn.Call,
+                "sink is a MLIL call instruction",
+            )
+            self.assertEqual(path.snk_par_idx, 1, "arg1")
+            self.assertIsInstance(
+                path.snk_par_var,
+                bn.MediumLevelILVarSsa,
+                "sink argument is a MLIL variable",
+            )
+            calls = [call[1] for call in path.calls]
+            self.assertEqual(
+                calls, ["main", "getenv_1", "getenv_2", "getenv_3", "getenv_4"], "calls"
+            )
             bv.file.close()
         return
 

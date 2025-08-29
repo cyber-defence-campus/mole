@@ -97,12 +97,13 @@ class MediumLevelILBackwardSlicer:
             # Follow the parameter to all possible callers if we did not go down the call graph
             if not self._call_tracker.is_going_downwards():
                 for call_inst in call_insts:
-                    self._call_tracker.push_func(call_inst.function, reverse=True)
                     from_inst = call_inst
                     to_inst = call_inst.params[param_idx - 1]
-                    is_recursive = self._call_tracker.is_recursive(from_inst, to_inst)
+                    recursion = self._call_tracker.push_func(
+                        from_inst, to_inst, reverse=True
+                    )
                     from_inst_info = InstructionHelper.get_inst_info(from_inst, False)
-                    if not is_recursive:
+                    if not recursion:
                         log.debug(
                             self._tag,
                             f"Follow parameter {param_idx:d} '{ssa_var_info:s}' to possible caller '{from_inst_info:s}'",
@@ -111,7 +112,7 @@ class MediumLevelILBackwardSlicer:
                     else:
                         log.debug(
                             self._tag,
-                            f"Do not follow parameter {param_idx:d} '{ssa_var_info:s}' to possible caller '{from_inst_info:s}' since followed before",
+                            f"Do not follow parameter {param_idx:d} '{ssa_var_info:s}' to possible caller '{from_inst_info:s}' since recursion detected",
                         )
                     self._call_tracker.pop_func()
             # Follow the parameter in specific caller later
@@ -344,20 +345,17 @@ class MediumLevelILBackwardSlicer:
                                             bn.SymbolType.FunctionSymbol,
                                             bn.SymbolType.LibraryFunctionSymbol,
                                         ]:
-                                            self._call_tracker.push_func(dest_func)
                                             from_inst = inst
                                             to_inst = dest_func_inst
-                                            is_recursive = (
-                                                self._call_tracker.is_recursive(
-                                                    from_inst, to_inst
-                                                )
+                                            recursion = self._call_tracker.push_func(
+                                                from_inst, to_inst
                                             )
                                             to_inst_info = (
                                                 InstructionHelper.get_inst_info(
                                                     to_inst, False
                                                 )
                                             )
-                                            if not is_recursive:
+                                            if not recursion:
                                                 log.debug(
                                                     self._tag,
                                                     f"Follow return instruction '{to_inst_info:s}' of function '{dest_inst_info:s}'",
@@ -366,7 +364,7 @@ class MediumLevelILBackwardSlicer:
                                             else:
                                                 log.debug(
                                                     self._tag,
-                                                    f"Do not follow return instruction '{to_inst_info:s}' of function '{dest_inst_info:s}' since followed before",
+                                                    f"Do not follow return instruction '{to_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
                                                 )
                                             # Get call level of the callee
                                             call_level = (
@@ -457,7 +455,7 @@ class MediumLevelILBackwardSlicer:
         This method backward slices the instruction `inst`.
         """
         self._call_tracker = MediumLevelILCallTracker()
-        self._call_tracker.push_func(inst.function, reverse=True)
+        self._call_tracker.push_func(None, inst, reverse=True)
         deque(
             inst.ssa_form.traverse(lambda inst: self._slice_backwards(inst)),
             maxlen=0,

@@ -6,24 +6,39 @@
 Testcase Description:
 - disallow function inlining
 - with tail calls
-- direct recursion
+- indirect recursion
 */
 
+char* getenv_4();
+char* getenv_3(int* cnt);
+char* getenv_2(int* cnt);
+char* getenv_1(int* cnt);
+
 __attribute__ ((noinline, optimize("O0")))
-char* getenv_2() {
+char* getenv_4() {
     return getenv("CMD");
 }
 
 __attribute__ ((noinline, optimize("O0")))
-char* getenv_1(int* cnt) {
+char* getenv_3(int* cnt) {
     char* cmd = NULL;
     if(*cnt > 0) {
         (*cnt)--;
-        cmd = getenv_1(cnt);
-    } else{
-        cmd = getenv_2();
+        return getenv_1(cnt);
+    } else {
+        cmd = getenv_4();
     }
     return cmd;
+}
+
+__attribute__ ((noinline, optimize("O0")))
+char* getenv_2(int* cnt) {
+    return getenv_3(cnt);
+}
+
+__attribute__ ((noinline, optimize("O0")))
+char* getenv_1(int* cnt) {
+    return getenv_2(cnt);
 }
 
 int main(int argc, char *argv[]) {

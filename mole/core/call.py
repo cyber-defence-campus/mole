@@ -1,5 +1,4 @@
 from __future__ import annotations
-from itertools import pairwise
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
@@ -21,6 +20,23 @@ class MediumLevelILCallFrame:
         self.inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
         self.mem_def_insts: Set[bn.MediumLevelILInstruction] = set()
         return
+
+    def __eq__(self, other: MediumLevelILCallFrame) -> bool:
+        if not isinstance(other, MediumLevelILCallFrame):
+            raise TypeError("Call frame is not of type MediumLevelILCallFrame")
+        # Equal function
+        if self.func != other.func:
+            return False
+        # Both frames contain no instructions
+        if not self.inst_stack and not other.inst_stack:
+            return True
+        # Only one frame contains no instructions
+        if not self.inst_stack or not other.inst_stack:
+            return False
+        # Equal first (function return) instruction
+        if self.inst_stack[0] == other.inst_stack[0]:
+            return True
+        return False
 
     def __repr__(self) -> str:
         return f"<MediumLevelILCallFrame: {self.func.source_function.name:s}>"
@@ -88,48 +104,65 @@ class MediumLevelILCallTracker:
                 return True
         return False
 
-    def is_recursive(
+    def push_func(
         self,
         from_inst: bn.MediumLevelILInstruction,
         to_inst: bn.MediumLevelILInstruction,
+        reverse: bool = False,
     ) -> bool:
         """
-        This method checks if there are two consecutive call frames in the call stack (caller_frame
-        and callee_frame), where the caller_frame's last instruction (the call instruction) is equal
-        to `from_inst` and the callee_frame's first instruction (the function return point) is equal
-        to `to_inst`. If so, there is a recursion and the method returns True, False otherwise.
+        This method creates a new call frame with the function `to_inst.function` and pushes it to
+        the top of the call stack. Also, it updates the call graph. If `reverse` is True, `func` is
+        considered to be the caller (not the callee). The function returns True if in case of a
+        recursion, False otherwise.
         """
-        is_recursive = False
-        for curr_call_frame, prev_call_frame in pairwise(reversed(self._call_stack)):
-            if not curr_call_frame.inst_stack or not prev_call_frame.inst_stack:
-                continue
-            if (
-                prev_call_frame.inst_stack[-1] == from_inst
-                and curr_call_frame.inst_stack[0] == to_inst
-            ):
-                is_recursive = True
-                break
-        return is_recursive
-
-    def push_func(self, func: bn.MediumLevelILFunction, reverse: bool = False) -> None:
-        """
-        This method creates a new call frame with the given function `func` and pushes it to the top
-        of the call stack. Also, it updates the call graph. If `reverse` is True, `func` is
-        considered to be the caller (not the callee).
-        """
+        # Get the return instruction's function
+        func = to_inst.function
+        # Create new call frame
+        new_call_frame = MediumLevelILCallFrame(func)
+        # Push return instruction to the call frame's instruction stack
+        new_call_frame.inst_stack.append(to_inst)
+        # Detect recursion
+        recursion = False
+        # New call frame is already on the call stack
+        if new_call_frame in self._call_stack:
+            # Get indices of the matching frames
+            indices = [
+                index
+                for index, call_frame in enumerate(self._call_stack)
+                if call_frame == new_call_frame
+            ]
+            for index in indices:
+                # Ignore the first frame on the call stack
+                if index == 0:
+                    continue
+                # Detect direct recursion (new call frame is equal to the last frame on the call stack)
+                if index == len(self._call_stack) - 1:
+                    recursion = True
+                    break
+                # Detect indirect recursion (found call frame call site matches)
+                prev_call_frame = self._call_stack[index - 1]
+                if prev_call_frame.inst_stack:
+                    if prev_call_frame.inst_stack[-1] == from_inst:
+                        recursion = True
+                        break
+        # Pop return instruction from the call frame's instruction stack
+        new_call_frame.inst_stack.pop()
         # Update call stack
-        self._call_stack.append(MediumLevelILCallFrame(func))
+        self._call_stack.append(new_call_frame)
         # Update call graph
-        if len(self._call_stack) >= 2:
-            if not reverse:
-                caller_frame = self._call_stack[-2]
-                self._call_graph.add_edge(caller_frame.func, func)
+        if not recursion:
+            # Update call graph
+            if len(self._call_stack) >= 2:
+                if not reverse:
+                    caller_frame = self._call_stack[-2]
+                    self._call_graph.add_edge(caller_frame.func, func)
+                else:
+                    callee_frame = self._call_stack[-2]
+                    self._call_graph.add_edge(func, callee_frame.func)
             else:
-                callee_frame = self._call_stack[-2]
-                self._call_graph.add_edge(func, callee_frame.func)
-        else:
-            self._call_graph.add_node(func)
-        return
+                self._call_graph.add_node(func)
+        return recursion
 
     def pop_func(self) -> List[int]:
         """
