@@ -24,19 +24,7 @@ class MediumLevelILCallFrame:
     def __eq__(self, other: MediumLevelILCallFrame) -> bool:
         if not isinstance(other, MediumLevelILCallFrame):
             raise TypeError("Call frame is not of type MediumLevelILCallFrame")
-        # Equal function
-        if self.func != other.func:
-            return False
-        # Both frames contain no instructions
-        if not self.inst_stack and not other.inst_stack:
-            return True
-        # Only one frame contains no instructions
-        if not self.inst_stack or not other.inst_stack:
-            return False
-        # Equal first (function return) instruction
-        if self.inst_stack[0] == other.inst_stack[0]:
-            return True
-        return False
+        return self.func == other.func
 
     def __repr__(self) -> str:
         return f"<MediumLevelILCallFrame: {self.func.source_function.name:s}>"
@@ -122,30 +110,8 @@ class MediumLevelILCallTracker:
         new_call_frame = MediumLevelILCallFrame(func)
         # Push return instruction to the call frame's instruction stack
         new_call_frame.inst_stack.append(to_inst)
-        # Detect recursion
-        recursion = False
-        # New call frame is already on the call stack
-        if new_call_frame in self._call_stack:
-            # Get indices of the matching frames
-            indices = [
-                index
-                for index, call_frame in enumerate(self._call_stack)
-                if call_frame == new_call_frame
-            ]
-            for index in indices:
-                # Ignore the first frame on the call stack
-                if index == 0:
-                    continue
-                # Detect direct recursion (new call frame is equal to the last frame on the call stack)
-                if index == len(self._call_stack) - 1:
-                    recursion = True
-                    break
-                # Detect indirect recursion (found call frame call site matches)
-                prev_call_frame = self._call_stack[index - 1]
-                if prev_call_frame.inst_stack:
-                    if prev_call_frame.inst_stack[-1] == from_inst:
-                        recursion = True
-                        break
+        # Detect recursion)
+        recursion = new_call_frame in self._call_stack
         # Pop return instruction from the call frame's instruction stack
         new_call_frame.inst_stack.pop()
         # Update call stack
