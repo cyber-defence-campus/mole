@@ -9,7 +9,7 @@ Testcase Description:
 - recursion
 */
 
-__attribute__ ((noinline))
+__attribute__ ((noinline, optimize("O0")))
 char* getenv_2() {
     return getenv("CMD");
 }
