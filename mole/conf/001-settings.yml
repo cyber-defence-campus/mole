@@ -8,19 +8,19 @@ settings:
   max_call_level:
     name: max_call_level
     help: backward slicing visits called functions up to the given level
-    value: 5
+    value: 10
     min_value: -1
     max_value: 99
   max_slice_depth:
     name: max_slice_depth
     help: maximum slice depth to stop the search
-    value: -1
+    value: 1000
     min_value: -1
     max_value: 9999
   max_memory_slice_depth:
     name: max_memory_slice_depth
     help: maximum memory slice depth to stop the search
-    value: -1
+    value: 10
     min_value: -1
     max_value: 9999
   src_highlight_color:
