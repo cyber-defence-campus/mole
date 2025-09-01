@@ -1,5 +1,5 @@
 from __future__ import annotations
-from mole.views.graph import GraphWidget
+from mole.views.graph import CallGraphWidget
 from mole.views.path_tree import PathTreeView
 from typing import Optional, Tuple, TYPE_CHECKING
 import binaryninja as bn
@@ -51,7 +51,6 @@ class PathView(bnui.SidebarWidget):
         # Scroll widget
         scr_wid = qtw.QScrollArea()
         scr_wid.setWidgetResizable(True)
-        # We take into account the binary ninja sidebar
         scr_wid.setWidget(self._wid)
         # Main layout
         main_lay = qtw.QVBoxLayout()
@@ -114,7 +113,7 @@ class PathView(bnui.SidebarWidget):
         return wid, "Paths"
 
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
-        return GraphWidget(), "Graph"
+        return CallGraphWidget(), "Graph"
 
     def give_feedback(
         self,

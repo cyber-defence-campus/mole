@@ -9,7 +9,7 @@ from mole.controllers.config import ConfigController
 from mole.core.data import Path, SourceFunction, SinkFunction
 from mole.services.path import PathService
 from mole.views.config import ManualConfigDialog
-from mole.views.graph import GraphWidget
+from mole.views.graph import CallGraphWidget
 from mole.views.path import PathView
 from mole.views.path_tree import PathTreeView
 from typing import Dict, List, Literal, Tuple, Optional
@@ -904,7 +904,7 @@ class PathController:
             return
         for idx in range(wid.count()):
             if wid.tabText(idx) == "Graph":
-                graph_widget: GraphWidget = wid.widget(idx)
+                graph_widget: CallGraphWidget = wid.widget(idx)
                 graph_widget.load_path(self._bv, path, path_ids[0])
                 wid.setCurrentWidget(graph_widget)
                 return
