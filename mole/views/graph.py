@@ -1,6 +1,5 @@
 from __future__ import annotations
-import math as math
-
+from mole.core.data import Path
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -11,13 +10,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPalette, QPainter, QAction
 from PySide6.QtCore import Qt, QTimer
+import binaryninja as bn
+import binaryninjaui as bnui
+import math as math
 
-from binaryninjaui import FlowGraphWidget, getApplicationFont, getThemeColor
-from binaryninja import FlowGraph, FlowGraphNode, BinaryView
-from binaryninja.function import DisassemblyTextLine
-from binaryninja.enums import BranchType, HighlightStandardColor, ThemeColor
-
-from mole.core.data import Path
 
 tag = "Mole.Graph"
 
@@ -28,11 +24,12 @@ class ColoredLegendLabel(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        red_color = getThemeColor(ThemeColor.RedStandardHighlightColor)
-        green_color = getThemeColor(ThemeColor.GreenStandardHighlightColor)
-        blue_color = getThemeColor(ThemeColor.BlueStandardHighlightColor)
+        red_color = bnui.getThemeColor(bn.enums.ThemeColor.RedStandardHighlightColor)
+        green_color = bnui.getThemeColor(
+            bn.enums.ThemeColor.GreenStandardHighlightColor
+        )
+        blue_color = bnui.getThemeColor(bn.enums.ThemeColor.BlueStandardHighlightColor)
         html_text = (
-            "CTRL+Scroll to zoom | "
             f'<span style="color: {red_color.name()};">Sink</span> | '
             f'<span style="color: {green_color.name()};">Source</span> | '
             f'<span style="color: {blue_color.name()};">Off-path</span>'
@@ -48,7 +45,7 @@ class GraphWidget(QWidget):
         self._path = None
         self._path_id = None
 
-        self.flowgraph_widget = FlowGraphWidget(self, None)
+        self.flowgraph_widget = bnui.FlowGraphWidget(self, None)
         self.v_layout = QVBoxLayout(self)
         self.v_layout.addWidget(self.flowgraph_widget)
 
@@ -63,7 +60,7 @@ class GraphWidget(QWidget):
     def helperPaintEvent(self, event):
         p = QPainter(self.flowgraph_widget.viewport())
 
-        p.setFont(getApplicationFont(self.flowgraph_widget))
+        p.setFont(bnui.getApplicationFont(self.flowgraph_widget))
         p.setPen(self.flowgraph_widget.palette().color(QPalette.ColorRole.WindowText))
 
         text = "Right-click on a path and select 'Show call graph'"
@@ -98,7 +95,7 @@ class GraphWidget(QWidget):
         legend_label = ColoredLegendLabel()
         self.toolbar.addWidget(legend_label)
 
-    def load_path(self, bv: BinaryView, path: Path, path_id: int) -> None:
+    def load_path(self, bv: bn.BinaryView, path: Path, path_id: int) -> None:
         """Load a new graph into the flowgraph
         Args:
             bv (bn.BinaryView): The BinaryView object
@@ -117,7 +114,7 @@ class GraphWidget(QWidget):
             self.flowgraph_widget.setParent(None)
 
             # Create new widget with the updated binary view
-            self.flowgraph_widget = FlowGraphWidget(self, bv)
+            self.flowgraph_widget = bnui.FlowGraphWidget(self, bv)
             self.v_layout.insertWidget(0, self.flowgraph_widget)
 
             # Store the original paint event for later restoration
@@ -128,7 +125,7 @@ class GraphWidget(QWidget):
         call_graph = path.call_graph
 
         # Create a new flowgraph
-        flowgraph = FlowGraph()
+        flowgraph = bn.FlowGraph()
         for node in call_graph:
             if (
                 self._show_in_path_checkbox.isChecked()
@@ -136,9 +133,9 @@ class GraphWidget(QWidget):
             ):
                 continue
 
-            new_node = FlowGraphNode(flowgraph)
+            new_node = bn.FlowGraphNode(flowgraph)
             new_node.lines = [
-                DisassemblyTextLine(
+                bn.function.DisassemblyTextLine(
                     node.source_function.type_tokens, address=node.source_function.start
                 )
             ]
@@ -147,13 +144,13 @@ class GraphWidget(QWidget):
             node_data = call_graph.nodes[node]
             if "snk" in node_data:
                 # Red for sink nodes
-                new_node.highlight = HighlightStandardColor.RedHighlightColor
+                new_node.highlight = bn.enums.HighlightStandardColor.RedHighlightColor
             elif "src" in node_data:
                 # Green for source nodes
-                new_node.highlight = HighlightStandardColor.GreenHighlightColor
+                new_node.highlight = bn.enums.HighlightStandardColor.GreenHighlightColor
             elif not node_data.get("in_path", False):
                 # Blue for other nodes
-                new_node.highlight = HighlightStandardColor.BlueHighlightColor
+                new_node.highlight = bn.enums.HighlightStandardColor.BlueHighlightColor
 
             flowgraph.append(new_node)
             nodes_map[node] = new_node
@@ -161,7 +158,7 @@ class GraphWidget(QWidget):
         for source_node, dest_node in call_graph.edges:
             if source_node in nodes_map and dest_node in nodes_map:
                 nodes_map[source_node].add_outgoing_edge(
-                    BranchType.UnconditionalBranch, nodes_map[dest_node]
+                    bn.enums.BranchType.UnconditionalBranch, nodes_map[dest_node]
                 )
 
         self.flowgraph_widget.setGraph(flowgraph)
