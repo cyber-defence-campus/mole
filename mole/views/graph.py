@@ -162,18 +162,7 @@ class CallGraphWidget(qtw.QWidget):
                 )
             ]
             # Set node's color
-            if "src" in attrs:
-                src_text = bn.DisassemblyTextLine(
-                    [
-                        bn.InstructionTextToken(
-                            bn.InstructionTextTokenType.TextToken, "<src>"
-                        )
-                    ],
-                    address=None,
-                )
-                flow_graph_node.lines.append(src_text)
-                flow_graph_node.highlight = self._get_color("src")
-            elif "snk" in attrs:
+            if "snk" in attrs:
                 snk_text = bn.DisassemblyTextLine(
                     [
                         bn.InstructionTextToken(
@@ -184,6 +173,17 @@ class CallGraphWidget(qtw.QWidget):
                 )
                 flow_graph_node.lines.append(snk_text)
                 flow_graph_node.highlight = self._get_color("snk")
+            elif "src" in attrs:
+                src_text = bn.DisassemblyTextLine(
+                    [
+                        bn.InstructionTextToken(
+                            bn.InstructionTextTokenType.TextToken, "<src>"
+                        )
+                    ],
+                    address=None,
+                )
+                flow_graph_node.lines.append(src_text)
+                flow_graph_node.highlight = self._get_color("src")
             elif attrs["in_path"]:
                 flow_graph_node.highlight = self._get_color("in_path")
             # Add node to graph
