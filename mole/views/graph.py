@@ -162,28 +162,33 @@ class CallGraphWidget(qtw.QWidget):
                 )
             ]
             # Set node's color
-            if "snk" in attrs:
-                tokens = [
-                    bn.InstructionTextToken(
-                        bn.InstructionTextTokenType.CommentToken, attrs["snk"]
-                    )
-                ]
+            if "src" in attrs:
                 flow_graph_node.lines += [
-                    bn.function.DisassemblyTextLine(tokens, address=None),
-                ]
-                flow_graph_node.highlight = self._get_color("snk")
-            elif "src" in attrs:
-                tokens = [
-                    bn.InstructionTextToken(
-                        bn.InstructionTextTokenType.CommentToken, attrs["src"]
-                    )
-                ]
-                flow_graph_node.lines += [
-                    bn.function.DisassemblyTextLine(tokens, address=None),
+                    bn.function.DisassemblyTextLine(
+                        [
+                            bn.InstructionTextToken(
+                                bn.InstructionTextTokenType.CommentToken, attrs["src"]
+                            )
+                        ],
+                        address=None,
+                    ),
                 ]
                 flow_graph_node.highlight = self._get_color("src")
-            elif attrs["in_path"]:
-                flow_graph_node.highlight = self._get_color("in_path")
+            if "snk" in attrs:
+                flow_graph_node.lines += [
+                    bn.function.DisassemblyTextLine(
+                        [
+                            bn.InstructionTextToken(
+                                bn.InstructionTextTokenType.CommentToken, attrs["snk"]
+                            )
+                        ],
+                        address=None,
+                    ),
+                ]
+                flow_graph_node.highlight = self._get_color("snk")
+            if "src" not in attrs and "snk" not in attrs:
+                if "in_path" in attrs and attrs["in_path"]:
+                    flow_graph_node.highlight = self._get_color("in_path")
             # Add node to graph
             self.graph.append(flow_graph_node)
             nodes_map[node] = flow_graph_node
