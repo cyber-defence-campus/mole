@@ -35,8 +35,6 @@ settings:
     - Magenta
     - Yellow
     - Orange
-    - White
-    - Black
   snk_highlight_color:
     name: snk_highlight_color
     help: color used to highlight instructions originating from slicing a sink function
@@ -49,8 +47,6 @@ settings:
     - Magenta
     - Yellow
     - Orange
-    - White
-    - Black
   path_grouping:
     name: path_grouping
     help: strategy used to group paths

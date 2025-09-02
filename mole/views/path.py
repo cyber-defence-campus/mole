@@ -1,5 +1,5 @@
 from __future__ import annotations
-from mole.views.graph import GraphWidget
+from mole.views.graph import CallGraphWidget
 from mole.views.path_tree import PathTreeView
 from typing import Optional, Tuple, TYPE_CHECKING
 import binaryninja as bn
@@ -29,7 +29,6 @@ class PathView(bnui.SidebarWidget):
         """
         This method initializes a sidebar widget.
         """
-        # Initialization
         super().__init__("Mole")
         self._bv: Optional[bn.BinaryView] = None
         self._wid: Optional[qtw.QTabWidget] = None
@@ -114,7 +113,7 @@ class PathView(bnui.SidebarWidget):
         return wid, "Paths"
 
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
-        return GraphWidget(), "Graph"
+        return CallGraphWidget(self.path_ctr), "Graph"
 
     def give_feedback(
         self,
