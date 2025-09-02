@@ -113,7 +113,7 @@ class PathView(bnui.SidebarWidget):
         return wid, "Paths"
 
     def _init_graph_tab(self) -> Tuple[qtw.QWidget, str]:
-        return CallGraphWidget(), "Graph"
+        return CallGraphWidget(self.path_ctr), "Graph"
 
     def give_feedback(
         self,

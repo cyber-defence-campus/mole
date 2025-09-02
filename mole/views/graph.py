@@ -1,11 +1,14 @@
 from __future__ import annotations
 from mole.core.data import Path
-from typing import Optional
+from typing import Literal, Optional, TYPE_CHECKING
 import binaryninja as bn
 import binaryninjaui as bnui
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 import PySide6.QtWidgets as qtw
+
+if TYPE_CHECKING:
+    from mole.controllers.path import PathController
 
 
 class CallGraphWidget(qtw.QWidget):
@@ -13,11 +16,12 @@ class CallGraphWidget(qtw.QWidget):
     This class implements a view to display call graphs.
     """
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, path_ctr: PathController, parent=None) -> None:
         """
         This method initializes the call graph view.
         """
         super().__init__(parent)
+        self.path_ctr = path_ctr
         self._bv = None
         self._path = None
         self._path_id = None
@@ -26,7 +30,7 @@ class CallGraphWidget(qtw.QWidget):
         self.graph_wid = bnui.FlowGraphWidget(self, self._bv, self.graph)
         # Fit to view
         fit_to_view = qtui.QAction("Fit to View", self)
-        fit_to_view.triggered.connect(lambda: self.fit_to_view())
+        fit_to_view.triggered.connect(lambda: self.load_path())
         # In-path only
         self.in_path_only = qtui.QAction("In-Path Only", self)
         self.in_path_only.setCheckable(True)
@@ -38,25 +42,13 @@ class CallGraphWidget(qtw.QWidget):
             qtw.QSizePolicy.Policy.Expanding, qtw.QSizePolicy.Policy.Preferred
         )
         # Legend
-        r_color = bn.enums.ThemeColor.RedStandardHighlightColor
-        g_color = bn.enums.ThemeColor.GreenStandardHighlightColor
-        b_color = bn.enums.ThemeColor.BlueStandardHighlightColor
-        r = str(bnui.getThemeColor(r_color).name())
-        g = str(bnui.getThemeColor(g_color).name())
-        b = str(bnui.getThemeColor(b_color).name())
-        legend = qtw.QLabel(
-            (
-                f'<span style="color: {r:s};">Sink</span> | '
-                f'<span style="color: {g:s};">Source</span> | '
-                f'<span style="color: {b:s};">In-Path</span>'
-            )
-        )
+        self.legend = self._update_legend()
         # Toolbar
         toolbar = qtw.QToolBar("Graph Toolbar")
         toolbar.addAction(fit_to_view)
         toolbar.addAction(self.in_path_only)
         toolbar.addWidget(spacer)
-        toolbar.addWidget(legend)
+        toolbar.addWidget(self.legend)
         # Layout
         self.layout: qtw.QVBoxLayout = qtw.QVBoxLayout()
         self.layout.addWidget(self.graph_wid)
@@ -64,7 +56,49 @@ class CallGraphWidget(qtw.QWidget):
         self.setLayout(self.layout)
         return
 
-    def fit_to_view(self, min_scale: float = 0.05, padding: int = 10) -> None:
+    def _get_color(
+        self, name: Literal["src", "snk", "in_path"]
+    ) -> bn.HighlightStandardColor:
+        """
+        This method retries the highlight color from the settings.
+        """
+        color = bn.HighlightStandardColor.WhiteHighlightColor
+        if name == "src":
+            try:
+                setting = self.path_ctr.config_ctr.get_setting("src_highlight_color")
+                color_name = setting.widget.currentText().capitalize()
+                color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
+            except Exception as _:
+                color = bn.HighlightStandardColor.OrangeHighlightColor
+        elif name == "snk":
+            try:
+                setting = self.path_ctr.config_ctr.get_setting("snk_highlight_color")
+                color_name = setting.widget.currentText().capitalize()
+                color = bn.HighlightStandardColor[f"{color_name:s}HighlightColor"]
+            except Exception as _:
+                color = bn.HighlightStandardColor.RedHighlightColor
+        return color
+
+    def _update_legend(self) -> qtw.QLabel:
+        """
+        This method updates the legend with the correct highlight colors.
+        """
+        if not hasattr(self, "legend") or not self.legend:
+            self.legend = qtw.QLabel()
+        src_color: qtui.QColor = bnui.getThemeHighlightColor(self._get_color("src"))
+        snk_color: qtui.QColor = bnui.getThemeHighlightColor(self._get_color("snk"))
+        in_path_color: qtui.QColor = bnui.getThemeHighlightColor(
+            self._get_color("in_path")
+        )
+        text = (
+            f'<span style="color: {src_color.name()};">Source</span> | '
+            f'<span style="color: {snk_color.name()};">Sink</span> | '
+            f'<span style="color: {in_path_color.name()};">In-Path</span>'
+        )
+        self.legend.setText(text)
+        return self.legend
+
+    def _fit_to_view(self, min_scale: float = 0.05, padding: int = 10) -> None:
         """
         This method fits the entire graph into the visible area.
         """
@@ -97,6 +131,10 @@ class CallGraphWidget(qtw.QWidget):
         This method creates a new Binary Ninja flow graph for the given path's call graph and loads
         it into the view.
         """
+        # Fit graph to view
+        self._fit_to_view()
+        # Update legend
+        self._update_legend()
         # Update references to BinaryView and path information
         if bv is not None:
             self._bv = bv
@@ -124,18 +162,30 @@ class CallGraphWidget(qtw.QWidget):
                 )
             ]
             # Set node's color
-            if "snk" in attrs:
-                flow_graph_node.highlight = (
-                    bn.enums.HighlightStandardColor.RedHighlightColor
+            if "src" in attrs:
+                src_text = bn.DisassemblyTextLine(
+                    [
+                        bn.InstructionTextToken(
+                            bn.InstructionTextTokenType.TextToken, "<src>"
+                        )
+                    ],
+                    address=None,
                 )
-            elif "src" in attrs:
-                flow_graph_node.highlight = (
-                    bn.enums.HighlightStandardColor.GreenHighlightColor
+                flow_graph_node.lines.append(src_text)
+                flow_graph_node.highlight = self._get_color("src")
+            elif "snk" in attrs:
+                snk_text = bn.DisassemblyTextLine(
+                    [
+                        bn.InstructionTextToken(
+                            bn.InstructionTextTokenType.TextToken, "<snk>"
+                        )
+                    ],
+                    address=None,
                 )
+                flow_graph_node.lines.append(snk_text)
+                flow_graph_node.highlight = self._get_color("snk")
             elif attrs["in_path"]:
-                flow_graph_node.highlight = (
-                    bn.enums.HighlightStandardColor.BlueHighlightColor
-                )
+                flow_graph_node.highlight = self._get_color("in_path")
             # Add node to graph
             self.graph.append(flow_graph_node)
             nodes_map[node] = flow_graph_node
@@ -146,7 +196,11 @@ class CallGraphWidget(qtw.QWidget):
                     bn.enums.BranchType.UnconditionalBranch, nodes_map[to_node]
                 )
         # Update graph widget
-        self.graph_wid.setGraph(self.graph)
+        index = self.layout.indexOf(self.graph_wid)
+        self.layout.removeWidget(self.graph_wid)
+        self.graph_wid.deleteLater()
+        self.graph_wid = bnui.FlowGraphWidget(self, self._bv, self.graph)
+        self.layout.insertWidget(index, self.graph_wid)
         # Fit graph to window
-        qtc.QTimer.singleShot(200, self.fit_to_view)
+        qtc.QTimer.singleShot(200, self._fit_to_view)
         return
