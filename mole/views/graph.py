@@ -165,7 +165,7 @@ class CallGraphWidget(qtw.QWidget):
             # Set node's color
             if "src" in attrs:
                 # Add source instruction tokens to text lines
-                src_inst = path.insts[-1]
+                src_inst = self._path.insts[-1]
                 src_inst_tokens = InstructionHelper.replace_addr_tokens(src_inst)
                 tokens = [
                     bn.InstructionTextToken(
@@ -189,7 +189,7 @@ class CallGraphWidget(qtw.QWidget):
                 flow_graph_node.highlight = self._get_color("src")
             if "snk" in attrs:
                 # Add sink instruction tokens to text lines
-                snk_inst = path.insts[0]
+                snk_inst = self._path.insts[0]
                 snk_inst_tokens = InstructionHelper.replace_addr_tokens(snk_inst)
                 tokens = [
                     bn.InstructionTextToken(
