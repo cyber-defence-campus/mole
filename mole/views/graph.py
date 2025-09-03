@@ -1,4 +1,5 @@
 from __future__ import annotations
+from mole.common.helper.instruction import InstructionHelper
 from mole.core.data import Path
 from typing import Literal, Optional, TYPE_CHECKING
 import binaryninja as bn
@@ -165,6 +166,7 @@ class CallGraphWidget(qtw.QWidget):
             if "src" in attrs:
                 # Add source instruction tokens to text lines
                 src_inst = path.insts[-1]
+                src_inst_tokens = InstructionHelper.replace_addr_tokens(src_inst)
                 tokens = [
                     bn.InstructionTextToken(
                         bn.InstructionTextTokenType.CommentToken, "- SRC:\t"
@@ -174,7 +176,7 @@ class CallGraphWidget(qtw.QWidget):
                         f"0x{src_inst.address:x}\t",
                         src_inst.address,
                     ),
-                    *src_inst.tokens,
+                    *src_inst_tokens,
                 ]
                 flow_graph_node.lines += [
                     bn.function.DisassemblyTextLine(
@@ -188,6 +190,7 @@ class CallGraphWidget(qtw.QWidget):
             if "snk" in attrs:
                 # Add sink instruction tokens to text lines
                 snk_inst = path.insts[0]
+                snk_inst_tokens = InstructionHelper.replace_addr_tokens(snk_inst)
                 tokens = [
                     bn.InstructionTextToken(
                         bn.InstructionTextTokenType.CommentToken, "- SNK:\t"
@@ -197,7 +200,7 @@ class CallGraphWidget(qtw.QWidget):
                         f"0x{snk_inst.address:x}\t",
                         snk_inst.address,
                     ),
-                    *snk_inst.tokens,
+                    *snk_inst_tokens,
                 ]
                 flow_graph_node.lines += [
                     bn.function.DisassemblyTextLine(
