@@ -228,6 +228,7 @@ class SourceFunction(Function):
         # Clear map
         self.src_map.clear()
         # Get code cross-references
+        log.info(custom_tag, "Finding code cross-references")
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Source manually configured via UI
         if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
