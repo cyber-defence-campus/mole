@@ -413,6 +413,7 @@ class SinkFunction(Function):
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         # Get code cross-references
+        log.info(custom_tag, "Finding code cross-references")
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Sink manually configured via UI
         if isinstance(manual_fun, SinkFunction) and manual_fun_inst:
