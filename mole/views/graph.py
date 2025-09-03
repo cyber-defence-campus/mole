@@ -1,4 +1,5 @@
 from __future__ import annotations
+from mole.common.helper.instruction import InstructionHelper
 from mole.core.data import Path
 from typing import Literal, Optional, TYPE_CHECKING
 import binaryninja as bn
@@ -154,38 +155,67 @@ class CallGraphWidget(qtw.QWidget):
             # Skip nodes that are not in-path
             if self.in_path_only.isChecked() and not attrs["in_path"]:
                 continue
-            # Create node
+            # Create node and add function tokens to text lines
             flow_graph_node = bn.FlowGraphNode(self.graph)
             flow_graph_node.lines = [
                 bn.function.DisassemblyTextLine(
                     node.source_function.type_tokens, address=node.source_function.start
                 )
             ]
-            # Set node's color
-            if "snk" in attrs:
-                snk_text = bn.DisassemblyTextLine(
-                    [
-                        bn.InstructionTextToken(
-                            bn.InstructionTextTokenType.TextToken, "<snk>"
-                        )
-                    ],
-                    address=None,
-                )
-                flow_graph_node.lines.append(snk_text)
-                flow_graph_node.highlight = self._get_color("snk")
-            elif "src" in attrs:
-                src_text = bn.DisassemblyTextLine(
-                    [
-                        bn.InstructionTextToken(
-                            bn.InstructionTextTokenType.TextToken, "<src>"
-                        )
-                    ],
-                    address=None,
-                )
-                flow_graph_node.lines.append(src_text)
+            # Source node
+            if "src" in attrs:
+                # Add source instruction tokens to text lines
+                src_inst = self._path.insts[-1]
+                src_inst_tokens = InstructionHelper.replace_addr_tokens(src_inst)
+                tokens = [
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, "- SRC:\t"
+                    ),
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.AddressDisplayToken,
+                        f"0x{src_inst.address:x}\t",
+                        src_inst.address,
+                    ),
+                    *src_inst_tokens,
+                ]
+                flow_graph_node.lines += [
+                    bn.function.DisassemblyTextLine(
+                        tokens,
+                        address=src_inst.address,
+                        il_instr=src_inst,
+                    )
+                ]
+                # Highlight node
                 flow_graph_node.highlight = self._get_color("src")
-            elif attrs["in_path"]:
-                flow_graph_node.highlight = self._get_color("in_path")
+            # Sink node
+            if "snk" in attrs:
+                # Add sink instruction tokens to text lines
+                snk_inst = self._path.insts[0]
+                snk_inst_tokens = InstructionHelper.replace_addr_tokens(snk_inst)
+                tokens = [
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, "- SNK:\t"
+                    ),
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.AddressDisplayToken,
+                        f"0x{snk_inst.address:x}\t",
+                        snk_inst.address,
+                    ),
+                    *snk_inst_tokens,
+                ]
+                flow_graph_node.lines += [
+                    bn.function.DisassemblyTextLine(
+                        tokens,
+                        address=snk_inst.address,
+                        il_instr=snk_inst,
+                    )
+                ]
+                # Highlight node
+                flow_graph_node.highlight = self._get_color("snk")
+            # Other nodes
+            if "src" not in attrs and "snk" not in attrs:
+                if "in_path" in attrs and attrs["in_path"]:
+                    flow_graph_node.highlight = self._get_color("in_path")
             # Add node to graph
             self.graph.append(flow_graph_node)
             nodes_map[node] = flow_graph_node
