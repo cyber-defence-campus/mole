@@ -154,7 +154,7 @@ class CallGraphWidget(qtw.QWidget):
             # Skip nodes that are not in-path
             if self.in_path_only.isChecked() and not attrs["in_path"]:
                 continue
-            # Create node
+            # Create node and add function tokens to text lines
             flow_graph_node = bn.FlowGraphNode(self.graph)
             flow_graph_node.lines = [
                 bn.function.DisassemblyTextLine(
@@ -163,28 +163,50 @@ class CallGraphWidget(qtw.QWidget):
             ]
             # Set node's color
             if "src" in attrs:
+                # Add source instruction tokens to text lines
+                src_inst = path.insts[-1]
+                tokens = [
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, "- SRC:\t"
+                    ),
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.AddressDisplayToken,
+                        f"0x{src_inst.address:x}\t",
+                        src_inst.address,
+                    ),
+                    *src_inst.tokens,
+                ]
                 flow_graph_node.lines += [
                     bn.function.DisassemblyTextLine(
-                        [
-                            bn.InstructionTextToken(
-                                bn.InstructionTextTokenType.CommentToken, attrs["src"]
-                            )
-                        ],
-                        address=None,
-                    ),
+                        tokens,
+                        address=src_inst.address,
+                        il_instr=src_inst,
+                    )
                 ]
+                # Highlight node
                 flow_graph_node.highlight = self._get_color("src")
             if "snk" in attrs:
+                # Add sink instruction tokens to text lines
+                snk_inst = path.insts[0]
+                tokens = [
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, "- SNK:\t"
+                    ),
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.AddressDisplayToken,
+                        f"0x{snk_inst.address:x}\t",
+                        snk_inst.address,
+                    ),
+                    *snk_inst.tokens,
+                ]
                 flow_graph_node.lines += [
                     bn.function.DisassemblyTextLine(
-                        [
-                            bn.InstructionTextToken(
-                                bn.InstructionTextTokenType.CommentToken, attrs["snk"]
-                            )
-                        ],
-                        address=None,
-                    ),
+                        tokens,
+                        address=snk_inst.address,
+                        il_instr=snk_inst,
+                    )
                 ]
+                # Highlight node
                 flow_graph_node.highlight = self._get_color("snk")
             if "src" not in attrs and "snk" not in attrs:
                 if "in_path" in attrs and attrs["in_path"]:
