@@ -156,9 +156,10 @@ class MediumLevelILCallTracker:
                     (pre_last_inst, cur_last_inst), (cur_last_inst, old_last_inst)
                 )
             # Update instruction graph
-            old_inst_graph = nx.relabel_nodes(
-                old_call_frame.inst_graph, lambda i: (cur_last_inst, i)
-            )
+            mapping = {
+                node: (cur_last_inst, node) for node in old_call_frame.inst_graph.nodes
+            }
+            old_inst_graph = nx.relabel_nodes(old_call_frame.inst_graph, mapping)
             self._inst_graph = nx.compose(self._inst_graph, old_inst_graph)
             # Return indices of parameters to be sliced further
             return old_call_frame.func_params
