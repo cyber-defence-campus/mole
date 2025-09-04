@@ -193,9 +193,9 @@ class MediumLevelILBackwardSlicer:
                                                 self._tag,
                                                 f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}'",
                                             )
-                                            self._call_tracker._call_stack[
-                                                -1
-                                            ].mem_def_insts.add(mem_def_inst)
+                                            self._call_tracker.push_mem_def_inst(
+                                                mem_def_inst
+                                            )
                                             self._slice_backwards(mem_def_inst)
                                             followed = True
                                     if followed:
@@ -284,9 +284,7 @@ class MediumLevelILBackwardSlicer:
                                 self._tag,
                                 f"Follow call instruction '{mem_def_inst_info:s}' since it uses '{var_addr_ass_inst_info:s}'",
                             )
-                            self._call_tracker._call_stack[-1].mem_def_insts.add(
-                                mem_def_inst
-                            )
+                            self._call_tracker.push_mem_def_inst(mem_def_inst)
                             self._slice_backwards(mem_def_inst)
             case (
                 bn.MediumLevelILVarSsa()

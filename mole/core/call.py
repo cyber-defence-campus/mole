@@ -192,6 +192,15 @@ class MediumLevelILCallTracker:
             return call_frame.last_inst
         return None
 
+    def push_mem_def_inst(self, inst: bn.MediumLevelILInstruction) -> None:
+        """
+        This method pushes the given instruction `inst` to the memory definition instructions of
+        the call frame on the top of the call stack.
+        """
+        if self._call_stack:
+            self._call_stack[-1].mem_def_insts.add(inst)
+        return
+
     def push_param(self, param_idx: int) -> None:
         """
         This method pushes the given parameter index `param_idx` to the call frame on the top of the
