@@ -228,7 +228,7 @@ class SourceFunction(Function):
         # Clear map
         self.src_map.clear()
         # Get code cross-references
-        log.info(custom_tag, "Finding code cross-references")
+        log.debug(custom_tag, "Finding code cross-references")
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Source manually configured via UI
         if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
@@ -359,10 +359,6 @@ class SourceFunction(Function):
                     # Add node to call graph
                     src_call_graph = src_slicer.get_call_graph()
                     src_call_graph.add_node(src_call_inst.function)
-                    if not src_call_graph.update_call_levels():
-                        log.warn(
-                            custom_tag, "Failed to update levels on source call graph"
-                        )
                     src_call_graph = src_call_graph.copy()
                     # Store the resulting instruction and call graphs
                     if not cancelled():
@@ -413,7 +409,7 @@ class SinkFunction(Function):
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         # Get code cross-references
-        log.info(custom_tag, "Finding code cross-references")
+        log.debug(custom_tag, "Finding code cross-references")
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Sink manually configured via UI
         if isinstance(manual_fun, SinkFunction) and manual_fun_inst:
@@ -546,10 +542,6 @@ class SinkFunction(Function):
                         # Add node to call graph
                         snk_call_graph = snk_slicer.get_call_graph()
                         snk_call_graph.add_node(snk_call_inst.function)
-                        if not snk_call_graph.update_call_levels():
-                            log.warn(
-                                custom_tag, "Failed to update levels on sink call graph"
-                            )
                         snk_call_graph = snk_call_graph.copy()
                         # Iterate sources
                         for source in sources:
@@ -662,13 +654,12 @@ class SinkFunction(Function):
                                             # Ignore the path if we found it before
                                             if path in paths:
                                                 continue
-                                            # Fully initialize the path
-                                            path.init(
-                                                nx.compose(
-                                                    src_call_graph,
-                                                    snk_call_graph,
-                                                )
+                                            # Compose both call graphs
+                                            call_graph = nx.compose(
+                                                src_call_graph, snk_call_graph
                                             )
+                                            # Fully initialize the path
+                                            path.init(call_graph)
                                             # Store the path
                                             paths.append(path)
                                             # Execute callback on a newly found path
@@ -793,8 +784,7 @@ class Path:
             if func_name == old_func_name:
                 continue
             # Function calls
-            call_level = self.call_graph.nodes[func]["level"]
-            self.calls.append((inst.address, func_name, call_level))
+            self.calls.append((inst.address, func, 0))
             # Function calls graph
             if func in self.call_graph:
                 self.call_graph.nodes[func]["in_path"] = True
@@ -821,6 +811,16 @@ class Path:
         if snk_func in self.call_graph:
             snk_info = f"snk: {self.snk_sym_name:s} | {str(self.snk_par_var):s}"
             self.call_graph.nodes[snk_func]["snk"] = snk_info
+        # Calculate call levels
+        if not self.call_graph.update_call_levels():
+            log.warn(tag, "Failed to calculate call levels")
+            return
+        # Update call levels
+        for i, call in enumerate(self.calls):
+            func: bn.MediumLevelILFunction = call[1]
+            func_name = func.source_function.name
+            call_level = self.call_graph.nodes[func].get("level", 0)
+            self.calls[i] = (call[0], func_name, call_level)
         return
 
     def __eq__(self, other: Path) -> bool:

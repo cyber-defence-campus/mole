@@ -107,8 +107,12 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         if not nx.is_weakly_connected(self):
             nx.set_node_attributes(self, 0, "level")
             return False
-        # Determine root candidates (i.e. nodes with in-degree 0)
-        roots = [node for node, in_degree in self.in_degree() if in_degree == 0]
+        # Determine root candidates (i.e. in-path nodes with in-degree 0)
+        roots = [
+            node
+            for node, in_degree in self.in_degree()
+            if in_degree == 0 and self.nodes[node]["in_path"]
+        ]
         # Ensure call graph has exactly one root
         if len(roots) != 1:
             nx.set_node_attributes(self, 0, "level")
