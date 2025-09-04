@@ -814,7 +814,6 @@ class Path:
         # Calculate call levels
         if not self.call_graph.update_call_levels():
             log.warn(tag, "Failed to calculate call levels")
-            return
         # Update call levels
         for i, call in enumerate(self.calls):
             func: bn.MediumLevelILFunction = call[1]
