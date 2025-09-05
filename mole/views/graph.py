@@ -1,4 +1,5 @@
 from __future__ import annotations
+from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.core.data import Path
 from typing import Literal, Optional, TYPE_CHECKING
@@ -159,10 +160,16 @@ class CallGraphWidget(qtw.QWidget):
                 continue
             # Create node
             flow_graph_node = bn.FlowGraphNode(self.graph)
+            # Get indices of parameters being part of the path
+            param_indices = set()
+            param_insts = FunctionHelper.get_mlil_param_insts(node)
+            for param_index, param_inst in enumerate(param_insts, start=1):
+                if param_inst is not None and param_inst in self._path.insts:
+                    param_indices.add(param_index)
             # Add function tokens to node's text lines
             func = node.source_function
             func_tokens = InstructionHelper.mark_param_token(
-                func.type_tokens, attrs.get("par_indices", [])
+                func.type_tokens, list(param_indices)
             )
             flow_graph_node.lines = [
                 bn.function.DisassemblyTextLine(func_tokens, address=func.start)
