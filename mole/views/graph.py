@@ -152,21 +152,31 @@ class CallGraphWidget(qtw.QWidget):
         self.graph = bn.FlowGraph()
         nodes_map = {}
         for node, attrs in self._path.call_graph.nodes(data=True):
+            node = node  # type: bn.MediumLevelILFunction
+            attrs = attrs  # type: dict[str, Any]
             # Skip nodes that are not in-path
             if self.in_path_only.isChecked() and not attrs["in_path"]:
                 continue
-            # Create node and add function tokens to text lines
+            # Create node
             flow_graph_node = bn.FlowGraphNode(self.graph)
+            # Add function tokens to node's text lines
+            func = node.source_function
+            func_tokens = InstructionHelper.mark_param_token(
+                func.type_tokens, attrs.get("par_indices", [])
+            )
             flow_graph_node.lines = [
-                bn.function.DisassemblyTextLine(
-                    node.source_function.type_tokens, address=node.source_function.start
-                )
+                bn.function.DisassemblyTextLine(func_tokens, address=func.start)
             ]
             # Source node
             if "src" in attrs:
                 # Add source instruction tokens to text lines
                 src_inst = self._path.insts[-1]
+                src_inst_par_idx = self._path.src_par_idx
                 src_inst_tokens = InstructionHelper.replace_addr_tokens(src_inst)
+                src_inst_tokens = InstructionHelper.mark_param_token(
+                    src_inst_tokens,
+                    [src_inst_par_idx] if src_inst_par_idx is not None else [],
+                )
                 tokens = [
                     bn.InstructionTextToken(
                         bn.InstructionTextTokenType.CommentToken, "- SRC:\t"
@@ -191,7 +201,12 @@ class CallGraphWidget(qtw.QWidget):
             if "snk" in attrs:
                 # Add sink instruction tokens to text lines
                 snk_inst = self._path.insts[0]
+                snk_inst_par_idx = self._path.snk_par_idx
                 snk_inst_tokens = InstructionHelper.replace_addr_tokens(snk_inst)
+                snk_inst_tokens = InstructionHelper.mark_param_token(
+                    snk_inst_tokens,
+                    [snk_inst_par_idx] if snk_inst_par_idx is not None else [],
+                )
                 tokens = [
                     bn.InstructionTextToken(
                         bn.InstructionTextTokenType.CommentToken, "- SNK:\t"
