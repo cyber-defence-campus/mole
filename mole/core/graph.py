@@ -100,27 +100,30 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
 
     def update_call_levels(self) -> bool:
         """
-        This method updates the call levels of the functions in the call graph. It returns True if
-        the update was successful, False otherwise.
+        This method updates the call levels of all in-path functions in the call graph. It returns
+        True if the update was successful, False otherwise.
         """
-        # Ensure call graph is weakly connected
-        if not nx.is_weakly_connected(self):
-            nx.set_node_attributes(self, 0, "level")
-            return False
-        # Determine root candidates (i.e. in-path nodes with in-degree 0)
-        roots = [
-            node
-            for node, in_degree in self.in_degree()
-            if in_degree == 0 and self.nodes[node]["in_path"]
+        # Set all node levels to -1
+        nx.set_node_attributes(self, -1, "level")
+        # Get all nodes included in the path
+        in_path_nodes = [
+            node for node, attr in self.nodes(data=True) if attr["in_path"]
         ]
-        # Ensure call graph has exactly one root
-        if len(roots) != 1:
-            nx.set_node_attributes(self, 0, "level")
+        # Create a subgraph view for the in-path nodes
+        in_path_subgraph: MediumLevelILFunctionGraph = self.subgraph(in_path_nodes)
+        # Ensure in-path subgraph is weakly connected (connected when ignoring direction)
+        if not nx.is_weakly_connected(in_path_subgraph):
             return False
-        root = roots[0]
+        # Determine root candidates (nodes with in-degree 0)
+        roots = [
+            node for node, in_degree in in_path_subgraph.in_degree() if in_degree == 0
+        ]
+        # Ensure in-path subgraph has exactly one root
+        if len(roots) != 1:
+            return False
         # Compute call levels (distance from root)
-        levels = dict(nx.single_source_shortest_path_length(self, root))
-        # Assign call levels as node attribute
+        levels = dict(nx.single_source_shortest_path_length(in_path_subgraph, roots[0]))
+        # Update the levels of all in-path nodes
         nx.set_node_attributes(self, levels, "level")
         return True
 
