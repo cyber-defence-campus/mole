@@ -769,7 +769,7 @@ class Path:
             new_attrs = {**attrs, "in_path": False}
             self.call_graph.add_node(node, **new_attrs)
         # Change node attribute to `in_path=True` where functions are in the path
-        old_func_name = None
+        old_func = None
         for inst in self.insts:
             # Phi-instructions
             if isinstance(inst, bn.MediumLevelILVarPhi):
@@ -781,15 +781,15 @@ class Path:
             func = inst.function
             func_name = func.source_function.name
             # Continue if the function does not change
-            if func_name == old_func_name:
+            if func == old_func:
                 continue
             # Function calls
             self.calls.append((inst.address, func, 0))
             # Function calls graph
             if func in self.call_graph:
                 self.call_graph.nodes[func]["in_path"] = True
-            # Store old function name
-            old_func_name = func_name
+            # Store old function
+            old_func = func
         # Copy all edges with added attribute `in_path` stating whether or not both nodes have
         # `in_path == True`
         for from_node, to_node, attrs in call_graph.edges(data=True):
