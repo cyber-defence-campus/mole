@@ -110,7 +110,7 @@ class MediumLevelILCallTracker:
         new_call_frame = MediumLevelILCallFrame(func)
         # Push return instruction to the call frame's instruction stack
         new_call_frame.inst_stack.append(to_inst)
-        # Detect recursion)
+        # Detect recursion
         recursion = new_call_frame in self._call_stack
         # Pop return instruction from the call frame's instruction stack
         new_call_frame.inst_stack.pop()
