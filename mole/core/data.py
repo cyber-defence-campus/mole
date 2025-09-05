@@ -4,11 +4,8 @@ from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.symbol import SymbolHelper
 from mole.common.log import log
-from mole.core.slice import (
-    MediumLevelILBackwardSlicer,
-    MediumLevelILFunctionGraph,
-    MediumLevelILInstructionGraph,
-)
+from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
+from mole.core.slice import MediumLevelILBackwardSlicer
 from mole.models.ai import AiVulnerabilityReport
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 import binaryninja as bn
@@ -176,25 +173,32 @@ class Function:
         }
 
 
+@dataclass(frozen=True)
+class CallSiteKey:
+    sym_addr: int
+    sym_name: str
+    call_inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa
+
+
+@dataclass(frozen=True)
+class ParamKey:
+    par_idx: int
+    par_var: bn.MediumLevelILInstruction
+
+
+@dataclass
+class Graphs:
+    inst_graph: MediumLevelILInstructionGraph
+    call_graph: MediumLevelILFunctionGraph
+
+
 @dataclass
 class SourceFunction(Function):
     """
     This class is a representation of the data associated with source functions.
     """
 
-    src_map: Dict[
-        Tuple[
-            int,  # src_sym_addr
-            str,  # src_sym_name
-            bn.MediumLevelILInstruction,  # src_call_inst
-        ],
-        Dict[
-            Tuple[int, bn.MediumLevelILInstruction],  # src_par_idx, src_par_var
-            Tuple[
-                MediumLevelILInstructionGraph, MediumLevelILFunctionGraph
-            ],  # src_inst_graph,  src_call_graph
-        ],
-    ] = field(default_factory=dict)
+    src_map: Dict[CallSiteKey, Dict[ParamKey, Graphs]] = field(default_factory=dict)
 
     def __eq__(self, other: Function) -> bool:
         if not isinstance(other, SourceFunction):
@@ -224,6 +228,7 @@ class SourceFunction(Function):
         # Clear map
         self.src_map.clear()
         # Get code cross-references
+        log.debug(custom_tag, "Finding code cross-references")
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Source manually configured via UI
         if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
@@ -289,13 +294,14 @@ class SourceFunction(Function):
                     )
                     continue
                 src_par_map = self.src_map.setdefault(
-                    (src_sym_addr, src_sym_name, src_call_inst), {}
+                    CallSiteKey(src_sym_addr, src_sym_name, src_call_inst), {}
                 )
                 # Iterate source instruction's parameters
-                for src_par_idx, src_par_var in enumerate(src_call_inst.params):
+                for src_par_idx, src_par_var in enumerate(
+                    src_call_inst.params, start=1
+                ):
                     if cancelled():
                         break
-                    src_par_idx += 1
                     src_par_var = src_par_var.ssa_form
                     log.debug(
                         custom_tag,
@@ -324,20 +330,11 @@ class SourceFunction(Function):
                                 f"0x{src_sym_addr:x} Ignore dataflow determined argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
                             )
                             continue
-                    # Create backward slicer
+                    # Initialize backward slicer
                     src_slicer = MediumLevelILBackwardSlicer(
                         bv, custom_tag, 0, 0, cancelled
                     )
-                    # Add edge between call and parameter instructions
-                    src_slicer.inst_graph.add_node(
-                        src_call_inst, 0, src_call_inst.function, origin="src"
-                    )
-                    src_slicer.inst_graph.add_node(
-                        src_par_var, 0, src_par_var.function, origin="src"
-                    )
-                    src_slicer.inst_graph.add_edge(src_call_inst, src_par_var)
-                    src_slicer.call_graph.add_node(src_call_inst.function, call_level=0)
-                    # Perform backward slicing of the parameter
+                    # Initialize the function that decides which parameters to slice
                     if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
                         par_slice_fun = (
                             manual_fun.par_slice_fun
@@ -350,13 +347,23 @@ class SourceFunction(Function):
                             if self.par_slice_fun
                             else lambda x: False
                         )
+                    # Backward slice the parameter
                     if par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
-                    # Store the instruction graph
+                    # Add edge to instruction graph
+                    src_inst_graph = MediumLevelILInstructionGraph()
+                    src_inst_graph.add_edge((None, src_call_inst), (None, src_par_var))
+                    src_inst_graph = nx.compose(
+                        src_inst_graph, src_slicer.get_inst_graph()
+                    )
+                    # Add node to call graph
+                    src_call_graph = src_slicer.get_call_graph()
+                    src_call_graph.add_node(src_call_inst.function)
+                    src_call_graph = src_call_graph.copy()
+                    # Store the resulting instruction and call graphs
                     if not cancelled():
-                        src_par_map[(src_par_idx, src_par_var)] = (
-                            src_slicer.inst_graph,
-                            src_slicer.call_graph,
+                        src_par_map[ParamKey(src_par_idx, src_par_var)] = Graphs(
+                            src_inst_graph, src_call_graph
                         )
         return
 
@@ -402,6 +409,7 @@ class SinkFunction(Function):
         # Calculate SHA1 hash of binary
         sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
         # Get code cross-references
+        log.debug(custom_tag, "Finding code cross-references")
         code_refs = SymbolHelper.get_code_refs(bv, self.symbols)
         # Sink manually configured via UI
         if isinstance(manual_fun, SinkFunction) and manual_fun_inst:
@@ -467,10 +475,11 @@ class SinkFunction(Function):
                     )
                     continue
                 # Iterate sink instruction's parameters
-                for snk_par_idx, snk_par_var in enumerate(snk_call_inst.params):
+                for snk_par_idx, snk_par_var in enumerate(
+                    snk_call_inst.params, start=1
+                ):
                     if cancelled():
                         break
-                    snk_par_idx += 1
                     log.debug(
                         custom_tag,
                         f"Analyze argument 'arg#{snk_par_idx:d}:{str(snk_par_var):s}'",
@@ -512,7 +521,7 @@ class SinkFunction(Function):
                             else lambda x: False
                         )
                     if par_slice_fun(snk_par_idx):
-                        # Create backward slicer
+                        # Initialize backward slicer
                         snk_slicer = MediumLevelILBackwardSlicer(
                             bv,
                             custom_tag,
@@ -520,36 +529,37 @@ class SinkFunction(Function):
                             max_memory_slice_depth,
                             cancelled,
                         )
-                        snk_inst_graph = snk_slicer.inst_graph
-                        snk_call_graph = snk_slicer.call_graph
-                        # Add edge between call and parameter instructions
-                        snk_inst_graph.add_node(
-                            snk_call_inst, 0, snk_call_inst.function, origin="snk"
-                        )
-                        snk_inst_graph.add_node(
-                            snk_par_var, 0, snk_par_var.function, origin="snk"
-                        )
-                        snk_inst_graph.add_edge(snk_call_inst, snk_par_var)
-                        snk_call_graph.add_node(snk_call_inst.function, call_level=0)
-                        # Backward slice the parameter instruction
+                        # Backward slice the parameter
                         snk_slicer.slice_backwards(snk_par_var)
+                        # Add edge to instruction graph
+                        snk_inst_graph = MediumLevelILInstructionGraph()
+                        snk_inst_graph.add_edge(
+                            (None, snk_call_inst), (None, snk_par_var)
+                        )
+                        snk_inst_graph = nx.compose(
+                            snk_inst_graph, snk_slicer.get_inst_graph()
+                        )
+                        # Add node to call graph
+                        snk_call_graph = snk_slicer.get_call_graph()
+                        snk_call_graph.add_node(snk_call_inst.function)
+                        snk_call_graph = snk_call_graph.copy()
                         # Iterate sources
                         for source in sources:
                             if cancelled():
                                 break
                             # Iterate source instructions
-                            for (
-                                src_sym_addr,
-                                src_sym_name,
-                                src_call_inst,
-                            ), src_par_map in source.src_map.items():
+                            for src_call_site, src_par_map in source.src_map.items():
+                                src_sym_addr = src_call_site.sym_addr
+                                src_sym_name = src_call_site.sym_name
+                                src_call_inst = src_call_site.call_inst
                                 if cancelled():
                                     break
                                 # Iterate source instruction's parameters
-                                for (src_par_idx, src_par_var), (
-                                    src_inst_graph,
-                                    src_call_graph,
-                                ) in src_par_map.items():
+                                for src_param, src_graphs in src_par_map.items():
+                                    src_par_idx = src_param.par_idx
+                                    src_par_var = src_param.par_var
+                                    src_inst_graph = src_graphs.inst_graph
+                                    src_call_graph = src_graphs.call_graph
                                     if cancelled():
                                         break
                                     # Source parameter was not sliced
@@ -571,7 +581,10 @@ class SinkFunction(Function):
                                     # Iterate source instructions (order of backward slicing)
                                     for src_inst in src_inst_graph.nodes():
                                         # Ignore source instructions that were not sliced in the sink
-                                        if src_inst not in snk_inst_graph:
+                                        if not any(
+                                            inst[1] == src_inst[1]
+                                            for inst in snk_inst_graph
+                                        ):
                                             continue
                                         # Adjust negative `max_slice_depth` values
                                         if (
@@ -584,22 +597,34 @@ class SinkFunction(Function):
                                         snk_paths: List[
                                             List[bn.MediumLevelILInstruction]
                                         ] = []
-                                        try:
-                                            snk_paths = nx.all_simple_paths(
-                                                snk_inst_graph,
-                                                snk_call_inst,
-                                                src_inst,
-                                                max_slice_depth,
-                                            )
-                                        except (nx.NodeNotFound, nx.NetworkXNoPath):
-                                            # Go to the next source instruction if no path found
-                                            continue
+                                        _src_insts = [
+                                            inst
+                                            for inst in snk_inst_graph
+                                            if inst[1] == src_inst[1]
+                                        ]
+                                        for _src_inst in _src_insts:
+                                            try:
+                                                snk_paths.extend(
+                                                    list(
+                                                        nx.all_simple_paths(
+                                                            snk_inst_graph,
+                                                            (None, snk_call_inst),
+                                                            _src_inst,
+                                                            max_slice_depth,
+                                                        )
+                                                    )
+                                                )
+                                            except (nx.NodeNotFound, nx.NetworkXNoPath):
+                                                # Go to the next source instruction if no path found
+                                                continue
                                         # Find shortest path starting at the source's call
                                         # instruction and ending in the current source instruction
                                         src_path: List[bn.MediumLevelILInstruction] = []
                                         try:
                                             src_path = nx.shortest_path(
-                                                src_inst_graph, src_call_inst, src_inst
+                                                src_inst_graph,
+                                                (None, src_call_inst),
+                                                src_inst,
                                             )
                                         except (nx.NodeNotFound, nx.NetworkXNoPath):
                                             # Go to the next source instruction if no path found
@@ -608,6 +633,10 @@ class SinkFunction(Function):
                                         src_path = list(reversed(src_path))
                                         # Iterate found paths
                                         for snk_path in snk_paths:
+                                            # Collect instructions from sink and source path
+                                            insts = [
+                                                i[1] for i in snk_path + src_path[1:]
+                                            ]
                                             # Create a new path object
                                             path = Path(
                                                 src_sym_addr=src_sym_addr,
@@ -619,18 +648,18 @@ class SinkFunction(Function):
                                                 snk_sym_name=snk_sym_name,
                                                 snk_par_idx=snk_par_idx,
                                                 snk_par_var=snk_par_var,
-                                                insts=snk_path + src_path[1:],
+                                                insts=insts,
                                                 sha1_hash=sha1_hash,
                                             )
                                             # Ignore the path if we found it before
                                             if path in paths:
                                                 continue
-                                            # Fully initialize the path
-                                            path.init(
-                                                nx.compose(
-                                                    src_call_graph, snk_call_graph
-                                                )
+                                            # Compose both call graphs
+                                            call_graph = nx.compose(
+                                                src_call_graph, snk_call_graph
                                             )
+                                            # Fully initialize the path
+                                            path.init(call_graph)
                                             # Store the path
                                             paths.append(path)
                                             # Execute callback on a newly found path
@@ -740,7 +769,7 @@ class Path:
             new_attrs = {**attrs, "in_path": False}
             self.call_graph.add_node(node, **new_attrs)
         # Change node attribute to `in_path=True` where functions are in the path
-        old_func_name = None
+        old_func = None
         for inst in self.insts:
             # Phi-instructions
             if isinstance(inst, bn.MediumLevelILVarPhi):
@@ -752,25 +781,24 @@ class Path:
             func = inst.function
             func_name = func.source_function.name
             # Continue if the function does not change
-            if func_name == old_func_name:
+            if func == old_func:
                 continue
             # Function calls
-            call_level = self.call_graph.nodes[func]["call_level"]
-            self.calls.append((inst.address, func_name, call_level))
+            self.calls.append((inst.address, func, 0))
             # Function calls graph
             if func in self.call_graph:
                 self.call_graph.nodes[func]["in_path"] = True
-            # Store old function name
-            old_func_name = func_name
+            # Store old function
+            old_func = func
         # Copy all edges with added attribute `in_path` stating whether or not both nodes have
         # `in_path == True`
-        for node_from, node_to, attrs in call_graph.edges(data=True):
+        for from_node, to_node, attrs in call_graph.edges(data=True):
             in_path = (
-                self.call_graph.nodes[node_from]["in_path"]
-                and self.call_graph.nodes[node_to]["in_path"]
+                self.call_graph.nodes[from_node]["in_path"]
+                and self.call_graph.nodes[to_node]["in_path"]
             )
             new_attrs = {**attrs, "in_path": in_path}
-            self.call_graph.add_edge(node_from, node_to, **new_attrs)
+            self.call_graph.add_edge(from_node, to_node, **new_attrs)
         # Add `src` node attribute
         src_func = self.insts[-1].function
         if src_func in self.call_graph:
@@ -783,6 +811,15 @@ class Path:
         if snk_func in self.call_graph:
             snk_info = f"snk: {self.snk_sym_name:s} | {str(self.snk_par_var):s}"
             self.call_graph.nodes[snk_func]["snk"] = snk_info
+        # Calculate call levels
+        if not self.call_graph.update_call_levels():
+            log.warn(tag, "Failed to calculate call levels")
+        # Update call levels
+        for i, call in enumerate(self.calls):
+            func: bn.MediumLevelILFunction = call[1]
+            func_name = func.source_function.name
+            call_level = self.call_graph.nodes[func].get("level", 0)
+            self.calls[i] = (call[0], func_name, call_level)
         return
 
     def __eq__(self, other: Path) -> bool:

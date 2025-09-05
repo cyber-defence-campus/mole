@@ -11,12 +11,14 @@ class InstructionHelper:
 
     @staticmethod
     @lru_cache(maxsize=64)
-    def replace_addr_tokens(inst: bn.MediumLevelILInstruction) -> bn.TokenList:
+    def replace_addr_tokens(
+        inst: bn.MediumLevelILInstruction,
+    ) -> List[bn.InstructionTextToken]:
         """
         This method replaces possible address tokens in the given instruction `inst` with the
         corresponding code symbol token.
         """
-        formatted_tokens: bn.TokenList = []
+        formatted_tokens: List[bn.InstructionTextToken] = []
         for token in inst.tokens:
             match token.type:
                 case bn.InstructionTextTokenType.PossibleAddressToken:
@@ -34,6 +36,58 @@ class InstructionHelper:
                 case _:
                     formatted_tokens.append(token)
         return formatted_tokens
+
+    def mark_param_token(
+        tokens: List[bn.InstructionTextToken], param_indices: List[int]
+    ) -> List[bn.InstructionTextToken]:
+        """
+        This method adds markers around the tokens corresponding to the function parameters at the
+        given indices `param_indices`.
+        """
+        before_tokens: List[bn.InstructionTextToken] = []
+        param_tokens: List[List[bn.InstructionTextToken]] = [[]]
+        after_tokens: List[bn.InstructionTextToken] = []
+        # Find parameter tokens
+        in_param = False
+        current_tokens = before_tokens
+        for token in tokens:
+            if token.text == "(":
+                in_param = True
+                current_tokens.append(token)
+                current_tokens = after_tokens
+            elif token.text == ")":
+                in_param = False
+                current_tokens.append(token)
+            elif in_param:
+                if token.text == ", ":
+                    param_tokens.append([token])
+                    param_tokens.append([])
+                else:
+                    param_tokens[-1].append(token)
+            else:
+                current_tokens.append(token)
+        # Mark parameters at indices `param_indices`
+        for param_index in param_indices:
+            if param_index <= 0 or param_index > len(param_tokens):
+                continue
+            param_token = param_tokens[param_index - 1]
+            if param_token:
+                param_token.insert(
+                    0,
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, "««"
+                    ),
+                )
+                param_token.append(
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, "»»"
+                    )
+                )
+        return (
+            before_tokens
+            + [token for param_token in param_tokens for token in param_token]
+            + after_tokens
+        )
 
     @staticmethod
     def get_inst_info(
