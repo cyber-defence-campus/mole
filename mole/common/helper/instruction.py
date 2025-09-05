@@ -38,11 +38,11 @@ class InstructionHelper:
         return formatted_tokens
 
     def mark_param_token(
-        tokens: List[bn.InstructionTextToken], param_idx: Optional[int]
+        tokens: List[bn.InstructionTextToken], param_indices: List[int]
     ) -> List[bn.InstructionTextToken]:
         """
-        This method adds markers around the tokens corresponding to the function parameter at the
-        given index `param_idx`.
+        This method adds markers around the tokens corresponding to the function parameters at the
+        given indices `param_indices`.
         """
         before_tokens: List[bn.InstructionTextToken] = []
         param_tokens: List[List[bn.InstructionTextToken]] = [[]]
@@ -66,9 +66,11 @@ class InstructionHelper:
                     param_tokens[-1].append(token)
             else:
                 current_tokens.append(token)
-        # Mark parameter at index `param_idx`
-        if param_idx is not None and 0 < param_idx <= len(param_tokens):
-            param_token = param_tokens[param_idx - 1]
+        # Mark parameters at indices `param_indices`
+        for param_index in param_indices:
+            if param_index <= 0 or param_index > len(param_tokens):
+                continue
+            param_token = param_tokens[param_index - 1]
             if param_token:
                 param_token.insert(
                     0,
