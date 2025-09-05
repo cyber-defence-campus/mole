@@ -356,6 +356,17 @@ class TestFunctionCalling(TestCase):
         )
         return
 
+    def test_function_calling_15(
+        self, filenames: List[str] = ["function_calling-15"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["system_2", "system_1", "main", "getenv_1", "getenv_2"]],
+            filenames=filenames,
+        )
+        return
+
 
 class TestPointerAnalysis(TestCase):
     def test_pointer_analysis_01(
