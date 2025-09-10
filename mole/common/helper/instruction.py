@@ -137,6 +137,15 @@ class InstructionHelper:
                         bn.InstructionTextTokenType.CommentToken, "»»"
                     ),
                 )
+            elif right_return_token and right_return_token[-1].text == "return ":
+                token = right_return_token.pop()
+                right_return_token.append(bn.InstructionTextToken(token.type, "return"))
+                right_return_token.append(
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, "»»"
+                    )
+                )
+                right_return_token.append(bn.InstructionTextToken(token.type, " "))
             else:
                 right_return_token.append(
                     bn.InstructionTextToken(
