@@ -64,7 +64,6 @@ class InstructionHelper:
                 current_tokens.append(token)
             elif in_param:
                 if token.text == ", ":
-                    param_tokens.append([token])
                     param_tokens.append([])
                 else:
                     param_tokens[-1].append(token)
@@ -102,12 +101,23 @@ class InstructionHelper:
                         bn.InstructionTextTokenType.CommentToken, "»»"
                     )
                 )
+        # Separate parameter tokens
+        sep_param_tokens: List[List[bn.InstructionTextToken]] = []
+        for i, param_token in enumerate(param_tokens):
+            sep_param_tokens.append(param_token)
+            if i < len(param_tokens) - 1:
+                sep_param_tokens.append(
+                    [
+                        bn.InstructionTextToken(
+                            bn.InstructionTextTokenType.TextToken, ", "
+                        )
+                    ]
+                )
         # Find return tokens
         return_tokens: List[List[bn.InstructionTextToken]] = [[]]
         after_return_tokens: List[bn.InstructionTextToken] = before_param_tokens[-2:]
         for token in before_param_tokens[:-2]:
             if token.text == ", ":
-                return_tokens.append([token])
                 return_tokens.append([])
             else:
                 return_tokens[-1].append(token)
@@ -152,10 +162,22 @@ class InstructionHelper:
                         bn.InstructionTextTokenType.CommentToken, "»»"
                     )
                 )
+        # Separate parameter tokens
+        sep_return_tokens: List[List[bn.InstructionTextToken]] = []
+        for i, return_token in enumerate(return_tokens):
+            sep_return_tokens.append(return_token)
+            if i < len(return_tokens) - 1:
+                sep_return_tokens.append(
+                    [
+                        bn.InstructionTextToken(
+                            bn.InstructionTextTokenType.TextToken, ", "
+                        )
+                    ]
+                )
         return (
-            [token for return_token in return_tokens for token in return_token]
+            [token for return_token in sep_return_tokens for token in return_token]
             + after_return_tokens
-            + [token for param_token in param_tokens for token in param_token]
+            + [token for param_token in sep_param_tokens for token in param_token]
             + after_param_tokens
         )
 
