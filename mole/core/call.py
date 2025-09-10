@@ -122,10 +122,10 @@ class MediumLevelILCallTracker:
             if len(self._call_stack) >= 2:
                 if not reverse:
                     caller_frame = self._call_stack[-2]
-                    self._call_graph.add_edge(caller_frame.func, func)
+                    self._call_graph.add_edge(caller_frame.func, func, downwards=True)
                 else:
                     callee_frame = self._call_stack[-2]
-                    self._call_graph.add_edge(func, callee_frame.func)
+                    self._call_graph.add_edge(func, callee_frame.func, downwards=False)
             else:
                 self._call_graph.add_node(func)
         return recursion

@@ -431,12 +431,12 @@ class SinkFunction(Function):
                         symbol_name, set()
                     )
                     for symbol in bv.symbols.get(symbol_name, []):
-                        func = bv.get_function_at(symbol.address)
-                        if func is None or func.mlil is None:
+                        caller_func = bv.get_function_at(symbol.address)
+                        if caller_func is None or caller_func.mlil is None:
                             continue
                         # Build a synthetic call instruction
                         call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
-                            bv, func.mlil
+                            bv, caller_func.mlil
                         )
                         if call_inst is None:
                             continue
@@ -633,10 +633,8 @@ class SinkFunction(Function):
                                         src_path = list(reversed(src_path))
                                         # Iterate found paths
                                         for snk_path in snk_paths:
-                                            # Collect instructions from sink and source path
-                                            insts = [
-                                                i[1] for i in snk_path + src_path[1:]
-                                            ]
+                                            # Combine source and sink paths
+                                            combined_path = snk_path + src_path[1:]
                                             # Create a new path object
                                             path = Path(
                                                 src_sym_addr=src_sym_addr,
@@ -648,18 +646,99 @@ class SinkFunction(Function):
                                                 snk_sym_name=snk_sym_name,
                                                 snk_par_idx=snk_par_idx,
                                                 snk_par_var=snk_par_var,
-                                                insts=insts,
+                                                insts=[i[1] for i in combined_path],
                                                 sha1_hash=sha1_hash,
                                             )
                                             # Ignore the path if we found it before
                                             if path in paths:
                                                 continue
-                                            # Compose both call graphs
-                                            call_graph = nx.compose(
+                                            # Combine source and sink call graphs
+                                            combined_call_graph: MediumLevelILFunctionGraph = nx.compose(
                                                 src_call_graph, snk_call_graph
                                             )
+                                            # Find return values and parameters being used in the path
+                                            old_caller_func = None
+                                            for (
+                                                caller_inst,
+                                                callee_inst,
+                                            ) in combined_path:
+                                                # Caller/callee instructions
+                                                caller_inst = caller_inst  # type: Optional[bn.MediumLevelILInstruction]
+                                                callee_inst = callee_inst  # type: Optional[bn.MediumLevelILInstruction]
+                                                # Caller/callee functions
+                                                if (
+                                                    caller_inst is None
+                                                    or callee_inst is None
+                                                ):
+                                                    continue
+                                                caller_func = caller_inst.function
+                                                callee_func = callee_inst.function
+                                                # Ensure caller function changed
+                                                if caller_func == old_caller_func:
+                                                    continue
+                                                old_caller_func = caller_func
+                                                # Path goes downwards the call graph
+                                                if combined_call_graph.has_edge(
+                                                    caller_func, callee_func
+                                                ) and combined_call_graph[caller_func][
+                                                    callee_func
+                                                ].get("downwards", False):
+                                                    # Ensure return instruction
+                                                    return_insts = FunctionHelper.get_mlil_return_insts(
+                                                        callee_func
+                                                    )
+                                                    if callee_inst not in return_insts:
+                                                        continue
+                                                    # Store return index
+                                                    return_idx = (
+                                                        return_insts.index(callee_inst)
+                                                        + 1
+                                                    )
+                                                    return_indices: List[int] = (
+                                                        combined_call_graph.nodes[
+                                                            callee_func
+                                                        ].get(
+                                                            "in_path_return_indices", []
+                                                        )
+                                                    )
+                                                    if return_idx not in return_indices:
+                                                        return_indices.append(
+                                                            return_idx
+                                                        )
+                                                    combined_call_graph.nodes[
+                                                        callee_func
+                                                    ][
+                                                        "in_path_return_indices"
+                                                    ] = return_indices
+                                                # Path goes upwards the call graph
+                                                else:
+                                                    # Ensure parameter instruction
+                                                    param_insts = FunctionHelper.get_mlil_param_insts(
+                                                        caller_func
+                                                    )
+                                                    if caller_inst not in param_insts:
+                                                        continue
+                                                    # Store parameter index
+                                                    param_idx = (
+                                                        param_insts.index(caller_inst)
+                                                        + 1
+                                                    )
+                                                    param_indices: List[int] = (
+                                                        combined_call_graph.nodes[
+                                                            caller_func
+                                                        ].get(
+                                                            "in_path_param_indices", []
+                                                        )
+                                                    )
+                                                    if param_idx not in param_indices:
+                                                        param_indices.append(param_idx)
+                                                    combined_call_graph.nodes[
+                                                        caller_func
+                                                    ][
+                                                        "in_path_param_indices"
+                                                    ] = param_indices
                                             # Fully initialize the path
-                                            path.init(call_graph)
+                                            path.init(combined_call_graph)
                                             # Store the path
                                             paths.append(path)
                                             # Execute callback on a newly found path

@@ -23,6 +23,20 @@ class FunctionHelper:
         return info
 
     @staticmethod
+    def get_mlil_return_insts(
+        func: bn.MediumLevelILFunction,
+    ) -> List[bn.MediumLevelILInstruction]:
+        """
+        This method returns a list of return instructions of function `func`.
+        """
+        ret_insts: List[bn.MediumLevelILInstruction] = []
+        for inst in func.instructions:
+            match inst:
+                case bn.MediumLevelILRet() | bn.MediumLevelILTailcallSsa():
+                    ret_insts.append(inst)
+        return ret_insts
+
+    @staticmethod
     def get_mlil_param_insts(
         func: bn.MediumLevelILFunction,
     ) -> List[Optional[bn.MediumLevelILVarSsa]]:

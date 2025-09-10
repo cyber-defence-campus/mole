@@ -1,5 +1,4 @@
 from __future__ import annotations
-from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.core.data import Path
 from typing import Literal, Optional, TYPE_CHECKING
@@ -161,15 +160,12 @@ class CallGraphWidget(qtw.QWidget):
             # Create node
             flow_graph_node = bn.FlowGraphNode(self.graph)
             # Get indices of parameters being part of the path
-            param_indices = set()
-            param_insts = FunctionHelper.get_mlil_param_insts(node)
-            for param_index, param_inst in enumerate(param_insts, start=1):
-                if param_inst is not None and param_inst in self._path.insts:
-                    param_indices.add(param_index)
+            param_indices = attrs.get("in_path_param_indices", [])
+            return_indices = attrs.get("in_path_return_indices", [])
             # Add function tokens to node's text lines
             func = node.source_function
-            func_tokens = InstructionHelper.mark_param_token(
-                func.type_tokens, list(param_indices)
+            func_tokens = InstructionHelper.mark_func_tokens(
+                func.type_tokens, list(return_indices), list(param_indices)
             )
             flow_graph_node.lines = [
                 bn.function.DisassemblyTextLine(func_tokens, address=func.start)
@@ -180,8 +176,9 @@ class CallGraphWidget(qtw.QWidget):
                 src_inst = self._path.insts[-1]
                 src_inst_par_idx = self._path.src_par_idx
                 src_inst_tokens = InstructionHelper.replace_addr_tokens(src_inst)
-                src_inst_tokens = InstructionHelper.mark_param_token(
+                src_inst_tokens = InstructionHelper.mark_func_tokens(
                     src_inst_tokens,
+                    [0] if src_inst_par_idx is None else [],
                     [src_inst_par_idx] if src_inst_par_idx is not None else [],
                 )
                 tokens = [
@@ -210,8 +207,9 @@ class CallGraphWidget(qtw.QWidget):
                 snk_inst = self._path.insts[0]
                 snk_inst_par_idx = self._path.snk_par_idx
                 snk_inst_tokens = InstructionHelper.replace_addr_tokens(snk_inst)
-                snk_inst_tokens = InstructionHelper.mark_param_token(
+                snk_inst_tokens = InstructionHelper.mark_func_tokens(
                     snk_inst_tokens,
+                    [],
                     [snk_inst_par_idx] if snk_inst_par_idx is not None else [],
                 )
                 tokens = [

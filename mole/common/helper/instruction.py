@@ -37,24 +37,28 @@ class InstructionHelper:
                     formatted_tokens.append(token)
         return formatted_tokens
 
-    def mark_param_token(
-        tokens: List[bn.InstructionTextToken], param_indices: List[int]
+    def mark_func_tokens(
+        tokens: List[bn.InstructionTextToken],
+        return_indices: List[int],
+        param_indices: List[int],
     ) -> List[bn.InstructionTextToken]:
         """
-        This method adds markers around the tokens corresponding to the function parameters at the
-        given indices `param_indices`.
+        This method adds markers around the tokens corresponding to relevant function return values
+        and parameters. Relevant return values and/or parameters can be specified by their indices.
+        If `return_indices` or `param_indices` contains the value 0, all return values or parameters
+        will be marked, respectively.
         """
-        before_tokens: List[bn.InstructionTextToken] = []
+        before_param_tokens: List[bn.InstructionTextToken] = []
         param_tokens: List[List[bn.InstructionTextToken]] = [[]]
-        after_tokens: List[bn.InstructionTextToken] = []
+        after_param_tokens: List[bn.InstructionTextToken] = []
         # Find parameter tokens
         in_param = False
-        current_tokens = before_tokens
+        current_tokens = before_param_tokens
         for token in tokens:
             if token.text == "(":
                 in_param = True
                 current_tokens.append(token)
-                current_tokens = after_tokens
+                current_tokens = after_param_tokens
             elif token.text == ")":
                 in_param = False
                 current_tokens.append(token)
@@ -68,25 +72,82 @@ class InstructionHelper:
                 current_tokens.append(token)
         # Mark parameters at indices `param_indices`
         for param_index in param_indices:
-            if param_index <= 0 or param_index > len(param_tokens):
+            # Ignore invalid parameter indices
+            if param_index < 0 or param_index > len(param_tokens):
                 continue
-            param_token = param_tokens[param_index - 1]
-            if param_token:
-                param_token.insert(
-                    0,
+            # Mark all parameters
+            if param_index == 0:
+                left_param_token = param_tokens[0]
+                right_param_token = param_tokens[-1]
+            # Mark parameters at the specified indices
+            else:
+                left_param_token = param_tokens[param_index - 1]
+                right_param_token = param_tokens[param_index - 1]
+            # Insert left marker
+            left_param_token.insert(
+                0,
+                bn.InstructionTextToken(bn.InstructionTextTokenType.CommentToken, "««"),
+            )
+            # Insert right marker
+            if right_param_token and right_param_token[-1].text in (" ", " = "):
+                right_param_token.insert(
+                    len(right_param_token) - 1,
                     bn.InstructionTextToken(
-                        bn.InstructionTextTokenType.CommentToken, "««"
+                        bn.InstructionTextTokenType.CommentToken, "»»"
                     ),
                 )
-                param_token.append(
+            else:
+                right_param_token.append(
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, "»»"
+                    )
+                )
+        # Find return tokens
+        return_tokens: List[List[bn.InstructionTextToken]] = [[]]
+        after_return_tokens: List[bn.InstructionTextToken] = before_param_tokens[-2:]
+        for token in before_param_tokens[:-2]:
+            if token.text == ", ":
+                return_tokens.append([token])
+                return_tokens.append([])
+            else:
+                return_tokens[-1].append(token)
+        # Mark returns at indices `return_indices`
+        for return_index in return_indices:
+            # Ignore invalid return indices
+            if return_index < 0 or return_index > len(return_tokens):
+                continue
+            # Mark all returns
+            if return_index == 0:
+                left_return_token = return_tokens[0]
+                right_return_token = return_tokens[-1]
+            # Mark returns at the specified indices
+            else:
+                left_return_token = return_tokens[return_index - 1]
+                right_return_token = return_tokens[return_index - 1]
+            # Insert left marker
+            left_return_token.insert(
+                0,
+                bn.InstructionTextToken(bn.InstructionTextTokenType.CommentToken, "««"),
+            )
+            # Insert right marker
+            if right_return_token and right_return_token[-1].text in (" ", " = "):
+                right_return_token.insert(
+                    len(right_return_token) - 1,
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, "»»"
+                    ),
+                )
+            else:
+                right_return_token.append(
                     bn.InstructionTextToken(
                         bn.InstructionTextTokenType.CommentToken, "»»"
                     )
                 )
         return (
-            before_tokens
+            [token for return_token in return_tokens for token in return_token]
+            + after_return_tokens
             + [token for param_token in param_tokens for token in param_token]
-            + after_tokens
+            + after_param_tokens
         )
 
     @staticmethod
