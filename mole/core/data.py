@@ -813,7 +813,7 @@ class Path:
     sha1_hash: str = ""
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
-    calls: List[Tuple[int, str, int]] = field(default_factory=list)
+    calls: List[Tuple[int, bn.MediumLevelILFunction, int]] = field(default_factory=list)
     call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
     ai_report: Optional[AiVulnerabilityReport] = None
 
@@ -868,7 +868,6 @@ class Path:
                 self.bdeps.setdefault(bch_idx, bch_dep)
             # Function information
             func = inst.function
-            func_name = func.source_function.name
             # Continue if the function does not change
             if func == old_func:
                 continue
@@ -905,10 +904,9 @@ class Path:
             log.warn(tag, "Failed to calculate call levels")
         # Update call levels
         for i, call in enumerate(self.calls):
-            func: bn.MediumLevelILFunction = call[1]
-            func_name = func.source_function.name
-            call_level = self.call_graph.nodes[func].get("level", 0)
-            self.calls[i] = (call[0], func_name, call_level)
+            call_func = call[1]
+            call_level = self.call_graph.nodes[call_func].get("level", 0)
+            self.calls[i] = (call[0], call_func, call_level)
         return
 
     def __eq__(self, other: Path) -> bool:

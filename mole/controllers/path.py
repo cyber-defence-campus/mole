@@ -812,8 +812,9 @@ class PathController:
             log.debug(tag, "--- Backward Calls ---")
             calls = path.calls
         min_call_level = min(calls, key=lambda x: x[2])[2]
-        for call_addr, call_name, call_level in calls:
+        for call_addr, call_func, call_level in calls:
             indent = call_level - min_call_level + 1
+            call_name = call_func.source_function.name
             log.debug(tag, f"{'>' * indent:s} 0x{call_addr:x} {call_name:s}")
         log.debug(tag, "----------------------")
         log.debug(tag, msg)

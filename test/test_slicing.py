@@ -93,7 +93,9 @@ class TestCase(unittest.TestCase):
             # Determine call chains
             _call_chains = []
             for path in paths:
-                _call_chains.append([call[1] for call in path.calls])
+                _call_chains.append(
+                    [call[1].source_function.name for call in path.calls]
+                )
                 # Assert source
                 self.assertIsInstance(
                     path.insts[-1],

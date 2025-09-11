@@ -155,8 +155,9 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         # Call sequence
         prompt += "\n--- Call Sequence ---\n"
         min_call_level = min(path.calls, key=lambda x: x[2])[2]
-        for call_addr, call_name, call_level in path.calls:
+        for call_addr, call_func, call_level in path.calls:
             indent = call_level - min_call_level
+            call_name = call_func.source_function.name
             prompt += f"{'>' * indent:s} 0x{call_addr:x} {call_name:s}\n"
         prompt += "\n"
         return prompt
