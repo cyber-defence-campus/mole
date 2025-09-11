@@ -666,13 +666,23 @@ class SinkFunction(Function):
                                                 caller_inst = caller_inst  # type: Optional[bn.MediumLevelILInstruction]
                                                 callee_inst = callee_inst  # type: Optional[bn.MediumLevelILInstruction]
                                                 # Caller/callee functions
+                                                caller_func = (
+                                                    caller_inst.function
+                                                    if caller_inst
+                                                    else None
+                                                )
+                                                callee_func = callee_inst.function
+                                                # Store sink parameter index if we have no caller
                                                 if (
                                                     caller_inst is None
-                                                    or callee_inst is None
+                                                    or caller_func is None
                                                 ):
+                                                    combined_call_graph.nodes[
+                                                        callee_func
+                                                    ]["in_path_param_indices"] = [
+                                                        path.snk_par_idx
+                                                    ]
                                                     continue
-                                                caller_func = caller_inst.function
-                                                callee_func = callee_inst.function
                                                 # Ensure caller function changed
                                                 if caller_func == old_caller_func:
                                                     continue
