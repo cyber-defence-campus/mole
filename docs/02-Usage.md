@@ -148,7 +148,7 @@ These features help users better inspect and validate identified paths during an
 </p>
 
 ### Visualizing Paths As Call Graphs
-Right-clicking a path opens *Mole*'s context menu, and selecting *Show call graph* visualizes the functions involved in that path as a call graph.
+Right-clicking a path opens *Mole*'s context menu, and selecting *Show call graph* visualizes the functions involved in that path as a graph.
 <p align="center">
   <img src="https://i.postimg.cc/PrDLYg0W/call-graph.png" alt="Mole Call Graph"/>
 </p>
@@ -161,7 +161,7 @@ The graph above for instance illustrates the following:
 - `set_language` calls `exec_and_read_json`, with the path-relevant parameter `««char* command»»`.
 - `exec_and_read_json` contains the path's *sink* (*SNK*), namely the call to `popen` at address `0x408f20`. The path-relevant parameter of `popen` is `««command#0»»`.
 
-In summary, the graph shows that a JSON object received over TCP may eventually be passed as a command string to `popen` within the `set_language` functionality. This is a rapid and effective way to pinpoint the nature of the potential underlying vulnerability.
+In summary, the graph shows that a JSON object received over TCP may eventually be passed as a command string to `popen` within the `set_language` functionality. The graph therefore provides a rapid and effective way to pinpoint the nature of the potential underlying vulnerability.
 
 ### Analyzing Paths With AI
 Once [configured](02-Usage.md#openai-api-endpoint), you can initiate AI analysis by right-clicking on any path (or a group of selected paths) in the *Paths* tab and choosing *Run AI analysis* from the context menu.
