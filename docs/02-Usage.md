@@ -161,6 +161,8 @@ The graph above for instance illustrates the following:
 - `set_language` calls `exec_and_read_json`, with the path-relevant parameter `««char* command»»`.
 - `exec_and_read_json` contains the path's *sink* (*SNK*), namely the call to `popen` at address `0x408f20`. The path-relevant parameter of `popen` is `««command#0»»`.
 
+**Note**: Parameters and return values relevant to the analyzed path are highlighted using the `««var»»` notation.
+
 In summary, the graph shows that a JSON object received over TCP may eventually be passed as a command string to `popen` within the `set_language` functionality. The graph therefore provides a rapid and effective way to pinpoint the nature of the potential underlying vulnerability.
 
 ### Analyzing Paths With AI
