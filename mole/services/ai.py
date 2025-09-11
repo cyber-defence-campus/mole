@@ -135,7 +135,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         # Backward slice
         basic_block = None
         for i, inst in enumerate(path.insts):
-            call_level = path.call_graph.nodes[inst.function]["call_level"]
+            call_level = path.call_graph.nodes[inst.function]["level"]
             if i < path.src_inst_idx:
                 custom_tag = f"[Snk] [{call_level:+d}]"
             else:
@@ -155,8 +155,9 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         # Call sequence
         prompt += "\n--- Call Sequence ---\n"
         min_call_level = min(path.calls, key=lambda x: x[2])[2]
-        for call_addr, call_name, call_level in path.calls:
+        for call_addr, call_func, call_level in path.calls:
             indent = call_level - min_call_level
+            call_name = call_func.source_function.name
             prompt += f"{'>' * indent:s} 0x{call_addr:x} {call_name:s}\n"
         prompt += "\n"
         return prompt
@@ -400,8 +401,8 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 task = executor.submit(self._analyze_path, path_id, path)
                 tasks[task] = path_id
             # Wait for tasks to complete
-            for cnt, task in enumerate(futures.as_completed(tasks)):
-                self.progress = f"Mole analyzed path {cnt + 1:d}/{len(self._paths):d}"
+            for cnt, task in enumerate(futures.as_completed(tasks), start=1):
+                self.progress = f"Mole analyzed path {cnt:d}/{len(self._paths):d}"
                 path_id = tasks[task]
                 # Collect vulnerability reports from task results
                 if task.done() and not task.exception():

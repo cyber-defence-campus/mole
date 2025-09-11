@@ -72,7 +72,7 @@ class TestData(unittest.TestCase):
                 ),
                 "max_call_level": SpinboxSetting(
                     name="max_call_level",
-                    value=3,
+                    value=5,
                     min_value=-1,
                     max_value=99,
                     help="backward slicing visits called functions up to the given level",

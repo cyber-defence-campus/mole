@@ -99,13 +99,13 @@ mole bin/memcpy-01 > ./memcpy-01.log 2>&1
 Below is an example log output as given by *Mole*. The listed path is identified on unit test [memcpy-01.c](../test/src/memcpy-01.c), when compiled for `linux-armv7`. At log level *INFO*, the following output is given:
 ```
 [...]
-Interesting path: 0x104c4 getenv() --> 0x104e8 memcpy(arg#3:r2#1) [L:7,P:0,B:1]!
+Interesting path: 0x401145 memcpy(arg#3:rdx#1) <-- 0x401119 getenv [L:12,P:0,B:1]!
 [...]
 ```
-This entry highlights a potential data flow from the source function `getenv` (at `0x104c4`) to the sink function `memcpy` (at `0x104e8`). Specifically, data returned by `getenv` influences the 3rd parameter of `memcpy` (synopsis: `void* memcpy(void* dest, const void* src, size_t n)`), which determines the number of bytes to copy.
+This entry highlights a potential data flow from the source function `getenv` (at `0x401119`) to the sink function `memcpy` (at `0x401145`). Specifically, data returned by `getenv` influences the 3rd parameter of `memcpy` (synopsis: `void* memcpy(void* dest, const void* src, size_t n)`), which determines the number of bytes to copy.
 
-The annotation `[L:7,P:0,B:1]` provides additional insights:
-- `L:7` indicates the path spans 7 [MLIL](https://docs.binary.ninja/dev/bnil-mlil.html) instructions
+The annotation `[L:12,P:0,B:1]` provides additional insights:
+- `L:12` indicates the path spans 12 [MLIL](https://docs.binary.ninja/dev/bnil-mlil.html) instructions
 - `P:0` means no [PHI](https://api.binary.ninja/binaryninja.mediumlevelil-module.html#binaryninja.mediumlevelil.MediumLevelILVarPhi) instructions are involved
 - `B:1` shows that the path depends on a single branch condition
 
@@ -115,34 +115,57 @@ At log level *DEBUG*, a full listing of the instructions along the path is shown
 ```
 [...]
 --- Backward Slice  ---
-- FUN: 'main', BB: 0x104d4
-0x104e8 mem#5 = memcpy(r0#5, r1#1, r2#1) @ mem#4 (MediumLevelILCallSsa)
-0x104e8 r2#1 (MediumLevelILVarSsa)
-0x104e0 r2#1 = n#4 (MediumLevelILSetVarSsa)
-0x104e0 n#4 (MediumLevelILVarSsa)
-0x104d4 n#4, mem#4 = atoi(str#1) @ mem#2 (MediumLevelILCallSsa)
-0x104d4 str#1 (MediumLevelILVarSsa)
-- FUN: 'main', BB: 0x104b4
-0x104c4 str#1, mem#2 = getenv("MEMCPY_SIZE") @ mem#1 (MediumLevelILCallSsa)
+- FUN: 'main', BB: 0x401123
+0x401145 mem#5 = memcpy(rdi_1#3, rsi#1, rdx#1) @ mem#4 (MediumLevelILCallSsa)
+0x401145 rdx#1 (MediumLevelILVarSsa)
+0x401142 rdx#1 = rbx_1#1 (MediumLevelILSetVarSsa)
+0x401142 rbx_1#1 (MediumLevelILVarSsa)
+0x40113f rbx_1#1 = sx.q(rax_1#5) (MediumLevelILSetVarSsa)
+0x40113f sx.q(rax_1#5) (MediumLevelILSx)
+0x40113f rax_1#5 (MediumLevelILVarSsa)
+0x401132 rax_1#5, mem#4 = strtol(rdi#2, nullptr, 0xa) @ mem#2 (MediumLevelILCallSsa)
+0x401132 rdi#2 (MediumLevelILVarSsa)
+0x401123 rdi#2 = nptr#2 (MediumLevelILSetVarSsa)
+0x401123 nptr#2 (MediumLevelILVarSsa)
+- FUN: 'main', BB: 0x4010f2
+0x401119 nptr#2, mem#2 = getenv("MEMCPY_SIZE") @ mem#1 (MediumLevelILCallSsa)
 -----------------------
 [...]
 ```
 
-Instructions are grouped by *function* (*FUN*) and *basic block* (*BB*). For instance, instructions 1-6 belong to the basic block starting at address `0x104d4` within the `main` function, while instruction 7 belongs to the basic block at `0x104b4`, also within `main`. This grouping is particularly useful for following the path in *Binary Ninja*'s graph view.
+Instructions are grouped by *function* (*FUN*) and *basic block* (*BB*). For instance, instructions 1-11 belong to the basic block starting at address `0x401123` within the `main` function, while instruction 12 belongs to the basic block at `0x4010f2`, also within `main`. This grouping is particularly useful for following the path in *Binary Ninja*'s graph view.
 
 Beyond the textual log output, *Mole* also summarizes identified paths in the *Paths* tab when used within *Binary Ninja*'s UI. Right-clicking on a path opens a context menu with several actions such as:
 - Viewing detailed path information
 - Highlighting instructions in the path
-- Visualizing the call flow as a graph
+- Visualizing the involved calls as graph
 - Analyzing a path with AI
 
 These features help users better inspect and validate identified paths during analysis.
 
 <p align="center">
-  <img src="https://i.postimg.cc/Z59c2J7M/interesting-paths.png" alt="Mole UI Paths"/>
+  <img src="https://i.postimg.cc/7P3hL3z9/interesting-paths.png" alt="Mole UI Paths"/>
 </p>
 
-### Analyzing Paths with AI
+### Visualizing Paths As Call Graphs
+Right-clicking a path opens *Mole*'s context menu, and selecting *Show call graph* visualizes the functions involved in that path as a graph.
+<p align="center">
+  <img src="https://i.postimg.cc/PrDLYg0W/call-graph.png" alt="Mole Call Graph"/>
+</p>
+
+The graph above for instance illustrates the following:
+- The path's *source* (*SRC*) is the `uh_tcp_recv` call instruction at address `0x403e78`. The path-relevant parameter of `uh_tcp_recv` is `««$a1_1#3»»`.
+- This source instruction belongs to the function `uh_client_cb`, where the relevant parameter is `««struct req_struct* arg1»»`.
+- `uh_client_cb` calls `uh_slp_proto_request`, with the path-relevant parameter `««struct req_struct* req_struct_1»»`.
+- `uh_slp_proto_request` calls `set_language`, with the path-relevant parameter `««int32_t json_obj»»`.
+- `set_language` calls `exec_and_read_json`, with the path-relevant parameter `««char* command»»`.
+- `exec_and_read_json` contains the path's *sink* (*SNK*), namely the call to `popen` at address `0x408f20`. The path-relevant parameter of `popen` is `««command#0»»`.
+
+**Note**: Parameters and return values relevant to the analyzed path are highlighted using the `««var»»` notation.
+
+In summary, the graph shows that a JSON object received over TCP may eventually be passed as a command string to `popen` within the `set_language` functionality. The graph therefore provides a rapid and effective way to pinpoint the nature of the potential underlying vulnerability.
+
+### Analyzing Paths With AI
 Once [configured](02-Usage.md#openai-api-endpoint), you can initiate AI analysis by right-clicking on any path (or a group of selected paths) in the *Paths* tab and choosing *Run AI analysis* from the context menu.
 
 The analysis may take some time, depending on the complexity of the paths and the model in use. Once complete, an AI-generated severity level will appear in the path tree view.
