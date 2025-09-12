@@ -13,17 +13,18 @@ In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` poi
   ```
 - Install *Binary Ninja*'s Python [API](https://docs.binary.ninja/dev/batch.html#install-the-api):
   ```shell
-  python $BINJA_BIN/scripts/install_api.py
+  (mole)$ python $BINJA_BIN/scripts/install_api.py
   ```
 - Install *Mole* either in standard or development mode:
   ```shell
   # Standard
-  pip install .
+  (mole)$ pip install .
 
   # Development
-  pip install -e .[develop]
-  pre-commit install
-  $BINJA_BIN/binaryninja &
+  # WARNING: Binary Ninja needs to be started from within the activated venv when install with pip flag -e
+  (mole)$ pip install -e .[develop]
+  (mole)$ pre-commit install
+  (mole)$ $BINJA_BIN/binaryninja &
   ```
 - If you are using a virtual environment, consider configuring the corresponding `site-packages` directory in *Binary Ninja*'s settings.
 ----------------------------------------------------------------------------------------------------
