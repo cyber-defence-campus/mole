@@ -21,7 +21,9 @@ In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` poi
   (mole)$ pip install .
 
   # Development
-  # WARNING: When installed using the -e (editable) flag with pip, Binary Ninja must be launched from within the activated virtual environment (mole)
+  #   WARNING:
+  #   When installed using the -e (editable) flag with pip, Binary Ninja must be launched from
+  #   within the activated virtual environment (mole)
   (mole)$ pip install -e .[develop]
   (mole)$ pre-commit install
   (mole)$ $BINJA_BIN/binaryninja &
