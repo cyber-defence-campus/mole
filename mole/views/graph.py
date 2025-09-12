@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.common.helper.instruction import InstructionHelper
 from mole.core.data import Path
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import Dict, Literal, Optional, TYPE_CHECKING
 import binaryninja as bn
 import binaryninjaui as bnui
 import PySide6.QtCore as qtc
@@ -27,8 +27,8 @@ class CallGraphWidget(qtw.QWidget):
         self._path = None
         self._path_id = None
         # Graph
-        self.graph = bn.FlowGraph()
-        self.graph_wid = bnui.FlowGraphWidget(self, self._bv, self.graph)
+        self.flow_graph = bn.FlowGraph()
+        self.graph_wid = bnui.FlowGraphWidget(self, self._bv, self.flow_graph)
         # Fit to view
         fit_to_view = qtui.QAction("Fit to View", self)
         fit_to_view.triggered.connect(lambda: self.load_path())
@@ -104,8 +104,8 @@ class CallGraphWidget(qtw.QWidget):
         This method fits the entire graph into the visible area.
         """
         # Get graph and view dimensions
-        gw = max(self.graph.width, 1)
-        gh = max(self.graph.height, 1)
+        gw = max(self.flow_graph.width, 1)
+        gh = max(self.flow_graph.height, 1)
         vw = max(self.graph_wid.width(), 1)
         vh = max(self.graph_wid.height(), 1)
         # Calculate scale
@@ -148,18 +148,21 @@ class CallGraphWidget(qtw.QWidget):
             return
         # Tooltip showing the corresponding path ID
         self.setToolTip(f"Path {self._path_id:d}")
-        # Create graph
-        self.graph = bn.FlowGraph()
-        nodes_map = {}
-        for node, attrs in self._path.call_graph.nodes(data=True):
+        # References to calls and call graph
+        calls = self._path.calls
+        call_graph = self._path.call_graph
+        # Add nodes to flow graph
+        nodes_map: Dict[bn.MediumLevelILFunction, bn.FlowGraphNode] = {}
+        self.flow_graph = bn.FlowGraph()
+        for node, attrs in call_graph.nodes(data=True):
             node = node  # type: bn.MediumLevelILFunction
             attrs = attrs  # type: dict[str, Any]
             # Skip nodes that are not in-path
             if self.in_path_only.isChecked() and not attrs["in_path"]:
                 continue
             # Create node
-            flow_graph_node = bn.FlowGraphNode(self.graph)
-            # Get indices of parameters being part of the path
+            flow_graph_node = bn.FlowGraphNode(self.flow_graph)
+            # Get indices of parameters and return values being part of the path
             param_indices = attrs.get("in_path_param_indices", [])
             return_indices = attrs.get("in_path_return_indices", [])
             # Add function tokens to node's text lines
@@ -237,19 +240,32 @@ class CallGraphWidget(qtw.QWidget):
                 if "in_path" in attrs and attrs["in_path"]:
                     flow_graph_node.highlight = self._get_color("in_path")
             # Add node to graph
-            self.graph.append(flow_graph_node)
+            self.flow_graph.append(flow_graph_node)
             nodes_map[node] = flow_graph_node
-        # Add edges to graph
-        for from_node, to_node in self._path.call_graph.edges():
-            if from_node in nodes_map and to_node in nodes_map:
-                nodes_map[from_node].add_outgoing_edge(
-                    bn.enums.BranchType.UnconditionalBranch, nodes_map[to_node]
-                )
+        # Add in-path edges to flow graph
+        if self.in_path_only.isChecked():
+            # Iterate subsequent function calls in the path
+            for (_, call_func1, _), (_, call_func2, _) in zip(calls, calls[1:]):
+                if call_graph.has_edge(call_func1, call_func2):
+                    nodes_map[call_func1].add_outgoing_edge(
+                        bn.enums.BranchType.UnconditionalBranch, nodes_map[call_func2]
+                    )
+                if call_graph.has_edge(call_func2, call_func1):
+                    nodes_map[call_func2].add_outgoing_edge(
+                        bn.enums.BranchType.UnconditionalBranch, nodes_map[call_func1]
+                    )
+        # Add all edges to flow graph
+        else:
+            for call_func1, call_func2 in call_graph.edges():
+                if call_func1 in nodes_map and call_func2 in nodes_map:
+                    nodes_map[call_func1].add_outgoing_edge(
+                        bn.enums.BranchType.UnconditionalBranch, nodes_map[call_func2]
+                    )
         # Update graph widget
         index = self.layout.indexOf(self.graph_wid)
         self.layout.removeWidget(self.graph_wid)
         self.graph_wid.deleteLater()
-        self.graph_wid = bnui.FlowGraphWidget(self, self._bv, self.graph)
+        self.graph_wid = bnui.FlowGraphWidget(self, self._bv, self.flow_graph)
         self.layout.insertWidget(index, self.graph_wid)
         # Fit graph to window
         qtc.QTimer.singleShot(200, self._fit_to_view)
