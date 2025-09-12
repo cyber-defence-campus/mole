@@ -119,7 +119,7 @@ class PathController:
         self.path_view.signal_save_paths.connect(self.save_paths)
         self.path_view.signal_setup_path_tree.connect(self.setup_path_tree)
         self.config_ctr.config_view.signal_change_path_grouping.connect(
-            self.config_ctr.change_setting
+            self._change_path_grouping
         )
         return
 
