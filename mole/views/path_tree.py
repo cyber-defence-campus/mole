@@ -272,7 +272,7 @@ class PathTreeView(qtw.QTreeView):
             menu.addSeparator()
             # Update actions
             update_action = self._add_menu_action(
-                menu, "Update all", len(self.path_tree_model.path_map) > 0
+                menu, "Update view", len(self.path_tree_model.path_map) > 0
             )
             update_action.triggered.connect(on_update)
             menu.addSeparator()
