@@ -236,11 +236,11 @@ class MediumLevelILCallTracker:
         """
         This method prints the instruction slice (for debugging).
         """
-        for call_frame in self._call_stack:
-            print(str(call_frame))
+        for call_level, call_frame in enumerate(self._call_stack):
+            print(f"[{call_level:d}] {str(call_frame):s}")
             for inst in call_frame.inst_stack:
                 inst_info = InstructionHelper.get_inst_info(inst, False)
-                print(f"- {inst_info:s}")
+                print(f"  - {inst_info:s}")
         return
 
     def print_inst_graph(self) -> None:
