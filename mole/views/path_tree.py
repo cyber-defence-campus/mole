@@ -126,8 +126,9 @@ class PathTreeView(qtw.QTreeView):
         """
         This method clears all paths from the model.
         """
+        path_cnt = len(self.path_tree_model.path_map)
         bn.execute_on_main_thread(self.path_tree_model.clear)
-        return
+        return path_cnt
 
     def get_selected_rows(self) -> List[int]:
         """

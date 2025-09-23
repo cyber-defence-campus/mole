@@ -272,7 +272,7 @@ class PathTreeModel(qtui.QStandardItemModel):
         self.signal_path_modified.emit()
         return
 
-    def clear(self) -> int:
+    def clear(self) -> None:
         """
         This method clears all data from the model.
         """
@@ -283,7 +283,7 @@ class PathTreeModel(qtui.QStandardItemModel):
         self.setRowCount(0)
         if path_cnt > 0:
             self.signal_path_modified.emit()
-        return path_cnt
+        return
 
     def find_path_item(
         self, path_id
