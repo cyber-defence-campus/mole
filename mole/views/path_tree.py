@@ -126,7 +126,8 @@ class PathTreeView(qtw.QTreeView):
         """
         This method clears all paths from the model.
         """
-        return self.path_tree_model.clear()
+        bn.execute_on_main_thread(self.path_tree_model.clear)
+        return
 
     def get_selected_rows(self) -> List[int]:
         """
@@ -163,6 +164,18 @@ class PathTreeView(qtw.QTreeView):
         """
         return list(self.path_tree_model.path_map.values())
 
+    def add_paths(self, paths: List[Path], path_grouping: Optional[str] = None) -> None:
+        """
+        This method adds the given paths to the path tree model.
+        """
+
+        def _add_paths() -> None:
+            for path in paths:
+                self.path_tree_model.add_path(path, path_grouping)
+
+        bn.execute_on_main_thread(_add_paths)
+        return
+
     def setup_context_menu(
         self,
         on_log_path: Callable[[List[int], bool], None],
@@ -172,6 +185,7 @@ class PathTreeView(qtw.QTreeView):
         on_show_call_graph: Callable[[List[int]], None],
         on_import_paths: Callable[[], None],
         on_export_paths: Callable[[List[int]], None],
+        on_update: Callable[[], None],
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
         on_analyze_paths: Callable[[List[int]], None],
@@ -241,17 +255,13 @@ class PathTreeView(qtw.QTreeView):
                 menu, "Show AI report", enable_show_ai_report(rows)
             )
             show_ai_report_action.triggered.connect(lambda: on_show_ai_report(rows))
-
             menu.addSeparator()
-
             # Tree-specific actions
             expand_all_action = menu.addAction("Expand all")
             expand_all_action.triggered.connect(self.expandAll)
             collapse_all_action = menu.addAction("Collapse all")
             collapse_all_action.triggered.connect(self.collapseAll)
-
             menu.addSeparator()
-
             # Import/export actions
             import_paths_action = menu.addAction("Import from file")
             import_paths_action.triggered.connect(on_import_paths)
@@ -259,9 +269,13 @@ class PathTreeView(qtw.QTreeView):
                 menu, "Export to file", len(self.path_tree_model.path_map) > 0
             )
             export_paths_action.triggered.connect(lambda: on_export_paths(export_rows))
-
             menu.addSeparator()
-
+            # Update actions
+            update_action = self._add_menu_action(
+                menu, "Update all", len(self.path_tree_model.path_map) > 0
+            )
+            update_action.triggered.connect(on_update)
+            menu.addSeparator()
             # Remove actions
             remove_selected_action = self._add_menu_action(
                 menu, "Remove selected", len(rows) > 0

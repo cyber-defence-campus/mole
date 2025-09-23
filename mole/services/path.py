@@ -34,7 +34,7 @@ class PathService(BackgroundTask):
             | bn.MediumLevelILTailcallSsa
         ] = None,
         manual_fun_all_code_xrefs: bool = False,
-        path_callback: Optional[Callable[[Path], None]] = None,
+        path_callback: Optional[Callable[[List[Path]], None]] = None,
         initial_progress_text: str = "",
         can_cancel: bool = False,
     ) -> None:

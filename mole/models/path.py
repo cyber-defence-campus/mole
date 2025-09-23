@@ -129,40 +129,32 @@ class PathTreeModel(qtui.QStandardItemModel):
         main_item.setForeground(color)
         return main_item
 
-    def add_path(self, path: Path, path_grouping: str = None) -> None:
+    def add_path(self, path: Path, path_grouping: Optional[str] = None) -> None:
         """
         This method adds a path to the model grouped by the specified strategy.
 
         Args:
             path: The path to add
-            path_grouping: How to group paths - one of the PathGrouper strategies
+            path_grouping: PathGrouper strategy to use for grouping
         """
         self.path_id += 1
         self.path_map[self.path_id] = path
 
-        # Get the appropriate grouper for this strategy
+        # Determine group keys for the given path grouping strategy
         grouper = get_grouper(path_grouping)
         if grouper is None:
-            parent_item = self
-            group_keys = []  # No grouping hierarchy
+            group_keys = []
         else:
-            # Get the hierarchy of group keys for this path
             group_keys = grouper.get_group_keys(path)
 
-            # Track the parent item as we create or find each group level
-            parent_item = self
-
         # Create or get group items for each level of the hierarchy
+        parent_item = self
         for display_name, internal_id, level in group_keys:
             if internal_id not in self.group_items:
                 # Create and add the group item with level information
                 group_row = self._create_non_path_item_row(display_name, level)
-                if isinstance(parent_item, qtui.QStandardItemModel):
-                    parent_item.appendRow(group_row)
-                else:
-                    parent_item.appendRow(group_row)
+                parent_item.appendRow(group_row)
                 self.group_items[internal_id] = group_row
-
             # Update parent for next iteration
             parent_item = self.group_items[internal_id]
 
@@ -286,9 +278,9 @@ class PathTreeModel(qtui.QStandardItemModel):
         """
         path_cnt = len(self.path_map)
         self.path_id = 0
-        self.setRowCount(0)
         self.path_map.clear()
         self.group_items.clear()
+        self.setRowCount(0)
         if path_cnt > 0:
             self.signal_path_modified.emit()
         return path_cnt
@@ -469,25 +461,6 @@ class PathTreeModel(qtui.QStandardItemModel):
         if path:
             path.comment = comment
             self.signal_path_modified.emit()
-        return
-
-    def regroup_paths(self, path_grouping: str = None) -> None:
-        """
-        This method regroups all paths using the specified grouping strategy.
-
-        Args:
-            path_grouping: The new grouping strategy to use
-        """
-        # Nothing to regroup
-        if len(self.path_map) == 0:
-            return
-        # Store existing paths
-        paths = list(self.path_map.values())
-        # Clear the model
-        self.clear()
-        # Re-add all paths with the new grouping strategy
-        for path in paths:
-            self.add_path(path, path_grouping)
         return
 
     def get_analysis_result(self, path_id: int) -> Optional[AiVulnerabilityReport]:

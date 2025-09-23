@@ -23,7 +23,7 @@ class ConfigView(qtw.QWidget):
     signal_reset_config = qtc.Signal()
     signal_check_functions = qtc.Signal(object, object, object, object, object)
     signal_change_setting = qtc.Signal(object, object)
-    signal_change_path_grouping = qtc.Signal(object)
+    signal_change_path_grouping = qtc.Signal()
 
     def __init__(self) -> None:
         """
@@ -207,7 +207,7 @@ class ConfigView(qtw.QWidget):
             )
             if name == "path_grouping":
                 setting.widget.currentTextChanged.connect(
-                    lambda value: self.signal_change_path_grouping.emit(value)
+                    self.signal_change_path_grouping
                 )
             ins_lay.addWidget(setting.widget, i, 1)
         # Inspecting widget

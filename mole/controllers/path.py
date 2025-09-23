@@ -119,18 +119,8 @@ class PathController:
         self.path_view.signal_save_paths.connect(self.save_paths)
         self.path_view.signal_setup_path_tree.connect(self.setup_path_tree)
         self.config_ctr.config_view.signal_change_path_grouping.connect(
-            self._change_path_grouping
+            self.update_paths
         )
-        return
-
-    def _change_path_grouping(self, new_strategy: str) -> None:
-        """
-        Handler for when grouping strategy changes in the config. Regroups all paths with the new
-        strategy.
-        """
-        if self.path_tree_view and len(self.path_tree_view.model.path_map) > 0:
-            log.info(tag, f"Regrouping paths with new strategy: {new_strategy:s}")
-            self.path_tree_view.model.regroup_paths(new_strategy)
         return
 
     def _give_feedback(
@@ -173,25 +163,17 @@ class PathController:
             return False
         return True
 
-    def add_path_to_view(self, path: Path) -> None:
+    def add_paths_to_view(self, paths: List[Path]) -> None:
         """
-        This method updates the UI with a newly identified path.
+        This method adds the given paths to the path tree view.
         """
-
-        def update_paths_view() -> None:
-            # Ensure view exists
-            if not self.path_tree_view:
-                return
-            # Determine path grouping strategy
-            path_grouping = None
-            setting = self.config_ctr.get_setting("path_grouping")
-            if setting:
-                path_grouping = setting.value
-            # Update the model
-            self.path_tree_view.model.add_path(path, path_grouping)
-            return
-
-        bn.execute_on_main_thread(update_paths_view)
+        # Determine path grouping strategy
+        path_grouping = None
+        setting = self.config_ctr.get_setting("path_grouping")
+        if setting is not None:
+            path_grouping = setting.value
+        # Add paths to the path tree view
+        self.path_tree_view.add_paths(paths, path_grouping)
         return
 
     def find_paths(
@@ -226,7 +208,7 @@ class PathController:
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
-            path_callback=self.add_path_to_view,
+            path_callback=self.add_paths_to_view,
             initial_progress_text="Mole finds paths...",
             can_cancel=True,
         )
@@ -372,6 +354,43 @@ class PathController:
         # Find paths using the synthetic call instruction
         return self.find_paths_from_manual_inst(bv, call_inst, is_src, True)
 
+    def update_paths(self) -> None:
+        """
+        This method updates all paths in the view.
+        """
+        # Detect newly attached debuggers
+        log.find_attached_debugger()
+        # Ensure correct view
+        if not self._validate_bv():
+            return
+        # Require previous background threads to have completed
+        if self._thread and not self._thread.finished:
+            log.warn(tag, "Wait for previous background thread to complete first")
+            return
+
+        # Update paths in a background task
+        def _update_paths() -> None:
+            # Get paths from view
+            paths = self.path_tree_view.get_all_paths()
+            # Update paths
+            for path in paths:
+                path.update(self._bv)
+            # Remove paths from view
+            self.path_tree_view.clear_all_paths()
+            # Re-add updated paths to view (with updated grouping)
+            self.add_paths_to_view(paths)
+            log.info(tag, f"Updated {len(paths):d} path(s)")
+            return
+
+        # Start background task
+        self._thread = BackgroundTask(
+            initial_progress_text="Mole updates paths...",
+            can_cancel=False,
+            run=_update_paths,
+        )
+        self._thread.start()
+        return
+
     def load_paths(self) -> None:
         """
         This method loads paths from the binary's database.
@@ -410,9 +429,9 @@ class PathController:
                                 tag,
                                 f"Path #{i:d} seems to origin from another binary",
                             )
-                        # Deserialize and add path
+                        # TODO: Deserialize and add path
                         path = Path.from_dict(self._bv, s_path)
-                        self.add_path_to_view(path)
+                        self.add_paths_to_view([path])
                         # Increment loaded path counter
                         cnt_loaded_paths += 1
                     except Exception as e:
@@ -540,9 +559,9 @@ class PathController:
                                     tag,
                                     f"Path #{i:d} seems to origin from another binary",
                                 )
-                            # Deserialize and add path
+                            # TODO: Deserialize and add path
                             path = Path.from_dict(self._bv, s_path)
-                            self.add_path_to_view(path)
+                            self.add_paths_to_view([path])
                             # Increment imported path counter
                             cnt_imported_paths += 1
                         except Exception as e:
@@ -1001,6 +1020,7 @@ class PathController:
             on_show_call_graph=lambda rows: self.show_call_graph(rows, wid),
             on_import_paths=self.import_paths,
             on_export_paths=lambda rows: self.export_paths(rows),
+            on_update=self.update_paths,
             on_remove_selected=self.remove_selected_paths,
             on_clear_all=self.clear_all_paths,
             on_analyze_paths=self.analyze_paths,
@@ -1011,8 +1031,7 @@ class PathController:
         ptv.setup_navigation(bv)
         # Expand all nodes by default
         ptv.expandAll()
-        # Apply current path grouping strategy to any existing paths
-        setting = self.config_ctr.get_setting("path_grouping")
-        if setting and len(self.path_tree_view.model.path_map) > 0:
-            self.path_tree_view.model.regroup_paths(setting.value)
+        # # Update paths in the tree view
+        # if len(self.path_tree_view.model.path_map) > 0:
+        #     self.update_paths()
         return
