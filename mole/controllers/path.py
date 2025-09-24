@@ -430,7 +430,8 @@ class PathController:
                                 f"Path #{i:d} seems to origin from another binary",
                             )
                         # TODO: Deserialize and add path
-                        path = Path.from_dict(self._bv, s_path)
+                        path: Path = Path.from_dict(self._bv, s_path)
+                        path.update(self._bv)
                         self.add_paths_to_view([path])
                         # Increment loaded path counter
                         cnt_loaded_paths += 1
@@ -560,7 +561,8 @@ class PathController:
                                     f"Path #{i:d} seems to origin from another binary",
                                 )
                             # TODO: Deserialize and add path
-                            path = Path.from_dict(self._bv, s_path)
+                            path: Path = Path.from_dict(self._bv, s_path)
+                            path.update(self._bv)
                             self.add_paths_to_view([path])
                             # Increment imported path counter
                             cnt_imported_paths += 1
