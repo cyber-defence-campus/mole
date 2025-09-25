@@ -7,6 +7,7 @@ from mole.common.task import BackgroundTask
 from mole.controllers.ai import AiController
 from mole.controllers.config import ConfigController
 from mole.core.data import Path, SourceFunction, SinkFunction
+from mole.grouping import get_grouper, PathGrouper
 from mole.services.path import PathService
 from mole.views.config import ManualConfigDialog
 from mole.views.graph import CallGraphWidget
@@ -114,12 +115,12 @@ class PathController:
             ),
         )
         # Connect signals
+        self.path_view.signal_setup_path_tree.connect(self.setup_path_tree)
         self.path_view.signal_find_paths.connect(self.find_paths)
         self.path_view.signal_load_paths.connect(self.load_paths)
         self.path_view.signal_save_paths.connect(self.save_paths)
-        self.path_view.signal_setup_path_tree.connect(self.setup_path_tree)
         self.config_ctr.config_view.signal_change_path_grouping.connect(
-            self.update_paths
+            self.regroup_paths
         )
         return
 
@@ -163,17 +164,71 @@ class PathController:
             return False
         return True
 
-    def add_paths_to_view(self, paths: List[Path]) -> None:
+    def _get_path_grouper(self) -> Optional[PathGrouper]:
         """
-        This method adds the given paths to the path tree view.
+        This method returns a path grouper based on the current configuration.
         """
-        # Determine path grouping strategy
         path_grouping = None
         setting = self.config_ctr.get_setting("path_grouping")
         if setting is not None:
             path_grouping = setting.value
-        # Add paths to the path tree view
-        self.path_tree_view.add_paths(paths, path_grouping)
+        return get_grouper(path_grouping)
+
+    def setup_path_tree(
+        self, bv: bn.BinaryView, ptv: PathTreeView, wid: qtw.QTabWidget
+    ) -> None:
+        """
+        This method sets up the path tree view with controller callbacks.
+        """
+        # Store references
+        self._bv = bv
+        self.path_tree_view = ptv
+        # Set up signals
+        if self.path_tree_view:
+            self.path_tree_view.signal_show_ai_report.connect(self.show_ai_report)
+        # Set up context menu
+        ptv.setup_context_menu(
+            on_log_path=self.log_path,
+            on_log_path_diff=self.log_path_diff,
+            on_log_call=self.log_call,
+            on_highlight_path=lambda rows: self.highlight_path(rows),
+            on_show_call_graph=lambda rows: self.show_call_graph(rows, wid),
+            on_import_paths=self.import_paths,
+            on_export_paths=lambda rows: self.export_paths(rows),
+            on_update_paths=self.update_paths,
+            on_remove_selected=self.remove_selected_paths,
+            on_clear_all=self.clear_all_paths,
+            on_analyze_paths=self.analyze_paths,
+            on_show_ai_report=self.show_ai_report,
+            bv=bv,
+        )
+        # Set up navigation
+        ptv.setup_navigation(bv)
+        # Expand all nodes by default
+        ptv.expandAll()
+        return
+
+    def add_path(self, path: Path) -> None:
+        """
+        This method adds the given path to the path tree.
+        """
+        self.path_tree_view.add_path(path, self._get_path_grouper())
+        return
+
+    def update_paths(self) -> None:
+        """
+        This method updates all paths in the path tree.
+        """
+        cnt = self.path_tree_view.update_paths(self._bv, self._get_path_grouper())
+        log.info(tag, f"Updated {cnt:d} path(s)")
+        return
+
+    def regroup_paths(self) -> None:
+        """
+        This method regroups paths in the path tree.
+        """
+        cnt = self.path_tree_view.regroup_paths(self._get_path_grouper())
+        log.info(tag, f"Regrouped {cnt:d} path(s)")
         return
 
     def find_paths(
@@ -208,7 +263,7 @@ class PathController:
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
-            path_callback=self.add_paths_to_view,
+            path_callback=self.add_path,
             initial_progress_text="Mole finds paths...",
             can_cancel=True,
         )
@@ -354,43 +409,6 @@ class PathController:
         # Find paths using the synthetic call instruction
         return self.find_paths_from_manual_inst(bv, call_inst, is_src, True)
 
-    def update_paths(self) -> None:
-        """
-        This method updates all paths in the view.
-        """
-        # Detect newly attached debuggers
-        log.find_attached_debugger()
-        # Ensure correct view
-        if not self._validate_bv():
-            return
-        # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
-            log.warn(tag, "Wait for previous background thread to complete first")
-            return
-
-        # Update paths in a background task
-        def _update_paths() -> None:
-            # Get paths from view
-            paths = self.path_tree_view.get_all_paths()
-            # Update paths
-            for path in paths:
-                path.update(self._bv)
-            # Remove paths from view
-            self.path_tree_view.clear_all_paths()
-            # Re-add updated paths to view (with updated grouping)
-            self.add_paths_to_view(paths)
-            log.info(tag, f"Updated {len(paths):d} path(s)")
-            return
-
-        # Start background task
-        self._thread = BackgroundTask(
-            initial_progress_text="Mole updates paths...",
-            can_cancel=False,
-            run=_update_paths,
-        )
-        self._thread.start()
-        return
-
     def load_paths(self) -> None:
         """
         This method loads paths from the binary's database.
@@ -429,10 +447,9 @@ class PathController:
                                 tag,
                                 f"Path #{i:d} seems to origin from another binary",
                             )
-                        # TODO: Deserialize and add path
+                        # Deserialize and add path
                         path: Path = Path.from_dict(self._bv, s_path)
-                        path.update(self._bv)
-                        self.add_paths_to_view([path])
+                        self.add_path(path.update(self._bv))
                         # Increment loaded path counter
                         cnt_loaded_paths += 1
                     except Exception as e:
@@ -560,10 +577,9 @@ class PathController:
                                     tag,
                                     f"Path #{i:d} seems to origin from another binary",
                                 )
-                            # TODO: Deserialize and add path
+                            # Deserialize and add path
                             path: Path = Path.from_dict(self._bv, s_path)
-                            path.update(self._bv)
-                            self.add_paths_to_view([path])
+                            self.add_path(path.update(self._bv))
                             # Increment imported path counter
                             cnt_imported_paths += 1
                         except Exception as e:
@@ -999,41 +1015,4 @@ class PathController:
         # Clear all paths
         cnt = self.path_tree_view.clear_all_paths()
         log.info(tag, f"Cleared {cnt:d} path(s)")
-        return
-
-    def setup_path_tree(
-        self, bv: bn.BinaryView, ptv: PathTreeView, wid: qtw.QTabWidget
-    ) -> None:
-        """
-        This method sets up the path tree view with controller callbacks.
-        """
-        # Store references
-        self._bv = bv
-        self.path_tree_view = ptv
-        # Set up signals
-        if self.path_tree_view:
-            self.path_tree_view.signal_show_ai_report.connect(self.show_ai_report)
-        # Set up context menu
-        ptv.setup_context_menu(
-            on_log_path=self.log_path,
-            on_log_path_diff=self.log_path_diff,
-            on_log_call=self.log_call,
-            on_highlight_path=lambda rows: self.highlight_path(rows),
-            on_show_call_graph=lambda rows: self.show_call_graph(rows, wid),
-            on_import_paths=self.import_paths,
-            on_export_paths=lambda rows: self.export_paths(rows),
-            on_update=self.update_paths,
-            on_remove_selected=self.remove_selected_paths,
-            on_clear_all=self.clear_all_paths,
-            on_analyze_paths=self.analyze_paths,
-            on_show_ai_report=self.show_ai_report,
-            bv=bv,
-        )
-        # Set up navigation
-        ptv.setup_navigation(bv)
-        # Expand all nodes by default
-        ptv.expandAll()
-        # # Update paths in the tree view
-        # if len(self.path_tree_view.model.path_map) > 0:
-        #     self.update_paths()
         return

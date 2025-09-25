@@ -1,5 +1,6 @@
 from __future__ import annotations
 from mole.core.data import Path
+from mole.grouping import PathGrouper
 from mole.models.path import PathColumn, PathRole, PathSortProxyModel, PathTreeModel
 from typing import Callable, List, Optional
 import binaryninja as bn
@@ -165,17 +166,36 @@ class PathTreeView(qtw.QTreeView):
         """
         return list(self.path_tree_model.path_map.values())
 
-    def add_paths(self, paths: List[Path], path_grouping: Optional[str] = None) -> None:
+    def add_path(self, path: Path, path_grouper: Optional[PathGrouper]) -> None:
         """
-        This method adds the given paths to the path tree model.
+        This method adds the given path to the path tree model.
         """
-
-        def _add_paths() -> None:
-            for path in paths:
-                self.path_tree_model.add_path(path, path_grouping)
-
-        bn.execute_on_main_thread(_add_paths)
+        bn.execute_on_main_thread(
+            lambda: self.path_tree_model.add_path(path, path_grouper)
+        )
         return
+
+    def update_paths(
+        self, bv: bn.BinaryView, path_grouper: Optional[PathGrouper]
+    ) -> int:
+        """
+        This method updates all paths in the path tree model.
+        """
+        bn.execute_on_main_thread(
+            lambda: self.path_tree_model.update_paths(bv, path_grouper)
+        )
+        path_cnt = len(self.path_tree_model.path_map)
+        return path_cnt
+
+    def regroup_paths(self, path_grouper: Optional[PathGrouper]) -> int:
+        """
+        This method regroups all paths in the path tree model.
+        """
+        bn.execute_on_main_thread(
+            lambda: self.path_tree_model.regroup_paths(path_grouper)
+        )
+        path_cnt = len(self.path_tree_model.path_map)
+        return path_cnt
 
     def setup_context_menu(
         self,
@@ -186,7 +206,7 @@ class PathTreeView(qtw.QTreeView):
         on_show_call_graph: Callable[[List[int]], None],
         on_import_paths: Callable[[], None],
         on_export_paths: Callable[[List[int]], None],
-        on_update: Callable[[], None],
+        on_update_paths: Callable[[], None],
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
         on_analyze_paths: Callable[[List[int]], None],
@@ -272,10 +292,10 @@ class PathTreeView(qtw.QTreeView):
             export_paths_action.triggered.connect(lambda: on_export_paths(export_rows))
             menu.addSeparator()
             # Update actions
-            update_action = self._add_menu_action(
+            update_paths_action = self._add_menu_action(
                 menu, "Update view", len(self.path_tree_model.path_map) > 0
             )
-            update_action.triggered.connect(on_update)
+            update_paths_action.triggered.connect(on_update_paths)
             menu.addSeparator()
             # Remove actions
             remove_selected_action = self._add_menu_action(

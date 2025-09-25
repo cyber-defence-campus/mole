@@ -397,7 +397,7 @@ class SinkFunction(Function):
         max_call_level: int,
         max_slice_depth: int,
         max_memory_slice_depth: int,
-        found_path: Callable[[List[Path]], None],
+        found_path: Callable[[Path], None],
         cancelled: Callable[[], bool],
     ) -> List[Path]:
         """
@@ -753,7 +753,7 @@ class SinkFunction(Function):
                                             paths.append(path)
                                             # Execute callback on a newly found path
                                             if found_path:
-                                                found_path([path])
+                                                found_path(path)
                                             # Log newly found path
                                             t_log = f"Interesting path: {str(path):s}"
                                             t_log = f"{t_log:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
@@ -954,7 +954,7 @@ class Path:
             self.calls[i] = (call[0], call_func, call_level)
         return
 
-    def update(self, bv: bn.BinaryView) -> None:
+    def update(self, bv: bn.BinaryView) -> Path:
         """
         This method updates the symbol names of the source and sink functions.
         """
@@ -971,7 +971,7 @@ class Path:
         snk_sym_name, _ = InstructionHelper.get_func_signature(bv, snk_inst)
         if snk_sym_name:
             self.snk_sym_name = snk_sym_name
-        return
+        return self
 
     def to_dict(self, debug: bool = False) -> Dict:
         # Serialize instructions
