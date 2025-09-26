@@ -203,7 +203,11 @@ class FunctionUpdateNotification(bn.BinaryDataNotification):
         """
         if self.received_event:
             self.received_event = False
-            if self.path_ctr is not None and self.path_ctr.auto_update_paths:
+            if (
+                self.path_ctr is not None
+                and self.path_ctr.auto_update_paths
+                and self.path_ctr.thread_finished
+            ):
                 self.path_ctr.update_paths()
         return 250
 

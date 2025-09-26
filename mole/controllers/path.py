@@ -219,6 +219,13 @@ class PathController:
         self.auto_update_paths = checked
         return
 
+    @property
+    def thread_finished(self) -> bool:
+        """
+        This property returns whether the current background thread has finished.
+        """
+        return self._thread is None or self._thread.finished
+
     def add_path(self, path: Path) -> None:
         """
         This method adds the given path to the path tree.
@@ -266,7 +273,7 @@ class PathController:
         if not self._validate_bv(["Raw"], "Find"):
             return
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             self._give_feedback("Find", "Other Task Running...")
             return
@@ -434,7 +441,7 @@ class PathController:
         if not self._validate_bv(["Raw"], "Load"):
             return
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             self._give_feedback("Load", "Other Task Running...")
             return
@@ -501,7 +508,7 @@ class PathController:
         if not self._validate_bv(["Raw"], "Save"):
             return
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             return
 
@@ -561,7 +568,7 @@ class PathController:
         # Expand file path
         filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             self._give_feedback("Find", "Other Task Running...")
             return
@@ -636,7 +643,7 @@ class PathController:
         # Expand file path
         filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             return
 
@@ -967,7 +974,7 @@ class PathController:
         if not self._validate_bv():
             return
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             return
         # Get selected paths
