@@ -46,6 +46,7 @@ class PathController:
         self._bv: Optional[bn.BinaryView] = None
         self.path_tree_view: Optional[PathTreeView] = None
         self._thread: Optional[BackgroundTask] = None
+        self.auto_update_paths: bool = True
         self._paths_highlight: Tuple[
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
@@ -115,7 +116,8 @@ class PathController:
             ),
         )
         # Connect signals
-        self.path_view.signal_setup_path_tree.connect(self.setup_path_tree)
+        self.path_view.signal_setup_path_tree.connect(self._setup_path_tree)
+        self.path_view.signal_auto_update_paths.connect(self._set_auto_update_paths)
         self.path_view.signal_find_paths.connect(self.find_paths)
         self.path_view.signal_load_paths.connect(self.load_paths)
         self.path_view.signal_save_paths.connect(self.save_paths)
@@ -174,7 +176,7 @@ class PathController:
             path_grouping = setting.value
         return get_grouper(path_grouping)
 
-    def setup_path_tree(
+    def _setup_path_tree(
         self, bv: bn.BinaryView, ptv: PathTreeView, wid: qtw.QTabWidget
     ) -> None:
         """
@@ -208,6 +210,15 @@ class PathController:
         ptv.expandAll()
         return
 
+    def _set_auto_update_paths(self, checked: bool) -> None:
+        """
+        This method sets whether paths in the tree should be automatically updated.
+        """
+        if not self.auto_update_paths and checked:
+            self.update_paths()
+        self.auto_update_paths = checked
+        return
+
     def add_path(self, path: Path) -> None:
         """
         This method adds the given path to the path tree.
@@ -219,16 +230,20 @@ class PathController:
         """
         This method updates all paths in the path tree.
         """
-        cnt = self.path_tree_view.update_paths(self._bv, self._get_path_grouper())
-        log.info(tag, f"Updated {cnt:d} path(s)")
+        path_count = len(self.path_tree_view.paths)
+        if path_count > 0:
+            self.path_tree_view.update_paths(self._bv, self._get_path_grouper())
+            log.info(tag, f"Updated {path_count:d} path(s)")
         return
 
     def regroup_paths(self) -> None:
         """
         This method regroups paths in the path tree.
         """
-        cnt = self.path_tree_view.regroup_paths(self._get_path_grouper())
-        log.info(tag, f"Regrouped {cnt:d} path(s)")
+        path_count = len(self.path_tree_view.paths)
+        if path_count > 0:
+            self.path_tree_view.regroup_paths(self._get_path_grouper())
+            log.info(tag, f"Regrouped {path_count:d} path(s)")
         return
 
     def find_paths(
@@ -495,7 +510,7 @@ class PathController:
             cnt_saved_paths = 0
             try:
                 # Save paths to database
-                paths = self.path_tree_view.get_all_paths()
+                paths = self.path_tree_view.paths
                 s_paths: List[Dict] = []
                 for i, path in enumerate(paths, start=1):
                     try:
@@ -634,9 +649,7 @@ class PathController:
                 # Iteratively export paths to the JSON file
                 with open(filepath, "w") as f:
                     path_ids = (
-                        path_ids
-                        if path_ids
-                        else list(self.path_tree_view.model.path_map.keys())
+                        path_ids if path_ids else self.path_tree_view.model.path_ids
                     )
                     f.write("[\n")
                     for i, path_id in enumerate(path_ids, start=1):

@@ -127,9 +127,9 @@ class PathTreeView(qtw.QTreeView):
         """
         This method clears all paths from the model.
         """
-        path_cnt = len(self.path_tree_model.path_map)
+        path_count = len(self.path_tree_model.paths)
         bn.execute_on_main_thread(self.path_tree_model.clear)
-        return path_cnt
+        return path_count
 
     def get_selected_rows(self) -> List[int]:
         """
@@ -160,11 +160,12 @@ class PathTreeView(qtw.QTreeView):
         """
         return self.path_tree_model.get_path(path_id)
 
-    def get_all_paths(self) -> List[Path]:
+    @property
+    def paths(self) -> List[Path]:
         """
         This method returns all paths from the model.
         """
-        return list(self.path_tree_model.path_map.values())
+        return self.path_tree_model.paths
 
     def add_path(self, path: Path, path_grouper: Optional[PathGrouper]) -> None:
         """
@@ -177,25 +178,23 @@ class PathTreeView(qtw.QTreeView):
 
     def update_paths(
         self, bv: bn.BinaryView, path_grouper: Optional[PathGrouper]
-    ) -> int:
+    ) -> None:
         """
         This method updates all paths in the path tree model.
         """
         bn.execute_on_main_thread(
             lambda: self.path_tree_model.update_paths(bv, path_grouper)
         )
-        path_cnt = len(self.path_tree_model.path_map)
-        return path_cnt
+        return
 
-    def regroup_paths(self, path_grouper: Optional[PathGrouper]) -> int:
+    def regroup_paths(self, path_grouper: Optional[PathGrouper]) -> None:
         """
         This method regroups all paths in the path tree model.
         """
         bn.execute_on_main_thread(
             lambda: self.path_tree_model.regroup_paths(path_grouper)
         )
-        path_cnt = len(self.path_tree_model.path_map)
-        return path_cnt
+        return
 
     def setup_context_menu(
         self,
@@ -267,7 +266,7 @@ class PathTreeView(qtw.QTreeView):
             def enable_show_ai_report(rows: List[int]) -> bool:
                 if len(rows) != 1:
                     return False
-                path = self.path_tree_model.path_map.get(rows[0], None)
+                path = self.path_tree_model.get_path(rows[0])
                 if path and path.ai_report:
                     return True
                 return False
@@ -287,13 +286,13 @@ class PathTreeView(qtw.QTreeView):
             import_paths_action = menu.addAction("Import from file")
             import_paths_action.triggered.connect(on_import_paths)
             export_paths_action = self._add_menu_action(
-                menu, "Export to file", len(self.path_tree_model.path_map) > 0
+                menu, "Export to file", len(self.path_tree_model.paths) > 0
             )
             export_paths_action.triggered.connect(lambda: on_export_paths(export_rows))
             menu.addSeparator()
             # Update actions
             update_paths_action = self._add_menu_action(
-                menu, "Update view", len(self.path_tree_model.path_map) > 0
+                menu, "Update view", len(self.path_tree_model.paths) > 0
             )
             update_paths_action.triggered.connect(on_update_paths)
             menu.addSeparator()
@@ -303,7 +302,7 @@ class PathTreeView(qtw.QTreeView):
             )
             remove_selected_action.triggered.connect(lambda: on_remove_selected(rows))
             clear_all_action = self._add_menu_action(
-                menu, "Clear all", len(self.path_tree_model.path_map) > 0
+                menu, "Clear all", len(self.path_tree_model.paths) > 0
             )
             clear_all_action.triggered.connect(on_clear_all)
 

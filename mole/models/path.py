@@ -108,6 +108,20 @@ class PathTreeModel(qtui.QStandardItemModel):
         self.group_items: Dict[str, qtui.QStandardItem] = {}
         return
 
+    @property
+    def paths(self) -> List[Path]:
+        """
+        This property returns a list of all paths in the model.
+        """
+        return list(self.path_map.values())
+
+    @property
+    def path_ids(self) -> List[int]:
+        """
+        This property returns a list of all path IDs in the model.
+        """
+        return list(self.path_map.keys())
+
     def _create_group_item(self, text: str, level: int) -> qtui.QStandardItem:
         """
         This method creates an item for the group with the given text and level.
@@ -328,7 +342,7 @@ class PathTreeModel(qtui.QStandardItemModel):
         This method regroups all paths in the model using the given grouper.
         """
         # Store existing paths
-        paths = list(self.path_map.values())
+        paths = self.paths
         # Clear the model
         self.clear()
         # Re-add all paths with the new grouping strategy
@@ -340,12 +354,12 @@ class PathTreeModel(qtui.QStandardItemModel):
         """
         This method clears all data from the model.
         """
-        path_cnt = len(self.path_map)
+        path_count = len(self.paths)
         self.path_id = 0
         self.path_map.clear()
         self.group_items.clear()
         self.setRowCount(0)
-        if path_cnt > 0:
+        if path_count > 0:
             self.signal_path_modified.emit()
         return
 
@@ -412,12 +426,12 @@ class PathTreeModel(qtui.QStandardItemModel):
             if path_id in self.path_map:
                 del self.path_map[path_id]
         # Cleanup empty groups
-        self._cleanup_empty_groups()
+        self.cleanup_empty_groups()
         if cnt_removed_paths > 0:
             self.signal_path_modified.emit()
         return cnt_removed_paths
 
-    def _cleanup_empty_groups(self) -> None:
+    def cleanup_empty_groups(self) -> None:
         """
         This method removes any group items that no longer have children.
         """
@@ -473,7 +487,7 @@ class PathTreeModel(qtui.QStandardItemModel):
             bool: True if the update was successful, False otherwise
         """
         # Update path's AI report
-        path = self.path_map.get(path_id, None)
+        path = self.get_path(path_id)
         if not path:
             return False
         path.ai_report = ai_report
@@ -537,5 +551,5 @@ class PathTreeModel(qtui.QStandardItemModel):
         Returns:
             The analysis result object or None if not available
         """
-        path = self.path_map.get(path_id)
+        path = self.get_path(path_id)
         return path.ai_report if path else None

@@ -24,6 +24,7 @@ class PathView(bnui.SidebarWidget):
     signal_save_paths = qtc.Signal()
     signal_save_paths_feedback = qtc.Signal(object, object, int)
     signal_setup_path_tree = qtc.Signal(object, object, object)
+    signal_auto_update_paths = qtc.Signal(bool)
 
     def __init__(self) -> None:
         """
@@ -89,12 +90,19 @@ class PathView(bnui.SidebarWidget):
                 self._save_but, tmp_text, new_text, msec
             )
         )
+        self._update_but = qtw.QPushButton("Auto-Update")
+        self._update_but.setCheckable(True)
+        self._update_but.setChecked(True)
+        self._update_but.toggled.connect(
+            lambda checked: self.signal_auto_update_paths.emit(checked)
+        )
 
         # Set up button layout
         but_lay = qtw.QHBoxLayout()
         but_lay.addWidget(self._run_but)
         but_lay.addWidget(self._load_but)
         but_lay.addWidget(self._save_but)
+        but_lay.addWidget(self._update_but)
         but_wid = qtw.QWidget()
         but_wid.setLayout(but_lay)
 
@@ -149,9 +157,13 @@ class PathView(bnui.SidebarWidget):
         """
         This method is a callback invoked when the active view in the Binary UI changes.
         """
-        new_bv = vf.getCurrentBinaryView() if vf else None
+        new_bv: bn.BinaryView = vf.getCurrentBinaryView() if vf else None
         if new_bv != self._bv:
             self._bv = new_bv
+            if self._bv is not None:
+                self._bv.register_notification(
+                    FunctionUpdateNotification(self.path_ctr)
+                )
             self.signal_setup_path_tree.emit(new_bv, self.path_tree_view, self._wid)
         return
 
@@ -163,4 +175,41 @@ class PathView(bnui.SidebarWidget):
             if self._wid.tabText(i) == "AI Report":
                 self._wid.setCurrentIndex(i)
                 break
+        return
+
+
+class FunctionUpdateNotification(bn.BinaryDataNotification):
+    """
+    This class catches update notifications with respect to functions and updates paths in the
+    sidebar's path view.
+    """
+
+    def __init__(self, path_ctr: Optional[PathController]) -> None:
+        """
+        This method initializes a notification handler.
+        """
+        super(FunctionUpdateNotification, self).__init__(
+            bn.NotificationType.NotificationBarrier
+            | bn.NotificationType.FunctionLifetime
+            | bn.NotificationType.FunctionUpdated
+        )
+        self.path_ctr = path_ctr
+        self.received_event = False
+        return
+
+    def notification_barrier(self, bv: bn.BinaryView) -> int:
+        """
+        This method updates the paths after notifications have been received.
+        """
+        if self.received_event:
+            self.received_event = False
+            if self.path_ctr is not None and self.path_ctr.auto_update_paths:
+                self.path_ctr.update_paths()
+        return 250
+
+    def function_updated(self, bv: bn.BinaryView, func: bn.Function) -> None:
+        """
+        This method marks that a function has been updated.
+        """
+        self.received_event = True
         return
