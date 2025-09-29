@@ -21,6 +21,8 @@ class ConfigView(qtw.QWidget):
 
     signal_save_config = qtc.Signal()
     signal_reset_config = qtc.Signal()
+    signal_import_config = qtc.Signal()
+    signal_export_config = qtc.Signal()
     signal_check_functions = qtc.Signal(object, object, object, object, object)
     signal_change_setting = qtc.Signal(object, object)
     signal_change_path_grouping = qtc.Signal()
@@ -293,16 +295,26 @@ class ConfigView(qtw.QWidget):
         self._save_but.clicked.connect(lambda _=None: self.signal_save_config.emit())
         self._reset_but = qtw.QPushButton("Reset")
         self._reset_but.clicked.connect(lambda _=None: self.signal_reset_config.emit())
+        self._import_but = qtw.QPushButton("Import")
+        self._import_but.clicked.connect(
+            lambda _=None: self.signal_import_config.emit()
+        )
+        self._export_but = qtw.QPushButton("Export")
+        self._export_but.clicked.connect(
+            lambda _=None: self.signal_export_config.emit()
+        )
         lay = qtw.QHBoxLayout()
         lay.addWidget(self._save_but)
         lay.addWidget(self._reset_but)
+        lay.addWidget(self._import_but)
+        lay.addWidget(self._export_but)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid
 
     def give_feedback(
         self,
-        button_type: Literal["Save", "Reset", "Reload"],
+        button_type: Literal["Save", "Reset", "Export", "Import"],
         tmp_text: str,
         new_text: str,
         msec: int = 1000,
@@ -316,6 +328,10 @@ class ConfigView(qtw.QWidget):
                 button = self._save_but
             case "Reset":
                 button = self._reset_but
+            case "Export":
+                button = self._export_but
+            case "Import":
+                button = self._import_but
 
         def restore(text: str) -> None:
             button.setText(text)

@@ -117,11 +117,14 @@ class ConfigService:
             self.update_config(config, main_config)
         return config
 
-    def save_config(self, configuration: Configuration) -> None:
+    def save_config(self, configuration: Configuration, config_file: str = "") -> None:
         """
-        This method saves the main configuration file based on the provided `Configuration` object.
+        This method save the given configuration to the specified file. If no file is given, the
+        configuration is saved to the default main configuration file.
         """
-        with open(os.path.join(self._config_path, "000-mole.yml"), "w") as f:
+        if not config_file:
+            config_file = os.path.join(self._config_path, "000-mole.yml")
+        with open(config_file, "w") as f:
             yaml.safe_dump(
                 configuration.to_dict(),
                 f,

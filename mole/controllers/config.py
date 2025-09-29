@@ -16,6 +16,8 @@ from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
 from mole.views.config import ConfigView
 from typing import Any, Dict, List, Literal, Optional
+import os
+import PySide6.QtWidgets as qtw
 
 
 class ConfigController:
@@ -40,6 +42,8 @@ class ConfigController:
         # Connect signals
         self.config_view.signal_save_config.connect(self.save_config)
         self.config_view.signal_reset_config.connect(self.reset_config)
+        self.config_view.signal_import_config.connect(self.import_config)
+        self.config_view.signal_export_config.connect(self.export_config)
         self.config_view.signal_check_functions.connect(self.check_functions)
         self.config_view.signal_change_setting.connect(self.change_setting)
         return
@@ -174,6 +178,27 @@ class ConfigController:
         # User feedback
         self.config_view.give_feedback("Reset", "Resetting...", "Reset")
         self.config_view.give_feedback("Save", "Save", "Save", 0)
+        return
+
+    def import_config(self) -> None:
+        """TODO"""
+        return
+
+    def export_config(self) -> None:
+        """
+        This method exports the configuration.
+        """
+        # Open dialog to select file
+        filepath, _ = qtw.QFileDialog.getSaveFileName(
+            caption="Save As", filter="YAML Files (*.yml *.yaml);;All Files (*)"
+        )
+        if not filepath:
+            return
+        # Expand file path
+        filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
+        # Export configuration and provide user feedback
+        self.config_service.save_config(self.config_model.get(), filepath)
+        self.config_view.give_feedback("Export", "Exporting...", "Export")
         return
 
     def check_functions(
