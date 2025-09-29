@@ -600,7 +600,7 @@ class SinkFunction(Function):
                                         _src_insts = [
                                             inst
                                             for inst in snk_inst_graph
-                                            if inst[1] == src_inst[1]
+                                            if inst[1] and inst[1] == src_inst[1]
                                         ]
                                         for _src_inst in _src_insts:
                                             try:
