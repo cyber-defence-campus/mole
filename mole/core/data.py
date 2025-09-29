@@ -600,7 +600,7 @@ class SinkFunction(Function):
                                         _src_insts = [
                                             inst
                                             for inst in snk_inst_graph
-                                            if inst[1] == src_inst[1]
+                                            if inst[1] and inst[1] == src_inst[1]
                                         ]
                                         for _src_inst in _src_insts:
                                             try:
@@ -852,6 +852,51 @@ class Path:
         self.ai_report = ai_report
         return
 
+    def __eq__(self, other: Path) -> bool:
+        if not isinstance(other, Path):
+            try:
+                other = Path(**other)
+            except Exception as _:
+                return False
+        return (
+            # Equal source
+            self.src_sym_addr == other.src_sym_addr
+            and self.src_sym_name == other.src_sym_name
+            and (
+                self.src_par_idx is None
+                or other.src_par_idx is None
+                or self.src_par_idx == other.src_par_idx
+            )
+            and (
+                self.src_par_var is None
+                or other.src_par_var is None
+                or self.src_par_var == other.src_par_var
+            )
+            # Equal sink
+            and self.snk_sym_addr == other.snk_sym_addr
+            and self.snk_sym_name == other.snk_sym_name
+            and self.snk_par_idx == other.snk_par_idx
+            and self.snk_par_var == other.snk_par_var
+            # Equal instructions (ignoring the ones originating from slicing the
+            # source, only considering the source's call instruction)
+            and self.src_inst_idx == other.src_inst_idx
+            and self.insts[: self.src_inst_idx - 1]
+            == other.insts[: self.src_inst_idx - 1]
+            and self.insts[-1] == other.insts[-1]
+            # Equal binary
+            and self.sha1_hash == other.sha1_hash
+        )
+
+    def __str__(self) -> str:
+        src = f"0x{self.src_sym_addr:x} {self.src_sym_name:s}"
+        if self.src_par_idx and self.src_par_var:
+            src = f"{src:s}(arg#{self.src_par_idx:d}:{str(self.src_par_var):s})"
+        else:
+            src = f"{src:s}"
+        snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
+        snk = f"{snk:s}(arg#{self.snk_par_idx:d}:{str(self.snk_par_var):s})"
+        return f"{snk:s} <-- {src:s}"
+
     def init(self, call_graph: MediumLevelILFunctionGraph) -> None:
         # Copy all nodes with added attribute `in_path=False`
         for node, attrs in call_graph.nodes(data=True):
@@ -909,50 +954,24 @@ class Path:
             self.calls[i] = (call[0], call_func, call_level)
         return
 
-    def __eq__(self, other: Path) -> bool:
-        if not isinstance(other, Path):
-            try:
-                other = Path(**other)
-            except Exception as _:
-                return False
-        return (
-            # Equal source
-            self.src_sym_addr == other.src_sym_addr
-            and self.src_sym_name == other.src_sym_name
-            and (
-                self.src_par_idx is None
-                or other.src_par_idx is None
-                or self.src_par_idx == other.src_par_idx
-            )
-            and (
-                self.src_par_var is None
-                or other.src_par_var is None
-                or self.src_par_var == other.src_par_var
-            )
-            # Equal sink
-            and self.snk_sym_addr == other.snk_sym_addr
-            and self.snk_sym_name == other.snk_sym_name
-            and self.snk_par_idx == other.snk_par_idx
-            and self.snk_par_var == other.snk_par_var
-            # Equal instructions (ignoring the ones originating from slicing the
-            # source, only considering the source's call instruction)
-            and self.src_inst_idx == other.src_inst_idx
-            and self.insts[: self.src_inst_idx - 1]
-            == other.insts[: self.src_inst_idx - 1]
-            and self.insts[-1] == other.insts[-1]
-            # Equal binary
-            and self.sha1_hash == other.sha1_hash
-        )
-
-    def __str__(self) -> str:
-        src = f"0x{self.src_sym_addr:x} {self.src_sym_name:s}"
-        if self.src_par_idx and self.src_par_var:
-            src = f"{src:s}(arg#{self.src_par_idx:d}:{str(self.src_par_var):s})"
-        else:
-            src = f"{src:s}"
-        snk = f"0x{self.snk_sym_addr:x} {self.snk_sym_name:s}"
-        snk = f"{snk:s}(arg#{self.snk_par_idx:d}:{str(self.snk_par_var):s})"
-        return f"{snk:s} <-- {src:s}"
+    def update(self, bv: bn.BinaryView) -> Path:
+        """
+        This method updates the symbol names of the source and sink functions.
+        """
+        # Ensure path has instructions
+        if not self.insts:
+            return
+        # Update source function's symbol name
+        src_inst = self.insts[-1]
+        src_sym_name, _ = InstructionHelper.get_func_signature(bv, src_inst)
+        if src_sym_name:
+            self.src_sym_name = src_sym_name
+        # Update sink function's symbol name
+        snk_inst = self.insts[0]
+        snk_sym_name, _ = InstructionHelper.get_func_signature(bv, snk_inst)
+        if snk_sym_name:
+            self.snk_sym_name = snk_sym_name
+        return self
 
     def to_dict(self, debug: bool = False) -> Dict:
         # Serialize instructions

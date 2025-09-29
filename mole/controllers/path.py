@@ -7,6 +7,7 @@ from mole.common.task import BackgroundTask
 from mole.controllers.ai import AiController
 from mole.controllers.config import ConfigController
 from mole.core.data import Path, SourceFunction, SinkFunction
+from mole.grouping import get_grouper, PathGrouper
 from mole.services.path import PathService
 from mole.views.config import ManualConfigDialog
 from mole.views.graph import CallGraphWidget
@@ -45,6 +46,7 @@ class PathController:
         self._bv: Optional[bn.BinaryView] = None
         self.path_tree_view: Optional[PathTreeView] = None
         self._thread: Optional[BackgroundTask] = None
+        self.auto_update_paths: bool = True
         self._paths_highlight: Tuple[
             Path, Dict[int, Tuple[bn.MediumLevelILInstruction, bn.HighlightColor]]
         ] = (None, {})
@@ -114,23 +116,14 @@ class PathController:
             ),
         )
         # Connect signals
+        self.path_view.signal_setup_path_tree.connect(self._setup_path_tree)
+        self.path_view.signal_auto_update_paths.connect(self._set_auto_update_paths)
         self.path_view.signal_find_paths.connect(self.find_paths)
         self.path_view.signal_load_paths.connect(self.load_paths)
         self.path_view.signal_save_paths.connect(self.save_paths)
-        self.path_view.signal_setup_path_tree.connect(self.setup_path_tree)
         self.config_ctr.config_view.signal_change_path_grouping.connect(
-            self._change_path_grouping
+            self.regroup_paths
         )
-        return
-
-    def _change_path_grouping(self, new_strategy: str) -> None:
-        """
-        Handler for when grouping strategy changes in the config. Regroups all paths with the new
-        strategy.
-        """
-        if self.path_tree_view and len(self.path_tree_view.model.path_map) > 0:
-            log.info(tag, f"Regrouping paths with new strategy: {new_strategy:s}")
-            self.path_tree_view.model.regroup_paths(new_strategy)
         return
 
     def _give_feedback(
@@ -173,25 +166,91 @@ class PathController:
             return False
         return True
 
-    def add_path_to_view(self, path: Path) -> None:
+    def _get_path_grouper(self) -> Optional[PathGrouper]:
         """
-        This method updates the UI with a newly identified path.
+        This method returns a path grouper based on the current configuration.
         """
+        path_grouping = None
+        setting = self.config_ctr.get_setting("path_grouping")
+        if setting is not None:
+            path_grouping = setting.value
+        return get_grouper(path_grouping)
 
-        def update_paths_view() -> None:
-            # Ensure view exists
-            if not self.path_tree_view:
-                return
-            # Determine path grouping strategy
-            path_grouping = None
-            setting = self.config_ctr.get_setting("path_grouping")
-            if setting:
-                path_grouping = setting.value
-            # Update the model
-            self.path_tree_view.model.add_path(path, path_grouping)
-            return
+    def _setup_path_tree(
+        self, bv: bn.BinaryView, ptv: PathTreeView, wid: qtw.QTabWidget
+    ) -> None:
+        """
+        This method sets up the path tree view with controller callbacks.
+        """
+        # Store references
+        self._bv = bv
+        self.path_tree_view = ptv
+        # Set up signals
+        if self.path_tree_view:
+            self.path_tree_view.signal_show_ai_report.connect(self.show_ai_report)
+        # Set up context menu
+        ptv.setup_context_menu(
+            on_log_path=self.log_path,
+            on_log_path_diff=self.log_path_diff,
+            on_log_call=self.log_call,
+            on_highlight_path=lambda rows: self.highlight_path(rows),
+            on_show_call_graph=lambda rows: self.show_call_graph(rows, wid),
+            on_import_paths=self.import_paths,
+            on_export_paths=lambda rows: self.export_paths(rows),
+            on_update_paths=self.update_paths,
+            on_remove_selected=self.remove_selected_paths,
+            on_clear_all=self.clear_all_paths,
+            on_analyze_paths=self.analyze_paths,
+            on_show_ai_report=self.show_ai_report,
+            bv=bv,
+        )
+        # Set up navigation
+        ptv.setup_navigation(bv)
+        # Expand all nodes by default
+        ptv.expandAll()
+        return
 
-        bn.execute_on_main_thread(update_paths_view)
+    def _set_auto_update_paths(self, checked: bool) -> None:
+        """
+        This method sets whether paths in the tree should be automatically updated.
+        """
+        if not self.auto_update_paths and checked:
+            self.update_paths()
+        self.auto_update_paths = checked
+        return
+
+    @property
+    def thread_finished(self) -> bool:
+        """
+        This property returns whether the current background thread has finished.
+        """
+        return self._thread is None or self._thread.finished
+
+    def add_path(self, path: Path) -> None:
+        """
+        This method adds the given path to the path tree.
+        """
+        self.path_tree_view.add_path(path, self._get_path_grouper())
+        return
+
+    def update_paths(self) -> None:
+        """
+        This method updates all paths in the path tree.
+        """
+        path_count = len(self.path_tree_view.paths)
+        if path_count > 0:
+            self.path_tree_view.update_paths(self._bv, self._get_path_grouper())
+            log.info(tag, f"Updated {path_count:d} path(s)")
+        return
+
+    def regroup_paths(self) -> None:
+        """
+        This method regroups paths in the path tree.
+        """
+        path_count = len(self.path_tree_view.paths)
+        if path_count > 0:
+            self.path_tree_view.regroup_paths(self._get_path_grouper())
+            log.info(tag, f"Regrouped {path_count:d} path(s)")
         return
 
     def find_paths(
@@ -214,7 +273,7 @@ class PathController:
         if not self._validate_bv(["Raw"], "Find"):
             return
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             self._give_feedback("Find", "Other Task Running...")
             return
@@ -226,7 +285,7 @@ class PathController:
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
-            path_callback=self.add_path_to_view,
+            path_callback=self.add_path,
             initial_progress_text="Mole finds paths...",
             can_cancel=True,
         )
@@ -382,7 +441,7 @@ class PathController:
         if not self._validate_bv(["Raw"], "Load"):
             return
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             self._give_feedback("Load", "Other Task Running...")
             return
@@ -411,8 +470,8 @@ class PathController:
                                 f"Path #{i:d} seems to origin from another binary",
                             )
                         # Deserialize and add path
-                        path = Path.from_dict(self._bv, s_path)
-                        self.add_path_to_view(path)
+                        path: Path = Path.from_dict(self._bv, s_path)
+                        self.add_path(path.update(self._bv))
                         # Increment loaded path counter
                         cnt_loaded_paths += 1
                     except Exception as e:
@@ -449,7 +508,7 @@ class PathController:
         if not self._validate_bv(["Raw"], "Save"):
             return
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             return
 
@@ -458,7 +517,7 @@ class PathController:
             cnt_saved_paths = 0
             try:
                 # Save paths to database
-                paths = self.path_tree_view.get_all_paths()
+                paths = self.path_tree_view.paths
                 s_paths: List[Dict] = []
                 for i, path in enumerate(paths, start=1):
                     try:
@@ -509,7 +568,7 @@ class PathController:
         # Expand file path
         filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             self._give_feedback("Find", "Other Task Running...")
             return
@@ -541,8 +600,8 @@ class PathController:
                                     f"Path #{i:d} seems to origin from another binary",
                                 )
                             # Deserialize and add path
-                            path = Path.from_dict(self._bv, s_path)
-                            self.add_path_to_view(path)
+                            path: Path = Path.from_dict(self._bv, s_path)
+                            self.add_path(path.update(self._bv))
                             # Increment imported path counter
                             cnt_imported_paths += 1
                         except Exception as e:
@@ -584,7 +643,7 @@ class PathController:
         # Expand file path
         filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             return
 
@@ -597,9 +656,7 @@ class PathController:
                 # Iteratively export paths to the JSON file
                 with open(filepath, "w") as f:
                     path_ids = (
-                        path_ids
-                        if path_ids
-                        else list(self.path_tree_view.model.path_map.keys())
+                        path_ids if path_ids else self.path_tree_view.model.path_ids
                     )
                     f.write("[\n")
                     for i, path_id in enumerate(path_ids, start=1):
@@ -917,7 +974,7 @@ class PathController:
         if not self._validate_bv():
             return
         # Require previous background threads to have completed
-        if self._thread and not self._thread.finished:
+        if not self.thread_finished:
             log.warn(tag, "Wait for previous background thread to complete first")
             return
         # Get selected paths
@@ -978,41 +1035,4 @@ class PathController:
         # Clear all paths
         cnt = self.path_tree_view.clear_all_paths()
         log.info(tag, f"Cleared {cnt:d} path(s)")
-        return
-
-    def setup_path_tree(
-        self, bv: bn.BinaryView, ptv: PathTreeView, wid: qtw.QTabWidget
-    ) -> None:
-        """
-        This method sets up the path tree view with controller callbacks.
-        """
-        # Store references
-        self._bv = bv
-        self.path_tree_view = ptv
-        # Set up signals
-        if self.path_tree_view:
-            self.path_tree_view.signal_show_ai_report.connect(self.show_ai_report)
-        # Set up context menu
-        ptv.setup_context_menu(
-            on_log_path=self.log_path,
-            on_log_path_diff=self.log_path_diff,
-            on_log_call=self.log_call,
-            on_highlight_path=lambda rows: self.highlight_path(rows),
-            on_show_call_graph=lambda rows: self.show_call_graph(rows, wid),
-            on_import_paths=self.import_paths,
-            on_export_paths=lambda rows: self.export_paths(rows),
-            on_remove_selected=self.remove_selected_paths,
-            on_clear_all=self.clear_all_paths,
-            on_analyze_paths=self.analyze_paths,
-            on_show_ai_report=self.show_ai_report,
-            bv=bv,
-        )
-        # Set up navigation
-        ptv.setup_navigation(bv)
-        # Expand all nodes by default
-        ptv.expandAll()
-        # Apply current path grouping strategy to any existing paths
-        setting = self.config_ctr.get_setting("path_grouping")
-        if setting and len(self.path_tree_view.model.path_map) > 0:
-            self.path_tree_view.model.regroup_paths(setting.value)
         return

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from mole.core.data import Path
+from mole.grouping import PathGrouper
 from mole.models.path import PathColumn, PathRole, PathSortProxyModel, PathTreeModel
 from typing import Callable, List, Optional
 import binaryninja as bn
@@ -126,7 +127,9 @@ class PathTreeView(qtw.QTreeView):
         """
         This method clears all paths from the model.
         """
-        return self.path_tree_model.clear()
+        path_count = len(self.path_tree_model.paths)
+        bn.execute_on_main_thread(self.path_tree_model.clear)
+        return path_count
 
     def get_selected_rows(self) -> List[int]:
         """
@@ -157,11 +160,41 @@ class PathTreeView(qtw.QTreeView):
         """
         return self.path_tree_model.get_path(path_id)
 
-    def get_all_paths(self) -> List[Path]:
+    @property
+    def paths(self) -> List[Path]:
         """
         This method returns all paths from the model.
         """
-        return list(self.path_tree_model.path_map.values())
+        return self.path_tree_model.paths
+
+    def add_path(self, path: Path, path_grouper: Optional[PathGrouper]) -> None:
+        """
+        This method adds the given path to the path tree model.
+        """
+        bn.execute_on_main_thread(
+            lambda: self.path_tree_model.add_path(path, path_grouper)
+        )
+        return
+
+    def update_paths(
+        self, bv: bn.BinaryView, path_grouper: Optional[PathGrouper]
+    ) -> None:
+        """
+        This method updates all paths in the path tree model.
+        """
+        bn.execute_on_main_thread(
+            lambda: self.path_tree_model.update_paths(bv, path_grouper)
+        )
+        return
+
+    def regroup_paths(self, path_grouper: Optional[PathGrouper]) -> None:
+        """
+        This method regroups all paths in the path tree model.
+        """
+        bn.execute_on_main_thread(
+            lambda: self.path_tree_model.regroup_paths(path_grouper)
+        )
+        return
 
     def setup_context_menu(
         self,
@@ -172,6 +205,7 @@ class PathTreeView(qtw.QTreeView):
         on_show_call_graph: Callable[[List[int]], None],
         on_import_paths: Callable[[], None],
         on_export_paths: Callable[[List[int]], None],
+        on_update_paths: Callable[[], None],
         on_remove_selected: Callable[[List[int]], None],
         on_clear_all: Callable[[], None],
         on_analyze_paths: Callable[[List[int]], None],
@@ -232,7 +266,7 @@ class PathTreeView(qtw.QTreeView):
             def enable_show_ai_report(rows: List[int]) -> bool:
                 if len(rows) != 1:
                     return False
-                path = self.path_tree_model.path_map.get(rows[0], None)
+                path = self.path_tree_model.get_path(rows[0])
                 if path and path.ai_report:
                     return True
                 return False
@@ -241,34 +275,34 @@ class PathTreeView(qtw.QTreeView):
                 menu, "Show AI report", enable_show_ai_report(rows)
             )
             show_ai_report_action.triggered.connect(lambda: on_show_ai_report(rows))
-
             menu.addSeparator()
-
             # Tree-specific actions
             expand_all_action = menu.addAction("Expand all")
             expand_all_action.triggered.connect(self.expandAll)
             collapse_all_action = menu.addAction("Collapse all")
             collapse_all_action.triggered.connect(self.collapseAll)
-
             menu.addSeparator()
-
             # Import/export actions
             import_paths_action = menu.addAction("Import from file")
             import_paths_action.triggered.connect(on_import_paths)
             export_paths_action = self._add_menu_action(
-                menu, "Export to file", len(self.path_tree_model.path_map) > 0
+                menu, "Export to file", len(self.path_tree_model.paths) > 0
             )
             export_paths_action.triggered.connect(lambda: on_export_paths(export_rows))
-
             menu.addSeparator()
-
+            # Update actions
+            update_paths_action = self._add_menu_action(
+                menu, "Update view", len(self.path_tree_model.paths) > 0
+            )
+            update_paths_action.triggered.connect(on_update_paths)
+            menu.addSeparator()
             # Remove actions
             remove_selected_action = self._add_menu_action(
                 menu, "Remove selected", len(rows) > 0
             )
             remove_selected_action.triggered.connect(lambda: on_remove_selected(rows))
             clear_all_action = self._add_menu_action(
-                menu, "Clear all", len(self.path_tree_model.path_map) > 0
+                menu, "Clear all", len(self.path_tree_model.paths) > 0
             )
             clear_all_action.triggered.connect(on_clear_all)
 

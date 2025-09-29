@@ -1,9 +1,10 @@
 from __future__ import annotations
 from mole.core.data import Path
-from mole.grouping import get_grouper
+from mole.grouping import PathGrouper
 from mole.models import IndexedLabeledEnum
 from mole.services.ai import AiVulnerabilityReport
 from typing import Dict, List, Optional, Tuple
+import binaryninja as bn
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 
@@ -107,13 +108,23 @@ class PathTreeModel(qtui.QStandardItemModel):
         self.group_items: Dict[str, qtui.QStandardItem] = {}
         return
 
-    def _create_non_path_item_row(self, text: str, level: int) -> qtui.QStandardItem:
+    @property
+    def paths(self) -> List[Path]:
         """
-        This method creates a row of items for non-path items (group headers).
+        This property returns a list of all paths in the model.
+        """
+        return list(self.path_map.values())
 
-        Args:
-            text: The display text for the item
-            level: The level in the hierarchy (used for display purposes)
+    @property
+    def path_ids(self) -> List[int]:
+        """
+        This property returns a list of all path IDs in the model.
+        """
+        return list(self.path_map.keys())
+
+    def _create_group_item(self, text: str, level: int) -> qtui.QStandardItem:
+        """
+        This method creates an item for the group with the given text and level.
         """
         # Styling
         font = qtui.QFont()
@@ -129,54 +140,21 @@ class PathTreeModel(qtui.QStandardItemModel):
         main_item.setForeground(color)
         return main_item
 
-    def add_path(self, path: Path, path_grouping: str = None) -> None:
+    def _create_path_items(self, path: Path, path_id: int) -> List[qtui.QStandardItem]:
         """
-        This method adds a path to the model grouped by the specified strategy.
-
-        Args:
-            path: The path to add
-            path_grouping: How to group paths - one of the PathGrouper strategies
+        This method creates a list of items for the given path.
         """
-        self.path_id += 1
-        self.path_map[self.path_id] = path
-
-        # Get the appropriate grouper for this strategy
-        grouper = get_grouper(path_grouping)
-        if grouper is None:
-            parent_item = self
-            group_keys = []  # No grouping hierarchy
-        else:
-            # Get the hierarchy of group keys for this path
-            group_keys = grouper.get_group_keys(path)
-
-            # Track the parent item as we create or find each group level
-            parent_item = self
-
-        # Create or get group items for each level of the hierarchy
-        for display_name, internal_id, level in group_keys:
-            if internal_id not in self.group_items:
-                # Create and add the group item with level information
-                group_row = self._create_non_path_item_row(display_name, level)
-                if isinstance(parent_item, qtui.QStandardItemModel):
-                    parent_item.appendRow(group_row)
-                else:
-                    parent_item.appendRow(group_row)
-                self.group_items[internal_id] = group_row
-
-            # Update parent for next iteration
-            parent_item = self.group_items[internal_id]
-
         # Create path items
-        id_item = qtui.QStandardItem(f"{self.path_id:d}")
-        id_item.setData(self.path_id, PathRole.ID.index)
-        id_item.setData(self.path_id, PathRole.SORT.index)
+        id_item = qtui.QStandardItem(f"{path_id:d}")
+        id_item.setData(path_id, PathRole.ID.index)
+        id_item.setData(path_id, PathRole.SORT.index)
 
         src_addr_item = qtui.QStandardItem(f"0x{path.src_sym_addr:x}")
-        src_addr_item.setData(self.path_id, PathRole.ID.index)
+        src_addr_item.setData(path_id, PathRole.ID.index)
         src_addr_item.setData(path.src_sym_addr, PathRole.SORT.index)
 
         src_func_item = qtui.QStandardItem(path.src_sym_name)
-        src_func_item.setData(self.path_id, PathRole.ID.index)
+        src_func_item.setData(path_id, PathRole.ID.index)
 
         if path.src_par_idx is not None and path.src_par_var is not None:
             src_parm_label = f"arg#{path.src_par_idx:d}:{str(path.src_par_var):s}"
@@ -185,32 +163,32 @@ class PathTreeModel(qtui.QStandardItemModel):
             src_parm_label = ""
             src_parm_sort = 0
         src_parm_item = qtui.QStandardItem(src_parm_label)
-        src_parm_item.setData(self.path_id, PathRole.ID.index)
+        src_parm_item.setData(path_id, PathRole.ID.index)
         src_parm_item.setData(src_parm_sort, PathRole.SORT.index)
 
         snk_addr_item = qtui.QStandardItem(f"0x{path.snk_sym_addr:x}")
-        snk_addr_item.setData(self.path_id, PathRole.ID.index)
+        snk_addr_item.setData(path_id, PathRole.ID.index)
         snk_addr_item.setData(path.snk_sym_addr, PathRole.SORT.index)
 
         snk_func_item = qtui.QStandardItem(path.snk_sym_name)
-        snk_func_item.setData(self.path_id, PathRole.ID.index)
+        snk_func_item.setData(path_id, PathRole.ID.index)
 
         snk_parm_item = qtui.QStandardItem(
             f"arg#{path.snk_par_idx:d}:{str(path.snk_par_var):s}"
         )
-        snk_parm_item.setData(self.path_id, PathRole.ID.index)
+        snk_parm_item.setData(path_id, PathRole.ID.index)
         snk_parm_item.setData(path.snk_par_idx, PathRole.SORT.index)
 
         inst_item = qtui.QStandardItem(str(len(path.insts)))
-        inst_item.setData(self.path_id, PathRole.ID.index)
+        inst_item.setData(path_id, PathRole.ID.index)
         inst_item.setData(len(path.insts), PathRole.SORT.index)
 
         phis_item = qtui.QStandardItem(str(len(path.phiis)))
-        phis_item.setData(self.path_id, PathRole.ID.index)
+        phis_item.setData(path_id, PathRole.ID.index)
         phis_item.setData(len(path.phiis), PathRole.SORT.index)
 
         bdeps_item = qtui.QStandardItem(str(len(path.bdeps)))
-        bdeps_item.setData(self.path_id, PathRole.ID.index)
+        bdeps_item.setData(path_id, PathRole.ID.index)
         bdeps_item.setData(len(path.bdeps), PathRole.SORT.index)
 
         if path.ai_report is not None:
@@ -235,12 +213,12 @@ class PathTreeModel(qtui.QStandardItemModel):
             severity_sort = 0
             severity_color = qtui.QBrush(qtui.QColor("#FFFFFF"))
         severity_item = qtui.QStandardItem(severity_label)
-        severity_item.setData(self.path_id, PathRole.ID.index)
+        severity_item.setData(path_id, PathRole.ID.index)
         severity_item.setData(severity_sort, PathRole.SORT.index)
         severity_item.setForeground(severity_color)
 
         comment_item = qtui.QStandardItem(path.comment)
-        comment_item.setData(self.path_id, PathRole.ID.index)
+        comment_item.setData(path_id, PathRole.ID.index)
 
         # Set items as non-editable (except for comment)
         for item in [
@@ -273,25 +251,117 @@ class PathTreeModel(qtui.QStandardItemModel):
             severity_item,
             comment_item,
         ]
-        parent_item.appendRow(path_row)
+        return path_row
+
+    def add_path(self, path: Path, path_grouper: PathGrouper) -> None:
+        """
+        This method adds a path to the model using the given grouper.
+        """
+        self.path_id += 1
+        self.path_map[self.path_id] = path
+
+        # Get group keys for the given path
+        if path_grouper is None:
+            group_keys = []
+        else:
+            group_keys = path_grouper.get_group_keys(path)
+
+        # Create group items for the given path
+        parent_item = self
+        for display_name, internal_id, level in group_keys:
+            if internal_id not in self.group_items:
+                # Create group item and add it to its parent item
+                group_item = self._create_group_item(display_name, level)
+                parent_item.appendRow(group_item)
+                self.group_items[internal_id] = group_item
+            # Update parent for next iteration
+            parent_item = self.group_items[internal_id]
+
+        # Create items for the given path and add them to its parent item
+        path_items = self._create_path_items(path, self.path_id)
+        parent_item.appendRow(path_items)
 
         # Emit signals
         self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
         self.signal_path_modified.emit()
         return
 
-    def clear(self) -> int:
+    def update_paths(self, bv: bn.BinaryView, path_grouper: PathGrouper) -> None:
+        """
+        This method updates all paths in the model using the given grouper.
+        """
+
+        def _update_item(
+            item: qtui.QStandardItem, row: int, parent_items: List[qtui.QStandardItem]
+        ) -> None:
+            # Get the item's ID
+            item_id = item.data(PathRole.ID.index)
+            # Item is a path
+            if item_id is not None:
+                path = self.get_path(item_id)
+                if path is not None:
+                    # Update path and create new path items
+                    path.update(bv)
+                    path_items = self._create_path_items(path, item_id)
+                    # Path has parents (is in a group)
+                    if parent_items:
+                        # Update path items
+                        parent_item = parent_items[-1]
+                        for col in range(parent_item.columnCount()):
+                            child_item = parent_item.child(row, col)
+                            new_text = path_items[col].text()
+                            child_item.setText(new_text)
+                        # Update group names
+                        group_keys = (
+                            path_grouper.get_group_keys(path)
+                            if path_grouper is not None
+                            else []
+                        )
+                        for i, (group_name, _, _) in enumerate(group_keys):
+                            parent_items[i].setText(group_name)
+                    # Path has no parents (is top-level)
+                    else:
+                        # Replace row (not bothering about collapsing/expanding groups)
+                        self.removeRow(row)
+                        self.insertRow(row, path_items)
+            # Item is a group
+            else:
+                # Iterate item's children and update them recursively
+                for row in range(item.rowCount()):
+                    child_item = item.child(row, 0)
+                    _update_item(child_item, row, parent_items + [item])
+            return
+
+        # Iterate top-level items and update them recursively
+        for row in range(self.rowCount()):
+            _update_item(self.item(row, 0), row, [])
+        return
+
+    def regroup_paths(self, path_grouper: Optional[PathGrouper]) -> None:
+        """
+        This method regroups all paths in the model using the given grouper.
+        """
+        # Store existing paths
+        paths = self.paths
+        # Clear the model
+        self.clear()
+        # Re-add all paths with the new grouping strategy
+        for path in paths:
+            self.add_path(path, path_grouper)
+        return
+
+    def clear(self) -> None:
         """
         This method clears all data from the model.
         """
-        path_cnt = len(self.path_map)
+        path_count = len(self.paths)
         self.path_id = 0
-        self.setRowCount(0)
         self.path_map.clear()
         self.group_items.clear()
-        if path_cnt > 0:
+        self.setRowCount(0)
+        if path_count > 0:
             self.signal_path_modified.emit()
-        return path_cnt
+        return
 
     def find_path_item(
         self, path_id
@@ -356,12 +426,12 @@ class PathTreeModel(qtui.QStandardItemModel):
             if path_id in self.path_map:
                 del self.path_map[path_id]
         # Cleanup empty groups
-        self._cleanup_empty_groups()
+        self.cleanup_empty_groups()
         if cnt_removed_paths > 0:
             self.signal_path_modified.emit()
         return cnt_removed_paths
 
-    def _cleanup_empty_groups(self) -> None:
+    def cleanup_empty_groups(self) -> None:
         """
         This method removes any group items that no longer have children.
         """
@@ -417,7 +487,7 @@ class PathTreeModel(qtui.QStandardItemModel):
             bool: True if the update was successful, False otherwise
         """
         # Update path's AI report
-        path = self.path_map.get(path_id, None)
+        path = self.get_path(path_id)
         if not path:
             return False
         path.ai_report = ai_report
@@ -471,25 +541,6 @@ class PathTreeModel(qtui.QStandardItemModel):
             self.signal_path_modified.emit()
         return
 
-    def regroup_paths(self, path_grouping: str = None) -> None:
-        """
-        This method regroups all paths using the specified grouping strategy.
-
-        Args:
-            path_grouping: The new grouping strategy to use
-        """
-        # Nothing to regroup
-        if len(self.path_map) == 0:
-            return
-        # Store existing paths
-        paths = list(self.path_map.values())
-        # Clear the model
-        self.clear()
-        # Re-add all paths with the new grouping strategy
-        for path in paths:
-            self.add_path(path, path_grouping)
-        return
-
     def get_analysis_result(self, path_id: int) -> Optional[AiVulnerabilityReport]:
         """
         This method returns the analysis result object for a path.
@@ -500,5 +551,5 @@ class PathTreeModel(qtui.QStandardItemModel):
         Returns:
             The analysis result object or None if not available
         """
-        path = self.path_map.get(path_id)
+        path = self.get_path(path_id)
         return path.ai_report if path else None

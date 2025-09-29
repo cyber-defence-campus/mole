@@ -1,5 +1,4 @@
 from __future__ import annotations
-from functools import lru_cache
 from typing import List, Optional, Tuple
 import binaryninja as bn
 
@@ -10,7 +9,6 @@ class InstructionHelper:
     """
 
     @staticmethod
-    @lru_cache(maxsize=64)
     def replace_addr_tokens(
         inst: bn.MediumLevelILInstruction,
     ) -> List[bn.InstructionTextToken]:
