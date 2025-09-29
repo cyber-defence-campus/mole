@@ -27,10 +27,11 @@ class ConfigService:
     This class implements a service to handle Mole's configuration.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config_file: str = "") -> None:
         """
         This method initializes a configuration service.
         """
+        self._config_file = config_file
         self._config_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "../conf/"
         )
@@ -67,7 +68,8 @@ class ConfigService:
         This method loads all custom configuration files.
         """
         config = Configuration()
-        for config_file in sorted(os.listdir(self._config_path)):
+        config_files = sorted(os.listdir(self._config_path))
+        for config_file in config_files:
             if (
                 not (
                     fn.fnmatch(config_file, "*.yml")
@@ -95,19 +97,24 @@ class ConfigService:
         """
         This method loads the main configuration file.
         """
-        # Open configuration file
-        try:
-            with open(os.path.join(self._config_path, "000-mole.yml")) as f:
-                config_dict = yaml.safe_load(f)
-        except FileNotFoundError:
-            return None
-        except Exception as e:
-            log.warn(
-                tag, f"Failed to open configuration file '000-mole.yml': '{str(e):s}'"
-            )
-            return None
-        # Parse configuration file
-        config = self._parse_config(config_dict)
+        config = Configuration()
+        config_files = [os.path.join(self._config_path, "000-mole.yml")]
+        if self._config_file:
+            config_files.append(self._config_file)
+        for config_file in config_files:
+            # Open configuration file
+            try:
+                with open(config_file) as f:
+                    config_dict = yaml.safe_load(f)
+            except Exception as e:
+                log.warn(
+                    tag,
+                    f"Failed to open configuration file '{config_file:s}': '{str(e):s}'",
+                )
+                continue
+            # Parse configuration file
+            main_config = self._parse_config(config_dict)
+            self.update_config(config, main_config)
         return config
 
     def save_config(self, configuration: Configuration) -> None:

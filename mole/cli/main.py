@@ -26,6 +26,7 @@ def main() -> None:
         description=description, formatter_class=ap.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument("file", help="file to analyze")
+    parser.add_argument("--config_file", help="custom configuration file to use")
     parser.add_argument(
         "--log_level",
         choices=["error", "warning", "info", "debug"],
@@ -73,7 +74,7 @@ def main() -> None:
         # Analyze binary with Mole
         slicer = PathService(
             bv=bv,
-            config_model=ConfigModel(ConfigService().load_config()),
+            config_model=ConfigModel(ConfigService(args["config_file"]).load_config()),
             max_workers=args["max_workers"],
             max_call_level=args["max_call_level"],
             max_slice_depth=args["max_slice_depth"],
