@@ -38,137 +38,6 @@ class ConfigService:
         self._parser = LogicalExpressionParser()
         return
 
-    def load_config(self) -> Configuration:
-        """
-        This method loads all configuration files and returns a complete `Configuration` object.
-        """
-        # Initialize empty configuration
-        config = Configuration(
-            sources={
-                "manual": Library(
-                    name="manual",
-                )
-            },
-            sinks={
-                "manual": Library(
-                    name="manual",
-                )
-            },
-        )
-        # Load custom configuration files
-        custom_config = self.load_custom_config()
-        self.update_config(config, custom_config)
-        # Load main configuration file
-        main_config = self.load_main_config()
-        self.update_config(config, main_config)
-        return config
-
-    def load_custom_config(self) -> Configuration:
-        """
-        This method loads all custom configuration files.
-        """
-        config = Configuration()
-        config_files = sorted(os.listdir(self._config_path))
-        for config_file in config_files:
-            if (
-                not (
-                    fn.fnmatch(config_file, "*.yml")
-                    or fn.fnmatch(config_file, "*.yaml")
-                )
-                or config_file == "000-mole.yml"
-            ):
-                continue
-            # Open configuration file
-            try:
-                with open(os.path.join(self._config_path, config_file), "r") as f:
-                    config_dict = yaml.safe_load(f)
-            except Exception as e:
-                log.warn(
-                    tag,
-                    f"Failed to open configuration file '{config_file:s}': '{str(e):s}'",
-                )
-                continue
-            # Parse configuration file
-            custom_config = self._parse_config(config_dict)
-            self.update_config(config, custom_config)
-        return config
-
-    def load_main_config(self) -> Configuration:
-        """
-        This method loads the main configuration file.
-        """
-        config = Configuration()
-        config_files = [os.path.join(self._config_path, "000-mole.yml")]
-        if self._config_file:
-            config_files.append(self._config_file)
-        for config_file in config_files:
-            # Open configuration file
-            try:
-                with open(config_file) as f:
-                    config_dict = yaml.safe_load(f)
-            except Exception as e:
-                log.warn(
-                    tag,
-                    f"Failed to open configuration file '{config_file:s}': '{str(e):s}'",
-                )
-                continue
-            # Parse configuration file
-            main_config = self._parse_config(config_dict)
-            self.update_config(config, main_config)
-        return config
-
-    def save_config(self, configuration: Configuration, config_file: str = "") -> None:
-        """
-        This method save the given configuration to the specified file. If no file is given, the
-        configuration is saved to the default main configuration file.
-        """
-        if not config_file:
-            config_file = os.path.join(self._config_path, "000-mole.yml")
-        with open(config_file, "w") as f:
-            yaml.safe_dump(
-                configuration.to_dict(),
-                f,
-                sort_keys=False,
-                default_style=None,
-                default_flow_style=False,
-                encoding="utf-8",
-            )
-        return
-
-    def update_config(self, target: Configuration, source: Configuration) -> None:
-        """
-        This method updates the `target` `Configuration` with data from `source` `Configuration`.
-        """
-        if not source:
-            return
-        # Update sources and sinks
-        for type in ["sources", "sinks"]:
-            match type:
-                case "sources":
-                    new_libs = source.sources
-                    old_libs = target.sources
-                case "sinks":
-                    new_libs = source.sinks
-                    old_libs = target.sinks
-            for new_lib_name, new_lib in new_libs.items():
-                if new_lib_name not in old_libs:
-                    old_libs[new_lib_name] = new_lib
-                    continue
-                old_lib = old_libs[new_lib_name]
-                for new_cat_name, new_cat in new_lib.categories.items():
-                    if new_cat_name not in old_lib.categories:
-                        old_lib.categories[new_cat_name] = new_cat
-                        continue
-                    old_cat = old_lib.categories[new_cat_name]
-                    for new_fun_name, new_fun in new_cat.functions.items():
-                        old_cat.functions[new_fun_name] = new_fun
-        # Update settings
-        new_settings = source.settings
-        old_settings = target.settings
-        for new_setting_name, new_setting in new_settings.items():
-            old_settings[new_setting_name] = new_setting
-        return
-
     def _parse_config(self, config: Dict) -> Configuration:
         """
         This method parse the plain configuration `conf` into a `Configuration` instance.
@@ -278,3 +147,147 @@ class ConfigService:
         except Exception as e:
             log.warn(tag, f"Failed to parse configuration file: '{str(e):s}'")
         return Configuration(**parsed_config)
+
+    def parse_config_file(self, config_file: str) -> Configuration:
+        """
+        This method opens the given configuration files and parses it into a `Configuration` object.
+        """
+        try:
+            # Open configuration file
+            with open(config_file) as f:
+                config_dict = yaml.safe_load(f)
+            # Parse configuration file
+            config = self._parse_config(config_dict)
+            return config
+        except FileNotFoundError:
+            log.warn(tag, f"Configuration file '{config_file:s}' not found")
+        except Exception as e:
+            log.warn(
+                tag,
+                f"Failed to parse configuration file '{config_file:s}': '{str(e):s}'",
+            )
+        # Parse configuration file
+        return Configuration()
+
+    def load_config(self) -> Configuration:
+        """
+        This method loads all configuration files and returns a complete `Configuration` object.
+        """
+        # Load custom configuration files
+        config = self.load_custom_config()
+        # Load main configuration file
+        main_config = self.load_main_config()
+        # Merge configurations
+        self.update_config(config, main_config)
+        return config
+
+    def load_custom_config(self) -> Configuration:
+        """
+        This method loads all custom configuration files.
+        """
+        config = Configuration()
+        config_files = sorted(os.listdir(self._config_path))
+        for config_file in config_files:
+            # Filter configuration files
+            if (
+                not (
+                    fn.fnmatch(config_file, "*.yml")
+                    or fn.fnmatch(config_file, "*.yaml")
+                )
+                or config_file == "000-mole.yml"
+            ):
+                continue
+            # Load configuration file
+            custom_config = self.parse_config_file(
+                os.path.join(self._config_path, config_file)
+            )
+            # Update configuration
+            self.update_config(config, custom_config)
+        return config
+
+    def load_main_config(self) -> Configuration:
+        """
+        This method loads the main configuration file.
+        """
+        config = Configuration()
+        config_files = [os.path.join(self._config_path, "000-mole.yml")]
+        if self._config_file:
+            config_files.append(self._config_file)
+        for config_file in config_files:
+            # Load configuration file
+            main_config = self.parse_config_file(config_file)
+            # Update configuration
+            self.update_config(config, main_config)
+        return config
+
+    def save_config(self, config: Configuration, config_file: str = "") -> None:
+        """
+        This method saves the given configuration to the specified file. If no file is given, the
+        configuration is saved to the default file.
+        """
+        # Use default configuration file if none is given
+        if not config_file:
+            config_file = os.path.join(self._config_path, "000-mole.yml")
+        # Serialize configuration to dictionary
+        config_dict = config.to_dict()
+        # Write configuration to file
+        with open(config_file, "w") as f:
+            yaml.safe_dump(
+                config_dict,
+                f,
+                sort_keys=False,
+                default_style=None,
+                default_flow_style=False,
+                encoding="utf-8",
+            )
+        # Write manual functions to file
+        manual_file = os.path.join(self._config_path, "002-manual.yml")
+        with open(manual_file, "w") as f:
+            sources: Dict[str, Dict] = config_dict.get("sources", {})
+            sinks: Dict[str, Dict] = config_dict.get("sinks", {})
+            yaml.safe_dump(
+                {
+                    "sources": {"manual": sources.get("manual", {})},
+                    "sinks": {"manual": sinks.get("manual", {})},
+                },
+                f,
+                sort_keys=False,
+                default_style=None,
+                default_flow_style=False,
+                encoding="utf-8",
+            )
+        return
+
+    def update_config(self, target: Configuration, source: Configuration) -> None:
+        """
+        This method updates the `target` `Configuration` with data from `source` `Configuration`.
+        """
+        if not source:
+            return
+        # Update sources and sinks
+        for type in ["sources", "sinks"]:
+            match type:
+                case "sources":
+                    new_libs = source.sources
+                    old_libs = target.sources
+                case "sinks":
+                    new_libs = source.sinks
+                    old_libs = target.sinks
+            for new_lib_name, new_lib in new_libs.items():
+                if new_lib_name not in old_libs:
+                    old_libs[new_lib_name] = new_lib
+                    continue
+                old_lib = old_libs[new_lib_name]
+                for new_cat_name, new_cat in new_lib.categories.items():
+                    if new_cat_name not in old_lib.categories:
+                        old_lib.categories[new_cat_name] = new_cat
+                        continue
+                    old_cat = old_lib.categories[new_cat_name]
+                    for new_fun_name, new_fun in new_cat.functions.items():
+                        old_cat.functions[new_fun_name] = new_fun
+        # Update settings
+        new_settings = source.settings
+        old_settings = target.settings
+        for new_setting_name, new_setting in new_settings.items():
+            old_settings[new_setting_name] = new_setting
+        return

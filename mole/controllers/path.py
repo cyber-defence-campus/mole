@@ -558,7 +558,7 @@ class PathController:
         # Ensure correct view
         if not self._validate_bv(["Raw"]):
             return
-        # Open dialog to select file
+        # Open dialog to select file path
         filepath, _ = qtw.QFileDialog.getOpenFileName(
             caption="Open File", filter="JSON Files (*.json);;All Files (*)"
         )
@@ -633,7 +633,7 @@ class PathController:
         # Ensure correct view
         if not self._validate_bv(["Raw"]):
             return
-        # Open dialog to select file
+        # Open dialog to select file path
         filepath, _ = qtw.QFileDialog.getSaveFileName(
             caption="Save As", filter="JSON Files (*.json);;All Files (*)"
         )

@@ -45,6 +45,9 @@ class ConfigController:
         self.config_view.signal_import_config.connect(self.import_config)
         self.config_view.signal_export_config.connect(self.export_config)
         self.config_view.signal_check_functions.connect(self.check_functions)
+        self.config_view.signal_clear_manual_functions.connect(
+            self.clear_manual_functions
+        )
         self.config_view.signal_change_setting.connect(self.change_setting)
         return
 
@@ -82,7 +85,10 @@ class ConfigController:
         """
         This method saves the configuration.
         """
-        self.config_service.save_config(self.config_model.get())
+        # Save configuration
+        config = self.config_model.get()
+        self.config_service.save_config(config)
+        # Update view
         self.config_view.give_feedback("Save", "Saving...", "Save")
         return
 
@@ -92,7 +98,9 @@ class ConfigController:
         """
         This method saves the given function `fun` as a manual source or sink.
         """
-        config = Configuration(
+        # Update configuration
+        config = self.config_model.get()
+        manual_config = Configuration(
             sources={
                 "manual": Library(
                     name="manual",
@@ -118,7 +126,8 @@ class ConfigController:
             if isinstance(fun, SinkFunction)
             else {},
         )
-        self.config_service.update_config(self.config_model.get(), config)
+        self.config_service.update_config(config, manual_config)
+        # Update view
         self.config_view.refresh_tabs(1 if isinstance(fun, SinkFunction) else 0)
         self.config_view.give_feedback("Save", "Save*", "Save*", 0)
         return
@@ -146,7 +155,7 @@ class ConfigController:
         settings = {}
         for setting_name, setting in old_model.settings.items():
             settings[setting_name] = setting.widget
-        # Reset model
+        # Load configuration
         new_config = self.config_service.load_custom_config()
         # Restore input elements
         for lib_name, lib in new_config.sources.items():
@@ -175,20 +184,37 @@ class ConfigController:
             elif isinstance(setting, TextSetting):
                 setting.widget.setText(setting.value)
         self.config_model.set(new_config)
-        # User feedback
+        # Update view
         self.config_view.give_feedback("Reset", "Resetting...", "Reset")
         self.config_view.give_feedback("Save", "Save", "Save", 0)
         return
 
     def import_config(self) -> None:
-        """TODO"""
+        """
+        This method imports a configuration.
+        """
+        # Open dialog to select file path
+        filepath, _ = qtw.QFileDialog.getOpenFileName(
+            caption="Open File", filter="YAML Files (*.yml *.yaml);;All Files (*)"
+        )
+        if not filepath:
+            return
+        # Expand file path
+        filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
+        # Update configuration
+        config = self.config_service.parse_config_file(filepath)
+        self.config_model.set(config)
+        # Update view
+        self.config_view.refresh_tabs()
+        self.config_view.give_feedback("Import", "Importing...", "Import")
+        self.config_view.give_feedback("Save", "Save", "Save", 0)
         return
 
     def export_config(self) -> None:
         """
         This method exports the configuration.
         """
-        # Open dialog to select file
+        # Open dialog to select file path
         filepath, _ = qtw.QFileDialog.getSaveFileName(
             caption="Save As", filter="YAML Files (*.yml *.yaml);;All Files (*)"
         )
@@ -196,8 +222,9 @@ class ConfigController:
             return
         # Expand file path
         filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
-        # Export configuration and provide user feedback
+        # Export configuration
         self.config_service.save_config(self.config_model.get(), filepath)
+        # Update view
         self.config_view.give_feedback("Export", "Exporting...", "Export")
         return
 
@@ -223,6 +250,30 @@ class ConfigController:
             else:
                 fun.enabled = fun_enabled
             fun.checkbox.setChecked(fun.enabled)
+        self.config_view.give_feedback("Save", "Save*", "Save*", 0)
+        return
+
+    def clear_manual_functions(
+        self, cat_name: str, fun_type: Literal["Sources", "Sinks"]
+    ) -> None:
+        """
+        This method clears all manual source or sink functions in the given category name
+        `cat_name`.
+        """
+        config = self.config_model.get()
+        match fun_type:
+            case "Sources":
+                manual_lib = config.sources.get("manual", None)
+                index = 0
+            case "Sinks":
+                manual_lib = config.sinks.get("manual", None)
+                index = 1
+            case _:
+                manual_lib = None
+                index = -1
+        if manual_lib and cat_name in manual_lib.categories:
+            del manual_lib.categories[cat_name]
+        self.config_view.refresh_tabs(index)
         self.config_view.give_feedback("Save", "Save*", "Save*", 0)
         return
 
