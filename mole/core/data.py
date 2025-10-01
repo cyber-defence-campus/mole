@@ -1009,17 +1009,11 @@ class Path:
                 expr_idx = int(inst_dict["expr_idx"], 0)
                 func = bv.get_function_at(fun_addr)
                 inst = func.mlil.ssa_form.get_expr(expr_idx)
-                inst_type = type(inst).__name__
-                if inst_type not in inst_dict["inst"]:
-                    log.warn(tag, "Instruction type mismatch:")
+                inst_info = InstructionHelper.get_inst_info(inst, True)
+                if inst_info != inst_dict["inst"]:
+                    log.warn(tag, "Instruction mismatch:")
                     log.warn(tag, f"- Expected: {inst_dict['inst']:s}")
-                    log.warn(tag, f"- Found   : ({inst_type:s})")
-                else:
-                    inst_info = InstructionHelper.get_inst_info(inst, True)
-                    if inst_info != inst_dict["inst"]:
-                        log.warn(tag, "Instruction mismatch:")
-                        log.warn(tag, f"- Expected: {inst_dict['inst']:s}")
-                        log.warn(tag, f"- Found   : {inst_info:s}")
+                    log.warn(tag, f"- Found   : {inst_info:s}")
                 insts.append(inst)
             # Deserialize parameter variables
             src_par_idx = d["src_par_idx"]
@@ -1055,7 +1049,13 @@ class Path:
             path.init(MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"]))
             return path
         except Exception as e:
-            log.error(tag, f"Failed to deserialize path: '{str(e):s}'")
+            src_sym_addr_str = str(d.get("src_sym_addr", "unknown"))
+            src_sym_name_str = str(d.get("src_sym_name", "unknown"))
+            snk_sym_addr_str = str(d.get("snk_sym_addr", "unknown"))
+            snk_sym_name_str = str(d.get("snk_sym_name", "unknown"))
+            log.error(tag, f"Failed to deserialize path: {str(e):s}")
+            log.error(tag, f"- Source: {src_sym_addr_str:s} {src_sym_name_str:s}")
+            log.error(tag, f"- Sink  : {snk_sym_addr_str:s} {snk_sym_name_str:s}")
         return None
 
 
