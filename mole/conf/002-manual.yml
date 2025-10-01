@@ -1,8 +1,6 @@
 sources:
   manual:
-    name: manual
     categories: {}
 sinks:
   manual:
-    name: manual
     categories: {}

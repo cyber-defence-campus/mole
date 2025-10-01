@@ -99,7 +99,7 @@ class Library:
         categories = {}
         for cat_name, cat in self.categories.items():
             categories[cat_name] = cat.to_dict()
-        return {"name": self.name, "categories": categories}
+        return {"categories": categories}
 
 
 @dataclass
@@ -132,7 +132,7 @@ class Category:
         functions = {}
         for fun_name, fun in self.functions.items():
             functions[fun_name] = fun.to_dict()
-        return {"name": self.name, "functions": functions}
+        return {"functions": functions}
 
 
 @dataclass
@@ -163,7 +163,6 @@ class Function:
 
     def to_dict(self) -> Dict:
         return {
-            "name": self.name,
             "symbols": self.symbols,
             "synopsis": self.synopsis,
             "enabled": self.enabled,
@@ -1078,7 +1077,7 @@ class WidgetSetting:
         return self.name == other.name
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "value": self.value, "help": self.help}
+        return {"value": self.value, "help": self.help}
 
 
 @dataclass

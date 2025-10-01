@@ -38,9 +38,12 @@ class ConfigService:
         self._parser = LogicalExpressionParser()
         return
 
-    def _parse_config(self, config: Dict) -> Configuration:
+    def _parse_config(
+        self, config: Dict, ignore_enabled: bool = False
+    ) -> Configuration:
         """
-        This method parse the plain configuration `conf` into a `Configuration` instance.
+        This method parses the plain configuration `conf` into a `Configuration` instance. If
+        `ignore_enabled` is `True`, all functions will be disabled.
         """
         parsed_config = {"sources": {}, "sinks": {}, "settings": {}}
         if not config:
@@ -48,24 +51,25 @@ class ConfigService:
         try:
             # Parse sources and sinks
             for type in ["sources", "sinks"]:
-                libs = config.get(type, {})
+                libs: Dict[str, Dict] = config.get(type, {})
                 for lib_name, lib in libs.items():
                     lib_categories = {}
-                    categories = lib.get("categories", {})
+                    categories: Dict[str, Dict] = lib.get("categories", {})
                     for cat_name, cat in categories.items():
                         cat_functions = {}
-                        functions = cat.get("functions", {})
+                        functions: Dict[str, Dict] = cat.get("functions", {})
                         for fun_name, fun in functions.items():
                             match type:
                                 case "sources":
-                                    fun = SourceFunction(**fun)
+                                    fun = SourceFunction(name=fun_name, **fun)
                                 case "sinks":
-                                    fun = SinkFunction(**fun)
+                                    fun = SinkFunction(name=fun_name, **fun)
                                 case _:
                                     continue
                             fun.par_cnt_fun = self._parser.parse(fun.par_cnt)
                             fun.par_dataflow_fun = self._parser.parse(fun.par_dataflow)
                             fun.par_slice_fun = self._parser.parse(fun.par_slice)
+                            fun.enabled = fun.enabled if not ignore_enabled else False
                             cat_functions[fun_name] = fun
                         lib_categories[cat_name] = Category(cat_name, cat_functions)
                     parsed_config[type][lib_name] = Library(lib_name, lib_categories)
@@ -82,11 +86,20 @@ class ConfigService:
                 setting: Dict = settings.get(name, None)
                 if not setting:
                     continue
-                value = setting.get("value", None)
-                min_value = int(setting.get("min_value", None))
-                max_value = int(setting.get("max_value", None))
-                value = min(max(value, min_value), max_value)
-                help = setting.get("help", "")
+                try:
+                    min_value = int(setting["min_value"])
+                    max_value = int(setting["max_value"])
+                    value = min(max(setting["value"], min_value), max_value)
+                    help = setting["help"]
+                except KeyError as e:
+                    log.warn(
+                        tag,
+                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
+                    )
+                    continue
+                except Exception as e:
+                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    continue
                 parsed_config["settings"].update(
                     {
                         name: SpinboxSetting(
@@ -102,11 +115,20 @@ class ConfigService:
                 setting: Dict = settings.get(name, None)
                 if not setting:
                     continue
-                value = setting.get("value", None)
-                min_value = float(setting.get("min_value", None))
-                max_value = float(setting.get("max_value", None))
-                value = min(max(value, min_value), max_value)
-                help = setting.get("help", "")
+                try:
+                    min_value = float(setting["min_value"])
+                    max_value = float(setting["max_value"])
+                    value = min(max(setting["value"], min_value), max_value)
+                    help = setting["help"]
+                except KeyError as e:
+                    log.warn(
+                        tag,
+                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
+                    )
+                    continue
+                except Exception as e:
+                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    continue
                 parsed_config["settings"].update(
                     {
                         name: DoubleSpinboxSetting(
@@ -122,8 +144,18 @@ class ConfigService:
                 setting = settings.get(name, None)
                 if not setting:
                     continue
-                value = setting.get("value", "")
-                help = setting.get("help", "")
+                try:
+                    value = setting["value"]
+                    help = setting["help"]
+                except KeyError as e:
+                    log.warn(
+                        tag,
+                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
+                    )
+                    continue
+                except Exception as e:
+                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    continue
                 if name == "path_grouping":
                     items = get_all_grouping_strategies()
                 else:
@@ -139,25 +171,38 @@ class ConfigService:
                 setting = settings.get(name, None)
                 if not setting:
                     continue
-                value = setting.get("value", "")
-                help = setting.get("help", "")
+                try:
+                    value = setting["value"]
+                    help = setting["help"]
+                except KeyError as e:
+                    log.warn(
+                        tag,
+                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
+                    )
+                    continue
+                except Exception as e:
+                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    continue
                 parsed_config["settings"].update(
                     {name: TextSetting(name=name, value=value, help=help)}
                 )
         except Exception as e:
-            log.warn(tag, f"Failed to parse configuration file: '{str(e):s}'")
+            log.warn(tag, f"Failed to parse configuration: '{str(e):s}'")
         return Configuration(**parsed_config)
 
-    def parse_config_file(self, config_file: str) -> Configuration:
+    def parse_config_file(
+        self, config_file: str, ignore_enabled: bool = False
+    ) -> Configuration:
         """
         This method opens the given configuration files and parses it into a `Configuration` object.
+        If `ignore_enabled` is `True`, all functions will be disabled.
         """
         try:
             # Open configuration file
             with open(config_file) as f:
                 config_dict = yaml.safe_load(f)
             # Parse configuration file
-            config = self._parse_config(config_dict)
+            config = self._parse_config(config_dict, ignore_enabled)
             return config
         except FileNotFoundError:
             log.warn(tag, f"Configuration file '{config_file:s}' not found")
@@ -173,17 +218,22 @@ class ConfigService:
         """
         This method loads all configuration files and returns a complete `Configuration` object.
         """
-        # Load custom configuration files
-        config = self.load_custom_config()
-        # Load main configuration file
-        main_config = self.load_main_config()
-        # Merge configurations
-        self.update_config(config, main_config)
-        return config
+        # Use dedicated configuration file (CLI option)
+        if self._config_file:
+            custom_config = self.load_custom_config(ignore_enabled=True)
+            import_config = self.parse_config_file(self._config_file)
+            self.update_config(custom_config, import_config)
+        # Use default configuration file
+        else:
+            custom_config = self.load_custom_config(ignore_enabled=False)
+            stored_config = self.load_main_config()
+            self.update_config(custom_config, stored_config)
+        return custom_config
 
-    def load_custom_config(self) -> Configuration:
+    def load_custom_config(self, ignore_enabled: bool = False) -> Configuration:
         """
-        This method loads all custom configuration files.
+        This method loads all custom configuration files. If `ignore_enabled` is `True`, all
+        functions will be disabled.
         """
         config = Configuration()
         config_files = sorted(os.listdir(self._config_path))
@@ -199,7 +249,7 @@ class ConfigService:
                 continue
             # Load configuration file
             custom_config = self.parse_config_file(
-                os.path.join(self._config_path, config_file)
+                os.path.join(self._config_path, config_file), ignore_enabled
             )
             # Update configuration
             self.update_config(config, custom_config)
