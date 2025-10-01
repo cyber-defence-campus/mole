@@ -168,7 +168,6 @@ class Function:
             "synopsis": self.synopsis,
             "enabled": self.enabled,
             "par_cnt": self.par_cnt,
-            "par_dataflow": self.par_dataflow,
             "par_slice": self.par_slice,
         }
 
