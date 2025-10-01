@@ -973,16 +973,15 @@ class Path:
             self.snk_sym_name = snk_sym_name
         return self
 
-    def to_dict(self, debug: bool = False) -> Dict:
+    def to_dict(self) -> Dict:
         # Serialize instructions
-        insts: List[Tuple[int, int]] = []
+        insts: List[Dict[str, str]] = []
         for inst in self.insts:
             inst_dict = {
                 "fun_addr": hex(inst.function.source_function.start),
-                "expr_idx": inst.expr_index,
+                "expr_idx": hex(inst.expr_index),
+                "inst": InstructionHelper.get_inst_info(inst, True),
             }
-            if debug:
-                inst_dict["inst"] = InstructionHelper.get_inst_info(inst, True)
             insts.append(inst_dict)
         return {
             "src_sym_addr": hex(self.src_sym_addr),
@@ -993,7 +992,7 @@ class Path:
             "snk_sym_name": self.snk_sym_name,
             "snk_par_idx": self.snk_par_idx,
             "insts": insts,
-            "call_graph": self.call_graph.to_dict(debug),
+            "call_graph": self.call_graph.to_dict(),
             "comment": self.comment,
             "sha1_hash": self.sha1_hash,
             "ai_report": self.ai_report.to_dict() if self.ai_report else None,
@@ -1001,39 +1000,63 @@ class Path:
 
     @classmethod
     def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Optional[Path]:
-        # Deserialize instructions
-        insts: List[bn.MediumLevelILInstruction] = []
-        for inst_dict in d["insts"]:
-            func = bv.get_function_at(int(inst_dict["fun_addr"], 0))
-            inst = func.mlil.ssa_form.get_expr(inst_dict["expr_idx"])
-            insts.append(inst)
-        # Deserialize parameter variables
-        src_par_idx = d["src_par_idx"]
-        if src_par_idx:
-            src_par_var = insts[-1].params[src_par_idx - 1]
-        else:
-            src_par_var = None
-        snk_par_idx = d["snk_par_idx"]
-        snk_par_var = insts[0].params[snk_par_idx - 1]
-        path: Path = cls(
-            src_sym_addr=int(d["src_sym_addr"], 0),
-            src_sym_name=d["src_sym_name"],
-            src_par_idx=src_par_idx,
-            src_par_var=src_par_var,
-            src_inst_idx=d["src_inst_idx"],
-            snk_sym_addr=int(d["snk_sym_addr"], 0),
-            snk_sym_name=d["snk_sym_name"],
-            snk_par_idx=snk_par_idx,
-            snk_par_var=snk_par_var,
-            insts=insts,
-            comment=d["comment"],
-            sha1_hash=d["sha1_hash"],
-            ai_report=AiVulnerabilityReport(**d["ai_report"])
-            if d["ai_report"]
-            else None,
-        )
-        path.init(MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"]))
-        return path
+        try:
+            # Deserialize instructions
+            insts: List[bn.MediumLevelILInstruction] = []
+            for inst_dict in d["insts"]:
+                inst_dict = inst_dict  # type: Dict[str, str]
+                fun_addr = int(inst_dict["fun_addr"], 0)
+                expr_idx = int(inst_dict["expr_idx"], 0)
+                func = bv.get_function_at(fun_addr)
+                inst = func.mlil.ssa_form.get_expr(expr_idx)
+                inst_type = type(inst).__name__
+                if inst_type not in inst_dict["inst"]:
+                    log.warn(tag, "Instruction type mismatch:")
+                    log.warn(tag, f"- Expected: {inst_dict['inst']:s}")
+                    log.warn(tag, f"- Found   : ({inst_type:s})")
+                else:
+                    inst_info = InstructionHelper.get_inst_info(inst, True)
+                    if inst_info != inst_dict["inst"]:
+                        log.warn(tag, "Instruction mismatch:")
+                        log.warn(tag, f"- Expected: {inst_dict['inst']:s}")
+                        log.warn(tag, f"- Found   : {inst_info:s}")
+                insts.append(inst)
+            # Deserialize parameter variables
+            src_par_idx = d["src_par_idx"]
+            if src_par_idx is not None and src_par_idx > 0:
+                inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa = insts[-1]
+                src_par_var = inst.params[src_par_idx - 1]
+            else:
+                src_par_var = None
+            snk_par_idx = d["snk_par_idx"]
+            if snk_par_idx is not None and snk_par_idx > 0:
+                inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa = insts[0]
+                snk_par_var = inst.params[snk_par_idx - 1]
+            else:
+                snk_par_var = None
+            # Deserialize path
+            path: Path = cls(
+                src_sym_addr=int(d["src_sym_addr"], 0),
+                src_sym_name=d["src_sym_name"],
+                src_par_idx=src_par_idx,
+                src_par_var=src_par_var,
+                src_inst_idx=d["src_inst_idx"],
+                snk_sym_addr=int(d["snk_sym_addr"], 0),
+                snk_sym_name=d["snk_sym_name"],
+                snk_par_idx=snk_par_idx,
+                snk_par_var=snk_par_var,
+                insts=insts,
+                comment=d["comment"],
+                sha1_hash=d["sha1_hash"],
+                ai_report=AiVulnerabilityReport(**d["ai_report"])
+                if d["ai_report"]
+                else None,
+            )
+            path.init(MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"]))
+            return path
+        except Exception as e:
+            log.error(tag, f"Failed to deserialize path: '{str(e):s}'")
+        return None
 
 
 @dataclass
