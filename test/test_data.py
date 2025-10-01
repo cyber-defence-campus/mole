@@ -33,7 +33,6 @@ class TestData(unittest.TestCase):
                                     synopsis="char* getenv(const char* name)",
                                     enabled=True,
                                     par_cnt="i == 1",
-                                    par_dataflow="False",
                                     par_slice="False",
                                 )
                             },
@@ -43,7 +42,7 @@ class TestData(unittest.TestCase):
             },
             sinks={
                 "libc": Library(
-                    "libc",
+                    name="libc",
                     categories={
                         "Memory Copy": Category(
                             name="Memory Copy",
@@ -54,7 +53,6 @@ class TestData(unittest.TestCase):
                                     synopsis="void* memcpy(void* dest, const void* src, size_t n)",
                                     enabled=True,
                                     par_cnt="i == 3",
-                                    par_dataflow="False",
                                     par_slice="True",
                                 )
                             },
@@ -198,7 +196,7 @@ class TestData(unittest.TestCase):
         )
         # Deserialize
         self.tf.seek(0)
-        des_lib = Library(**yaml.safe_load(self.tf))
+        des_lib = Library(name="libc", **yaml.safe_load(self.tf))
         # Assert
         self.assertEqual(ori_lib, des_lib, "Serialization error of 'Library'")
         return
@@ -218,7 +216,7 @@ class TestData(unittest.TestCase):
         )
         # Deserialize
         self.tf.seek(0)
-        des_category = Category(**yaml.safe_load(self.tf))
+        des_category = Category(name="Environment Accesses", **yaml.safe_load(self.tf))
         # Assert
         self.assertEqual(
             ori_category, des_category, "Serialization error of 'Category'"
@@ -242,7 +240,7 @@ class TestData(unittest.TestCase):
         )
         # Deserialize
         self.tf.seek(0)
-        des_source = SourceFunction(**yaml.safe_load(self.tf))
+        des_source = SourceFunction(name="getenv", **yaml.safe_load(self.tf))
         # Assert
         self.assertEqual(
             ori_source, des_source, "Serialization error of 'SourceFunction'"
@@ -264,7 +262,7 @@ class TestData(unittest.TestCase):
         )
         # Deserialize
         self.tf.seek(0)
-        des_sink = SinkFunction(**yaml.safe_load(self.tf))
+        des_sink = SinkFunction(name="memcpy", **yaml.safe_load(self.tf))
         # Assert
         self.assertEqual(ori_sink, des_sink, "Serialization error of 'SinkFunction'")
         return
@@ -292,7 +290,7 @@ class TestData(unittest.TestCase):
             )
             # Deserialize
             self.tf.seek(0)
-            des_set = SpinboxSetting(**yaml.safe_load(self.tf))
+            des_set = SpinboxSetting(name=name, **yaml.safe_load(self.tf))
             # Assert
             self.assertEqual(
                 ori_set, des_set, "Serialization error of 'SpinboxSetting'"
@@ -315,7 +313,7 @@ class TestData(unittest.TestCase):
             )
             # Deserialize
             self.tf.seek(0)
-            des_set = DoubleSpinboxSetting(**yaml.safe_load(self.tf))
+            des_set = DoubleSpinboxSetting(name=name, **yaml.safe_load(self.tf))
             # Assert
             self.assertEqual(
                 ori_set, des_set, "Serialization error of 'DoubleSpinboxSetting'"
@@ -338,7 +336,7 @@ class TestData(unittest.TestCase):
             )
             # Deserialize
             self.tf.seek(0)
-            des_set = ComboboxSetting(**yaml.safe_load(self.tf))
+            des_set = ComboboxSetting(name=name, **yaml.safe_load(self.tf))
             # Assert
             self.assertEqual(
                 ori_set, des_set, "Serialization error of 'ComboboxSetting'"
@@ -361,7 +359,7 @@ class TestData(unittest.TestCase):
             )
             # Deserialize
             self.tf.seek(0)
-            des_set = TextSetting(**yaml.safe_load(self.tf))
+            des_set = TextSetting(name=name, **yaml.safe_load(self.tf))
             # Assert
             self.assertEqual(ori_set, des_set, "Serialization error of 'TextSetting'")
         return

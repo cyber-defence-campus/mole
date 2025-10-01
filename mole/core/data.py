@@ -81,7 +81,7 @@ class Library:
     def __eq__(self, other: Library) -> bool:
         if not isinstance(other, Library):
             try:
-                other = Library(**other)
+                other = Library(name=self.name, **other)
             except Exception as _:
                 return False
         if self.name != other.name:
@@ -114,7 +114,7 @@ class Category:
     def __eq__(self, other: Category) -> bool:
         if not isinstance(other, Category):
             try:
-                other = Category(**other)
+                other = Category(name=self.name, **other)
             except Exception as _:
                 return False
         if self.name != other.name:
@@ -156,7 +156,7 @@ class Function:
     def __eq__(self, other: Function) -> bool:
         if not isinstance(other, Function):
             try:
-                other = Function(**other)
+                other = Function(name=self.name, **other)
             except Exception as _:
                 return False
         return self.name == other.name
@@ -201,7 +201,7 @@ class SourceFunction(Function):
     def __eq__(self, other: Function) -> bool:
         if not isinstance(other, SourceFunction):
             try:
-                other = SourceFunction(**other)
+                other = SourceFunction(name=self.name, **other)
             except Exception as _:
                 return False
         return super().__eq__(other)
@@ -375,7 +375,7 @@ class SinkFunction(Function):
     def __eq__(self, other: Function) -> bool:
         if not isinstance(other, SinkFunction):
             try:
-                other = SinkFunction(**other)
+                other = SinkFunction(name=self.name, **other)
             except Exception as _:
                 return False
         return super().__eq__(other)
@@ -1071,7 +1071,7 @@ class WidgetSetting:
     def __eq__(self, other: WidgetSetting) -> bool:
         if not isinstance(other, WidgetSetting):
             try:
-                other = WidgetSetting(**other)
+                other = WidgetSetting(name=self.name, **other)
             except Exception as _:
                 return False
         return self.name == other.name
@@ -1093,7 +1093,7 @@ class SpinboxSetting(WidgetSetting):
     def __eq__(self, other: SpinboxSetting) -> bool:
         if not isinstance(other, SpinboxSetting):
             try:
-                other = SpinboxSetting(**other)
+                other = SpinboxSetting(name=self.name, **other)
             except Exception as _:
                 return False
         return super().__eq__(other)
@@ -1117,7 +1117,7 @@ class DoubleSpinboxSetting(WidgetSetting):
     def __eq__(self, other: DoubleSpinboxSetting) -> bool:
         if not isinstance(other, DoubleSpinboxSetting):
             try:
-                other = DoubleSpinboxSetting(**other)
+                other = DoubleSpinboxSetting(name=self.name, **other)
             except Exception as _:
                 return False
         return super().__eq__(other)
@@ -1140,7 +1140,7 @@ class ComboboxSetting(WidgetSetting):
     def __eq__(self, other: ComboboxSetting) -> bool:
         if not isinstance(other, ComboboxSetting):
             try:
-                other = ComboboxSetting(**other)
+                other = ComboboxSetting(name=self.name, **other)
             except Exception as _:
                 return False
         return super().__eq__(other)
@@ -1162,7 +1162,7 @@ class TextSetting(WidgetSetting):
     def __eq__(self, other: TextSetting) -> bool:
         if not isinstance(other, TextSetting):
             try:
-                other = TextSetting(**other)
+                other = TextSetting(name=self.name, **other)
             except Exception as _:
                 return False
         return super().__eq__(other)
