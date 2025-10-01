@@ -27,13 +27,10 @@ To define your own source or sink functions - such as those belonging to a custo
 ```YAML
 sources:                                             # Collection of function sources (or sinks)
   libc:                                              # Library identifier
-    name: libc                                       # Human-readable name of the library
     categories:                                      # Collection of function categories
       Environment Accesses:                          # Category identifier
-        name: Environment Accesses                   # Human-readable category name
         functions:                                   # Collection of functions
           getenv:                                    # Function identifier
-            name: getenv                             # Human-readable function name
             symbols: [getenv, __builtin_getenv]      # List of symbols to match the function
             synopsis: char* getenv(const char* name) # Human-readable function signature for reference
             enabled: true                            # Whether the function is enabled by default
