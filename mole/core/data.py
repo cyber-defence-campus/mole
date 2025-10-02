@@ -29,10 +29,7 @@ class Configuration:
 
     def __eq__(self, other: Configuration) -> bool:
         if not isinstance(other, Configuration):
-            try:
-                other = Configuration(**other)
-            except Exception as _:
-                return False
+            return False
         if len(self.sources) != len(other.sources):
             return False
         for lib_name, lib in self.sources.items():
@@ -80,10 +77,7 @@ class Library:
 
     def __eq__(self, other: Library) -> bool:
         if not isinstance(other, Library):
-            try:
-                other = Library(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         if self.name != other.name:
             return False
         if len(self.categories) != len(other.categories):
@@ -113,10 +107,7 @@ class Category:
 
     def __eq__(self, other: Category) -> bool:
         if not isinstance(other, Category):
-            try:
-                other = Category(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         if self.name != other.name:
             return False
         if len(self.functions) != len(other.functions):
@@ -155,10 +146,7 @@ class Function:
 
     def __eq__(self, other: Function) -> bool:
         if not isinstance(other, Function):
-            try:
-                other = Function(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         return self.name == other.name
 
     def to_dict(self) -> Dict:
@@ -200,10 +188,7 @@ class SourceFunction(Function):
 
     def __eq__(self, other: Function) -> bool:
         if not isinstance(other, SourceFunction):
-            try:
-                other = SourceFunction(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         return super().__eq__(other)
 
     def find_targets(
@@ -374,10 +359,7 @@ class SinkFunction(Function):
 
     def __eq__(self, other: Function) -> bool:
         if not isinstance(other, SinkFunction):
-            try:
-                other = SinkFunction(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         return super().__eq__(other)
 
     def find_paths(
@@ -852,10 +834,7 @@ class Path:
 
     def __eq__(self, other: Path) -> bool:
         if not isinstance(other, Path):
-            try:
-                other = Path(**other)
-            except Exception as _:
-                return False
+            return False
         return (
             # Equal source
             self.src_sym_addr == other.src_sym_addr
@@ -1070,10 +1049,7 @@ class WidgetSetting:
 
     def __eq__(self, other: WidgetSetting) -> bool:
         if not isinstance(other, WidgetSetting):
-            try:
-                other = WidgetSetting(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         return self.name == other.name
 
     def to_dict(self) -> dict:
@@ -1092,10 +1068,7 @@ class SpinboxSetting(WidgetSetting):
 
     def __eq__(self, other: SpinboxSetting) -> bool:
         if not isinstance(other, SpinboxSetting):
-            try:
-                other = SpinboxSetting(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         return super().__eq__(other)
 
     def to_dict(self) -> Dict:
@@ -1116,10 +1089,7 @@ class DoubleSpinboxSetting(WidgetSetting):
 
     def __eq__(self, other: DoubleSpinboxSetting) -> bool:
         if not isinstance(other, DoubleSpinboxSetting):
-            try:
-                other = DoubleSpinboxSetting(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         return super().__eq__(other)
 
     def to_dict(self) -> Dict:
@@ -1139,10 +1109,7 @@ class ComboboxSetting(WidgetSetting):
 
     def __eq__(self, other: ComboboxSetting) -> bool:
         if not isinstance(other, ComboboxSetting):
-            try:
-                other = ComboboxSetting(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         return super().__eq__(other)
 
     def to_dict(self) -> Dict:
@@ -1161,10 +1128,7 @@ class TextSetting(WidgetSetting):
 
     def __eq__(self, other: TextSetting) -> bool:
         if not isinstance(other, TextSetting):
-            try:
-                other = TextSetting(name=self.name, **other)
-            except Exception as _:
-                return False
+            return False
         return super().__eq__(other)
 
     def to_dict(self) -> Dict:

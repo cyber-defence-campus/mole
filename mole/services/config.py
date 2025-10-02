@@ -190,30 +190,6 @@ class ConfigService:
             log.warn(tag, f"Failed to parse configuration: '{str(e):s}'")
         return Configuration(**parsed_config)
 
-    def parse_config_file(
-        self, config_file: str, ignore_enabled: bool = False
-    ) -> Configuration:
-        """
-        This method opens the given configuration files and parses it into a `Configuration` object.
-        If `ignore_enabled` is `True`, all functions will be disabled.
-        """
-        try:
-            # Open configuration file
-            with open(config_file) as f:
-                config_dict = yaml.safe_load(f)
-            # Parse configuration file
-            config = self._parse_config(config_dict, ignore_enabled)
-            return config
-        except FileNotFoundError:
-            log.warn(tag, f"Configuration file '{config_file:s}' not found")
-        except Exception as e:
-            log.warn(
-                tag,
-                f"Failed to parse configuration file '{config_file:s}': '{str(e):s}'",
-            )
-        # Parse configuration file
-        return Configuration()
-
     def load_config(self) -> Configuration:
         """
         This method loads all configuration files and returns a complete `Configuration` object.
@@ -221,7 +197,7 @@ class ConfigService:
         # Use dedicated configuration file (CLI option)
         if self._config_file:
             custom_config = self.load_custom_config(ignore_enabled=True)
-            import_config = self.parse_config_file(self._config_file)
+            import_config = self.import_config(self._config_file)
             self.update_config(custom_config, import_config)
         # Use default configuration file
         else:
@@ -248,7 +224,7 @@ class ConfigService:
             ):
                 continue
             # Load configuration file
-            custom_config = self.parse_config_file(
+            custom_config = self.import_config(
                 os.path.join(self._config_path, config_file), ignore_enabled
             )
             # Update configuration
@@ -265,7 +241,7 @@ class ConfigService:
             config_files.append(self._config_file)
         for config_file in config_files:
             # Load configuration file
-            main_config = self.parse_config_file(config_file)
+            main_config = self.import_config(config_file)
             # Update configuration
             self.update_config(config, main_config)
         return config
@@ -304,6 +280,30 @@ class ConfigService:
                 encoding="utf-8",
             )
         return
+
+    def import_config(
+        self, config_file: str, ignore_enabled: bool = False
+    ) -> Configuration:
+        """
+        This method loads a configuration from the given file (open and parse). If `ignore_enabled`
+        is `True`, all functions will be disabled.
+        """
+        try:
+            # Open configuration file
+            with open(config_file) as f:
+                config_dict = yaml.safe_load(f)
+            # Parse configuration file
+            config = self._parse_config(config_dict, ignore_enabled)
+            return config
+        except FileNotFoundError:
+            log.warn(tag, f"Configuration file '{config_file:s}' not found")
+        except Exception as e:
+            log.warn(
+                tag,
+                f"Failed to parse configuration file '{config_file:s}': '{str(e):s}'",
+            )
+        # Parse configuration file
+        return Configuration()
 
     def export_config(self, config: Configuration, config_file: str) -> None:
         """

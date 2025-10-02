@@ -203,7 +203,7 @@ class ConfigController:
         filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
         # Update default configuration with the imported one
         config = self.config_service.load_custom_config(ignore_enabled=True)
-        import_config = self.config_service.parse_config_file(filepath)
+        import_config = self.config_service.import_config(filepath)
         self.config_service.update_config(config, import_config)
         self.config_model.set(config)
         # Update view

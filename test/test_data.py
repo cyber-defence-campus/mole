@@ -7,9 +7,9 @@ from mole.core.data import (
     SpinboxSetting,
     TextSetting,
 )
+from mole.services.config import ConfigService
 import tempfile
 import unittest
-import yaml
 
 
 class TestData(unittest.TestCase):
@@ -19,8 +19,10 @@ class TestData(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tf = tempfile.NamedTemporaryFile(mode="w+", delete=False)
+        self.config_service = ConfigService()
         self.config = Configuration(
             sources={
+                "manual": Library(name="manual", categories={}),
                 "libc": Library(
                     name="libc",
                     categories={
@@ -38,9 +40,10 @@ class TestData(unittest.TestCase):
                             },
                         )
                     },
-                )
+                ),
             },
             sinks={
+                "manual": Library(name="manual", categories={}),
                 "libc": Library(
                     name="libc",
                     categories={
@@ -58,7 +61,7 @@ class TestData(unittest.TestCase):
                             },
                         )
                     },
-                )
+                ),
             },
             settings={
                 "max_workers": SpinboxSetting(
@@ -165,203 +168,15 @@ class TestData(unittest.TestCase):
 
     def test_serialize_configuration(self) -> None:
         ori_config: Configuration = self.config
-        # Serialize
-        yaml.safe_dump(
-            ori_config.to_dict(),
-            self.tf,
-            sort_keys=False,
-            default_style=None,
-            default_flow_style=None,
-            encoding="utf-8",
-        )
-        # Deserialize
+        # Export configuration to temporary file (serialize)
+        self.config_service.export_config(ori_config, self.tf.name)
+        # Load configuration from temporary file (deserialize)
         self.tf.seek(0)
-        des_config = Configuration(**yaml.safe_load(self.tf))
+        des_config = self.config_service.import_config(self.tf.name)
         # Assert
         self.assertEqual(
             ori_config, des_config, "Serialization error of 'Configuration'"
         )
-        return
-
-    def test_serialize_library(self) -> None:
-        ori_lib: Library = self.config.sources["libc"]
-        # Serialize
-        yaml.safe_dump(
-            ori_lib.to_dict(),
-            self.tf,
-            sort_keys=False,
-            default_style=None,
-            default_flow_style=None,
-            encoding="utf-8",
-        )
-        # Deserialize
-        self.tf.seek(0)
-        des_lib = Library(name="libc", **yaml.safe_load(self.tf))
-        # Assert
-        self.assertEqual(ori_lib, des_lib, "Serialization error of 'Library'")
-        return
-
-    def test_serialize_category(self) -> None:
-        ori_category: Category = self.config.sources["libc"].categories[
-            "Environment Accesses"
-        ]
-        # Serialize
-        yaml.safe_dump(
-            ori_category.to_dict(),
-            self.tf,
-            sort_keys=False,
-            default_style=None,
-            default_flow_style=None,
-            encoding="utf-8",
-        )
-        # Deserialize
-        self.tf.seek(0)
-        des_category = Category(name="Environment Accesses", **yaml.safe_load(self.tf))
-        # Assert
-        self.assertEqual(
-            ori_category, des_category, "Serialization error of 'Category'"
-        )
-        return
-
-    def test_serialize_sources(self) -> None:
-        ori_source: SourceFunction = (
-            self.config.sources["libc"]
-            .categories["Environment Accesses"]
-            .functions["getenv"]
-        )
-        # Serialize
-        yaml.safe_dump(
-            ori_source.to_dict(),
-            self.tf,
-            sort_keys=False,
-            default_style=None,
-            default_flow_style=None,
-            encoding="utf-8",
-        )
-        # Deserialize
-        self.tf.seek(0)
-        des_source = SourceFunction(name="getenv", **yaml.safe_load(self.tf))
-        # Assert
-        self.assertEqual(
-            ori_source, des_source, "Serialization error of 'SourceFunction'"
-        )
-        return
-
-    def test_serialize_sinks(self) -> None:
-        ori_sink: SinkFunction = (
-            self.config.sinks["libc"].categories["Memory Copy"].functions["memcpy"]
-        )
-        # Serialize
-        yaml.safe_dump(
-            ori_sink.to_dict(),
-            self.tf,
-            sort_keys=False,
-            default_style=None,
-            default_flow_style=None,
-            encoding="utf-8",
-        )
-        # Deserialize
-        self.tf.seek(0)
-        des_sink = SinkFunction(name="memcpy", **yaml.safe_load(self.tf))
-        # Assert
-        self.assertEqual(ori_sink, des_sink, "Serialization error of 'SinkFunction'")
-        return
-
-    def test_serialize_spinbox_settings(self) -> None:
-        for name in [
-            "max_workers",
-            "max_call_level",
-            "max_slice_depth",
-            "max_memory_slice_depth",
-            "max_turns",
-            "max_completion_tokens",
-        ]:
-            ori_set: SpinboxSetting = self.config.settings.get(name, None)
-            # Serialize
-            self.tf.seek(0)
-            self.tf.truncate(0)
-            yaml.safe_dump(
-                ori_set.to_dict(),
-                self.tf,
-                sort_keys=False,
-                default_style=None,
-                default_flow_style=None,
-                encoding="utf-8",
-            )
-            # Deserialize
-            self.tf.seek(0)
-            des_set = SpinboxSetting(name=name, **yaml.safe_load(self.tf))
-            # Assert
-            self.assertEqual(
-                ori_set, des_set, "Serialization error of 'SpinboxSetting'"
-            )
-        return
-
-    def test_serialize_doublespinbox_settings(self) -> None:
-        for name in ["temperature"]:
-            ori_set: DoubleSpinboxSetting = self.config.settings.get(name, None)
-            # Serialize
-            self.tf.seek(0)
-            self.tf.truncate(0)
-            yaml.safe_dump(
-                ori_set.to_dict(),
-                self.tf,
-                sort_keys=False,
-                default_style=None,
-                default_flow_style=None,
-                encoding="utf-8",
-            )
-            # Deserialize
-            self.tf.seek(0)
-            des_set = DoubleSpinboxSetting(name=name, **yaml.safe_load(self.tf))
-            # Assert
-            self.assertEqual(
-                ori_set, des_set, "Serialization error of 'DoubleSpinboxSetting'"
-            )
-        return
-
-    def test_serialize_combobox_settings(self) -> None:
-        for name in ["src_highlight_color", "snk_highlight_color", "path_grouping"]:
-            ori_set: ComboboxSetting = self.config.settings.get(name, None)
-            # Serialize
-            self.tf.seek(0)
-            self.tf.truncate(0)
-            yaml.safe_dump(
-                ori_set.to_dict(),
-                self.tf,
-                sort_keys=False,
-                default_style=None,
-                default_flow_style=None,
-                encoding="utf-8",
-            )
-            # Deserialize
-            self.tf.seek(0)
-            des_set = ComboboxSetting(name=name, **yaml.safe_load(self.tf))
-            # Assert
-            self.assertEqual(
-                ori_set, des_set, "Serialization error of 'ComboboxSetting'"
-            )
-        return
-
-    def test_serialize_text_settings(self) -> None:
-        for name in ["openai_base_url", "openai_api_key", "openai_model"]:
-            ori_set: TextSetting = self.config.settings.get(name, None)
-            # Serialize
-            self.tf.seek(0)
-            self.tf.truncate(0)
-            yaml.safe_dump(
-                ori_set.to_dict(),
-                self.tf,
-                sort_keys=False,
-                default_style=None,
-                default_flow_style=None,
-                encoding="utf-8",
-            )
-            # Deserialize
-            self.tf.seek(0)
-            des_set = TextSetting(name=name, **yaml.safe_load(self.tf))
-            # Assert
-            self.assertEqual(ori_set, des_set, "Serialization error of 'TextSetting'")
         return
 
     def tearDown(self) -> None:
