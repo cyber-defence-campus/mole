@@ -209,7 +209,7 @@ class ConfigController:
         # Update view
         self.config_view.refresh_tabs()
         self.config_view.give_feedback("Import", "Importing...", "Import")
-        self.config_view.give_feedback("Save", "Save", "Save", 0)
+        self.config_view.give_feedback("Save", "Save*", "Save*", 0)
         return
 
     def export_config(self) -> None:
@@ -225,7 +225,8 @@ class ConfigController:
         # Expand file path
         filepath = os.path.abspath(os.path.expanduser(os.path.expandvars(filepath)))
         # Export configuration
-        self.config_service.save_config(self.config_model.get(), filepath)
+        config = self.config_model.get()
+        self.config_service.export_config(config, filepath)
         # Update view
         self.config_view.give_feedback("Export", "Exporting...", "Export")
         return

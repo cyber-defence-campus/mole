@@ -270,17 +270,14 @@ class ConfigService:
             self.update_config(config, main_config)
         return config
 
-    def save_config(self, config: Configuration, config_file: str = "") -> None:
+    def save_config(self, config: Configuration) -> None:
         """
-        This method saves the given configuration to the specified file. If no file is given, the
-        configuration is saved to the default file.
+        This method saves the given configuration.
         """
-        # Use default configuration file if none is given
-        if not config_file:
-            config_file = os.path.join(self._config_path, "000-mole.yml")
         # Serialize configuration to dictionary
         config_dict = config.to_dict()
         # Write configuration to file
+        config_file = os.path.join(self._config_path, "000-mole.yml")
         with open(config_file, "w") as f:
             yaml.safe_dump(
                 config_dict,
@@ -300,6 +297,24 @@ class ConfigService:
                     "sources": {"manual": sources.get("manual", {})},
                     "sinks": {"manual": sinks.get("manual", {})},
                 },
+                f,
+                sort_keys=False,
+                default_style=None,
+                default_flow_style=False,
+                encoding="utf-8",
+            )
+        return
+
+    def export_config(self, config: Configuration, config_file: str) -> None:
+        """
+        This method exports the given configuration to the specified file.
+        """
+        # Serialize configuration to dictionary
+        config_dict = config.to_dict()
+        # Write configuration to file
+        with open(config_file, "w") as f:
+            yaml.safe_dump(
+                config_dict,
                 f,
                 sort_keys=False,
                 default_style=None,
