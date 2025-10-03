@@ -172,7 +172,7 @@ The analysis may take some time, depending on the complexity of the paths and th
   <img src="https://i.postimg.cc/WpWRw9g4/ai-results.png" alt="Mole AI Settings Configuration"/>
 </p>
 
-For more detailed insights, right-click on a path and select *Show AI report* from the context menu. The report includes the following information:
+For more detailed insights, right-click on a path and select *Show AI report* from the context menu (or double-click on the path's severity level). The report includes the following information:
 - True positive status
 - Severity level (Low, Medium, High, Critical)
 - Vulnerability type
