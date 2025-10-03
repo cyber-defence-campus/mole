@@ -1,8 +1,12 @@
 from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
+from mole.common.log import log
 from typing import Any, Dict, List, Type
 import binaryninja as bn
 import networkx as nx
+
+
+tag = "Mole.Graph"
 
 
 class MediumLevelILInstructionGraph(nx.DiGraph):
@@ -127,7 +131,7 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         nx.set_node_attributes(self, levels, "level")
         return True
 
-    def to_dict(self, debug: bool = False) -> Dict:
+    def to_dict(self) -> Dict:
         """
         This method serializes a graph to a dictionary.
         """
@@ -138,9 +142,8 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
             node_dict = {
                 "adr": hex(node.source_function.start),
                 "att": atts,
+                "func": FunctionHelper.get_func_info(node, True),
             }
-            if debug:
-                node_dict["func"] = FunctionHelper.get_func_info(node, True)
             nodes.append(node_dict)
         # Serialize edges
         edges: List[Dict[str, Any]] = []
@@ -164,18 +167,28 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         This method deserializes a dictionary to a graph.
         """
         call_graph: MediumLevelILFunctionGraph = cls()
-        # Deserialize nodes
-        for node in d["nodes"]:
-            addr = int(node["adr"], 0)
-            func = bv.get_function_at(addr)
-            atts = node["att"]
-            call_graph.add_node(func.mlil.ssa_form, **atts)
-        # Deserialize edges
-        for edge in d["edges"]:
-            src_addr = int(edge["src"], 0)
-            src_func = bv.get_function_at(src_addr)
-            tgt_addr = int(edge["snk"], 0)
-            tgt_func = bv.get_function_at(tgt_addr)
-            atts = edge["att"]
-            call_graph.add_edge(src_func.mlil.ssa_form, tgt_func.mlil.ssa_form, **atts)
+        try:
+            # Deserialize nodes
+            for node in d["nodes"]:
+                addr = int(node["adr"], 0)
+                func = bv.get_function_at(addr)
+                func_info = FunctionHelper.get_func_info(func.mlil.ssa_form, True)
+                if func_info != node["func"]:
+                    log.warn(tag, "Function mismatch:")
+                    log.warn(tag, f"- Expected: {node['func']:s}")
+                    log.warn(tag, f"- Found   : {func_info:s}")
+                atts = node["att"]
+                call_graph.add_node(func.mlil.ssa_form, **atts)
+            # Deserialize edges
+            for edge in d["edges"]:
+                src_addr = int(edge["src"], 0)
+                src_func = bv.get_function_at(src_addr)
+                tgt_addr = int(edge["snk"], 0)
+                tgt_func = bv.get_function_at(tgt_addr)
+                atts = edge["att"]
+                call_graph.add_edge(
+                    src_func.mlil.ssa_form, tgt_func.mlil.ssa_form, **atts
+                )
+        except Exception as e:
+            raise e
         return call_graph

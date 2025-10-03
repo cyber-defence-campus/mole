@@ -344,7 +344,7 @@ class PathController:
                     name=name,
                     symbols=symbols,
                     synopsis=synopsis,
-                    enabled=False,
+                    enabled=True,
                     par_cnt=par_cnt,
                     par_cnt_fun=par_cnt_fun,
                     par_slice=par_slice,
@@ -356,7 +356,7 @@ class PathController:
                     name=name,
                     symbols=symbols,
                     synopsis=synopsis,
-                    enabled=False,
+                    enabled=True,
                     par_cnt=par_cnt,
                     par_cnt_fun=par_cnt_fun,
                     par_slice=par_slice,
@@ -558,7 +558,7 @@ class PathController:
         # Ensure correct view
         if not self._validate_bv(["Raw"]):
             return
-        # Open dialog to select file
+        # Open dialog to select file path
         filepath, _ = qtw.QFileDialog.getOpenFileName(
             caption="Open File", filter="JSON Files (*.json);;All Files (*)"
         )
@@ -633,7 +633,7 @@ class PathController:
         # Ensure correct view
         if not self._validate_bv(["Raw"]):
             return
-        # Open dialog to select file
+        # Open dialog to select file path
         filepath, _ = qtw.QFileDialog.getSaveFileName(
             caption="Save As", filter="JSON Files (*.json);;All Files (*)"
         )
@@ -669,7 +669,7 @@ class PathController:
                             if not path:
                                 continue
                             # Serialize and dump path
-                            s_path = path.to_dict(debug=True)
+                            s_path = path.to_dict()
                             if i != 1:
                                 f.write(",\n")
                             f.write(" " * ident)

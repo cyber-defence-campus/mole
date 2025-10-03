@@ -21,7 +21,7 @@ venv/
 mole/conf/*.yml
 mole/conf/*.yml.bak
 !mole/conf/001-settings.yml
-!mole/conf/002-libc.yml
+!mole/conf/003-libc.yml
 
 # Test Binaries
 test/bin/

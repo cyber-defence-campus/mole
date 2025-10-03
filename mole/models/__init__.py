@@ -19,14 +19,14 @@ class IndexedLabeledEnum(Enum):
         return self._label
 
     @classmethod
-    def indexes(cls) -> List[int]:
+    def indexes(cls: IndexedLabeledEnum) -> List[int]:
         """
         This method returns a list with the enum members' indexes.
         """
         return [member._value_ for member in cls]
 
     @classmethod
-    def labels(cls) -> List[str]:
+    def labels(cls: IndexedLabeledEnum) -> List[str]:
         """
         This method returns a list with the enum members' labels.
         """

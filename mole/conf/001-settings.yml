@@ -1,30 +1,25 @@
 settings:
   max_workers:
-    name: max_workers
     help: maximum number of worker threads that backward slicing uses
     value: 1
     min_value: -1
     max_value: 256
   max_call_level:
-    name: max_call_level
     help: backward slicing visits called functions up to the given level
     value: 10
     min_value: -1
     max_value: 99
   max_slice_depth:
-    name: max_slice_depth
     help: maximum slice depth to stop the search
     value: 1000
     min_value: -1
     max_value: 9999
   max_memory_slice_depth:
-    name: max_memory_slice_depth
     help: maximum memory slice depth to stop the search
     value: 10
     min_value: -1
     max_value: 9999
   src_highlight_color:
-    name: src_highlight_color
     help: color used to highlight instructions originating from slicing a source function
     value: Orange
     items:
@@ -36,7 +31,6 @@ settings:
     - Yellow
     - Orange
   snk_highlight_color:
-    name: snk_highlight_color
     help: color used to highlight instructions originating from slicing a sink function
     value: Red
     items:
@@ -48,35 +42,28 @@ settings:
     - Yellow
     - Orange
   path_grouping:
-    name: path_grouping
     help: strategy used to group paths
     value: Call Graph
   openai_base_url:
-    name: openai_base_url
     help: OpenAI API base URL
     value: "https://api.openai.com/v1"
   openai_api_key:
-    name: openai_api_key
     help: OpenAI API key
     value: ""
   openai_model:
-    name: openai_model
     help: OpenAI model
     value: "o4-mini"
   max_turns:
-    name: max_turns
     help: maximum number of turns in a conversation with the AI
     value: 10
     min_value: 1
     max_value: 256
   max_completion_tokens:
-    name: max_completion_tokens
     help: maximum number of tokens in a completion
     value: 4096
     min_value: 0
     max_value: 100000
   temperature:
-    name: temperature
     help: the sampling temperature to use
     value: 1.0
     min_value: 0.0

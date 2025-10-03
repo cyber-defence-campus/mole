@@ -15,24 +15,22 @@ All configuration files are located in the [`conf/`](../mole/conf/) directory. T
 |-------------------------|---------------------------------------------------------------------|
 | `conf/000-mole.yml`     | File storing the effective configuration of *Mole*                  |
 | `conf/001-settings.yml` | Default values for general *Mole* settings                          |
-| `conf/002-libc.yml`     | Example configuration file for common `libc` source/sink functions  |
-| `conf/003-yourlib.yml`  | Custom configuration file(s) for user-defined source/sink functions |
+| `conf/002-manual.yml`   | Default values for *Mole*'s manually added functions                |
+| `conf/003-libc.yml`     | Example configuration file for common `libc` source/sink functions  |
+| `conf/004-yourlib.yml`  | Custom configuration file(s) for user-defined source/sink functions |
 
-You can add your own source and sink functions either by creating a custom YAML file (e.g., `conf/003-yourlib.yml`) or by adding them manually through Binary Ninja's UI. For more details on how to do this and the expected format, refer to the next subsection.
+You can add your own source and sink functions either by creating a custom YAML file (e.g., `conf/004-yourlib.yml`) or by adding them manually through Binary Ninja's UI. For more details on how to do this and the expected format, refer to the next subsection.
 
 ### Source and Sink Functions
 #### Via YAML Files
-To define your own source or sink functions - such as those belonging to a custom third-party library - you can use [`conf/002-libc.yml`](../mole/conf/002-libc.yml) as a starting point. Duplicate this file and rename it, for example, to `conf/003-yourlib.yml`. The expected format is described below:
+To define your own source or sink functions - such as those belonging to a custom third-party library - you can use [`conf/003-libc.yml`](../mole/conf/003-libc.yml) as a starting point. Duplicate this file and rename it, for example, to `conf/004-yourlib.yml`. The expected format is described below:
 ```YAML
 sources:                                             # Collection of function sources (or sinks)
   libc:                                              # Library identifier
-    name: libc                                       # Human-readable name of the library
     categories:                                      # Collection of function categories
       Environment Accesses:                          # Category identifier
-        name: Environment Accesses                   # Human-readable category name
         functions:                                   # Collection of functions
           getenv:                                    # Function identifier
-            name: getenv                             # Human-readable function name
             symbols: [getenv, __builtin_getenv]      # List of symbols to match the function
             synopsis: char* getenv(const char* name) # Human-readable function signature for reference
             enabled: true                            # Whether the function is enabled by default
@@ -174,7 +172,7 @@ The analysis may take some time, depending on the complexity of the paths and th
   <img src="https://i.postimg.cc/WpWRw9g4/ai-results.png" alt="Mole AI Settings Configuration"/>
 </p>
 
-For more detailed insights, right-click on a path and select *Show AI report* from the context menu. The report includes the following information:
+For more detailed insights, right-click on a path and select *Show AI report* from the context menu (or double-click on the path's severity level). The report includes the following information:
 - True positive status
 - Severity level (Low, Medium, High, Critical)
 - Vulnerability type

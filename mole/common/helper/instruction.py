@@ -17,22 +17,25 @@ class InstructionHelper:
         corresponding code symbol token.
         """
         formatted_tokens: List[bn.InstructionTextToken] = []
-        for token in inst.tokens:
-            match token.type:
-                case bn.InstructionTextTokenType.PossibleAddressToken:
-                    func = inst.function.view.get_function_at(token.value)
-                    if func:
-                        formatted_tokens.append(
-                            bn.InstructionTextToken(
-                                bn.InstructionTextTokenType.CodeSymbolToken,
-                                func.name,
-                                func.start,
+        try:
+            for token in inst.tokens:
+                match token.type:
+                    case bn.InstructionTextTokenType.PossibleAddressToken:
+                        func = inst.function.view.get_function_at(token.value)
+                        if func:
+                            formatted_tokens.append(
+                                bn.InstructionTextToken(
+                                    bn.InstructionTextTokenType.CodeSymbolToken,
+                                    func.name,
+                                    func.start,
+                                )
                             )
-                        )
-                    else:
+                        else:
+                            formatted_tokens.append(token)
+                    case _:
                         formatted_tokens.append(token)
-                case _:
-                    formatted_tokens.append(token)
+        except Exception:
+            pass
         return formatted_tokens
 
     def mark_func_tokens(

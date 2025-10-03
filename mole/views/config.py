@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Literal, Optional, TYPE_CHECKING
+import binaryninja as bn
 import os
 import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
@@ -21,7 +22,10 @@ class ConfigView(qtw.QWidget):
 
     signal_save_config = qtc.Signal()
     signal_reset_config = qtc.Signal()
+    signal_import_config = qtc.Signal()
+    signal_export_config = qtc.Signal()
     signal_check_functions = qtc.Signal(object, object, object, object, object)
+    signal_clear_manual_functions = qtc.Signal(object, object)
     signal_change_setting = qtc.Signal(object, object)
     signal_change_path_grouping = qtc.Signal()
 
@@ -74,7 +78,7 @@ class ConfigView(qtw.QWidget):
         This method initializes the tabs `Sources` and `Sinks`.
         """
         tab_wid = qtw.QTabWidget()
-        for lib in self.config_ctr.get_libraries(tab_name).values():
+        for lib_name, lib in self.config_ctr.get_libraries(tab_name).items():
             lib_lay = qtw.QVBoxLayout()
             lib_wid = qtw.QWidget()
             lib_wid.setLayout(lib_lay)
@@ -118,9 +122,19 @@ class ConfigView(qtw.QWidget):
                         lib_name, cat_name, fun_name, fun_type, False
                     )
                 )
+                clr_but = qtw.QPushButton("Clear All")
+                clr_but.clicked.connect(
+                    lambda _,
+                    cat_name=cat.name,
+                    fun_type=tab_name: self.signal_clear_manual_functions.emit(
+                        cat_name, fun_type
+                    )
+                )
                 but_lay = qtw.QHBoxLayout()
                 but_lay.addWidget(sel_but)
                 but_lay.addWidget(dsl_but)
+                if lib_name == "manual":
+                    but_lay.addWidget(clr_but)
                 but_wid = qtw.QWidget()
                 but_wid.setLayout(but_lay)
                 # Box widget
@@ -293,29 +307,44 @@ class ConfigView(qtw.QWidget):
         self._save_but.clicked.connect(lambda _=None: self.signal_save_config.emit())
         self._reset_but = qtw.QPushButton("Reset")
         self._reset_but.clicked.connect(lambda _=None: self.signal_reset_config.emit())
+        self._import_but = qtw.QPushButton("Import")
+        self._import_but.clicked.connect(
+            lambda _=None: self.signal_import_config.emit()
+        )
+        self._export_but = qtw.QPushButton("Export")
+        self._export_but.clicked.connect(
+            lambda _=None: self.signal_export_config.emit()
+        )
         lay = qtw.QHBoxLayout()
         lay.addWidget(self._save_but)
         lay.addWidget(self._reset_but)
+        lay.addWidget(self._import_but)
+        lay.addWidget(self._export_but)
         wid = qtw.QWidget()
         wid.setLayout(lay)
         return wid
 
     def give_feedback(
         self,
-        button_type: Literal["Save", "Reset", "Reload"],
+        button_type: Literal["Save", "Reset", "Export", "Import"],
         tmp_text: str,
         new_text: str,
         msec: int = 1000,
     ) -> None:
         """
         This method changes a button's text to `tmp_text` for `msec` milliseconds and then back to
-        `new_text`.
+        `new_text`. If `msec` is less than or equal to 0, the button's text is permanently changed
+        to `new_text`.
         """
         match button_type:
             case "Save":
                 button = self._save_but
             case "Reset":
                 button = self._reset_but
+            case "Export":
+                button = self._export_but
+            case "Import":
+                button = self._import_but
 
         def restore(text: str) -> None:
             button.setText(text)
@@ -331,19 +360,25 @@ class ConfigView(qtw.QWidget):
                 button.setText(new_text)
         return
 
-    def refresh_tabs(self, index: int = 0) -> None:
-        if not self.tab_wid:
-            return
-        self.tab_wid.clear()
-        self.tab_wid.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
-        self.tab_wid.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
-        self.tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
-        if 0 <= index < self.tab_wid.count():
-            self.tab_wid.setCurrentIndex(index)
-        else:
-            self.tab_wid.setCurrentIndex(0)
-        self.tab_wid.repaint()
-        self.tab_wid.update()
+    def refresh_tabs(self, index: int = -1) -> None:
+        """
+        This method reinitializes the tabs and sets the current tab to the one at
+        `index`. If `index` is less than 0, the current tab is not changed.
+        """
+
+        def _refresh_tabs() -> None:
+            if not self.tab_wid:
+                return
+            self.tab_wid.clear()
+            self.tab_wid.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
+            self.tab_wid.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
+            self.tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
+            if 0 <= index < self.tab_wid.count():
+                self.tab_wid.setCurrentIndex(index)
+            self.tab_wid.repaint()
+            self.tab_wid.update()
+
+        bn.execute_on_main_thread(_refresh_tabs)
         return
 
 

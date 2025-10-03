@@ -291,6 +291,7 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILVarSsaField()
                 | bn.MediumLevelILVarField()
                 | bn.MediumLevelILUnimplMem()
+                | bn.MediumLevelILForceVerSsa()
             ):
                 self._slice_ssa_var_definition(inst.src, inst)
             case bn.MediumLevelILRet():
