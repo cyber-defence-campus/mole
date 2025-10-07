@@ -562,7 +562,7 @@ class SinkFunction(Function):
                                     for src_inst in src_inst_graph.nodes():
                                         # Ignore source instructions that were not sliced in the sink
                                         if not any(
-                                            inst[1] == src_inst[1]
+                                            inst[1].address == src_inst[1].address
                                             for inst in snk_inst_graph
                                         ):
                                             continue
@@ -580,7 +580,7 @@ class SinkFunction(Function):
                                         _src_insts = [
                                             inst
                                             for inst in snk_inst_graph
-                                            if inst[1] and inst[1] == src_inst[1]
+                                            if inst[1] and inst[1].address == src_inst[1].address
                                         ]
                                         for _src_inst in _src_insts:
                                             try:
