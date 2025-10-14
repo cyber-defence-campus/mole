@@ -744,7 +744,7 @@ class PathController:
                 inst_basic_block = inst.il_basic_block
                 if inst_basic_block != basic_block:
                     basic_block = inst_basic_block
-                    fun_name = basic_block.function.name
+                    fun_name = basic_block.function.symbol.short_name
                     bb_addr = basic_block[0].address
                     log.debug(custom_tag, f"- FUN: '{fun_name:s}', BB: 0x{bb_addr:x}")
             except Exception:
@@ -872,7 +872,7 @@ class PathController:
         for _, call_func, call_level in calls:
             indent = call_level - min_call_level + 1
             call_addr = call_func.source_function.start
-            call_name = call_func.source_function.name
+            call_name = call_func.source_function.symbol.short_name
             log.debug(tag, f"{'>' * indent:s} 0x{call_addr:x} {call_name:s}")
         log.debug(tag, "----------------------")
         log.debug(tag, msg)

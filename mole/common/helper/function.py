@@ -17,7 +17,7 @@ class FunctionHelper:
         """
         This method returns a string with information about the function `func`.
         """
-        info = f"0x{func.source_function.start:x} {func.source_function.name:s}"
+        info = f"0x{func.source_function.start:x} {func.source_function.symbol.short_name:s}"
         if with_class_name:
             info = f"{info:s} ({func.__class__.__name__:s})"
         return info

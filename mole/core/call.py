@@ -30,9 +30,7 @@ class MediumLevelILCallFrame:
         return f"<MediumLevelILCallFrame: {self.func.source_function.name:s}>"
 
     def __str__(self) -> str:
-        return (
-            f"0x{self.func.source_function.start:x} {self.func.source_function.name:s}"
-        )
+        return f"0x{self.func.source_function.start:x} {self.func.source_function.symbol.short_name:s}"
 
 
 class MediumLevelILCallTracker:
