@@ -17,15 +17,15 @@ int overloaded_func(char *cmd, int debug) {
     if(debug) {
         printf("overloaded_func called with cmd='%s'\n", cmd);
     }
-    return overloaded_func(cmd);
+    return system(cmd);
 }
 
 
 int main(int argc, char *argv[]) {
     char *cmd = getenv("CMD");
-    int debug = 1;
     if(cmd != NULL) {
-        overloaded_func(cmd, debug);
+        overloaded_func(cmd);
+        overloaded_func(cmd, 1);
     }
     return EXIT_SUCCESS;
 }

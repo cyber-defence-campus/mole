@@ -517,7 +517,7 @@ class TestNameMangling(TestCase):
         self.assert_paths(
             src=[("getenv", None)],
             snk=[("system", 1)],
-            call_chains=[["main", "overloaded_func", "overloaded_func"]],
+            call_chains=[["overloaded_func", "main"], ["overloaded_func", "main"]],
             filenames=filenames,
         )
         return
