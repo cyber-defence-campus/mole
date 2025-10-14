@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+__attribute__((optimize("O0")))
 __attribute__ ((noinline))
 char* validate(char *cmd) {
     if(cmd == NULL) cmd = "";

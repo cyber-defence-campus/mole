@@ -485,6 +485,18 @@ class TestPointerAnalysis(TestCase):
     ) -> None:
         return self.test_pointer_analysis_01(filenames)
 
+    @unittest.expectedFailure
+    def test_pointer_analysis_15(
+        self, filenames: List[str] = ["pointer_analysis-15"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getopt", 2)],
+            snk=[("strcpy", 2)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+        return
+
 
 class TestStruct(TestCase):
     @unittest.expectedFailure

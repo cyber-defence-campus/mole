@@ -8,6 +8,8 @@ Testcase Description:
 - gets
 */
 
+char *gets(char *s);
+
 int main(int argc, char *argv[]) {
     char s[BUF_LEN];
 

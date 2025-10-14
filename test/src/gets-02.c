@@ -9,6 +9,8 @@ Testcase Description:
 - gets with memcpy
 */
 
+char *gets(char *s);
+
 int main(int argc, char *argv[]) {
     char dest[BUF_LEN];
     char src[BUF_LEN];
