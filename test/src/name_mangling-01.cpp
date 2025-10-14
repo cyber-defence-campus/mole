@@ -15,7 +15,7 @@ int overloaded_func(char *cmd) {
 __attribute__ ((noinline, optimize("O0")))
 int overloaded_func(char *cmd, int debug) {
     if(debug) {
-        printf("overloaded_func called with cmd='%s'\n", cmd);
+        printf("[+] overloaded_func called with cmd='%s'\n", cmd);
     }
     return system(cmd);
 }
