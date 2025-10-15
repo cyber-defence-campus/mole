@@ -509,6 +509,16 @@ class TestStruct(TestCase):
         )
         return
 
+    @unittest.expectedFailure
+    def test_struct_02(self, filenames: List[str] = ["struct-02"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("memcpy", 3)],
+            call_chains=[["main"], ["main"]],
+            filenames=filenames,
+        )
+        return
+
 
 class TestSimpleServer(TestCase):
     def test_simple_http_server_01(
@@ -685,6 +695,7 @@ class TestMultiThreading(TestCase):
             "simple_http_server-04",
             "sscanf-01",
             "struct-01",
+            "struct-02",
         ],
     ) -> None:
         for file in self.load_files(filenames):
