@@ -555,6 +555,33 @@ class TestNameMangling(TestCase):
         )
         return
 
+    @unittest.expectedFailure
+    def test_name_mangling_05(
+        self, filenames: List[str] = ["name_mangling-05"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[
+                ["MyStruct::my_func", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
+                ["MyClass::my_func", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
+            ],
+            filenames=filenames,
+        )
+        return
+
+    @unittest.expectedFailure
+    def test_name_mangling_06(
+        self, filenames: List[str] = ["name_mangling-06"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["MyStruct::my_func", "main", "MyStruct::operator+"]],
+            filenames=filenames,
+        )
+        return
+
 
 class TestSimpleServer(TestCase):
     def test_simple_http_server_01(
