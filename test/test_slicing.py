@@ -544,6 +544,17 @@ class TestNameMangling(TestCase):
         )
         return
 
+    def test_name_mangling_04(
+        self, filenames: List[str] = ["name_mangling-04"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["my_func<int>", "main"]],
+            filenames=filenames,
+        )
+        return
+
 
 class TestSimpleServer(TestCase):
     def test_simple_http_server_01(
