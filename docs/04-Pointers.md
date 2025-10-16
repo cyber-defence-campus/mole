@@ -63,7 +63,7 @@ This relationship is difficult to infer at the MLIL, but the HLIL captures it. T
 (<var char** argv>, 1)          <-- argv[1]
 ```
 
-When reaching `rax_5#5 = [rax_4#4].q @ mem#2` (MLIL_LOAD), Mole therefore knows it should continue slicing at `[rbx_1#1].q = rax_2#2 @ mem#1 -> mem#` (MLIL_STORE):
+When reaching `rax_5#5 = [rax_4#4].q @ mem#2` (MLIL_LOAD), Mole therefore knows it should continue slicing at `[rbx_1#1].q = rax_2#2 @ mem#1 -> mem#` (MLIL_STORE), i.e. following the use-def chain:
 ```
 0x4011ac [rax_4#4].q @ mem#2 (MediumLevelILLoadSsa)
 
