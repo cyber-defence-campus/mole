@@ -44,3 +44,9 @@ mole = "mole.cli.main:main"
 
 [tool.ruff.lint]
 extend-select = ["TID"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

@@ -14,6 +14,9 @@ venv/
 # Linting / Formatting
 .ruff_cache
 
+# Testing
+.pytest_cache
+
 # Visual Studio Code
 .vscode
 
@@ -24,4 +27,4 @@ mole/conf/*.yml.bak
 !mole/conf/003-libc.yml
 
 # Test Binaries
-test/bin/
+tests/data/bin/
