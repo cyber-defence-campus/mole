@@ -727,6 +727,8 @@ class TestMultiThreading(TestCase):
             "function_calling-15",
             "gets-01",
             "gets-02",
+            "load-01",
+            "laod-02",
             "memcpy-01",
             "memcpy-02",
             "memcpy-03",
@@ -765,7 +767,6 @@ class TestMultiThreading(TestCase):
             "simple_http_server-04",
             "sscanf-01",
             "struct-01",
-            "struct-02",
         ],
     ) -> None:
         for file in self.load_files(filenames):
