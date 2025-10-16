@@ -508,7 +508,6 @@ class TestLoad(TestCase):
         )
         return
 
-    @unittest.expectedFailure
     def test_load_02(self, filenames: List[str] = ["load-02"]) -> None:
         self.assert_paths(
             src=[("getenv", None)],
