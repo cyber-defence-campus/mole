@@ -32,6 +32,7 @@ dependencies = [
 develop = [
     "debugpy==1.8.1",
     "pre_commit==4.2.0",
+    "pytest==8.3.4",
     "ruff==0.9.9",
     "tomli==2.2.1"
 ]
@@ -41,3 +42,9 @@ mole = "mole.cli.main:main"
 
 [tool.ruff.lint]
 extend-select = ["TID"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
