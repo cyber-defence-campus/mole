@@ -210,11 +210,9 @@ class MediumLevelILBackwardSlicer:
                         self._tag,
                         f"Do not follow pointer '0x{constant:x}' since it is in a non-writable segment",
                     )
-            # TODO:
-            # - Add comments
-            # - Should we handel the ConstPtr case as well with HLIL?
             case bn.MediumLevelILLoadSsa(src=load_src_inst, size=load_src_size):
                 match load_src_inst:
+                    # Load from a constant address
                     case bn.MediumLevelILConstPtr(constant=load_src_addr):
                         # Iterate all memory defining instructions
                         mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
@@ -257,9 +255,11 @@ class MediumLevelILBackwardSlicer:
                                         )
                                         self._slice_backwards(mem_def_inst)
                                         break
+                    # Load from a variable
                     case bn.MediumLevelILVarSsa():
                         hlil_inst = inst.hlil.ssa_form if inst.hlil else None
                         match hlil_inst:
+                            # Load an array element
                             case bn.HighLevelILArrayIndexSsa(
                                 src=bn.HighLevelILVarSsa(var=load_array_var),
                                 index=bn.HighLevelILConst(constant=load_array_index),
@@ -286,7 +286,7 @@ class MediumLevelILBackwardSlicer:
                                         )
                                         continue
                                     match mem_def_inst:
-                                        # Slice stores that...
+                                        # Slice stores that write to the same array element
                                         case bn.MediumLevelILStoreSsa():
                                             hlil_mem_def_inst = (
                                                 mem_def_inst.hlil.ssa_form
