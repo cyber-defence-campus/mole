@@ -749,9 +749,7 @@ class SinkFunction(Function):
                                                     )
                                                     if inst_basic_block != basic_block:
                                                         basic_block = inst_basic_block
-                                                        fun_name = (
-                                                            basic_block.function.name
-                                                        )
+                                                        fun_name = basic_block.function.symbol.short_name
                                                         bb_addr = basic_block[0].address
                                                         log.debug(
                                                             custom_tag,

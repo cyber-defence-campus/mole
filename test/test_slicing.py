@@ -95,7 +95,7 @@ class TestCase(unittest.TestCase):
             _call_chains = []
             for path in paths:
                 _call_chains.append(
-                    [call[1].source_function.name for call in path.calls]
+                    [call[1].source_function.symbol.short_name for call in path.calls]
                 )
                 # Assert source
                 self.assertIsInstance(
@@ -510,6 +510,79 @@ class TestStruct(TestCase):
         return
 
 
+class TestNameMangling(TestCase):
+    def test_name_mangling_01(
+        self, filenames: List[str] = ["name_mangling-01"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["overloaded_func", "main"], ["overloaded_func", "main"]],
+            filenames=filenames,
+        )
+        return
+
+    def test_name_mangling_02(
+        self, filenames: List[str] = ["name_mangling-02"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["MyStruct::my_func", "main"], ["MyClass::my_func", "main"]],
+            filenames=filenames,
+        )
+        return
+
+    def test_name_mangling_03(
+        self, filenames: List[str] = ["name_mangling-03"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["ns::my_func", "main"]],
+            filenames=filenames,
+        )
+        return
+
+    def test_name_mangling_04(
+        self, filenames: List[str] = ["name_mangling-04"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["my_func<int>", "main"]],
+            filenames=filenames,
+        )
+        return
+
+    @unittest.expectedFailure
+    def test_name_mangling_05(
+        self, filenames: List[str] = ["name_mangling-05"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[
+                ["MyStruct::my_func", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
+                ["MyClass::my_func", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
+            ],
+            filenames=filenames,
+        )
+        return
+
+    @unittest.expectedFailure
+    def test_name_mangling_06(
+        self, filenames: List[str] = ["name_mangling-06"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["MyStruct::my_func", "main", "MyStruct::operator+"]],
+            filenames=filenames,
+        )
+        return
+
+
 class TestSimpleServer(TestCase):
     def test_simple_http_server_01(
         self, filenames: List[str] = ["simple_http_server-01"]
@@ -651,6 +724,7 @@ class TestMultiThreading(TestCase):
             "function_calling-12",
             "function_calling-13",
             "function_calling-14",
+            "function_calling-15",
             "gets-01",
             "gets-02",
             "memcpy-01",
@@ -664,6 +738,12 @@ class TestMultiThreading(TestCase):
             "memcpy-09",
             "memcpy-10",
             "memcpy-11",
+            "name_mangling-01",
+            "name_mangling-02",
+            "name_mangling-03",
+            "name_mangling-04",
+            "name_mangling-05",
+            "name_mangling-06",
             "pointer_analysis-01",
             "pointer_analysis-02",
             "pointer_analysis-03",

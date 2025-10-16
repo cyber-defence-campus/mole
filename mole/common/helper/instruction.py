@@ -26,7 +26,7 @@ class InstructionHelper:
                             formatted_tokens.append(
                                 bn.InstructionTextToken(
                                     bn.InstructionTextTokenType.CodeSymbolToken,
-                                    func.name,
+                                    func.symbol.short_name,
                                     func.start,
                                 )
                             )
@@ -223,7 +223,7 @@ class InstructionHelper:
             ):
                 func = bv.get_function_at(inst.dest.constant)
                 if func is not None:
-                    func_name = func.name
+                    func_name = func.symbol.short_name
                     func_sign = (
                         func.type.get_string_before_name()
                         + " "
@@ -234,7 +234,7 @@ class InstructionHelper:
                     data_var = bv.get_data_var_at(inst.dest.constant)
                     symbol = bv.get_symbol_at(inst.dest.constant)
                     if data_var is not None and symbol is not None:
-                        func_name = symbol.name
+                        func_name = symbol.short_name
                         b_name = data_var.type.get_string_before_name().strip()
                         idx = b_name.rfind("(")
                         if idx != -1:
