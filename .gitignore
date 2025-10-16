@@ -25,3 +25,4 @@ mole/conf/*.yml.bak
 
 # Test Binaries
 test/bin/
+tests/data/bin/
