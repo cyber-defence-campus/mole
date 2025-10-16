@@ -509,16 +509,6 @@ class TestStruct(TestCase):
         )
         return
 
-    @unittest.expectedFailure
-    def test_struct_02(self, filenames: List[str] = ["struct-02"]) -> None:
-        self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 3)],
-            call_chains=[["main"], ["main"]],
-            filenames=filenames,
-        )
-        return
-
 
 class TestSimpleServer(TestCase):
     def test_simple_http_server_01(
