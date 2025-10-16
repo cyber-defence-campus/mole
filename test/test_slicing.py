@@ -498,6 +498,17 @@ class TestPointerAnalysis(TestCase):
         return
 
 
+class TestLoad(TestCase):
+    def test_load_01(self, filenames: List[str] = ["load-01"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+        return
+
+
 class TestStruct(TestCase):
     @unittest.expectedFailure
     def test_struct_01(self, filenames: List[str] = ["struct-01"]) -> None:
