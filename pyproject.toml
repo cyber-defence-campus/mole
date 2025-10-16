@@ -35,6 +35,9 @@ develop = [
     "ruff==0.9.9",
     "tomli==2.2.1"
 ]
+test = [
+    "pytest>=8.0.0"
+]
 
 [project.scripts]
 mole = "mole.cli.main:main"

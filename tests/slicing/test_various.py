@@ -1,0 +1,105 @@
+from __future__ import annotations
+from typing import List
+import pytest
+from .conftest import SlicingTestBase
+
+
+class TestVarious(SlicingTestBase):
+    """Tests for various slicing scenarios including gets, sscanf, memcpy, and fread."""
+
+    def test_gets_01(self, filenames: List[str] = ["gets-01"]) -> None:
+        self.assert_paths(
+            src=[("gets", 1)],
+            snk=[("gets", 1)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+
+    def test_gets_02(self, filenames: List[str] = ["gets-02"]) -> None:
+        self.assert_paths(
+            src=[("gets", 1)],
+            snk=[("gets", 1), ("memcpy", 2)],
+            call_chains=[["main"], ["main"]],
+            filenames=filenames,
+        )
+
+    def test_sscanf_01(self, filenames: List[str] = ["sscanf-01"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("sscanf", 1), ("__isoc99_sscanf", 1)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+
+    def test_memcpy_01(self, filenames: List[str] = ["memcpy-01"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("memcpy", 3)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+
+    def test_memcpy_02(self, filenames: List[str] = ["memcpy-02"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("memcpy", 2), ("memcpy", 3)],
+            call_chains=[["main"], ["main"]],
+            filenames=filenames,
+        )
+
+    def test_memcpy_03(self, filenames: List[str] = ["memcpy-03"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("memcpy", 1)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+
+    def test_memcpy_04(self, filenames: List[str] = ["memcpy-04"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("memcpy", 3)],
+            call_chains=[["main", "my_getenv"]],
+            filenames=filenames,
+        )
+
+    def test_memcpy_05(self, filenames: List[str] = ["memcpy-05"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("memcpy", 2), ("memcpy", 3)],
+            call_chains=[["main", "my_getenv"], ["main", "my_getenv"]],
+            filenames=filenames,
+        )
+
+    def test_memcpy_06(self, filenames: List[str] = ["memcpy-06"]) -> None:
+        self.assert_paths(
+            src=[],
+            snk=[],
+            call_chains=[],
+            filenames=filenames,
+        )
+
+    def test_memcpy_07(self, filenames: List[str] = ["memcpy-07"]) -> None:
+        self.test_memcpy_02(filenames)
+
+    @pytest.mark.xfail
+    def test_memcpy_08(self, filenames: List[str] = ["memcpy-08"]) -> None:
+        self.test_memcpy_06(filenames)
+
+    def test_memcpy_09(self, filenames: List[str] = ["memcpy-09"]) -> None:
+        self.test_memcpy_06(filenames)
+
+    @pytest.mark.xfail
+    def test_memcpy_10(self, filenames: List[str] = ["memcpy-10"]) -> None:
+        self.test_memcpy_06(filenames)
+
+    def test_memcpy_11(self, filenames: List[str] = ["memcpy-11"]) -> None:
+        self.test_memcpy_06(filenames)
+
+    def test_fread_01(self, filenames: List[str] = ["fread-01"]) -> None:
+        self.assert_paths(
+            src=[("fread", 1)],
+            snk=[("system", 1)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
