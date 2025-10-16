@@ -210,6 +210,51 @@ class MediumLevelILBackwardSlicer:
                         self._tag,
                         f"Do not follow pointer '0x{constant:x}' since it is in a non-writable segment",
                     )
+            case bn.MediumLevelILLoadSsa(src=load_src_inst, size=load_src_size):
+                match load_src_inst:
+                    case bn.MediumLevelILConstPtr(constant=load_src_addr):
+                        # Iterate all memory defining instructions
+                        mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                            inst.function,
+                            inst.ssa_memory_version,
+                            self._max_memory_slice_depth,
+                        )
+                        for mem_def_inst in mem_def_insts:
+                            mem_def_inst_info = InstructionHelper.get_inst_info(
+                                mem_def_inst, False
+                            )
+                            # Check if memory defining instruction was followed before
+                            if self._call_tracker.is_in_current_mem_def_insts(
+                                mem_def_inst
+                            ):
+                                log.debug(
+                                    self._tag,
+                                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                                )
+                                continue
+                            match mem_def_inst:
+                                # Slice stores that fully cover the memory area of the load
+                                case bn.MediumLevelILStoreSsa(
+                                    dest=bn.MediumLevelILConstPtr(
+                                        constant=store_dest_addr
+                                    ),
+                                    size=store_dest_size,
+                                ):
+                                    if (
+                                        store_dest_addr <= load_src_addr
+                                        and store_dest_addr + store_dest_size
+                                        >= load_src_addr + load_src_size
+                                    ):
+                                        log.debug(
+                                            self._tag,
+                                            f"Follow store instruction '{mem_def_inst_info:s}' since it overwrites all memory loaded by '{inst_info:s}'",
+                                        )
+                                        self._call_tracker.push_mem_def_inst(
+                                            mem_def_inst
+                                        )
+                                        self._slice_backwards(mem_def_inst)
+                                        break
+                self._slice_backwards(load_src_inst)
             case (
                 bn.MediumLevelILVarAliased()
                 | bn.MediumLevelILVarAliasedField()
@@ -430,7 +475,6 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILSetVarSplitSsa()
                 | bn.MediumLevelILUnaryBase()
                 | bn.MediumLevelILBoolToInt()
-                | bn.MediumLevelILLoadSsa()
                 | bn.MediumLevelILLoadStructSsa()
                 | bn.MediumLevelILStoreSsa()
                 | bn.MediumLevelILStoreStructSsa()
