@@ -7,7 +7,7 @@ argv[1] = getenv("CMD");    <-- Source
 system(argv[1]);            <-- Sink
 [...]
 ```
-**Note**: Note: Yes, assigning to argv[1] is intentional. It's just a stand-in for arbitrary array indexing. 😉
+**Note**: Note: Yes, assigning to `argv[1]` is intentional. It's just a stand-in for arbitrary array indexing. 😉
 
 The corresponding MLIL representation in SSA form is shown below:
 ```
@@ -18,13 +18,13 @@ The corresponding MLIL representation in SSA form is shown below:
  3 @ 00401188  goto 14 @ 0x4011b7
  4 @ 0040118a  rax_1#1 = var_28#1
  5 @ 0040118e  rbx_1#1 = rax_1#1 + 8
- 6 @ 0040119c  rax_2#2, mem#1 = getenv(name: "CMD") @ mem#0
- 7 @ 004011a1  [rbx_1#1].q = rax_2#2 @ mem#1 -> mem#2       <-- MLIL_STORE: Write quadword to the memory address stored in variable `rbx_1#1`
+ 6 @ 0040119c  rax_2#2, mem#1 = getenv(name: "CMD") @ mem#0 <-- Source
+ 7 @ 004011a1  [rbx_1#1].q = rax_2#2 @ mem#1 -> mem#2       <-- MLIL_STORE: Write quadword to the memory address stored in variable rbx_1#1
  8 @ 004011a4  rax_3#3 = var_28#1
  9 @ 004011a8  rax_4#4 = rax_3#3 + 8
-10 @ 004011ac  rax_5#5 = [rax_4#4].q @ mem#2                <-- MLIL_LOAD : Read quadword from the memory address stored in variable `rax_4#4`
+10 @ 004011ac  rax_5#5 = [rax_4#4].q @ mem#2                <-- MLIL_LOAD : Read quadword from the memory address stored in variable rax_4#4
 11 @ 004011af  rdi#1 = rax_5#5
-12 @ 004011b2  mem#3 = system(line: rdi#1) @ mem#2
+12 @ 004011b2  mem#3 = system(line: rdi#1) @ mem#2          <-- Sink
 13 @ 004011b2  goto 14 @ 0x4011b7
 [...]
 ```
@@ -47,7 +47,7 @@ This relationship is difficult to infer at the MLIL, but the HLIL captures it. T
 <HighLevelILArrayIndex: argv[1]>
 
 >>> mlil_load_inst.hlil.src.var, mlil_load_inst.hlil.index.constant
-(<var char** argv>, 1)                                      <-- argv[1]
+(<var char** argv>, 1)          <-- argv[1]
 
 # Store `argv[1]`
 >>> mlil_store_inst
@@ -60,7 +60,7 @@ This relationship is difficult to infer at the MLIL, but the HLIL captures it. T
 <HighLevelILArrayIndex: argv[1]>
 
 >>> mlil_store_inst.hlil.dest.src.var, mlil_store_inst.hlil.dest.index.constant
-(<var char** argv>, 1)                                      <-- argv[1]
+(<var char** argv>, 1)          <-- argv[1]
 ```
 
 When reaching `rax_5#5 = [rax_4#4].q @ mem#2` (MLIL_LOAD), Mole therefore knows it should continue slicing at `[rbx_1#1].q = rax_2#2 @ mem#1 -> mem#` (MLIL_STORE):
@@ -72,4 +72,4 @@ Follow store instruction '0x4011a1 [rbx_1#1].q = rax_2#2 @ mem#1 -> mem#2' since
 0x4011a1 [rbx_1#1].q = rax_2#2 @ mem#1 -> mem#2 (MediumLevelILStoreSsa)
 ```
 
-**Note**: In addition to slicing variables, Mole can also perform backward slicing on memory versions. In the example above, this capability is used to link the MLIL_LOAD and MLIL_STORE instructions. When the slicer reaches the MLIL_LOAD instruction, the memory is at version 2 (`@ mem#2`). From there, Mole can identify the instruction that defines the previous memory version (`@ mem#1`), which in this case corresponds to the MLIL_STORE instruction of interest.
+**Note**: In addition to slicing variables, Mole can also perform backward slicing on memory versions. In the example above, this capability is used to link the MLIL_LOAD and MLIL_STORE instructions. When the slicer reaches the MLIL_LOAD instruction, the memory is at version 2 (`@ mem#2`). From there, Mole can identify the instruction that defines the previous memory version (`@ mem#1`), which in this case corresponds to the MLIL_STORE instruction of interest. This approach is necessary because instructions are not always sequentially ordered in a way that reflects their data dependencies, so simply following the "previous" instruction would not be correct.
