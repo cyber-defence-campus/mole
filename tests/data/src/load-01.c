@@ -3,7 +3,7 @@
 
 /*
 Testcase Description:
-- `MediumLevelILLoadSsa` with `MediumLevelILConstPtr` as source
+- Load using constant pointer dereferencing
 */
 
 typedef struct {
