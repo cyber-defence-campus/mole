@@ -512,6 +512,15 @@ class TestLoad(TestCase):
         self.assert_paths(
             src=[("getenv", None)],
             snk=[("system", 1)],
+            call_chains=[["main"], ["main"]],
+            filenames=filenames,
+        )
+        return
+
+    def test_load_03(self, filenames: List[str] = ["load-03"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
             call_chains=[["main"]],
             filenames=filenames,
         )
@@ -749,6 +758,7 @@ class TestMultiThreading(TestCase):
             "gets-02",
             "load-01",
             "laod-02",
+            "laod-03",
             "memcpy-01",
             "memcpy-02",
             "memcpy-03",
