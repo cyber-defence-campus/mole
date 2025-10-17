@@ -16,6 +16,9 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 ```
+
+The code is straightforward. It defines a sink function, `system`, which executes the command string stored in `argv[1]`. This argument is assigned a value read from an environment variable, serving as our source.
+
 **Note**: Yes, assigning to `argv[1]` is intentional. It's just a stand-in for arbitrary array indexing 😉.
 
 The `main` function's MLIL representation in SSA form is shown below:
