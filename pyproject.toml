@@ -33,6 +33,7 @@ develop = [
     "debugpy==1.8.1",
     "pre_commit==4.2.0",
     "pytest==8.3.4",
+    "pytest-cov==7.0.0",
     "ruff==0.9.9",
     "tomli==2.2.1"
 ]
@@ -48,3 +49,4 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+pythonpath = ["."]
