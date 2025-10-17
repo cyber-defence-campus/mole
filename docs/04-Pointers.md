@@ -7,7 +7,7 @@ argv[1] = getenv("CMD");    <-- Source
 system(argv[1]);            <-- Sink
 [...]
 ```
-**Note**: Note: Yes, assigning to `argv[1]` is intentional. It's just a stand-in for arbitrary array indexing. 😉
+**Note**: Yes, assigning to `argv[1]` is intentional. It's just a stand-in for arbitrary array indexing. 😉
 
 The corresponding MLIL representation in SSA form is shown below:
 ```
