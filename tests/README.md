@@ -1,6 +1,6 @@
 # Tests
 
-This directory contains the test suite for the Mole project, migrated to pytest framework.
+This directory contains the test suite for the Mole project.
 
 ## Structure
 
@@ -27,56 +27,45 @@ tests/
 
 ## Running Tests
 
-### Build test binaries
+### Build Test Binaries
 
-Before running slicing tests, you need to compile the test binaries:
+Before running slicing tests, compile the test binaries:
 
 ```bash
 cd tests/data
 make all
 ```
 
-### Run all tests
+### Run All Tests
 
 ```bash
 pytest
 ```
 
-### Run specific test files
+### Run Specific Test Files
 
 ```bash
 pytest tests/test_data.py
 pytest tests/slicing/test_pointer.py
 ```
 
-### Run specific test classes or methods
+### Run Specific Test Classes or Methods
 
 ```bash
 pytest tests/slicing/test_pointer.py::TestPointerAnalysis
 pytest tests/slicing/test_pointer.py::TestPointerAnalysis::test_pointer_analysis_01
 ```
 
-## Migration from unittest
+### Run Slicing Tests Against a Specific Architecture
 
-The tests have been migrated from `unittest` to `pytest`:
+First, cross-compile the binaries for the desired architecture:
 
-- `unittest.TestCase` → `pytest` fixtures and classes
-- `self.assertEqual()` → `assert` statements
-- `self.assertTrue()` → `assert` statements
-- `@unittest.expectedFailure` → `@pytest.mark.xfail`
-- `setUp()` → `@pytest.fixture(autouse=True)`
+```bash
+CC=arm-linux-gcc CXX=arm-linux-g++ EXT=.linux-armv7 make
+```
 
-## Test Categories
+Then run the tests with the extension parameter:
 
-- **Slicing tests** (`tests/slicing/`): Test backward slicing functionality
-  - Function calling patterns
-  - Pointer analysis
-  - Name mangling (C++)
-  - Struct handling
-  - Simple HTTP server scenarios
-  - Serialization
-  - Multi-threading consistency
-
-- **Data tests** (`tests/test_data.py`): Test data class serialization
-
-- **Parser tests** (`tests/test_logic_expr_parsing.py`): Test logical expression parsing
+```bash
+EXT=".linux-armv7" pytest
+```
