@@ -498,6 +498,35 @@ class TestPointerAnalysis(TestCase):
         return
 
 
+class TestLoad(TestCase):
+    def test_load_01(self, filenames: List[str] = ["load-01"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+        return
+
+    def test_load_02(self, filenames: List[str] = ["load-02"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["main"], ["main"]],
+            filenames=filenames,
+        )
+        return
+
+    def test_load_03(self, filenames: List[str] = ["load-03"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+        return
+
+
 class TestStruct(TestCase):
     @unittest.expectedFailure
     def test_struct_01(self, filenames: List[str] = ["struct-01"]) -> None:
@@ -727,6 +756,9 @@ class TestMultiThreading(TestCase):
             "function_calling-15",
             "gets-01",
             "gets-02",
+            "load-01",
+            "laod-02",
+            "laod-03",
             "memcpy-01",
             "memcpy-02",
             "memcpy-03",

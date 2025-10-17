@@ -15,11 +15,6 @@ struct Person {
     int   age;
 };
 
-typedef struct {
-    char *name;
-    int   age;
-} Animal;
-
 __attribute__((optimize("O0")))
 int main(int argc, char *argv[]) {
     int age;

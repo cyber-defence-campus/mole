@@ -182,7 +182,12 @@ class MediumLevelILBackwardSlicer:
                             continue
                         match mem_def_inst:
                             # Slice calls having the same pointer as parameter
-                            case bn.MediumLevelILCallSsa(params=params):
+                            case (
+                                bn.MediumLevelILCallSsa(params=params)
+                                | bn.MediumLevelILCallUntypedSsa(params=params)
+                                | bn.MediumLevelILTailcallSsa(params=params)
+                                | bn.MediumLevelILTailcallUntypedSsa(params=params)
+                            ):
                                 followed = False
                                 for param in params:
                                     match param:
@@ -210,6 +215,141 @@ class MediumLevelILBackwardSlicer:
                         self._tag,
                         f"Do not follow pointer '0x{constant:x}' since it is in a non-writable segment",
                     )
+            case bn.MediumLevelILLoadSsa(src=load_src_inst, size=load_src_size):
+                followed = False
+                hlil_load_inst = inst.hlil.ssa_form if inst.hlil else None
+                match hlil_load_inst:
+                    # Load by pointer dereferencing
+                    case bn.HighLevelILDerefSsa(
+                        src=bn.HighLevelILConstPtr(constant=load_pointer_addr)
+                    ):
+                        # Iterate all memory defining instructions
+                        mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                            inst.function,
+                            inst.ssa_memory_version,
+                            self._max_memory_slice_depth,
+                        )
+                        for mem_def_inst in mem_def_insts:
+                            mem_def_inst_info = InstructionHelper.get_inst_info(
+                                mem_def_inst, False
+                            )
+                            # Check if memory defining instruction was followed before
+                            if self._call_tracker.is_in_current_mem_def_insts(
+                                mem_def_inst
+                            ):
+                                log.debug(
+                                    self._tag,
+                                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                                )
+                                continue
+                            match mem_def_inst:
+                                case bn.MediumLevelILStoreSsa(size=store_dest_size):
+                                    if load_src_size != store_dest_size:
+                                        continue
+                                    hlil_store_inst = (
+                                        mem_def_inst.hlil.ssa_form
+                                        if mem_def_inst.hlil
+                                        else None
+                                    )
+                                    match hlil_store_inst:
+                                        # Store by pointer dereferencing
+                                        case bn.HighLevelILAssignMemSsa(
+                                            dest=bn.HighLevelILDerefSsa(
+                                                src=bn.HighLevelILConstPtr(
+                                                    constant=store_pointer_addr
+                                                )
+                                            ),
+                                        ):
+                                            if load_pointer_addr != store_pointer_addr:
+                                                continue
+                                            pointer_info = str(hlil_load_inst.src)
+                                            log.debug(
+                                                self._tag,
+                                                f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same number of bytes ('{load_src_size}') to the same dereferenced pointer ('{pointer_info:s}') as load instruction '{inst_info:s}'",
+                                            )
+                                            self._call_tracker.push_mem_def_inst(
+                                                mem_def_inst
+                                            )
+                                            self._slice_backwards(mem_def_inst)
+                                            followed = True
+                                            break
+                    # Load by array indexing
+                    case bn.HighLevelILArrayIndexSsa(
+                        src=bn.HighLevelILVarSsa(var=load_array_var),
+                        index=bn.HighLevelILConst(constant=load_array_index),
+                    ):
+                        # Iterate all memory defining instructions
+                        mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                            inst.function,
+                            inst.ssa_memory_version,
+                            self._max_memory_slice_depth,
+                        )
+                        for mem_def_inst in mem_def_insts:
+                            mem_def_inst_info = InstructionHelper.get_inst_info(
+                                mem_def_inst, False
+                            )
+                            # Check if memory defining instruction was followed before
+                            if self._call_tracker.is_in_current_mem_def_insts(
+                                mem_def_inst
+                            ):
+                                log.debug(
+                                    self._tag,
+                                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                                )
+                                continue
+                            match mem_def_inst:
+                                case bn.MediumLevelILStoreSsa(size=store_dest_size):
+                                    if load_src_size != store_dest_size:
+                                        continue
+                                    hlil_store_inst = (
+                                        mem_def_inst.hlil.ssa_form
+                                        if mem_def_inst.hlil
+                                        else None
+                                    )
+                                    match hlil_store_inst:
+                                        # Store by array indexing
+                                        case bn.HighLevelILAssignMemSsa(
+                                            dest=bn.HighLevelILArrayIndexSsa(
+                                                src=bn.HighLevelILVarSsa(
+                                                    var=store_array_var
+                                                ),
+                                                index=bn.HighLevelILConst(
+                                                    constant=store_array_index
+                                                ),
+                                            )
+                                        ):
+                                            # Ensure load from and store to the same array element
+                                            if (
+                                                load_array_var != store_array_var
+                                                or load_array_index != store_array_index
+                                            ):
+                                                continue
+                                            array_info = (
+                                                VariableHelper.get_ssavar_info(
+                                                    load_array_var
+                                                )
+                                                + f"[{load_array_index:d}]"
+                                            )
+                                            log.debug(
+                                                self._tag,
+                                                f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same array element ('{array_info:s}') as load instruction '{inst_info:s}'",
+                                            )
+                                            self._call_tracker.push_mem_def_inst(
+                                                mem_def_inst
+                                            )
+                                            self._slice_backwards(mem_def_inst)
+                                            followed = True
+                                            break
+                # Follow load source instruction if no specific store instruction was followed
+                if not followed:
+                    load_src_inst_info = InstructionHelper.get_inst_info(
+                        load_src_inst, False
+                    )
+                    log.debug(
+                        self._tag,
+                        f"Follow load source instruction '{load_src_inst_info:s}' since no specific store instruction was found",
+                    )
+                    self._slice_backwards(load_src_inst)
             case (
                 bn.MediumLevelILVarAliased()
                 | bn.MediumLevelILVarAliasedField()
@@ -275,7 +415,12 @@ class MediumLevelILBackwardSlicer:
 
                     match mem_def_inst:
                         # Slice calls having the referenced variable address (`&var_y`) as parameter
-                        case bn.MediumLevelILCallSsa():
+                        case (
+                            bn.MediumLevelILCallSsa(params=params)
+                            | bn.MediumLevelILCallUntypedSsa(params=params)
+                            | bn.MediumLevelILTailcallSsa(params=params)
+                            | bn.MediumLevelILTailcallUntypedSsa(params=params)
+                        ):
                             var_addr_ass_inst = dest_var_use_sites[mem_def_inst]
                             var_addr_ass_inst_info = InstructionHelper.get_inst_info(
                                 var_addr_ass_inst, False
@@ -430,7 +575,6 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILSetVarSplitSsa()
                 | bn.MediumLevelILUnaryBase()
                 | bn.MediumLevelILBoolToInt()
-                | bn.MediumLevelILLoadSsa()
                 | bn.MediumLevelILLoadStructSsa()
                 | bn.MediumLevelILStoreSsa()
                 | bn.MediumLevelILStoreStructSsa()
