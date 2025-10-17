@@ -12,14 +12,18 @@ import pytest
 
 
 tested_files = set()
+_atexit_registered = False
 
 
 def print_tested_files():
-    print(f"\nTested slicing on {len(tested_files):d} files")
+    if tested_files:  # Only print if we actually tested files
+        print(f"\nTested slicing on {len(tested_files):d} files")
     return
 
 
-atexit.register(print_tested_files)
+if not _atexit_registered:
+    atexit.register(print_tested_files)
+    _atexit_registered = True
 
 
 class SlicingTestBase:
