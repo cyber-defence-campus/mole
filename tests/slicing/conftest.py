@@ -45,13 +45,31 @@ class SlicingTestBase:
         """
         directory = os.path.join(os.path.dirname(__file__), "..", "data", "bin")
         files = []
+        all_matching_files = []  # Track all files that match by name
+
         for dirpath, _, filenames in os.walk(directory):
             for filename in filenames:
                 name, ext = os.path.splitext(filename)
                 if name in names:
+                    all_matching_files.append(filename)
                     if self._ext is None or self._ext == ext:
                         files.append(os.path.join(dirpath, filename))
                         tested_files.add(filename)
+
+        # Validate that we found files
+        if not all_matching_files:
+            raise FileNotFoundError(
+                f"No test files found matching names: {names}. "
+                f"Check that files exist in {directory}"
+            )
+
+        if self._ext is not None and not files:
+            available_exts = set(os.path.splitext(f)[1] for f in all_matching_files)
+            raise FileNotFoundError(
+                f"No test files found with extension '{self._ext}' for names: {names}. "
+                f"Available extensions: {sorted(available_exts)}"
+            )
+
         return files
 
     def get_paths(
@@ -116,8 +134,8 @@ class SlicingTestBase:
                     path.snk_par_idx,
                 ) in snk, "invalid sink"
             # Assert call chains
-            assert sorted(_call_chains) == sorted(
-                call_chains
-            ), f"invalid call chains: expected {call_chains}, got {_call_chains}"
+            assert sorted(_call_chains) == sorted(call_chains), (
+                f"invalid call chains: expected {call_chains}, got {_call_chains}"
+            )
             # Close test binary
             bv.file.close()
