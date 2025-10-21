@@ -360,13 +360,9 @@ class MediumLevelILBackwardSlicer:
                                         or load_offset != store_offset
                                     ):
                                         continue
-                                    var_info = (
-                                        VariableHelper.get_ssavar_info(load_var)
-                                        + f" + 0x{load_offset:x}"
-                                    )
                                     log.debug(
                                         self._tag,
-                                        f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same variable ('{var_info:s}') as load instruction '{inst_info:s}'",
+                                        f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same variable ('{str(hlil_load_inst):s}') as load instruction '{inst_info:s}'",
                                     )
                                     self._call_tracker.push_mem_def_inst(mem_def_inst)
                                     self._slice_backwards(mem_def_inst)
