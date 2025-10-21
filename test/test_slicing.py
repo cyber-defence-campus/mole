@@ -512,7 +512,7 @@ class TestLoad(TestCase):
         self.assert_paths(
             src=[("getenv", None)],
             snk=[("system", 1)],
-            call_chains=[["main"], ["main"]],
+            call_chains=[["main"]],
             filenames=filenames,
         )
         return
@@ -521,7 +521,17 @@ class TestLoad(TestCase):
         self.assert_paths(
             src=[("getenv", None)],
             snk=[("system", 1)],
-            call_chains=[["main"]],
+            call_chains=[["main"], ["main"]],
+            filenames=filenames,
+        )
+        return
+
+    @unittest.expectedFailure
+    def test_load_04(self, filenames: List[str] = ["load-04"]) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("memcpy", 2)],
+            call_chains=[["main"], ["main"]],
             filenames=filenames,
         )
         return
