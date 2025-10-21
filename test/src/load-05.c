@@ -4,7 +4,7 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD_STRUCT
+- MLIL_LOAD_STRUCT with HLIL field dereferencing source
 */
 
 #define BUF_SIZE 32

@@ -4,7 +4,7 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD with variable source (array index)
+- MLIL_LOAD with HLIL array indexing source
 */
 
 #define BUF_SIZE 32
