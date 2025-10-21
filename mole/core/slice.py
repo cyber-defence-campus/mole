@@ -331,6 +331,47 @@ class MediumLevelILBackwardSlicer:
                                     self._slice_backwards(mem_def_inst)
                                     followed = True
                                     break
+                                # Variable with offset dereferencing
+                                case (
+                                    bn.HighLevelILDerefSsa(
+                                        src=bn.HighLevelILAdd(
+                                            left=bn.HighLevelILVarSsa(var=load_var),
+                                            right=bn.HighLevelILConst(
+                                                constant=load_offset
+                                            ),
+                                        )
+                                    ),
+                                    bn.HighLevelILAssignMemSsa(
+                                        dest=bn.HighLevelILDerefSsa(
+                                            src=bn.HighLevelILAdd(
+                                                left=bn.HighLevelILVarSsa(
+                                                    var=store_var
+                                                ),
+                                                right=bn.HighLevelILConst(
+                                                    constant=store_offset
+                                                ),
+                                            )
+                                        )
+                                    ),
+                                ):
+                                    # Ensure load from and store to the same variable and offset
+                                    if (
+                                        load_var != store_var
+                                        or load_offset != store_offset
+                                    ):
+                                        continue
+                                    var_info = (
+                                        VariableHelper.get_ssavar_info(load_var)
+                                        + f" + 0x{load_offset:x}"
+                                    )
+                                    log.debug(
+                                        self._tag,
+                                        f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same variable ('{var_info:s}') as load instruction '{inst_info:s}'",
+                                    )
+                                    self._call_tracker.push_mem_def_inst(mem_def_inst)
+                                    self._slice_backwards(mem_def_inst)
+                                    followed = True
+                                    break
                                 # Array indexing
                                 case (
                                     bn.HighLevelILArrayIndexSsa(
