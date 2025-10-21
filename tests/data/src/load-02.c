@@ -1,22 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /*
 Testcase Description:
-- Load using non-constant pointer dereferencing
+- MLIL_LOAD with variable source
+- Using a heap allocated array
 */
 
-#define BUF_SIZE 32
-
+__attribute__ ((noinline, optimize("O0")))
 int main(int argc, char *argv[]) {
-    if(argc >= 3) {
-        char path[BUF_SIZE];
-        char cmd[BUF_SIZE];
-        argv[1] = getenv("FILE_PATH");
-        argv[2] = getenv("SEARCH_TERM");
-        snprintf(path, sizeof(path), "%s", argv[1]);
-        snprintf(cmd, sizeof(cmd), "grep %s %s", argv[2], path);
-        system(cmd);
-    }
-    return 0;
+    char** my_array = (char**) malloc(1 * sizeof(char*));
+    my_array[0] = getenv("CMD");
+    return system(my_array[0]);
 }
