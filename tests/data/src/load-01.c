@@ -4,7 +4,7 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD with constant pointer source
+- MLIL_LOAD with HLIL constant pointer dereferencing source
 */
 
 char* cmd;
