@@ -4,7 +4,7 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD with variable source (variable)
+- MLIL_LOAD with HLIL variable dereferencing source
 */
 
 __attribute__ ((noinline, optimize("O0")))

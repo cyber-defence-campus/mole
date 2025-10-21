@@ -4,7 +4,7 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD with variable source (addition)
+- MLIL_LOAD with HLIL variable+offset dereferencing source
 */
 
 #define BUF_SIZE 32
