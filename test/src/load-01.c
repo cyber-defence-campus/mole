@@ -5,7 +5,6 @@
 /*
 Testcase Description:
 - MLIL_LOAD with constant pointer source
-- Using a global variable
 */
 
 char* cmd;

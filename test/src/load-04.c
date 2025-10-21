@@ -4,24 +4,16 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD_STRUCT
-- Using a global struct
+- MLIL_LOAD with variable source (array index)
 */
 
 #define BUF_SIZE 32
 
-char dest[BUF_SIZE];
-
-typedef struct {
-    char* src;
-    int size;
-} MyStruct;
-
-__attribute__ ((noinline, optimize("O0")))
+__attribute__ ((noinline, optimize("O1")))
 int main(int argc, char *argv[]) {
-    MyStruct s, *p = &s;
-    p->src = getenv("CMD");
-    p->size = atoi(getenv("SIZE"));
-    memcpy(dest, p->src, p->size);
-    return 0;
+    char cmd[BUF_SIZE];
+    argv[1] = getenv("FILE");
+    argv[2] = getenv("TERM");
+    snprintf(cmd, sizeof(cmd), "grep %s %s", argv[1], argv[2]);
+    return system(cmd);
 }
