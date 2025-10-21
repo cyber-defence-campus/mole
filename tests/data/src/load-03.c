@@ -4,17 +4,18 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD with variable with offset source
-- Using argv array
+- MLIL_LOAD with variable source (addition)
 */
 
 #define BUF_SIZE 32
+// #define ARR_SIZE 3
 
-__attribute__ ((noinline, optimize("O1")))
+__attribute__ ((noinline, optimize("O0")))
 int main(int argc, char *argv[]) {
     char cmd[BUF_SIZE];
-    argv[1] = getenv("FILE");
-    argv[2] = getenv("TERM");
-    snprintf(cmd, sizeof(cmd), "grep %s %s", argv[1], argv[2]);
+    char** my_array = (char**) malloc(3 * sizeof(char*));
+    my_array[1] = getenv("FILE");
+    my_array[2] = getenv("TERM");
+    snprintf(cmd, sizeof(cmd), "grep %s %s", my_array[1], my_array[2]);
     return system(cmd);
 }

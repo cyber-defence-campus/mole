@@ -4,8 +4,7 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD with variable source
-- Using a heap allocated array
+- MLIL_LOAD with variable source (variable)
 */
 
 __attribute__ ((noinline, optimize("O0")))
