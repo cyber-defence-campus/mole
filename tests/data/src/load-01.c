@@ -1,21 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /*
 Testcase Description:
-- Load using constant pointer dereferencing
+- MLIL_LOAD with constant pointer source
+- Using a global variable
 */
 
-typedef struct {
-    char* src;
-} MyStruct;
-
-MyStruct s;
+char* cmd;
 
 __attribute__ ((noinline, optimize("O0")))
 int main(int argc, char *argv[]) {
-    MyStruct *p = &s;
-    p->src = getenv("CMD");
-    system(p->src);
-    return 0;
+    cmd = getenv("CMD");
+    return system(cmd);
 }
