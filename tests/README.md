@@ -1,48 +1,32 @@
 # Tests
-
-This directory contains the test suite for the Mole project.
-
-## Running Tests
-
-### Build Test Binaries
-
-Before running slicing tests, compile the test binaries:
-
+This directory contains the test suite for the *Mole* project.
+## Build Test Binaries
+Before running tests, compile the test binaries:
 ```bash
-cd tests/data
+cd tests/data/
 make all
 ```
-
-To cross-compile the binaries for a specific architecture:
-
+To cross-compile the binaries for a specific target architecture:
 ```bash
 CC=arm-linux-gcc CXX=arm-linux-g++ EXT=.linux-armv7 make
 ```
-
-### Run All Tests
-
+## Run Tests
+#### Run All Tests
 ```bash
 pytest
 ```
-
-### Run Specific Test Files
-
+#### Run Specific Test File
 ```bash
 pytest tests/test_data.py
 pytest tests/slicing/test_pointer.py
 ```
-
-### Run Specific Test Classes or Methods
-
+#### Run Specific Test Class or Method
 ```bash
 pytest tests/slicing/test_pointer.py::TestPointerAnalysis
 pytest tests/slicing/test_pointer.py::TestPointerAnalysis::test_pointer_analysis_01
 ```
-
-### Run Slicing Tests for a Specific Architecture
-
-To run tests with a specific architecture extension, use the `EXT` parameter that matches the one used during compilation:
-
+#### Run Tests for a Specific Architecture
+To run tests only on binaries built for a specific architecture, set the `EXT` parameter to match the extension used during compilation:
 ```bash
 EXT=".linux-armv7" pytest
 ```

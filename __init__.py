@@ -1,7 +1,8 @@
 from __future__ import annotations
 import sys
 
-# Do not load Binary Ninja components while running pytest
+
+# Load components only when not being run by `pytest`
 if "pytest" not in sys.modules:
     from mole.controllers.ai import AiController
     from mole.controllers.config import ConfigController
