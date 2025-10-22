@@ -401,6 +401,7 @@ class MediumLevelILBackwardSlicer:
                             hlil_load_inst = inst.hlil.ssa_form
                             hlil_store_inst = mem_def_inst.hlil.ssa_form
                             match (hlil_load_inst, hlil_store_inst):
+                                # Struct field dereferencing
                                 case (
                                     bn.HighLevelILDerefFieldSsa(
                                         src=bn.HighLevelILVarSsa(var=load_var),
@@ -433,6 +434,7 @@ class MediumLevelILBackwardSlicer:
                             hlil_load_inst = inst.hlil.ssa_form
                             hlil_store_inst = mem_def_inst.hlil.ssa_form
                             match (hlil_load_inst, hlil_store_inst):
+                                # Struct field dereferencing
                                 case (
                                     bn.HighLevelILDerefFieldSsa(
                                         src=bn.HighLevelILVarSsa(
