@@ -4,7 +4,7 @@ This directory contains the test suite for the *Mole* project.
 Before running tests, compile the test binaries:
 ```bash
 cd tests/data/
-make all
+make
 ```
 To cross-compile the binaries for a specific target architecture:
 ```bash
