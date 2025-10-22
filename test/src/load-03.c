@@ -8,7 +8,6 @@ Testcase Description:
 */
 
 #define BUF_SIZE 32
-// #define ARR_SIZE 3
 
 __attribute__ ((noinline, optimize("O0")))
 int main(int argc, char *argv[]) {

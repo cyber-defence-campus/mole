@@ -535,24 +535,11 @@ class TestLoad(TestCase):
         )
         return
 
-    @unittest.expectedFailure
     def test_load_05(self, filenames: List[str] = ["load-05"]) -> None:
         self.assert_paths(
             src=[("getenv", None)],
-            snk=[("memcpy", 2)],
+            snk=[("memcpy", 2), ("memcpy", 3)],
             call_chains=[["main"], ["main"]],
-            filenames=filenames,
-        )
-        return
-
-
-class TestStruct(TestCase):
-    @unittest.expectedFailure
-    def test_struct_01(self, filenames: List[str] = ["struct-01"]) -> None:
-        self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 2)],
-            call_chains=[["main"]],
             filenames=filenames,
         )
         return
@@ -778,6 +765,8 @@ class TestMultiThreading(TestCase):
             "load-01",
             "laod-02",
             "laod-03",
+            "laod-04",
+            "laod-05",
             "memcpy-01",
             "memcpy-02",
             "memcpy-03",
