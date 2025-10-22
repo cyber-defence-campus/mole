@@ -1,8 +1,8 @@
 # Pointer Analysis
-## Pointer Dereferencing
-See unit-tests `load-01.c` and `load-02.c`.
+## Pointer and Variable Dereferencing
+See unit-tests `load-01.c`, `load-02.c` and `load-03.c`.
 ## Array Indexing
-Consider the source code of unit-test `load-03.c`:
+Consider the following C source code:
 ```c
 #include <stdio.h>
 #include <stdlib.h>
@@ -96,3 +96,5 @@ array element ('argv#0[1]') as load instruction '0x4011ac [rax_4#4].q @ mem#2 (M
 
 0x4011a1 [rbx_1#1].q = rax_2#2 @ mem#1 -> mem#2 (MediumLevelILStoreSsa)
 ```
+## Struct Field Dereferencing
+See unit-test `load-05.c`.
