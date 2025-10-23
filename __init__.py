@@ -1,9 +1,9 @@
 from __future__ import annotations
-import sys
+import importlib.util
 
 
 # Load components only when not being run by `pytest`
-if "pytest" not in sys.modules:
+if importlib.util.find_spec("pytest") is None:
     from mole.controllers.ai import AiController
     from mole.controllers.config import ConfigController
     from mole.controllers.path import PathController
