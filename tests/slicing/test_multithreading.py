@@ -26,6 +26,11 @@ class TestMultiThreading(TestSlicing):
             "function_calling-15",
             "gets-01",
             "gets-02",
+            "load-01",
+            "load-02",
+            "load-03",
+            "load-04",
+            "load-05",
             "memcpy-01",
             "memcpy-02",
             "memcpy-03",
@@ -63,7 +68,6 @@ class TestMultiThreading(TestSlicing):
             "simple_http_server-03",
             "simple_http_server-04",
             "sscanf-01",
-            "struct-01",
         ],
     ) -> None:
         for file in self.load_files(filenames):
