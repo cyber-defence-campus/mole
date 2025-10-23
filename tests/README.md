@@ -14,10 +14,7 @@ To cross-compile the test binaries for a specific target architecture, specify t
 CC=arm-linux-gcc CXX=arm-linux-g++ EXT=.linux-armv7 make all
 ```
 ## Run Tests
-Before running the tests, make sure you are back in the *Mole* project's root directory:
-```bash
-cd ../../
-```
+In the following commands, we assume you are in the *Mole* project’s root directory:
 #### Run All Tests
 ```bash
 pytest
