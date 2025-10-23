@@ -6,8 +6,8 @@ CXXFLAGS	?= -Wall -O3 -g -fno-builtin -U_FORTIFY_SOURCE
 EXT     	?=
 
 # Directories
-SRC_DIR := ./src
-BIN_DIR := ./bin
+SRC_DIR := src
+BIN_DIR := bin
 
 # Files
 C_SRC_FILES   := $(wildcard $(SRC_DIR)/*.c)
