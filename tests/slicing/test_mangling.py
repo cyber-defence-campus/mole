@@ -1,5 +1,5 @@
 from __future__ import annotations
-from tests.slicing import TestSlicing
+from tests.slicing.conftest import TestSlicing
 from typing import List
 import pytest
 
