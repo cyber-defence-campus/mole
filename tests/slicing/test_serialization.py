@@ -1,11 +1,11 @@
 from __future__ import annotations
 from mole.core.data import Path
-from tests.slicing.conftest import SlicingTestBase
+from tests.slicing import TestSlicing
 from typing import List
 import binaryninja as bn
 
 
-class TestSerialization(SlicingTestBase):
+class TestSerialization(TestSlicing):
     def test_serialization_01(
         self, filenames: List[str] = ["function_calling-02"]
     ) -> None:
@@ -19,3 +19,4 @@ class TestSerialization(SlicingTestBase):
             for path in paths:
                 assert path == Path.from_dict(bv, path.to_dict()), "serialization"
             bv.file.close()
+        return

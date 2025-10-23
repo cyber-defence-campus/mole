@@ -1,9 +1,9 @@
 from __future__ import annotations
-from tests.slicing.conftest import SlicingTestBase
+from tests.slicing import TestSlicing
 from typing import List
 
 
-class TestFunctionCalling(SlicingTestBase):
+class TestFunctionCalling(TestSlicing):
     def test_function_calling_01(
         self, filenames: List[str] = ["function_calling-01"]
     ) -> None:
@@ -13,6 +13,7 @@ class TestFunctionCalling(SlicingTestBase):
             call_chains=[["main"], ["main"]],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_02(
         self, filenames: List[str] = ["function_calling-02"]
@@ -26,6 +27,7 @@ class TestFunctionCalling(SlicingTestBase):
             ],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_03(
         self, filenames: List[str] = ["function_calling-03"]
@@ -39,11 +41,13 @@ class TestFunctionCalling(SlicingTestBase):
             ],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_04(
         self, filenames: List[str] = ["function_calling-04"]
     ) -> None:
         self.test_function_calling_02(filenames)
+        return
 
     def test_function_calling_05(
         self, filenames: List[str] = ["function_calling-05"]
@@ -54,11 +58,13 @@ class TestFunctionCalling(SlicingTestBase):
             call_chains=[["main"]],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_06(
         self, filenames: List[str] = ["function_calling-06"]
     ) -> None:
         self.test_function_calling_05(filenames)
+        return
 
     def test_function_calling_07(
         self, filenames: List[str] = ["function_calling-07"]
@@ -69,16 +75,19 @@ class TestFunctionCalling(SlicingTestBase):
             call_chains=[],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_08(
         self, filenames: List[str] = ["function_calling-08"]
     ) -> None:
         self.test_function_calling_07(filenames)
+        return
 
     def test_function_calling_09(
         self, filenames: List[str] = ["function_calling-09"]
     ) -> None:
         self.test_function_calling_05(filenames)
+        return
 
     def test_function_calling_10(
         self, filenames: List[str] = ["function_calling-10"]
@@ -89,6 +98,7 @@ class TestFunctionCalling(SlicingTestBase):
             call_chains=[["system_1", "main", "getenv_1", "getenv_2"]],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_11(
         self, filenames: List[str] = ["function_calling-11"]
@@ -99,6 +109,7 @@ class TestFunctionCalling(SlicingTestBase):
             call_chains=[["main", "getenv_1", "getenv_2"]],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_12(
         self, filenames: List[str] = ["function_calling-12"]
@@ -109,6 +120,7 @@ class TestFunctionCalling(SlicingTestBase):
             call_chains=[["main", "getenv_1", "getenv_2", "getenv_3", "getenv_4"]],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_13(
         self, filenames: List[str] = ["function_calling-13"]
@@ -119,6 +131,7 @@ class TestFunctionCalling(SlicingTestBase):
             call_chains=[["system_1", "main"]],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_14(
         self, filenames: List[str] = ["function_calling-14"]
@@ -129,6 +142,7 @@ class TestFunctionCalling(SlicingTestBase):
             call_chains=[["system_3", "system_2", "system_1", "main"]],
             filenames=filenames,
         )
+        return
 
     def test_function_calling_15(
         self, filenames: List[str] = ["function_calling-15"]
@@ -139,3 +153,4 @@ class TestFunctionCalling(SlicingTestBase):
             call_chains=[["system_2", "system_1", "main", "getenv_1", "getenv_2"]],
             filenames=filenames,
         )
+        return

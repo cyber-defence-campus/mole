@@ -1,10 +1,10 @@
 from __future__ import annotations
-from tests.slicing.conftest import SlicingTestBase
+from tests.slicing import TestSlicing
 from typing import List
 import pytest
 
 
-class TestPointerAnalysis(SlicingTestBase):
+class TestPointerAnalysis(TestSlicing):
     def test_pointer_analysis_01(
         self, filenames: List[str] = ["pointer_analysis-01"]
     ) -> None:
@@ -14,16 +14,19 @@ class TestPointerAnalysis(SlicingTestBase):
             call_chains=[["main"]],
             filenames=filenames,
         )
+        return
 
     def test_pointer_analysis_02(
         self, filenames: List[str] = ["pointer_analysis-02"]
     ) -> None:
         self.test_pointer_analysis_01(filenames)
+        return
 
     def test_pointer_analysis_03(
         self, filenames: List[str] = ["pointer_analysis-03"]
     ) -> None:
         self.test_pointer_analysis_01(filenames)
+        return
 
     def test_pointer_analysis_04(
         self, filenames: List[str] = ["pointer_analysis-04"]
@@ -34,6 +37,7 @@ class TestPointerAnalysis(SlicingTestBase):
             call_chains=[["main"], ["main"]],
             filenames=filenames,
         )
+        return
 
     def test_pointer_analysis_05(
         self, filenames: List[str] = ["pointer_analysis-05"]
@@ -44,6 +48,7 @@ class TestPointerAnalysis(SlicingTestBase):
             call_chains=[],
             filenames=filenames,
         )
+        return
 
     def test_pointer_analysis_06(
         self, filenames: List[str] = ["pointer_analysis-06"]
@@ -54,6 +59,7 @@ class TestPointerAnalysis(SlicingTestBase):
             call_chains=[["main", "modify_n"], ["main", "modify_n"]],
             filenames=filenames,
         )
+        return
 
     def test_pointer_analysis_07(
         self, filenames: List[str] = ["pointer_analysis-07"]
@@ -64,21 +70,25 @@ class TestPointerAnalysis(SlicingTestBase):
             call_chains=[["main", "my_getenv"]],
             filenames=filenames,
         )
+        return
 
     def test_pointer_analysis_08(
         self, filenames: List[str] = ["pointer_analysis-08"]
     ) -> None:
         self.test_pointer_analysis_07(filenames)
+        return
 
     def test_pointer_analysis_09(
         self, filenames: List[str] = ["pointer_analysis-09"]
     ) -> None:
         self.test_pointer_analysis_01(filenames)
+        return
 
     def test_pointer_analysis_10(
         self, filenames: List[str] = ["pointer_analysis-10"]
     ) -> None:
         self.test_pointer_analysis_01(filenames)
+        return
 
     def test_pointer_analysis_11(
         self, filenames: List[str] = ["pointer_analysis-11"]
@@ -89,6 +99,7 @@ class TestPointerAnalysis(SlicingTestBase):
             call_chains=[["execute", "main"]],
             filenames=filenames,
         )
+        return
 
     def test_pointer_analysis_12(
         self, filenames: List[str] = ["pointer_analysis-12"]
@@ -99,17 +110,20 @@ class TestPointerAnalysis(SlicingTestBase):
             call_chains=[["main"], ["main"]],
             filenames=filenames,
         )
+        return
 
     @pytest.mark.xfail
     def test_pointer_analysis_13(
         self, filenames: List[str] = ["pointer_analysis-13"]
     ) -> None:
         self.test_pointer_analysis_12(filenames)
+        return
 
     def test_pointer_analysis_14(
         self, filenames: List[str] = ["pointer_analysis-14"]
     ) -> None:
         self.test_pointer_analysis_01(filenames)
+        return
 
     @pytest.mark.xfail
     def test_pointer_analysis_15(
@@ -121,3 +135,4 @@ class TestPointerAnalysis(SlicingTestBase):
             call_chains=[["main"]],
             filenames=filenames,
         )
+        return

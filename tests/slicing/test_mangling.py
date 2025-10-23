@@ -1,10 +1,10 @@
 from __future__ import annotations
-from tests.slicing.conftest import SlicingTestBase
+from tests.slicing import TestSlicing
 from typing import List
 import pytest
 
 
-class TestNameMangling(SlicingTestBase):
+class TestNameMangling(TestSlicing):
     def test_name_mangling_01(
         self, filenames: List[str] = ["name_mangling-01"]
     ) -> None:
@@ -14,6 +14,7 @@ class TestNameMangling(SlicingTestBase):
             call_chains=[["overloaded_func", "main"], ["overloaded_func", "main"]],
             filenames=filenames,
         )
+        return
 
     def test_name_mangling_02(
         self, filenames: List[str] = ["name_mangling-02"]
@@ -24,6 +25,7 @@ class TestNameMangling(SlicingTestBase):
             call_chains=[["MyStruct::my_func", "main"], ["MyClass::my_func", "main"]],
             filenames=filenames,
         )
+        return
 
     def test_name_mangling_03(
         self, filenames: List[str] = ["name_mangling-03"]
@@ -34,6 +36,7 @@ class TestNameMangling(SlicingTestBase):
             call_chains=[["ns::my_func", "main"]],
             filenames=filenames,
         )
+        return
 
     def test_name_mangling_04(
         self, filenames: List[str] = ["name_mangling-04"]
@@ -44,6 +47,7 @@ class TestNameMangling(SlicingTestBase):
             call_chains=[["my_func<int>", "main"]],
             filenames=filenames,
         )
+        return
 
     @pytest.mark.xfail
     def test_name_mangling_05(
@@ -58,6 +62,7 @@ class TestNameMangling(SlicingTestBase):
             ],
             filenames=filenames,
         )
+        return
 
     @pytest.mark.xfail
     def test_name_mangling_06(
@@ -69,3 +74,4 @@ class TestNameMangling(SlicingTestBase):
             call_chains=[["MyStruct::my_func", "main", "MyStruct::operator+"]],
             filenames=filenames,
         )
+        return

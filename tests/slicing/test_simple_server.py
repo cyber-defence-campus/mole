@@ -1,9 +1,9 @@
 from __future__ import annotations
-from tests.slicing.conftest import SlicingTestBase
+from tests.slicing import TestSlicing
 from typing import List
 
 
-class TestSimpleServer(SlicingTestBase):
+class TestSimpleServer(TestSlicing):
     def test_simple_http_server_01(
         self, filenames: List[str] = ["simple_http_server-01"]
     ) -> None:
@@ -13,6 +13,7 @@ class TestSimpleServer(SlicingTestBase):
             call_chains=[["handle_get_request"], ["handle_post_request"]],
             filenames=filenames,
         )
+        return
 
     def test_simple_http_server_02(
         self, filenames: List[str] = ["simple_http_server-02"]
@@ -26,6 +27,7 @@ class TestSimpleServer(SlicingTestBase):
             ],
             filenames=filenames,
         )
+        return
 
     def test_simple_http_server_03(
         self, filenames: List[str] = ["simple_http_server-03"]
@@ -65,6 +67,7 @@ class TestSimpleServer(SlicingTestBase):
             ],
             filenames=filenames,
         )
+        return
 
     def test_simple_http_server_04(
         self, filenames: List[str] = ["simple_http_server-04"]
@@ -100,3 +103,4 @@ class TestSimpleServer(SlicingTestBase):
             ],
             filenames=filenames,
         )
+        return

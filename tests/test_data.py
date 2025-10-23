@@ -8,26 +8,28 @@ from mole.core.data import (
     TextSetting,
 )
 from mole.services.config import ConfigService
+from typing import Generator, IO
 import pytest
 import tempfile
 
 
 @pytest.fixture
-def temp_file():
+def temp_file() -> Generator[IO[str], None, None]:
     """Provides a temporary file for testing."""
     tf = tempfile.NamedTemporaryFile(mode="w+", delete=False)
     yield tf
     tf.close()
+    return
 
 
 @pytest.fixture
-def config_service():
+def config_service() -> ConfigService:
     """Provides a ConfigService instance."""
     return ConfigService()
 
 
 @pytest.fixture
-def test_config():
+def test_config() -> Configuration:
     """Provides a test Configuration object."""
     return Configuration(
         sources={
@@ -181,7 +183,10 @@ class TestData:
     """
 
     def test_serialize_configuration(
-        self, temp_file, config_service, test_config
+        self,
+        temp_file: IO[str],
+        config_service: ConfigService,
+        test_config: Configuration,
     ) -> None:
         ori_config: Configuration = test_config
         # Export configuration to temporary file (serialize)
@@ -191,3 +196,4 @@ class TestData:
         des_config = config_service.import_config(temp_file.name)
         # Assert
         assert ori_config == des_config, "Serialization error of 'Configuration'"
+        return

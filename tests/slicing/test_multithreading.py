@@ -1,10 +1,10 @@
 from __future__ import annotations
-from tests.slicing.conftest import SlicingTestBase
+from tests.slicing import TestSlicing
 from typing import List
 import binaryninja as bn
 
 
-class TestMultiThreading(SlicingTestBase):
+class TestMultiThreading(TestSlicing):
     def test_consistency_01(
         self,
         filenames: List[str] = [
@@ -74,8 +74,16 @@ class TestMultiThreading(SlicingTestBase):
             paths = self.get_paths(bv, max_workers=1, enable_all_funs=True)
             for max_workers in [2, 4, 8, -1]:
                 paths_mt = self.get_paths(bv, max_workers, enable_all_funs=True)
-                assert len(paths) == len(paths_mt), (
+                for path in paths:
+                    if path in paths_mt:
+                        paths_mt.remove(path)
+                    else:
+                        assert False, (
+                            f"Inconsistent results with {max_workers:d} workers"
+                        )
+                assert not paths_mt, (
                     f"Inconsistent results with {max_workers:d} workers"
                 )
             # Close binary
             bv.file.close()
+        return
