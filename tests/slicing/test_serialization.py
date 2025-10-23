@@ -1,6 +1,6 @@
 from __future__ import annotations
 from mole.core.data import Path
-from tests.slicing import TestSlicing
+from tests.slicing.conftest import TestSlicing
 from typing import List
 import binaryninja as bn
 
