@@ -14,9 +14,9 @@ To cross-compile the test binaries for a specific target architecture, specify t
 CC=arm-linux-gcc CXX=arm-linux-g++ EXT=.linux-armv7 make all
 ```
 ## Run Tests
-Before running the tests, make sure you are in the tests directory:
+Before running the tests, make sure you are back in the *Mole* project's root directory:
 ```bash
-cd tests/
+cd ../../
 ```
 #### Run All Tests
 ```bash
