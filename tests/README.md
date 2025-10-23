@@ -1,16 +1,23 @@
 # Tests
 This directory contains the test suite for the *Mole* project.
 ## Build Test Binaries
-Before running tests, compile the test binaries:
+Before running the tests, you must first built the test binaries. Navigate to the tests data directory:
 ```bash
 cd tests/data/
-make
 ```
-To cross-compile the binaries for a specific target architecture:
+Then, compile all test binaries:
 ```bash
-CC=arm-linux-gcc CXX=arm-linux-g++ EXT=.linux-armv7 make
+make all
+```
+To cross-compile the test binaries for a specific target architecture, specify the appropriate compilers. You may also define a custom file extension to distinguish the resulting binaries. For example:
+```bash
+CC=arm-linux-gcc CXX=arm-linux-g++ EXT=.linux-armv7 make all
 ```
 ## Run Tests
+Before running the tests, make sure you are in the tests directory:
+```bash
+cd tests/
+```
 #### Run All Tests
 ```bash
 pytest
