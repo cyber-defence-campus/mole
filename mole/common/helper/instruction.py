@@ -292,7 +292,7 @@ class InstructionHelper:
                     bn.MediumLevelILTailcallSsa,
                 ),
             ):
-                return inst
+                return inst.ssa_form
             return None
 
         return [i for i in inst.traverse(find_mlil_call_inst) if i is not None]
