@@ -116,10 +116,10 @@ class MediumLevelILBackwardSlicer:
                     if func is None or func.mlil is None or func.mlil.ssa_form is None:
                         continue
                     func = func.mlil.ssa_form
-                    for inst in func.instructions:
-                        if inst.address == code_ref.address:
+                    for caller_inst in func.instructions:
+                        if caller_inst.address == code_ref.address:
                             call_insts.update(
-                                InstructionHelper.get_mlil_call_insts(inst)
+                                InstructionHelper.get_mlil_call_insts(caller_inst)
                             )
         # Iterate the current function's parameters
         for param_idx, param_var in enumerate(
