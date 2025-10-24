@@ -32,7 +32,7 @@ class TestSlicing:
     """
 
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self) -> None:
         log.change_properties(level="debug", runs_headless=True)
         config = ConfigService().load_config()
         config.sources = {
@@ -41,6 +41,7 @@ class TestSlicing:
         config.sinks = {"libc": config.sinks["libc"] if "libc" in config.sinks else {}}
         self._model = ConfigModel(config)
         self._ext = os.environ.get("EXT", None)
+        return
 
     def load_files(self, names: List[str]) -> List[str]:
         """
@@ -61,7 +62,7 @@ class TestSlicing:
     def get_paths(
         self,
         bv: bn.BinaryView,
-        max_workers: int | None = -1,
+        max_workers: int | None = 1,
         max_call_level: int = 5,
         max_slice_depth: int = -1,
         max_memory_slice_depth: int = -1,
@@ -128,3 +129,4 @@ class TestSlicing:
             assert not _call_chains, "invalid call chains"
             # Close test binary
             bv.file.close()
+        return
