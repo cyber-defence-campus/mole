@@ -53,11 +53,6 @@ class MediumLevelILBackwardSlicer:
         if inst_def:
             self._slice_backwards(inst_def)
             return
-        # NOTE:
-        # - We do not have any caller site for MyChildStruct::my_virt_func2
-        # - We only have a data reference to MyChildStruct's vtable
-        # - We need to check whether the data reference is a function pointer
-        # - If so, we need to find all call sites to that function pointer
         # Determine all instructions calling the current function
         call_insts: Set[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa] = set()
         for caller_site in inst.function.source_function.caller_sites:
@@ -90,6 +85,42 @@ class MediumLevelILBackwardSlicer:
                     call_insts.update(
                         InstructionHelper.get_mlil_call_insts(caller_inst)
                     )
+        # NOTE: Determine all instructions indirectly calling the current function
+        # - We do not have any caller site for MyChildStruct::my_virt_func2
+        # - We only have a data reference to MyChildStruct's vtable
+        # - We need to check whether the data reference is a function pointer
+        # - If so, we need to find all call sites to that function pointer
+        # TODO:
+        # - Something is still wrong
+        # - Remove code reusage with above code and `get_code_refs`
+        # - Add comments
+        data_refs = self._bv.get_data_refs(inst.function.source_function.start)
+        for data_ref in data_refs:
+            # Ensure valid function pointer
+            func_ptr = self._bv.read_pointer(data_ref)
+            func = self._bv.get_function_at(func_ptr)
+            if func is None:
+                continue
+            # Ensure valid data variable
+            data_var = self._bv.get_data_var_at(data_ref)
+            if data_var is None:
+                continue
+            #
+            name = data_var.type.name
+            offset = data_ref - data_var.address
+            for code_ref in self._bv.get_code_refs_for_type_field(name, offset):
+                funcs = self._bv.get_functions_containing(code_ref.address)
+                if funcs is None:
+                    continue
+                for func in funcs:
+                    if func is None or func.mlil is None or func.mlil.ssa_form is None:
+                        continue
+                    func = func.mlil.ssa_form
+                    for inst in func.instructions:
+                        if inst.address == code_ref.address:
+                            call_insts.update(
+                                InstructionHelper.get_mlil_call_insts(inst)
+                            )
         # Iterate the current function's parameters
         for param_idx, param_var in enumerate(
             inst.function.source_function.parameter_vars,
