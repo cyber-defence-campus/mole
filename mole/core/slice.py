@@ -116,6 +116,7 @@ class MediumLevelILBackwardSlicer:
                     if func is None or func.mlil is None or func.mlil.ssa_form is None:
                         continue
                     func = func.mlil.ssa_form
+                    # TODO: Problem in armv7
                     for caller_inst in func.instructions:
                         if caller_inst.address == code_ref.address:
                             call_insts.update(
