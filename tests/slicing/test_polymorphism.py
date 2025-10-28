@@ -9,8 +9,8 @@ class TestPolymorphism(TestSlicing):
             src=[("getenv", None)],
             snk=[("system", 1), ("popen", 1)],
             call_chains=[
-                ["MyParentStruct::my_func", "main"],
-                ["MyChildStruct::my_virt_func2", "main"],
+                ["MyParent::my_func", "main"],
+                ["MyChild::my_virt_func2", "main"],
             ],
             filenames=filenames,
         )

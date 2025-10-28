@@ -1,35 +1,37 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 /*
 Testcase Description:
 - Virtual functions
 */
 
-struct MyParentStruct {
+class MyParent {
+public:
     __attribute__ ((noinline, optimize("O0")))
     int my_func(char* cmd) {
-        printf("MyParentStruct::my_func\n");
+        printf("MyParent::my_func\n");
         return system(cmd);
     }
 
     __attribute__ ((noinline, optimize("O0")))
     virtual void my_virt_func1(char* cmd) {
-        printf("MyParentStruct::my_virt_func1\n");
+        printf("MyParent::my_virt_func1\n");
         return;
     }
 
     __attribute__ ((noinline, optimize("O0")))
     virtual int my_virt_func2(char* cmd) {
-        printf("MyParentStruct::my_virt_func2\n");
+        printf("MyParent::my_virt_func2\n");
         return system(cmd);
     }
 };
 
-struct MyChildStruct : MyParentStruct {
+class MyChild : public MyParent {
+public:
     __attribute__ ((noinline, optimize("O0")))
     int my_func(char* cmd) {
-        printf("MyChildStruct::my_func\n");
+        printf("MyChild::my_func\n");
         FILE* fp = popen(cmd, "r");
         if(fp == NULL) {
             return EXIT_FAILURE;
@@ -39,14 +41,14 @@ struct MyChildStruct : MyParentStruct {
     }
 
     __attribute__ ((noinline, optimize("O0")))
-    void my_virt_func1(char* cmd) {
-        printf("MyChildStruct::my_virt_func1\n");
+    void my_virt_func1(char* cmd) override {
+        printf("MyChild::my_virt_func1\n");
         return;
     }
 
     __attribute__ ((noinline, optimize("O0")))
-    int my_virt_func2(char* cmd) {
-        printf("MyChildStruct::my_virt_func2\n");
+    int my_virt_func2(char* cmd) override {
+        printf("MyChild::my_virt_func2\n");
         FILE* fp = popen(cmd, "r");
         if(fp == NULL) {
             return EXIT_FAILURE;
@@ -57,7 +59,7 @@ struct MyChildStruct : MyParentStruct {
 };
 
 int main(int argc, char *argv[]) {
-    MyParentStruct* p = new MyChildStruct();
+    MyParent* p = new MyChild();
     char* cmd = getenv("CMD");
     if(cmd != NULL) {
         // Non-virtual function resolved statically AT COMPILE-TIME based on pointer type
