@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import log
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Callable, Dict, Set
+from typing import Callable, Dict
 import binaryninja as bn
 
 
@@ -54,74 +54,10 @@ class MediumLevelILBackwardSlicer:
             self._slice_backwards(inst_def)
             return
         # Determine all instructions calling the current function
-        call_insts: Set[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa] = set()
-        for caller_site in inst.function.source_function.caller_sites:
-            # Ensure the caller site is a valid function
-            caller_func = caller_site.function
-            if caller_func is None:
-                log.warn(
-                    self._tag,
-                    f"Caller site at address 0x{caller_site.address:x} contains no valid function",
-                )
-                continue
-            # Ensure the caller site has a valid MLIL representation
-            if (
-                caller_func.mlil is None or caller_func.mlil.ssa_form is None
-            ) and caller_func.analysis_skipped:
-                log.info(
-                    self._tag,
-                    f"Forcing analysis of caller site at address 0x{caller_site.address:x}",
-                )
-                caller_func.analysis_skipped = False
-                if caller_func.mlil is None or caller_func.mlil.ssa_form is None:
-                    log.warn(
-                        self._tag,
-                        f"Caller site at address 0x{caller_site.address:x} contains no valid function even after forcing analysis",
-                    )
-                    continue
-            # Find all instructions calling the current function
-            for caller_inst in caller_func.mlil.ssa_form.instructions:
-                if caller_inst.address == caller_site.address:
-                    call_insts.update(
-                        InstructionHelper.get_mlil_call_insts(caller_inst)
-                    )
-        # NOTE: Determine all instructions indirectly calling the current function
-        # - We do not have any caller site for MyChildStruct::my_virt_func2
-        # - We only have a data reference to MyChildStruct's vtable
-        # - We need to check whether the data reference is a function pointer
-        # - If so, we need to find all call sites to that function pointer
-        # TODO:
-        # - Something is still wrong
-        # - Remove code reusage with above code and `get_code_refs`
-        # - Add comments
-        data_refs = self._bv.get_data_refs(inst.function.source_function.start)
-        for data_ref in data_refs:
-            # Ensure valid function pointer
-            func_ptr = self._bv.read_pointer(data_ref)
-            func = self._bv.get_function_at(func_ptr)
-            if func is None:
-                continue
-            # Ensure valid data variable
-            data_var = self._bv.get_data_var_at(data_ref)
-            if data_var is None:
-                continue
-            #
-            name = data_var.type.name
-            offset = data_ref - data_var.address
-            for code_ref in self._bv.get_code_refs_for_type_field(name, offset):
-                funcs = self._bv.get_functions_containing(code_ref.address)
-                if funcs is None:
-                    continue
-                for func in funcs:
-                    if func is None or func.mlil is None or func.mlil.ssa_form is None:
-                        continue
-                    func = func.mlil.ssa_form
-                    # TODO: Problem in armv7
-                    for caller_inst in func.instructions:
-                        if caller_inst.address == code_ref.address:
-                            call_insts.update(
-                                InstructionHelper.get_mlil_call_insts(caller_inst)
-                            )
+        call_insts = FunctionHelper.get_mlil_direct_call_insts(inst.function)
+        call_insts.update(
+            FunctionHelper.get_mlil_indirect_call_insts(self._bv, inst.function)
+        )
         # Iterate the current function's parameters
         for param_idx, param_var in enumerate(
             inst.function.source_function.parameter_vars,

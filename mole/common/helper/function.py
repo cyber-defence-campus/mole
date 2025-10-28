@@ -1,7 +1,8 @@
 from __future__ import annotations
 from collections import deque
 from functools import lru_cache
-from typing import Dict, List, Optional, Tuple
+from mole.common.helper.instruction import InstructionHelper
+from typing import Dict, List, Optional, Set, Tuple
 import binaryninja as bn
 
 
@@ -35,6 +36,120 @@ class FunctionHelper:
                 case bn.MediumLevelILRet() | bn.MediumLevelILTailcallSsa():
                     ret_insts.append(inst)
         return ret_insts
+
+    @staticmethod
+    def get_mlil_direct_call_insts(
+        func: bn.MediumLevelILFunction,
+    ) -> Set[
+        bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
+        | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa
+    ]:
+        """
+        This method returns a set of MLIL call instructions that directly call the function `func`.
+        """
+        call_insts: Set[
+            bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntypedSsa
+        ] = set()
+        # Iterate all caller sites of (instructions calling) `func`
+        for caller_site in func.source_function.caller_sites:
+            caller_func = caller_site.function
+            # Ensure caller function is valid
+            if caller_func is None:
+                continue
+            # Ensure caller function has a valid MLIL SSA representation
+            if (
+                caller_func.mlil is None or caller_func.mlil.ssa_form is None
+            ) and caller_func.analysis_skipped:
+                caller_func.analysis_skipped = False
+                if caller_func.mlil is None or caller_func.mlil.ssa_form is None:
+                    continue
+            # Iterate all call sites of (instructions calling) the caller function
+            for call_site in caller_func.call_sites:
+                if call_site != caller_site:
+                    continue
+                for inst in call_site.mlils:
+                    call_insts.update(InstructionHelper.get_mlil_call_insts(inst))
+        return call_insts
+
+    @staticmethod
+    def get_mlil_indirect_call_insts(
+        bv: bn.BinaryView,
+        func: bn.MediumLevelILFunction,
+    ) -> Set[
+        bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
+        | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa
+    ]:
+        """
+        This method returns a set of MLIL call instructions that indirectly call the function
+        `func`.
+        """
+        call_insts: Set[
+            bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntypedSsa
+        ] = set()
+        # Iterate all data references of `func`
+        data_refs = bv.get_data_refs(func.source_function.start)
+        for data_ref in data_refs:
+            # Ensure a valid function pointer is stored at the data reference
+            func_ptr = bv.read_pointer(data_ref)
+            func = bv.get_function_at(func_ptr)
+            if func is None:
+                continue
+            # Ensure a valid data variable is stored at the data reference
+            data_var = bv.get_data_var_at(data_ref)
+            if data_var is None:
+                continue
+            # Iterate all code references to the data variable's referenced field
+            name = data_var.type.name
+            offset = data_ref - data_var.address
+            for code_ref in bv.get_code_refs_for_type_field(name, offset):
+                # Iterate all functions containing the code reference
+                for ref_func in bv.get_functions_containing(code_ref.address):
+                    # Ensure rereferenced function is valid
+                    if ref_func is None:
+                        continue
+                    # Ensure referenced function has a valid MLIL SSA representation
+                    if (
+                        ref_func.mlil is None or ref_func.mlil.ssa_form is None
+                    ) and ref_func.analysis_skipped:
+                        ref_func.analysis_skipped = False
+                        if ref_func.mlil is None or ref_func.mlil.ssa_form is None:
+                            continue
+                    # Iterate all call sites of (instructions calling) the referenced function
+                    ref_func = ref_func.mlil.ssa_form
+                    for call_site in ref_func.source_function.call_sites:
+                        for inst in call_site.mlils:
+                            for call_inst in InstructionHelper.get_mlil_call_insts(
+                                inst
+                            ):
+                                # Indirect call
+                                if isinstance(call_inst.dest, bn.MediumLevelILVarSsa):
+                                    # Get definition of call destination variable
+                                    call_dest_def = (
+                                        call_inst.dest.function.get_ssa_var_definition(
+                                            call_inst.dest.var
+                                        )
+                                    )
+                                    # Store call instruction if its definition address matches the
+                                    # code reference
+                                    if (
+                                        call_dest_def
+                                        and call_dest_def.address == code_ref.address
+                                    ):
+                                        call_insts.add(call_inst)
+                                # Store call instruction if its address matches the code reference
+                                if call_inst.address == code_ref.address:
+                                    call_insts.add(call_inst)
+        return call_insts
 
     @staticmethod
     def get_mlil_param_insts(
