@@ -54,9 +54,9 @@ class MediumLevelILBackwardSlicer:
             self._slice_backwards(inst_def)
             return
         # Determine all instructions calling the current function
-        call_insts = FunctionHelper.get_mlil_direct_call_insts(inst.function)
-        call_insts.update(
-            FunctionHelper.get_mlil_indirect_call_insts(self._bv, inst.function)
+        direct_call_insts = FunctionHelper.get_mlil_direct_call_insts(inst.function)
+        indirect_call_insts = FunctionHelper.get_mlil_indirect_call_insts(
+            self._bv, inst.function
         )
         # Iterate the current function's parameters
         for param_idx, param_var in enumerate(
@@ -69,7 +69,7 @@ class MediumLevelILBackwardSlicer:
             ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
             # Follow the parameter to all possible callers if we did not go down the call graph
             if not self._call_tracker.is_going_downwards():
-                for call_inst in call_insts:
+                for call_inst in direct_call_insts | indirect_call_insts:
                     from_inst = call_inst
                     to_inst = call_inst.params[param_idx - 1]
                     recursion = self._call_tracker.push_func(
