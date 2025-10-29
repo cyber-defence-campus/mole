@@ -4,7 +4,7 @@ from mole.core.data import Path
 from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
 from mole.services.path import PathService
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 import atexit
 import binaryninja as bn
 import os
@@ -89,11 +89,13 @@ class TestSlicing:
         snk: List[Tuple[str, Optional[int]]],
         call_chains: List[List[str]],
         filenames: List[str],
+        bv_callback: Optional[Callable[[bn.BinaryView], None]] = lambda bv: None,
     ) -> None:
         for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
             bv.update_analysis_and_wait()
+            bv_callback(bv)
             # Find paths in test binary with backward slicing
             paths = self.get_paths(bv)
             # Determine call chains
