@@ -589,6 +589,9 @@ class MediumLevelILBackwardSlicer:
                                         ]:
                                             from_inst = inst
                                             to_inst = dest_func_inst
+                                            followed_mem_def_inst = self._call_tracker.is_in_current_mem_def_insts(
+                                                inst, offset=-1
+                                            )
                                             recursion = self._call_tracker.push_func(
                                                 from_inst, to_inst
                                             )
@@ -598,11 +601,72 @@ class MediumLevelILBackwardSlicer:
                                                 )
                                             )
                                             if not recursion:
+                                                # Slice callee's return instructions
                                                 log.debug(
                                                     self._tag,
                                                     f"Follow return instruction '{to_inst_info:s}' of function '{dest_inst_info:s}'",
                                                 )
                                                 self._slice_backwards(to_inst)
+                                                # TODO: Slice callee's output parameters if we
+                                                # followed the call due to a pointer parameter
+                                                # TODO: Test the following idea:
+                                                # - Iterate mem_def_insts
+                                                # - Does a mem_def_inst corresond to a HLIL_ASSIGN with dest HLIL_DEREF of the relevant output parameter?
+                                                # - If so proceed slicing the mem_def_inst
+                                                if followed_mem_def_inst:
+                                                    # Iterate all memory defining instructions
+                                                    mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                                                        dest_func,
+                                                        to_inst.ssa_memory_version,
+                                                        self._max_memory_slice_depth,
+                                                    )
+                                                    for mem_def_inst in mem_def_insts:
+                                                        mem_def_inst_info = InstructionHelper.get_inst_info(
+                                                            mem_def_inst, False
+                                                        )
+                                                        # Check if memory defining instruction was followed before
+                                                        if self._call_tracker.is_in_current_mem_def_insts(
+                                                            mem_def_inst
+                                                        ):
+                                                            log.debug(
+                                                                self._tag,
+                                                                f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                                                            )
+                                                            continue
+                                                        match mem_def_inst:
+                                                            case bn.MediumLevelILStoreSsa(
+                                                                size=store_dest_size
+                                                            ):
+                                                                # Match HLIL instructions
+                                                                if (
+                                                                    mem_def_inst.hlil
+                                                                    is None
+                                                                ):
+                                                                    continue
+                                                                hlil_assign_inst = mem_def_inst.hlil.ssa_form
+                                                                match hlil_assign_inst:
+                                                                    # TODO:
+                                                                    case bn.HighLevelILAssignMemSsa(
+                                                                        dest=bn.HighLevelILDerefSsa(
+                                                                            src=bn.HighLevelILVarSsa(
+                                                                                var=dest_var
+                                                                            )
+                                                                        )
+                                                                    ):
+                                                                        if (
+                                                                            dest_var.var
+                                                                            in dest_func.source_function.parameter_vars
+                                                                        ):
+                                                                            dest_var_info = VariableHelper.get_var_info(
+                                                                                dest_var
+                                                                            )
+                                                                            log.debug(
+                                                                                self._tag,
+                                                                                f"Follow instruction '{mem_def_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
+                                                                            )
+                                                                            self._slice_backwards(
+                                                                                mem_def_inst
+                                                                            )
                                             else:
                                                 log.debug(
                                                     self._tag,
