@@ -2,7 +2,7 @@ from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import List, Set
+from typing import List, Optional
 import binaryninja as bn
 import networkx as nx
 
@@ -18,7 +18,7 @@ class MediumLevelILCallFrame:
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
         self.last_inst: bn.MediumLevelILInstruction = None
         self.inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
-        self.mem_def_insts: Set[bn.MediumLevelILInstruction] = set()
+        self.mem_def_insts: List[bn.MediumLevelILInstruction] = []
         return
 
     def __eq__(self, other: MediumLevelILCallFrame) -> bool:
@@ -64,19 +64,43 @@ class MediumLevelILCallTracker:
         """
         return self._inst_graph
 
-    def is_in_current_call_frame(self, inst: bn.MediumLevelILInstruction) -> bool:
+    def is_in_current_call_frame(
+        self, inst: bn.MediumLevelILInstruction, offset: Optional[int] = None
+    ) -> bool:
         """
         This method checks if the given instruction `inst` is included in the instruction stack of
-        the frame at top of the call stack.
+        the frame at top of the call stack. If `offset` is provided, it checks if `inst` is equal to
+        the instruction at that offset.
         """
-        return inst in self._call_stack[-1].inst_stack if self._call_stack else False
+        if offset is None:
+            return (
+                inst in self._call_stack[-1].inst_stack if self._call_stack else False
+            )
+        return (
+            inst == self._call_stack[-1].inst_stack[offset]
+            if self._call_stack and self._call_stack[-1].inst_stack
+            else False
+        )
 
-    def is_in_current_mem_def_insts(self, inst: bn.MediumLevelILInstruction) -> bool:
+    def is_in_current_mem_def_insts(
+        self, inst: bn.MediumLevelILInstruction, offset: Optional[int] = None
+    ) -> bool:
         """
         This method checks if the given instruction `inst` is included in the memory definition
-        instructions of the frame at the top of the call stack.
+        instructions of the frame at the top of the call stack. If `offset` is provided, it checks
+        if `inst` is equal to the memory definition instruction at that offset.
         """
-        return inst in self._call_stack[-1].mem_def_insts if self._call_stack else False
+        if offset is None:
+            return (
+                inst in self._call_stack[-1].mem_def_insts
+                if self._call_stack
+                else False
+            )
+        return (
+            inst == self._call_stack[-1].mem_def_insts[offset]
+            if self._call_stack and self._call_stack[-1].mem_def_insts
+            else False
+        )
 
     def is_going_downwards(self) -> bool:
         """
@@ -195,8 +219,8 @@ class MediumLevelILCallTracker:
         This method pushes the given instruction `inst` to the memory definition instructions of
         the call frame on the top of the call stack.
         """
-        if self._call_stack:
-            self._call_stack[-1].mem_def_insts.add(inst)
+        if self._call_stack and inst not in self._call_stack[-1].mem_def_insts:
+            self._call_stack[-1].mem_def_insts.append(inst)
         return
 
     def push_param(self, param_idx: int) -> None:
