@@ -61,7 +61,7 @@ public:
     }
 };
 
-__attribute__ ((noinline, optimize("O0")))
+__attribute__ ((noinline, optimize("O3")))
 int main(int argc, char *argv[]) {
     char* p_name = getenv("PARENT_NAME");
     if(p_name != NULL) {

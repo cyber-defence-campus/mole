@@ -72,7 +72,9 @@ class TestObjectOriented(TestSlicing):
         )
         return
 
-    @pytest.mark.xfail(reason="Mole fails to track member variable `this->name`")
+    @pytest.mark.xfail(
+        reason="Mole fails to track def-site MLIL_STORE_STRUCT (in constructor) of use-site MLIL_LOAD_STRUCT for member variable `this->name`."
+    )
     def test_object_oriented_03(
         self, filenames: List[str] = ["object_oriented-03"]
     ) -> None:
