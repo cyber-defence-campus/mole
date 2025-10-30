@@ -36,6 +36,9 @@ class SymbolHelper:
         for symbol_name in symbol_names:
             for symbol in bv.symbols.get(symbol_name, []):
                 # Check if the symbol is in the PE sections .idata
+                rdata = bv.sections.get(".rdata")
+                in_rdata = rdata.start <= symbol.address < rdata.end if rdata else False
+                # Check if the symbol is in the PE sections .idata
                 idata = bv.sections.get(".idata")
                 in_idata = idata.start <= symbol.address < idata.end if idata else False
                 # Check if the symbol is in the PE sections .synthetic_builtins
@@ -48,7 +51,7 @@ class SymbolHelper:
                 # Check if there is code at the symbol address
                 in_code = bv.get_function_at(symbol.address) is not None
                 # Ignore symbols that are neither in code, the .idata or .synthetic_builtins sections
-                if not (in_code or in_idata or in_synthetic_builtins):
+                if not (in_code or in_rdata or in_idata or in_synthetic_builtins):
                     continue
                 # Store code references
                 mlil_insts: Set[bn.MediumLevelILInstruction] = mlil_ssa_code_refs.get(
