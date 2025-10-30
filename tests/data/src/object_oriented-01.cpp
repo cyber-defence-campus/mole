@@ -17,17 +17,17 @@ public:
     __attribute__ ((noinline, optimize("O0")))
     MyParent(const char* name) {
         this->name = name;
-        cout << "MyParent Constructor: Hello " << name << "!" << endl;
+        cout << "MyParent Constructor: Hello " << this->name << "!" << endl;
     }
 
     __attribute__ ((noinline, optimize("O0")))
     ~MyParent() {
-        cout << "MyParent Destructor: Goodbye " << name << "!" << endl;
+        cout << "MyParent Destructor: Goodbye " << this->name << "!" << endl;
     }
 
     __attribute__ ((noinline, optimize("O0")))
     void my_func(const char* cmd) {
-        cout << "MyParent::my_func: " << name << " calls `system('" << cmd << "')`!" << endl;
+        cout << "MyParent::my_func: " << this->name << " calls `system('" << cmd << "')`!" << endl;
         system(cmd);
     }
 };
@@ -36,17 +36,17 @@ class MyChild : public MyParent {
 public:
     __attribute__ ((noinline, optimize("O0")))
     MyChild(const char* name) : MyParent(name) {
-        cout << "MyChild Constructor: Hello " << name << "!" << endl;
+        cout << "MyChild Constructor: Hello " << this->name << "!" << endl;
     }
 
     __attribute__ ((noinline, optimize("O0")))
     ~MyChild() {
-        cout << "MyChild Destructor: Goodbye " << name << "!" << endl;
+        cout << "MyChild Destructor: Goodbye " << this->name << "!" << endl;
     }
 
     __attribute__ ((noinline, optimize("O0")))
     void my_func(const char* cmd) {
-        cout << "MyChild::my_func: " << name << " calls `popen('" << cmd << "', 'r')`!" << endl;
+        cout << "MyChild::my_func: " << this->name << " calls `popen('" << cmd << "', 'r')`!" << endl;
         FILE* fp = popen(cmd, "r");
         if(fp != NULL) {
             pclose(fp);
@@ -54,6 +54,7 @@ public:
     }
 };
 
+__attribute__ ((noinline, optimize("O3")))
 int main(int argc, char *argv[]) {
     MyParent* p = new MyParent("Alice");
     MyParent* c = new MyChild("Bob");

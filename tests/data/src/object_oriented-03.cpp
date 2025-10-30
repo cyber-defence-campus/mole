@@ -3,10 +3,13 @@
 
 using namespace std;
 
+#define MAX_CMD_LENGTH 256
+
 /*
 Testcase Description:
 - Inheritance
 - With virtual functions (polymorphism)
+- Using member variable assigned in constructor
 */
 
 class MyParent {
@@ -26,8 +29,10 @@ public:
     }
 
     __attribute__ ((noinline, optimize("O0")))
-    virtual void my_func(const char* cmd) {
-        cout << "MyParent::my_func: " << this->name << " calls `system('" << cmd << "')`!" << endl;
+    virtual void my_func() {
+        char cmd[MAX_CMD_LENGTH];
+        snprintf(cmd, sizeof(cmd), "echo Hello %s!", this->name);
+        cout << "MyParent::my_func: " << this->name << " calls `system('" << string(cmd) << "'`!" << endl;
         system(cmd);
     }
 };
@@ -45,8 +50,10 @@ public:
     }
 
     __attribute__ ((noinline, optimize("O0")))
-    void my_func(const char* cmd) override {
-        cout << "MyChild::my_func: " << this->name << " calls `popen('" << cmd << "', 'r')`!" << endl;
+    void my_func() override {
+        char cmd[MAX_CMD_LENGTH];
+        snprintf(cmd, sizeof(cmd), "echo Hello %s!", this->name);
+        cout << "MyChild::my_func: " << this->name << " calls `popen('" << string(cmd) << "', 'r')`!" << endl;
         FILE* fp = popen(cmd, "r");
         if(fp != NULL) {
             pclose(fp);
@@ -54,16 +61,19 @@ public:
     }
 };
 
-__attribute__ ((noinline, optimize("O3")))
+__attribute__ ((noinline, optimize("O0")))
 int main(int argc, char *argv[]) {
-    MyParent* p = new MyParent("Alice");
-    MyParent* c = new MyChild("Bob");
-    char* cmd = getenv("CMD");
-    if(cmd != NULL) {
-        p->my_func(cmd);
-        c->my_func(cmd);
+    char* p_name = getenv("PARENT_NAME");
+    if(p_name != NULL) {
+        MyParent* p = new MyParent(p_name);
+        p->my_func();
+        delete p;
     }
-    delete p;
-    delete c;
+    char* c_name = getenv("CHILD_NAME");
+    if(c_name != NULL) {
+        MyParent* c = new MyChild(c_name);
+        c->my_func();
+        delete c;
+    }
     return EXIT_SUCCESS;
 }
