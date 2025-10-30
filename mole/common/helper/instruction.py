@@ -251,19 +251,26 @@ class InstructionHelper:
         | bn.MediumLevelILInstruction
         | bn.LowLevelILInstruction,
     ) -> List[
-        bn.MediumLevelILCall
-        | bn.MediumLevelILCallSsa
-        | bn.MediumLevelILTailcall
+        bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
         | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa
     ]:
         """
-        This method iterates through all sub-instructions of `inst` and returns all
-        corresponding MLIL call instructions.
+        This method iterates through all sub-instructions of `inst` and returns all corresponding
+        MLIL call instructions.
         """
 
         def find_mlil_call_inst(
-            inst: bn.HighLevelILInstruction | bn.MediumLevelILInstruction,
-        ) -> Optional[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa]:
+            inst: bn.HighLevelILInstruction
+            | bn.MediumLevelILInstruction
+            | bn.LowLevelILInstruction,
+        ) -> Optional[
+            bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntypedSsa
+        ]:
             # HLIL or LLIL
             if isinstance(
                 inst,
@@ -288,11 +295,15 @@ class InstructionHelper:
                 (
                     bn.MediumLevelILCall,
                     bn.MediumLevelILCallSsa,
+                    bn.MediumLevelILCallUntyped,
+                    bn.MediumLevelILCallUntypedSsa,
                     bn.MediumLevelILTailcall,
                     bn.MediumLevelILTailcallSsa,
+                    bn.MediumLevelILTailcallUntyped,
+                    bn.MediumLevelILTailcallUntypedSsa,
                 ),
             ):
-                return inst
+                return inst.ssa_form
             return None
 
         return [i for i in inst.traverse(find_mlil_call_inst) if i is not None]

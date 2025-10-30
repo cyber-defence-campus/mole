@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import log
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Callable, Dict, Set
+from typing import Callable, Dict
 import binaryninja as bn
 
 
@@ -54,37 +54,10 @@ class MediumLevelILBackwardSlicer:
             self._slice_backwards(inst_def)
             return
         # Determine all instructions calling the current function
-        call_insts: Set[bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa] = set()
-        for caller_site in inst.function.source_function.caller_sites:
-            # Ensure the caller site is a valid function
-            caller_func = caller_site.function
-            if caller_func is None:
-                log.warn(
-                    self._tag,
-                    f"Caller site at address 0x{caller_site.address:x} contains no valid function",
-                )
-                continue
-            # Ensure the caller site has a valid MLIL representation
-            if (
-                caller_func.mlil is None or caller_func.mlil.ssa_form is None
-            ) and caller_func.analysis_skipped:
-                log.info(
-                    self._tag,
-                    f"Forcing analysis of caller site at address 0x{caller_site.address:x}",
-                )
-                caller_func.analysis_skipped = False
-                if caller_func.mlil is None or caller_func.mlil.ssa_form is None:
-                    log.warn(
-                        self._tag,
-                        f"Caller site at address 0x{caller_site.address:x} contains no valid function even after forcing analysis",
-                    )
-                    continue
-            # Find all instructions calling the current function
-            for caller_inst in caller_func.mlil.ssa_form.instructions:
-                if caller_inst.address == caller_site.address:
-                    call_insts.update(
-                        InstructionHelper.get_mlil_call_insts(caller_inst)
-                    )
+        direct_call_insts = FunctionHelper.get_mlil_direct_call_insts(inst.function)
+        indirect_call_insts = FunctionHelper.get_mlil_indirect_call_insts(
+            self._bv, inst.function
+        )
         # Iterate the current function's parameters
         for param_idx, param_var in enumerate(
             inst.function.source_function.parameter_vars,
@@ -96,7 +69,7 @@ class MediumLevelILBackwardSlicer:
             ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
             # Follow the parameter to all possible callers if we did not go down the call graph
             if not self._call_tracker.is_going_downwards():
-                for call_inst in call_insts:
+                for call_inst in direct_call_insts | indirect_call_insts:
                     from_inst = call_inst
                     to_inst = call_inst.params[param_idx - 1]
                     recursion = self._call_tracker.push_func(
