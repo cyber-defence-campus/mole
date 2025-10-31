@@ -25,3 +25,9 @@ class TestFunctionOutParams(TestSlicing):
             filenames=filenames,
         )
         return
+
+    def test_function_out_params_03(
+        self, filenames: List[str] = ["function_out_params-03"]
+    ) -> None:
+        self.test_function_out_params_02(filenames)
+        return
