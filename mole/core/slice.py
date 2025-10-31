@@ -594,62 +594,63 @@ class MediumLevelILBackwardSlicer:
                                 ret_inst_info = InstructionHelper.get_inst_info(
                                     ret_inst, False
                                 )
-                                # Handle recursion
-                                recursion = self._call_tracker.push_func(inst, ret_inst)
-                                if recursion:
-                                    log.debug(
-                                        self._tag,
-                                        f"Do not follow return instruction '{ret_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                                # Slice callee's output parameters
+                                if followed_ptr_param:
+                                    # Iterate all memory defining instructions
+                                    mem_def_insts = (
+                                        FunctionHelper.get_ssa_memory_definitions(
+                                            dest_func,
+                                            ret_inst.ssa_memory_version,
+                                            self._max_memory_slice_depth,
+                                        )
                                     )
-                                else:
-                                    # Slice callee's output parameters
-                                    if followed_ptr_param:
-                                        # Iterate all memory defining instructions
-                                        mem_def_insts = (
-                                            FunctionHelper.get_ssa_memory_definitions(
-                                                dest_func,
-                                                ret_inst.ssa_memory_version,
-                                                self._max_memory_slice_depth,
+                                    for mem_def_inst in mem_def_insts:
+                                        mem_def_inst_info = (
+                                            InstructionHelper.get_inst_info(
+                                                mem_def_inst, False
                                             )
                                         )
-                                        for mem_def_inst in mem_def_insts:
-                                            mem_def_inst_info = (
-                                                InstructionHelper.get_inst_info(
-                                                    mem_def_inst, False
-                                                )
+                                        # Check if memory defining instruction was followed before
+                                        if self._call_tracker.is_in_current_mem_def_insts(
+                                            mem_def_inst
+                                        ):
+                                            log.debug(
+                                                self._tag,
+                                                f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                                             )
-                                            # Check if memory defining instruction was followed before
-                                            if self._call_tracker.is_in_current_mem_def_insts(
-                                                mem_def_inst
-                                            ):
-                                                log.debug(
-                                                    self._tag,
-                                                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
-                                                )
-                                                continue
-                                            # Ensure store instruction
-                                            if not isinstance(
-                                                mem_def_inst, bn.MediumLevelILStoreSsa
-                                            ):
-                                                continue
-                                            # Match HLIL instruction
-                                            if mem_def_inst.hlil is None:
-                                                continue
-                                            hlil_mem_def_inst = (
-                                                mem_def_inst.hlil.ssa_form
-                                            )
-                                            match hlil_mem_def_inst:
-                                                # Memory assignment to dereferenced variable
-                                                case bn.HighLevelILAssignMemSsa(
-                                                    dest=bn.HighLevelILDerefSsa(
-                                                        src=bn.HighLevelILVarSsa(
-                                                            var=dest_var
-                                                        )
+                                            continue
+                                        # Ensure store instruction
+                                        if not isinstance(
+                                            mem_def_inst, bn.MediumLevelILStoreSsa
+                                        ):
+                                            continue
+                                        # Match HLIL instruction
+                                        if mem_def_inst.hlil is None:
+                                            continue
+                                        match mem_def_inst.hlil.ssa_form:
+                                            # Memory assignment to dereferenced variable
+                                            case bn.HighLevelILAssignMemSsa(
+                                                dest=bn.HighLevelILDerefSsa(
+                                                    src=bn.HighLevelILVarSsa(
+                                                        var=dest_var
                                                     )
-                                                ):
-                                                    # Ensure we store to a parameter variable
-                                                    if not dest_var.var.is_parameter_variable:
-                                                        continue
+                                                )
+                                            ):
+                                                # Ensure we store to a parameter variable
+                                                if not dest_var.var.is_parameter_variable:
+                                                    continue
+                                                # Push callee and proceed slicing its output parameter writing instruction (if no recursion)
+                                                recursion = (
+                                                    self._call_tracker.push_func(
+                                                        inst, mem_def_inst
+                                                    )
+                                                )
+                                                if recursion:
+                                                    log.debug(
+                                                        self._tag,
+                                                        f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                                                    )
+                                                else:
                                                     dest_var_info = (
                                                         VariableHelper.get_ssavar_info(
                                                             dest_var
@@ -657,35 +658,69 @@ class MediumLevelILBackwardSlicer:
                                                     )
                                                     log.debug(
                                                         self._tag,
-                                                        f"Follow instruction '{mem_def_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
+                                                        f"Follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
                                                     )
                                                     self._slice_backwards(mem_def_inst)
-                                    # Slice callee's return instructions
+                                                # Get call level of the callee
+                                                call_level = (
+                                                    self._call_tracker.get_call_level()
+                                                )
+                                                # Get parameters reached in the callee
+                                                param_idxs = (
+                                                    self._call_tracker.pop_func()
+                                                )
+                                                # If maximum call level was reached in the callee, slice all
+                                                # parameters
+                                                if (
+                                                    self._max_call_level >= 0
+                                                    and abs(call_level)
+                                                    > self._max_call_level
+                                                ):
+                                                    for param in inst.params:
+                                                        self._slice_backwards(param)
+                                                # If maximum call level was not reached in the callee, slice only
+                                                # the specifically reached parameters
+                                                else:
+                                                    for param_idx in param_idxs:
+                                                        self._slice_backwards(
+                                                            inst.params[param_idx - 1]
+                                                        )
+                                # Slice callee's return instructions
+                                else:
+                                    # Push callee and proceed slicing its return instruction (if no recursion)
+                                    recursion = self._call_tracker.push_func(
+                                        inst, ret_inst
+                                    )
+                                    if recursion:
+                                        log.debug(
+                                            self._tag,
+                                            f"Do not follow return instruction '{ret_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                                        )
                                     else:
                                         log.debug(
                                             self._tag,
                                             f"Follow return instruction '{ret_inst_info:s}' of function '{dest_inst_info:s}'",
                                         )
                                         self._slice_backwards(ret_inst)
-                                # Get call level of the callee
-                                call_level = self._call_tracker.get_call_level()
-                                # Get parameters reached in the callee
-                                param_idxs = self._call_tracker.pop_func()
-                                # If maximum call level was reached in the callee, slice all
-                                # parameters
-                                if (
-                                    self._max_call_level >= 0
-                                    and abs(call_level) > self._max_call_level
-                                ):
-                                    for param in inst.params:
-                                        self._slice_backwards(param)
-                                # If maximum call level was not reached in the callee, slice only
-                                # the specifically reached parameters
-                                else:
-                                    for param_idx in param_idxs:
-                                        self._slice_backwards(
-                                            inst.params[param_idx - 1]
-                                        )
+                                    # Get call level of the callee
+                                    call_level = self._call_tracker.get_call_level()
+                                    # Get parameters reached in the callee
+                                    param_idxs = self._call_tracker.pop_func()
+                                    # If maximum call level was reached in the callee, slice all
+                                    # parameters
+                                    if (
+                                        self._max_call_level >= 0
+                                        and abs(call_level) > self._max_call_level
+                                    ):
+                                        for param in inst.params:
+                                            self._slice_backwards(param)
+                                    # If maximum call level was not reached in the callee, slice only
+                                    # the specifically reached parameters
+                                    else:
+                                        for param_idx in param_idxs:
+                                            self._slice_backwards(
+                                                inst.params[param_idx - 1]
+                                            )
                     # Indirect function calls
                     case bn.MediumLevelILVarSsa():
                         for param in inst.params:
