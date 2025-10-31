@@ -635,12 +635,6 @@ class MediumLevelILBackwardSlicer:
                                                             case bn.MediumLevelILStoreSsa(
                                                                 size=store_dest_size
                                                             ):
-                                                                # Ensure we store the size of a pointer
-                                                                if (
-                                                                    store_dest_size
-                                                                    != self._bv.arch.address_size
-                                                                ):
-                                                                    continue
                                                                 # Match HLIL instruction
                                                                 if (
                                                                     mem_def_inst.hlil
@@ -658,20 +652,18 @@ class MediumLevelILBackwardSlicer:
                                                                         )
                                                                     ):
                                                                         # Ensure we store to a parameter variable
-                                                                        if (
-                                                                            dest_var.var
-                                                                            in dest_func.source_function.parameter_vars
-                                                                        ):
-                                                                            dest_var_info = VariableHelper.get_ssavar_info(
-                                                                                dest_var
-                                                                            )
-                                                                            log.debug(
-                                                                                self._tag,
-                                                                                f"Follow instruction '{mem_def_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
-                                                                            )
-                                                                            self._slice_backwards(
-                                                                                mem_def_inst
-                                                                            )
+                                                                        if not dest_var.var.is_parameter_variable:
+                                                                            continue
+                                                                        dest_var_info = VariableHelper.get_ssavar_info(
+                                                                            dest_var
+                                                                        )
+                                                                        log.debug(
+                                                                            self._tag,
+                                                                            f"Follow instruction '{mem_def_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
+                                                                        )
+                                                                        self._slice_backwards(
+                                                                            mem_def_inst
+                                                                        )
                                             else:
                                                 log.debug(
                                                     self._tag,
