@@ -6,7 +6,7 @@
 
 /*
 Testcase Description:
-- Function with output parameter
+- Function with output parameter (int*)
 */
 
 char dest[BUF_SIZE];

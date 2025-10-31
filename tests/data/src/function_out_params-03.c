@@ -3,7 +3,7 @@
 
 /*
 Testcase Description:
-- Function with output parameter
+- Function with output parameter (char**)
 */
 
 __attribute__ ((noinline, optimize("O0")))
