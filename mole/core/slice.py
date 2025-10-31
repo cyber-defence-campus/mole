@@ -576,6 +576,11 @@ class MediumLevelILBackwardSlicer:
                         else:
                             dest_func = dest_func.mlil.ssa_form
                             dest_symb = dest_func.source_function.symbol
+                            followed_mem_def_inst = (
+                                self._call_tracker.is_in_current_mem_def_insts(
+                                    inst, offset=-1
+                                )
+                            )
                             for dest_func_inst in dest_func.instructions:
                                 match dest_func_inst:
                                     case (
@@ -589,9 +594,6 @@ class MediumLevelILBackwardSlicer:
                                         ]:
                                             from_inst = inst
                                             to_inst = dest_func_inst
-                                            followed_mem_def_inst = self._call_tracker.is_in_current_mem_def_insts(
-                                                inst, offset=-1
-                                            )
                                             recursion = self._call_tracker.push_func(
                                                 from_inst, to_inst
                                             )
@@ -607,12 +609,8 @@ class MediumLevelILBackwardSlicer:
                                                     f"Follow return instruction '{to_inst_info:s}' of function '{dest_inst_info:s}'",
                                                 )
                                                 self._slice_backwards(to_inst)
-                                                # TODO: Slice callee's output parameters if we
-                                                # followed the call due to a pointer parameter
-                                                # TODO: Test the following idea:
-                                                # - Iterate mem_def_insts
-                                                # - Does a mem_def_inst corresond to a HLIL_ASSIGN with dest HLIL_DEREF of the relevant output parameter?
-                                                # - If so proceed slicing the mem_def_inst
+                                                # Slice callee's output parameters if we followed
+                                                # the call due to a pointer parameter
                                                 if followed_mem_def_inst:
                                                     # Iterate all memory defining instructions
                                                     mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
@@ -637,15 +635,21 @@ class MediumLevelILBackwardSlicer:
                                                             case bn.MediumLevelILStoreSsa(
                                                                 size=store_dest_size
                                                             ):
-                                                                # Match HLIL instructions
+                                                                # Ensure we store the size of a pointer
+                                                                if (
+                                                                    store_dest_size
+                                                                    != self._bv.arch.address_size
+                                                                ):
+                                                                    continue
+                                                                # Match HLIL instruction
                                                                 if (
                                                                     mem_def_inst.hlil
                                                                     is None
                                                                 ):
                                                                     continue
-                                                                hlil_assign_inst = mem_def_inst.hlil.ssa_form
-                                                                match hlil_assign_inst:
-                                                                    # TODO:
+                                                                hlil_mem_def_inst = mem_def_inst.hlil.ssa_form
+                                                                match hlil_mem_def_inst:
+                                                                    # Memory assignment to dereferenced variable
                                                                     case bn.HighLevelILAssignMemSsa(
                                                                         dest=bn.HighLevelILDerefSsa(
                                                                             src=bn.HighLevelILVarSsa(
@@ -653,11 +657,12 @@ class MediumLevelILBackwardSlicer:
                                                                             )
                                                                         )
                                                                     ):
+                                                                        # Ensure we store to a parameter variable
                                                                         if (
                                                                             dest_var.var
                                                                             in dest_func.source_function.parameter_vars
                                                                         ):
-                                                                            dest_var_info = VariableHelper.get_var_info(
+                                                                            dest_var_info = VariableHelper.get_ssavar_info(
                                                                                 dest_var
                                                                             )
                                                                             log.debug(
