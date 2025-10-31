@@ -621,18 +621,28 @@ class MediumLevelILBackwardSlicer:
                                             continue
                                         # Ensure store instruction
                                         if not isinstance(
-                                            mem_def_inst, bn.MediumLevelILStoreSsa
+                                            mem_def_inst,
+                                            bn.MediumLevelILStoreSsa
+                                            | bn.MediumLevelILStoreStructSsa,
                                         ):
                                             continue
                                         # Match HLIL instruction
                                         if mem_def_inst.hlil is None:
                                             continue
-                                        match mem_def_inst.hlil.ssa_form:
+                                        hlil_mem_def_inst = mem_def_inst.hlil.ssa_form
+                                        match hlil_mem_def_inst:
                                             # Memory assignment to dereferenced variable
                                             case bn.HighLevelILAssignMemSsa(
-                                                dest=bn.HighLevelILDerefSsa(
-                                                    src=bn.HighLevelILVarSsa(
-                                                        var=dest_var
+                                                dest=(
+                                                    bn.HighLevelILDerefSsa(
+                                                        src=bn.HighLevelILVarSsa(
+                                                            var=dest_var
+                                                        )
+                                                    )
+                                                    | bn.HighLevelILDerefFieldSsa(
+                                                        src=bn.HighLevelILVarSsa(
+                                                            var=dest_var
+                                                        )
                                                     )
                                                 )
                                             ):
