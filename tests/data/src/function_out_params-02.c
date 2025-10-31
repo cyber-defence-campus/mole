@@ -9,7 +9,7 @@ Testcase Description:
 __attribute__ ((noinline))
 int get_cmd(char **out_cmd){
     char *env_cmd = getenv("CMD");
-    if (env_cmd != 0) {
+    if (env_cmd != NULL) {
         *out_cmd = env_cmd;
         return 0;
     }
