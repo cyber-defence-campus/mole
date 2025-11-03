@@ -37,3 +37,26 @@ class TestFunctionOutParams(TestSlicing):
     ) -> None:
         self.test_function_out_params_02(filenames)
         return
+
+    def test_function_out_params_05(
+        self, filenames: List[str] = ["function_out_params-05"]
+    ) -> None:
+        self.test_function_out_params_02(filenames)
+        return
+
+    def test_function_out_params_06(
+        self, filenames: List[str] = ["function_out_params-06"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("system", 1)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+        return
+
+    def test_function_out_params_07(
+        self, filenames: List[str] = ["function_out_params-07"]
+    ) -> None:
+        self.test_function_out_params_06(filenames)
+        return
