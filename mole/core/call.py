@@ -116,15 +116,14 @@ class MediumLevelILCallTracker:
 
     def push_func(
         self,
-        from_inst: bn.MediumLevelILInstruction,
         to_inst: bn.MediumLevelILInstruction,
         reverse: bool = False,
     ) -> bool:
         """
         This method creates a new call frame with the function `to_inst.function` and pushes it to
-        the top of the call stack. Also, it updates the call graph. If `reverse` is True, `func` is
-        considered to be the caller (not the callee). The function returns True if in case of a
-        recursion, False otherwise.
+        the top of the call stack. Also, it updates the call graph. If `reverse` is True,
+        `to_inst.function` is considered to be the caller (not the callee). The function returns
+        True in case of recursion, False otherwise.
         """
         # Get the return instruction's function
         func = to_inst.function
