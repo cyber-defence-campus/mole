@@ -6,21 +6,17 @@ Testcase Description:
 - Function with output parameter (char**)
 */
 
-__attribute__ ((noinline))
-int get_cmd(char **out_msg, char **out_cmd){
-    char *env_cmd = getenv("CMD");
-    if (env_cmd != NULL) {
-        *out_cmd = env_cmd;
+__attribute__ ((noinline, optimize("O0")))
+int check_cmd(char** cmd){
+    if(*cmd != NULL){
         return 0;
     }
-    *out_msg = getenv("MSG");
     return -1;
 }
 
 int main() {
-    char *msg = NULL;
-    char *cmd = NULL;
-    if (get_cmd(&msg, &cmd) == 0) {
+    char *cmd = getenv("CMD");
+    if (check_cmd(&cmd) == 0) {
         system(cmd);
     } else {
         fprintf(stderr, "CMD environment variable not set.\n");
