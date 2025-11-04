@@ -492,7 +492,7 @@ class MediumLevelILBackwardSlicer:
                             if dest_var.var == prev_var.var == var:
                                 log.debug(
                                     self._tag,
-                                    f"Follow source of instruction '{mem_def_inst_info:s}' since it assigns to an alias of '{var_info:s}'",
+                                    f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to '{var_info:s}'",
                                 )
                                 self._call_tracker.push_mem_def_inst(mem_def_inst)
                                 self._slice_backwards(mem_def_inst.src)

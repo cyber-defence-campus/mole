@@ -3,7 +3,7 @@
 
 /*
 Testcase Description:
-- Function with output parameter (char**)
+- Output parameter 1 (char**): written and influence on the sink
 */
 
 __attribute__ ((noinline))

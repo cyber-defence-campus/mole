@@ -3,7 +3,8 @@
 
 /*
 Testcase Description:
-- Function with output parameter (char**)
+- Output parameter 1 (char*) : written but no influence on the sink
+- Output parameter 2 (char**): not written and influence on the sink
 */
 
 __attribute__ ((noinline, optimize("O0")))
