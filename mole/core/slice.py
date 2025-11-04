@@ -95,7 +95,6 @@ class MediumLevelILBackwardSlicer:
                 self._call_tracker.push_param(param_idx)
         return
 
-    # TODO: Maybe to this in the call tracker?
     def _slice_backwards(
         self,
         inst: bn.MediumLevelILInstruction,
@@ -103,6 +102,11 @@ class MediumLevelILBackwardSlicer:
     ) -> None:
         """
         This method backward slices instruction `inst` based on its type.
+
+        `call_param_indxs` is a list of parameter indices used to distinguish whether we reached a
+        call instruction due to hitting specific parameters (in which case we proceed slicing the
+        definition sites of these output parameters) or due to hitting the call's return value (in
+        which case we procceed at all possible return instructions).
         """
         # Check if slicing should be cancelled
         if self._cancelled():
@@ -137,12 +141,11 @@ class MediumLevelILBackwardSlicer:
                 segment = self._bv.get_segment_at(constant)
                 if segment and segment.writable:
                     # Iterate all memory defining instructions
-                    mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                    for mem_def_inst in FunctionHelper.get_ssa_memory_definitions(
                         inst.function,
                         inst.ssa_memory_version,
                         self._max_memory_slice_depth,
-                    )
-                    for mem_def_inst in mem_def_insts:
+                    ):
                         mem_def_inst_info = InstructionHelper.get_inst_info(
                             mem_def_inst, False
                         )
@@ -191,12 +194,11 @@ class MediumLevelILBackwardSlicer:
             case bn.MediumLevelILLoadSsa(src=load_src_inst, size=load_src_size):
                 followed = False
                 # Iterate all memory defining instructions
-                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                for mem_def_inst in FunctionHelper.get_ssa_memory_definitions(
                     inst.function,
                     inst.ssa_memory_version,
                     self._max_memory_slice_depth,
-                )
-                for mem_def_inst in mem_def_insts:
+                ):
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
@@ -350,12 +352,11 @@ class MediumLevelILBackwardSlicer:
             ):
                 followed = False
                 # Iterate all memory defining instructions
-                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                for mem_def_inst in FunctionHelper.get_ssa_memory_definitions(
                     inst.function,
                     inst.ssa_memory_version,
                     self._max_memory_slice_depth,
-                )
-                for mem_def_inst in mem_def_insts:
+                ):
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
@@ -454,15 +455,13 @@ class MediumLevelILBackwardSlicer:
                 | bn.MediumLevelILAddressOf()
                 | bn.MediumLevelILAddressOfField()
             ):
-                # TODO: Should we split this case?
                 # Iterate all instructions in the current function defining the current memory
                 # version
-                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                for mem_def_inst in FunctionHelper.get_ssa_memory_definitions(
                     inst.function,
                     inst.ssa_memory_version,
                     self._max_memory_slice_depth,
-                )
-                for mem_def_inst in mem_def_insts:
+                ):
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
@@ -491,17 +490,15 @@ class MediumLevelILBackwardSlicer:
                     match mem_def_inst:
                         # Slice sources of assignments having an alias of `var_y` as destination
                         case bn.MediumLevelILSetVarAliased(
-                            dest=dest_var, prev=prev_var, src=src_inst
+                            dest=dest_var, prev=prev_var
                         ):
                             if dest_var.var == prev_var.var == var:
-                                src_inst_info = InstructionHelper.get_inst_info(
-                                    src_inst, False
-                                )
                                 log.debug(
                                     self._tag,
-                                    f"Follow instruction '{src_inst_info:s}' since TODO",
+                                    f"Follow source of instruction '{mem_def_inst_info:s}' since it assigns to an alias of '{var_info:s}'",
                                 )
-                                self._slice_backwards(src_inst)
+                                self._call_tracker.push_mem_def_inst(mem_def_inst)
+                                self._slice_backwards(mem_def_inst.src)
                         # Slice calls having the referenced variable address (`&var_y`) as parameter
                         case (
                             bn.MediumLevelILCallSsa(params=params)
@@ -509,16 +506,16 @@ class MediumLevelILBackwardSlicer:
                             | bn.MediumLevelILTailcallSsa(params=params)
                             | bn.MediumLevelILTailcallUntypedSsa(params=params)
                         ):
-                            # Get all assignment instructions of the form `var_x = &var_y` in the current
-                            # function
+                            # Get all assignment instructions of the form `var_x = &var_y` in the
+                            # current function
                             var_addr_assignments = (
                                 FunctionHelper.get_var_addr_assignments(inst.function)
                             )
-                            # Get all assignment instructions (`var_x = &var_y`) using the address of the
-                            # referenced variable (`var_y`) as a source
+                            # Get all assignment instructions (`var_x = &var_y`) using the address
+                            # of the referenced variable (`var_y`) as a source
                             var_addr_ass_insts = var_addr_assignments.get(var, [])
-                            # Get all use sites (e.g. `var_z = call(var_x)`) of assignment instructions'
-                            # destinations (`var_x`)
+                            # Get all use sites (e.g. `var_z = call(var_x)`) of assignment
+                            # instructions's destinations (`var_x`)
                             dest_var_use_sites: Dict[
                                 bn.MediumLevelILInstruction, bn.MediumLevelILSetVarSsa
                             ] = {}
@@ -544,7 +541,7 @@ class MediumLevelILBackwardSlicer:
                                 self._tag,
                                 f"Follow call instruction '{mem_def_inst_info:s}' since it uses the destination of '{var_addr_ass_inst_info:s}' as parameter",
                             )
-                            # TODO: Determine the relevant parameter variables
+                            # Determine the relevant parameter variables
                             param_idxs: List[int] = []
                             for param_idx, param in enumerate(
                                 mem_def_inst.params, start=1
@@ -552,6 +549,7 @@ class MediumLevelILBackwardSlicer:
                                 if isinstance(param, bn.MediumLevelILVarSsa):
                                     if param.var == var_addr_ass_inst.dest:
                                         param_idxs.append(param_idx)
+                            # Slice the call instruction
                             self._call_tracker.push_mem_def_inst(mem_def_inst)
                             self._slice_backwards(mem_def_inst, param_idxs)
             case (
@@ -617,14 +615,13 @@ class MediumLevelILBackwardSlicer:
                                 # call due to reaching them
                                 if call_param_idxs:
                                     # Iterate all memory defining instructions
-                                    mem_def_insts = (
-                                        FunctionHelper.get_ssa_memory_definitions(
-                                            dest_func,
-                                            ret_inst.ssa_memory_version,
-                                            self._max_memory_slice_depth,
-                                        )
-                                    )
-                                    for mem_def_inst in mem_def_insts:
+                                    for (
+                                        mem_def_inst
+                                    ) in FunctionHelper.get_ssa_memory_definitions(
+                                        dest_func,
+                                        ret_inst.ssa_memory_version,
+                                        self._max_memory_slice_depth,
+                                    ):
                                         mem_def_inst_info = (
                                             InstructionHelper.get_inst_info(
                                                 mem_def_inst, False
@@ -666,7 +663,7 @@ class MediumLevelILBackwardSlicer:
                                                     )
                                                 )
                                             ):
-                                                # TODO: Ensure we store a parameter variable of interest
+                                                # Ensure we store a parameter variable of interest
                                                 param_vars = list(
                                                     dest_func.source_function.parameter_vars
                                                 )
