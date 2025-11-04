@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import log
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Callable, Dict, List
+from typing import Callable, Dict, Set
 import binaryninja as bn
 
 
@@ -92,21 +92,18 @@ class MediumLevelILBackwardSlicer:
                     self._tag,
                     f"Follow parameter {param_idx:d} '{ssa_var_info:s}' when going back to specific caller",
                 )
-                self._call_tracker.push_param(param_idx)
+                self._call_tracker.add_func_param(param_idx)
         return
 
     def _slice_backwards(
-        self,
-        inst: bn.MediumLevelILInstruction,
-        call_param_idxs: List[int] = [],
+        self, inst: bn.MediumLevelILInstruction, call_params: Set[int] = set()
     ) -> None:
         """
-        This method backward slices instruction `inst` based on its type.
-
-        `call_param_indxs` is a list of parameter indices used to distinguish whether we reached a
-        call instruction due to hitting specific parameters (in which case we proceed slicing the
-        definition sites of these output parameters) or due to hitting the call's return value (in
-        which case we procceed at all possible return instructions).
+        This method backward slices instruction `inst` based on its type. `call_params` is a set of
+        parameters (indices) used to distinguish whether the slicer reached the last call
+        instruction due to hitting some parameters (in which case slicing proceeds at the definition
+        sites of these parameters) or due to hitting the call's return value (in which case slicing
+        proceeds at all possible return instructions).
         """
         # Check if slicing should be cancelled
         if self._cancelled():
@@ -541,17 +538,17 @@ class MediumLevelILBackwardSlicer:
                                 self._tag,
                                 f"Follow call instruction '{mem_def_inst_info:s}' since it uses the destination of '{var_addr_ass_inst_info:s}' as parameter",
                             )
-                            # Determine the relevant parameter variables
-                            param_idxs: List[int] = []
+                            # Determine the parameters the slicer should follow
+                            call_params = set()
                             for param_idx, param in enumerate(
                                 mem_def_inst.params, start=1
                             ):
                                 if isinstance(param, bn.MediumLevelILVarSsa):
                                     if param.var == var_addr_ass_inst.dest:
-                                        param_idxs.append(param_idx)
-                            # Slice the call instruction
+                                        call_params.add(param_idx)
+                            # Slice the call instruction and follow the determined parameters
                             self._call_tracker.push_mem_def_inst(mem_def_inst)
-                            self._slice_backwards(mem_def_inst, param_idxs)
+                            self._slice_backwards(mem_def_inst, call_params)
             case (
                 bn.MediumLevelILVarSsa()
                 | bn.MediumLevelILVarSsaField()
@@ -613,7 +610,7 @@ class MediumLevelILBackwardSlicer:
                                 )
                                 # Proceed slicing the relevant output parameters, if we followed the
                                 # call due to reaching them
-                                if call_param_idxs:
+                                if call_params:
                                     # Iterate all memory defining instructions
                                     for (
                                         mem_def_inst
@@ -672,7 +669,7 @@ class MediumLevelILBackwardSlicer:
                                                 param_idx = (
                                                     param_vars.index(dest_var.var) + 1
                                                 )
-                                                if param_idx not in call_param_idxs:
+                                                if param_idx not in call_params:
                                                     continue
                                                 # Push callee and proceed slicing its output parameter writing instruction (if no recursion)
                                                 recursion = (
@@ -694,6 +691,9 @@ class MediumLevelILBackwardSlicer:
                                                     log.debug(
                                                         self._tag,
                                                         f"Follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
+                                                    )
+                                                    self._call_tracker.push_mem_def_inst(
+                                                        mem_def_inst
                                                     )
                                                     self._slice_backwards(mem_def_inst)
                                                 # Get call level of the callee
