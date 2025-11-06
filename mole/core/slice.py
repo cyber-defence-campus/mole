@@ -531,7 +531,7 @@ class MediumLevelILBackwardSlicer:
                             if call_params:
                                 log.debug(
                                     self._tag,
-                                    f"Follow call instruction '{mem_def_inst_info:s}' since it uses '{var_info:s}' as parameter",
+                                    f"Follow call instruction '{mem_def_inst_info:s}' since it uses '&{var_info:s}' as parameter",
                                 )
                                 self._call_tracker.push_mem_def_inst(mem_def_inst)
                                 self._slice_backwards(mem_def_inst, call_params)
