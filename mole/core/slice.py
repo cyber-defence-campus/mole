@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import log
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Callable, Dict, Set
+from typing import Callable, Set
 import binaryninja as bn
 
 
@@ -447,11 +447,13 @@ class MediumLevelILBackwardSlicer:
                     )
                     self._slice_backwards(load_src_inst)
             case (
-                bn.MediumLevelILVarAliased()
-                | bn.MediumLevelILVarAliasedField()
-                | bn.MediumLevelILAddressOf()
-                | bn.MediumLevelILAddressOfField()
+                # TODO: Should we check the offset in MLIL_VAR_ALIASED_FIELD and MLIL_ADDRESS_OF_FIELD?
+                bn.MediumLevelILVarAliased(src=bn.SSAVariable(var=var))
+                | bn.MediumLevelILVarAliasedField(src=bn.SSAVariable(var=var))
+                | bn.MediumLevelILAddressOf(src=var)
+                | bn.MediumLevelILAddressOfField(src=var)
             ):
+                var_info = VariableHelper.get_var_info(var)
                 # Iterate all instructions in the current function defining the current memory
                 # version
                 for mem_def_inst in FunctionHelper.get_ssa_memory_definitions(
@@ -469,86 +471,70 @@ class MediumLevelILBackwardSlicer:
                             f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                         )
                         continue
-                    # Get variable being referenced by `inst` (`var_y`)
-                    # TODO: Should we consider the `offset` in MLIL_VAR_ALIASED_FIELD and
-                    # MLIL_ADDRESS_OF_FIELD as well?
-                    match inst:
-                        case (
-                            bn.MediumLevelILVarAliased(src=src)
-                            | bn.MediumLevelILVarAliasedField(src=src)
-                        ):
-                            var = src.var
-                        case (
-                            bn.MediumLevelILAddressOf(src=src)
-                            | bn.MediumLevelILAddressOfField(src=src)
-                        ):
-                            var = src
-                    var_info = VariableHelper.get_var_info(var)
                     match mem_def_inst:
-                        # Slice sources of assignments having an alias of `var_y` as destination
+                        # Slice the source of assignments having an alias of `var` as destination
                         case bn.MediumLevelILSetVarAliased(
                             dest=dest_var, prev=prev_var
                         ):
                             if dest_var.var == prev_var.var == var:
                                 log.debug(
                                     self._tag,
-                                    f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to '{var_info:s}'",
+                                    f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{var_info:s}'",
                                 )
                                 self._call_tracker.push_mem_def_inst(mem_def_inst)
                                 self._slice_backwards(mem_def_inst.src)
-                        # Slice calls having the referenced variable address (`&var_y`) as parameter
+                        # Slice calls having `&var` as parameter
                         case (
                             bn.MediumLevelILCallSsa(params=params)
                             | bn.MediumLevelILCallUntypedSsa(params=params)
                             | bn.MediumLevelILTailcallSsa(params=params)
                             | bn.MediumLevelILTailcallUntypedSsa(params=params)
                         ):
-                            # Get all assignment instructions of the form `var_x = &var_y` in the
-                            # current function
-                            var_addr_assignments = (
-                                FunctionHelper.get_var_addr_assignments(inst.function)
-                            )
-                            # Get all assignment instructions (`var_x = &var_y`) using the address
-                            # of the referenced variable (`var_y`) as a source
-                            var_addr_ass_insts = var_addr_assignments.get(var, [])
-                            # Get all use sites (e.g. `var_z = call(var_x)`) of assignment
-                            # instructions's destinations (`var_x`)
-                            dest_var_use_sites: Dict[
-                                bn.MediumLevelILInstruction, bn.MediumLevelILSetVarSsa
-                            ] = {}
-                            for var_addr_ass_inst in var_addr_ass_insts:
-                                for (
-                                    dest_var_use_site
-                                ) in var_addr_ass_inst.dest.use_sites:
-                                    dest_var_use_sites[dest_var_use_site] = (
-                                        var_addr_ass_inst
-                                    )
-                            # Check if memory defining instruction is in the use sites
-                            if mem_def_inst not in dest_var_use_sites:
-                                log.debug(
-                                    self._tag,
-                                    f"Do not follow instruction '{mem_def_inst_info:s}' since it not uses '&{var_info:s}'",
-                                )
-                                continue
-                            var_addr_ass_inst = dest_var_use_sites[mem_def_inst]
-                            var_addr_ass_inst_info = InstructionHelper.get_inst_info(
-                                var_addr_ass_inst, False
-                            )
-                            log.debug(
-                                self._tag,
-                                f"Follow call instruction '{mem_def_inst_info:s}' since it uses the destination of '{var_addr_ass_inst_info:s}' as parameter",
-                            )
-                            # Determine the parameters the slicer should follow
+                            # Find all call parameters the slicer should follow
                             call_params = set()
                             for param_idx, param in enumerate(
                                 mem_def_inst.params, start=1
                             ):
-                                if isinstance(param, bn.MediumLevelILVarSsa):
-                                    if param.var == var_addr_ass_inst.dest:
-                                        call_params.add(param_idx)
-                            # Slice the call instruction and follow the determined parameters
-                            self._call_tracker.push_mem_def_inst(mem_def_inst)
-                            self._slice_backwards(mem_def_inst, call_params)
+                                match param:
+                                    # `&param_var == var`
+                                    case bn.MediumLevelILAddressOf(src=param_var):
+                                        if param_var == var:
+                                            call_params.add(param_idx)
+                                    # `&param_var:0 == var`
+                                    case bn.MediumLevelILAddressOfField(
+                                        src=param_var, offset=param_offset
+                                    ):
+                                        if param_var == var and param_offset == 0:
+                                            call_params.add(param_idx)
+                                    # `param_var = &var`
+                                    case bn.MediumLevelILVarSsa(var=param_var):
+                                        # Get all assignments of the form `param_var = &var` in the
+                                        # current function
+                                        var_addr_assignments = (
+                                            FunctionHelper.get_var_addr_assignments(
+                                                inst.function
+                                            )
+                                        )
+                                        var_addr_ass_insts = var_addr_assignments.get(
+                                            var, []
+                                        )
+                                        # Ensure the memory defining call instruction uses parameter
+                                        # `param_var`
+                                        for var_addr_ass_inst in var_addr_ass_insts:
+                                            if (
+                                                param_var == var_addr_ass_inst.dest
+                                                and mem_def_inst
+                                                in var_addr_ass_inst.dest.use_sites
+                                            ):
+                                                call_params.add(param_idx)
+                            # Slice the call instruction if we need to follow any parameter
+                            if call_params:
+                                log.debug(
+                                    self._tag,
+                                    f"Follow call instruction '{mem_def_inst_info:s}' since it uses '{var_info:s}' as parameter",
+                                )
+                                self._call_tracker.push_mem_def_inst(mem_def_inst)
+                                self._slice_backwards(mem_def_inst, call_params)
             case (
                 bn.MediumLevelILVarSsa()
                 | bn.MediumLevelILVarSsaField()
