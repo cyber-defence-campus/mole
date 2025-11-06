@@ -447,12 +447,12 @@ class MediumLevelILBackwardSlicer:
                     )
                     self._slice_backwards(load_src_inst)
             case (
-                # TODO: Should we check the offset in MLIL_VAR_ALIASED_FIELD and MLIL_ADDRESS_OF_FIELD?
                 bn.MediumLevelILVarAliased(src=bn.SSAVariable(var=var))
                 | bn.MediumLevelILVarAliasedField(src=bn.SSAVariable(var=var))
                 | bn.MediumLevelILAddressOf(src=var)
                 | bn.MediumLevelILAddressOfField(src=var)
             ):
+                offset = getattr(inst, "offset", 0)
                 var_info = VariableHelper.get_var_info(var)
                 # Iterate all instructions in the current function defining the current memory
                 # version
@@ -474,12 +474,26 @@ class MediumLevelILBackwardSlicer:
                     match mem_def_inst:
                         # Slice the source of assignments having an alias of `var` as destination
                         case bn.MediumLevelILSetVarAliased(
-                            dest=dest_var, prev=prev_var
+                            prev=prev_ssa_var, dest=dest_ssa_var
                         ):
-                            if dest_var.var == prev_var.var == var:
+                            if prev_ssa_var.var == dest_ssa_var.var == var:
                                 log.debug(
                                     self._tag,
                                     f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{var_info:s}'",
+                                )
+                                self._call_tracker.push_mem_def_inst(mem_def_inst)
+                                self._slice_backwards(mem_def_inst.src)
+                        # Slice the source of assignments having an aliased field of `var` as destination
+                        case bn.MediumLevelILSetVarAliasedField(
+                            prev=prev_ssa_var, dest=dest_ssa_var, offset=dest_offset
+                        ):
+                            if (
+                                prev_ssa_var.var == dest_ssa_var.var == var
+                                and dest_offset == offset
+                            ):
+                                log.debug(
+                                    self._tag,
+                                    f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{var_info:s}[{dest_offset:d}]'",
                                 )
                                 self._call_tracker.push_mem_def_inst(mem_def_inst)
                                 self._slice_backwards(mem_def_inst.src)
@@ -490,22 +504,12 @@ class MediumLevelILBackwardSlicer:
                             | bn.MediumLevelILTailcallSsa(params=params)
                             | bn.MediumLevelILTailcallUntypedSsa(params=params)
                         ):
-                            # Find all call parameters the slicer should follow
+                            # Find set of call parameters the slicer should follow
                             call_params = set()
                             for param_idx, param in enumerate(
                                 mem_def_inst.params, start=1
                             ):
                                 match param:
-                                    # `&param_var == var`
-                                    case bn.MediumLevelILAddressOf(src=param_var):
-                                        if param_var == var:
-                                            call_params.add(param_idx)
-                                    # `&param_var:0 == var`
-                                    case bn.MediumLevelILAddressOfField(
-                                        src=param_var, offset=param_offset
-                                    ):
-                                        if param_var == var and param_offset == 0:
-                                            call_params.add(param_idx)
                                     # `param_var = &var`
                                     case bn.MediumLevelILVarSsa(var=param_var):
                                         # Get all assignments of the form `param_var = &var` in the
@@ -527,6 +531,19 @@ class MediumLevelILBackwardSlicer:
                                                 in var_addr_ass_inst.dest.use_sites
                                             ):
                                                 call_params.add(param_idx)
+                                    # `&param_var == var`
+                                    case bn.MediumLevelILAddressOf(src=param_src_var):
+                                        if param_src_var == var:
+                                            call_params.add(param_idx)
+                                    # `&param_var:0 == var`
+                                    case bn.MediumLevelILAddressOfField(
+                                        src=param_src_var, offset=param_offset
+                                    ):
+                                        if (
+                                            param_src_var == var
+                                            and param_offset == offset
+                                        ):
+                                            call_params.add(param_idx)
                             # Slice the call instruction if we need to follow any parameter
                             if call_params:
                                 log.debug(
