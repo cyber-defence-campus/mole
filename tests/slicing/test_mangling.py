@@ -44,7 +44,7 @@ class TestNameMangling(TestSlicing):
         self.assert_paths(
             src=[("getenv", None)],
             snk=[("system", 1)],
-            call_chains=[["my_func<int>", "main"]],
+            call_chains=[["my_func<int32_t>", "main"]],
             filenames=filenames,
         )
         return
