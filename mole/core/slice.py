@@ -245,7 +245,6 @@ class MediumLevelILBackwardSlicer:
         self._call_tracker.push_inst(inst)
         match inst:
             # NOTE: Case order matters
-            # TODO: Review mem_def_insts
             case bn.MediumLevelILConstPtr(constant=constant):
                 # Ignore pointers that are in non-writable segments
                 segment = self._bv.get_segment_at(constant)
@@ -256,7 +255,7 @@ class MediumLevelILBackwardSlicer:
                         inst.ssa_memory_version,
                         self._max_memory_slice_depth,
                     )
-                    # Iterate all memory defining instructions
+                    # Iterate memory defining instructions
                     for mem_def_inst in mem_def_insts:
                         mem_def_inst_info = InstructionHelper.get_inst_info(
                             mem_def_inst, False
@@ -303,15 +302,16 @@ class MediumLevelILBackwardSlicer:
                         self._tag,
                         f"Do not follow pointer '0x{constant:x}' since it is in a non-writable segment",
                     )
-            # TODO: Review mem_def_insts
             case bn.MediumLevelILLoadSsa(src=load_src_inst, size=load_src_size):
                 followed = False
-                # Iterate all memory defining instructions
-                for mem_def_inst in FunctionHelper.get_ssa_memory_definitions(
+                # Get all memory defining instructions in the current function
+                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
                     inst.function,
                     inst.ssa_memory_version,
                     self._max_memory_slice_depth,
-                ):
+                )
+                # Iterate memory defining instructions
+                for mem_def_inst in mem_def_insts:
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
@@ -460,17 +460,18 @@ class MediumLevelILBackwardSlicer:
                         f"Follow load source instruction '{load_src_inst_info:s}' since no specific store instruction was found",
                     )
                     self._slice_backwards(load_src_inst)
-            # TODO: Review mem_def_insts
             case bn.MediumLevelILLoadStructSsa(
                 src=load_src_inst, offset=load_src_offset
             ):
                 followed = False
-                # Iterate all memory defining instructions
-                for mem_def_inst in FunctionHelper.get_ssa_memory_definitions(
+                # Get all memory defining instructions in the current function
+                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
                     inst.function,
                     inst.ssa_memory_version,
                     self._max_memory_slice_depth,
-                ):
+                )
+                # Iterate memory defining instructions
+                for mem_def_inst in mem_def_insts:
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
                     )
