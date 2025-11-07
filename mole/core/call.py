@@ -14,11 +14,11 @@ class MediumLevelILCallFrame:
 
     def __init__(self, func: bn.MediumLevelILFunction) -> None:
         self.func = func
-        self.func_params: List[int] = []
+        self.func_params: Set[int] = set()
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
         self.last_inst: bn.MediumLevelILInstruction = None
         self.inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
-        self.mem_def_insts: Set[bn.MediumLevelILInstruction] = set()
+        self.mem_def_insts: List[bn.MediumLevelILInstruction] = []
         return
 
     def __eq__(self, other: MediumLevelILCallFrame) -> bool:
@@ -92,15 +92,14 @@ class MediumLevelILCallTracker:
 
     def push_func(
         self,
-        from_inst: bn.MediumLevelILInstruction,
         to_inst: bn.MediumLevelILInstruction,
         reverse: bool = False,
     ) -> bool:
         """
         This method creates a new call frame with the function `to_inst.function` and pushes it to
-        the top of the call stack. Also, it updates the call graph. If `reverse` is True, `func` is
-        considered to be the caller (not the callee). The function returns True if in case of a
-        recursion, False otherwise.
+        the top of the call stack. Also, it updates the call graph. If `reverse` is True,
+        `to_inst.function` is considered to be the caller (not the callee). The function returns
+        True in case of recursion, False otherwise.
         """
         # Get the return instruction's function
         func = to_inst.function
@@ -128,10 +127,10 @@ class MediumLevelILCallTracker:
                 self._call_graph.add_node(func)
         return recursion
 
-    def pop_func(self) -> List[int]:
+    def pop_func(self) -> Set[int]:
         """
-        This method pops the top call frame from the call stack and returns a list of function
-        parameter instructions that should be sliced further.
+        This method pops the top call frame from the call stack and returns a set of parameter
+        indices (`func_params`) that should be sliced further.
         """
         if self._call_stack:
             # Pop old call frame and get its last instruction
@@ -161,7 +160,7 @@ class MediumLevelILCallTracker:
             self._inst_graph = nx.compose(self._inst_graph, old_inst_graph)
             # Return indices of parameters to be sliced further
             return old_call_frame.func_params
-        return []
+        return set()
 
     def push_inst(self, inst: bn.MediumLevelILInstruction) -> None:
         """
@@ -195,17 +194,18 @@ class MediumLevelILCallTracker:
         This method pushes the given instruction `inst` to the memory definition instructions of
         the call frame on the top of the call stack.
         """
-        if self._call_stack:
-            self._call_stack[-1].mem_def_insts.add(inst)
+        if self._call_stack and inst not in self._call_stack[-1].mem_def_insts:
+            self._call_stack[-1].mem_def_insts.append(inst)
         return
 
-    def push_param(self, param_idx: int) -> None:
+    def add_func_param(self, param_idx: int) -> None:
         """
-        This method pushes the given parameter index `param_idx` to the call frame on the top of the
-        stack.
+        This method adds the given parameter to the `func_params` set of the current call frame.
+        `func_params` is the set of parameters that should be sliced when returning back to the
+        caller of the current function.
         """
         if self._call_stack:
-            self._call_stack[-1].func_params.append(param_idx)
+            self._call_stack[-1].func_params.add(param_idx)
         return
 
     def print_call_stack(self) -> None:

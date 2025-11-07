@@ -108,9 +108,13 @@ class FunctionHelper:
             data_var = bv.get_data_var_at(data_ref)
             if data_var is None:
                 continue
+            # Get data variable's type name and offset
+            try:
+                name = data_var.type.name
+                offset = data_ref - data_var.address
+            except Exception:
+                continue
             # Iterate all code references to the data variable's referenced field
-            name = data_var.type.name
-            offset = data_ref - data_var.address
             for code_ref in bv.get_code_refs_for_type_field(name, offset):
                 # Iterate all functions containing the code reference
                 for ref_func in bv.get_functions_containing(code_ref.address):

@@ -56,7 +56,7 @@ class TestPointerAnalysis(TestSlicing):
         self.assert_paths(
             src=[("getenv", None)],
             snk=[("memcpy", 3)],
-            call_chains=[["main", "modify_n"], ["main", "modify_n"]],
+            call_chains=[["main", "modify_n"]],
             filenames=filenames,
         )
         return
