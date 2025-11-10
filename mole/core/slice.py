@@ -636,14 +636,16 @@ class MediumLevelILBackwardSlicer:
                                 # Proceed slicing the relevant output parameters, if we followed the
                                 # call due to reaching them
                                 if call_params:
-                                    # Iterate all memory defining instructions
-                                    for (
-                                        mem_def_inst
-                                    ) in FunctionHelper.get_ssa_memory_definitions(
-                                        dest_func,
-                                        ret_inst.ssa_memory_version,
-                                        self._max_memory_slice_depth,
-                                    ):
+                                    # Get all memory defining instructions in the current function
+                                    mem_def_insts = (
+                                        FunctionHelper.get_ssa_memory_definitions(
+                                            dest_func,
+                                            ret_inst.ssa_memory_version,
+                                            self._max_memory_slice_depth,
+                                        )
+                                    )
+                                    # Iterate memory defining instructions
+                                    for mem_def_inst in mem_def_insts:
                                         mem_def_inst_info = (
                                             InstructionHelper.get_inst_info(
                                                 mem_def_inst, False

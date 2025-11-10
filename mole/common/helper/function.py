@@ -212,10 +212,10 @@ class FunctionHelper:
             match inst:
                 # TODO: Should we consider the `offset` in MLIL_ADDRESS_OF_FIELD as well?
                 case bn.MediumLevelILSetVarSsa(
-                    src=bn.MediumLevelILAddressOf(src=src)
-                    | bn.MediumLevelILAddressOfField(src=src)
+                    src=bn.MediumLevelILAddressOf(src=var)
+                    | bn.MediumLevelILAddressOfField(src=var)
                 ):
-                    return (src, inst)
+                    return (var, inst)
             return (None, None)
 
         # Find variable address assignments (e.g. `var_x = &var_y`) in `func`
