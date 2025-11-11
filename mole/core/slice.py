@@ -167,7 +167,6 @@ class MediumLevelILBackwardSlicer:
         """
         var_info = VariableHelper.get_var_info(ssa_var.var)
         # Slice all memory defining instructions using the variable
-        log.debug(self._tag, "_slice_var_mem_definitions: {var_info:s}")
         self._slice_var_mem_definitions(ssa_var.var, inst)
         # If an instruction containing the SSA variable definition exists in the current
         # function, proceed slicing there (otherwise try find it in callers)
