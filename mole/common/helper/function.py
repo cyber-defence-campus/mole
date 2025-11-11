@@ -197,35 +197,35 @@ class FunctionHelper:
     @staticmethod
     @lru_cache(maxsize=32)
     def get_var_addr_assignments(
-        func: bn.MediumLevelILFunction,
-    ) -> Dict[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
+        func: bn.HighLevelILFunction,
+    ) -> Dict[bn.Variable, List[bn.HighLevelILVarInit]]:
         """
-        This method returns a dictionary mapping variables (`var_y`) to assignment instructions
-        (`var_x = &var_y`) within `func`, where the variable's address (`&var_y`) is assigned to
-        another variable (`var_x`).
+        This method returns a dictionary that maps variables (`var_x`) to a list of variable
+        initialization instructions (`var_y = &var_x`) within `func`. The value for key `var_x` is a
+        list of instructions where the address of `var_x` is assigned to another variable `var_y`.
         """
 
-        # Find variable address assignments (e.g. `var_x = &var_y`) in `inst`
+        # Find initializtations of variables with an address of another variable (`var_y = &var_x`)
+        # in `inst`
         def find_var_addr_assignments(
-            inst: bn.MediumLevelILInstruction,
-        ) -> Tuple[Optional[bn.Variable], Optional[bn.MediumLevelILSetVarSsa]]:
+            inst: bn.HighLevelILInstruction,
+        ) -> Tuple[Optional[bn.Variable], Optional[bn.HighLevelILVarInit]]:
             match inst:
-                # TODO: Should we consider the `offset` in MLIL_ADDRESS_OF_FIELD as well?
-                case bn.MediumLevelILSetVarSsa(
-                    src=bn.MediumLevelILAddressOf(src=var)
-                    | bn.MediumLevelILAddressOfField(src=var)
+                case bn.HighLevelILVarInit(
+                    src=bn.HighLevelILAddressOf(src=bn.HighLevelILVar(var=src_var)),
                 ):
-                    return (var, inst)
+                    return (src_var, inst)
             return (None, None)
 
-        # Find variable address assignments (e.g. `var_x = &var_y`) in `func`
+        # Find initializtations of variables with an address of another variable (`var_y = &var_x`)
+        # in `func`
         var_addr_assignments = {}
-        if func is not None and func.ssa_form is not None:
-            for var, inst in func.ssa_form.traverse(find_var_addr_assignments):
+        if func is not None:
+            for var, inst in func.traverse(find_var_addr_assignments):
                 if var is None or inst is None:
                     continue
-                insts: List[bn.MediumLevelILSetVarSsa] = (
-                    var_addr_assignments.setdefault(var, [])
+                insts: List[bn.HighLevelILVarInit] = var_addr_assignments.setdefault(
+                    var, []
                 )
                 insts.append(inst)
         return var_addr_assignments

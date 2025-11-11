@@ -39,17 +39,16 @@ class MediumLevelILBackwardSlicer:
     ) -> None:
         """
         This method iterates all instructions in the function `inst.function` that define the
-        current memory version `inst.ssa_memory_version`. It then checks if any of these memory
-        defining instructions use `var` and if so procceeds slicing it.
-
-        TODO:
-        - Should we modify `FunctionHelper.get_ssa_var_definition` to cache without
-          `inst.ssa_memory_version`?
+        current memory version `inst.ssa_memory_version`. A memory defining instruction
+        `mem_def_inst` is then matched against the following cases:
+        - If `mem_def_inst` is an assignment to an alias of `var`, slice its source.
+        - If `mem_def_inst` is an assignment to an aliased field of `var`, slice its source.
+        - If `mem_def_inst` is a call using a pointer to `var` as parameter, slice the call.
         """
         var_info = VariableHelper.get_var_info(var)
-        # Get field offset if applicable
+        # Get offset if applicable
         offset = getattr(inst, "offset", 0)
-        # Get all memory defining instructions in the current function
+        # Get instructions defining the memory version of `inst`
         mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
             inst.function, inst.ssa_memory_version, self._max_memory_slice_depth
         )
@@ -92,7 +91,7 @@ class MediumLevelILBackwardSlicer:
                         )
                         self._call_tracker.push_mem_def_inst(mem_def_inst)
                         self._slice_backwards(src_inst)
-                # Slice calls having `&ssa` as parameter
+                # Slice calls having a pointer to `var` as parameter
                 case (
                     bn.MediumLevelILCallSsa(params=params)
                     | bn.MediumLevelILCallUntypedSsa(params=params)
@@ -101,39 +100,48 @@ class MediumLevelILBackwardSlicer:
                 ):
                     # Find set of call parameters the slicer should follow
                     call_params = set()
-                    for param_idx, param in enumerate(params, start=1):
-                        match param:
-                            # Call parameter is the address of variable `var`
-                            case bn.MediumLevelILAddressOf(src=param_var):
+                    for param_idx, param_inst in enumerate(params, start=1):
+                        # Match HLIL instruction
+                        hlil_param_inst = param_inst.hlil
+                        match hlil_param_inst:
+                            # Parameter is the address of `var` or an element of array `var`
+                            case bn.HighLevelILAddressOf(
+                                src=(
+                                    bn.HighLevelILVar(var=param_var)
+                                    | bn.HighLevelILArrayIndex(
+                                        src=bn.HighLevelILDeref(
+                                            src=bn.HighLevelILVar(var=param_var)
+                                        )
+                                    )
+                                )
+                            ):
                                 if param_var == var:
                                     call_params.add(param_idx)
-                            # Call parameter is the address of field `var:offset`
-                            case bn.MediumLevelILAddressOfField(
-                                src=param_var, offset=param_offset
-                            ):
-                                if param_var == var and param_offset == offset:
-                                    call_params.add(param_idx)
-                            # Call parameter is a variable having assigned the address of variable
-                            # `var`
-                            case bn.MediumLevelILVarSsa(
-                                var=bn.SSAVariable(var=param_var)
-                            ):
-                                # Get all assignments of the form `param_var = &var` in the current
-                                # function
+                            # Parameter is a variable containing the address of `var`
+                            case bn.HighLevelILVar(var=param_var):
                                 var_addr_assignments = (
                                     FunctionHelper.get_var_addr_assignments(
-                                        inst.function
+                                        hlil_param_inst.function
                                     )
                                 )
                                 var_addr_ass_insts = var_addr_assignments.get(var, [])
-                                # Ensure the call instruction uses parameter `param_var`
                                 for var_addr_ass_inst in var_addr_ass_insts:
-                                    if (
-                                        param_var == var_addr_ass_inst.dest.var
-                                        and mem_def_inst
-                                        in var_addr_ass_inst.dest.use_sites
-                                    ):
+                                    if param_var == var_addr_ass_inst.dest:
                                         call_params.add(param_idx)
+                            # Parameter is a binary operation involving `var`
+                            case bn.HighLevelILBinaryBase(
+                                left=left_inst, right=right_inst
+                            ):
+                                if (
+                                    isinstance(left_inst, bn.HighLevelILVar)
+                                    and left_inst.var == var
+                                ):
+                                    call_params.add(param_idx)
+                                if (
+                                    isinstance(right_inst, bn.HighLevelILVar)
+                                    and right_inst.var == var
+                                ):
+                                    call_params.add(param_idx)
                     # Slice the call instruction if we need to follow any parameter
                     if call_params:
                         log.debug(
@@ -159,6 +167,7 @@ class MediumLevelILBackwardSlicer:
         """
         var_info = VariableHelper.get_var_info(ssa_var.var)
         # Slice all memory defining instructions using the variable
+        log.debug(self._tag, "_slice_var_mem_definitions: {var_info:s}")
         self._slice_var_mem_definitions(ssa_var.var, inst)
         # If an instruction containing the SSA variable definition exists in the current
         # function, proceed slicing there (otherwise try find it in callers)
@@ -249,7 +258,7 @@ class MediumLevelILBackwardSlicer:
                 # Ignore pointers that are in non-writable segments
                 segment = self._bv.get_segment_at(constant)
                 if segment and segment.writable:
-                    # Get all memory defining instructions in the current function
+                    # Get instructions defining the memory version of `inst`
                     mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
                         inst.function,
                         inst.ssa_memory_version,
@@ -304,7 +313,7 @@ class MediumLevelILBackwardSlicer:
                     )
             case bn.MediumLevelILLoadSsa(src=load_src_inst, size=load_src_size):
                 followed = False
-                # Get all memory defining instructions in the current function
+                # Get instructions defining the memory version of `inst`
                 mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
                     inst.function,
                     inst.ssa_memory_version,
@@ -464,7 +473,7 @@ class MediumLevelILBackwardSlicer:
                 src=load_src_inst, offset=load_src_offset
             ):
                 followed = False
-                # Get all memory defining instructions in the current function
+                # Get instructions defining the memory version of `inst`
                 mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
                     inst.function,
                     inst.ssa_memory_version,
@@ -636,7 +645,7 @@ class MediumLevelILBackwardSlicer:
                                 # Proceed slicing the relevant output parameters, if we followed the
                                 # call due to reaching them
                                 if call_params:
-                                    # Get all memory defining instructions in the current function
+                                    # Get instructions defining the memory version of `inst`
                                     mem_def_insts = (
                                         FunctionHelper.get_ssa_memory_definitions(
                                             dest_func,
