@@ -101,46 +101,29 @@ class MediumLevelILBackwardSlicer:
                     # Find set of call parameters the slicer should follow
                     call_params = set()
                     for param_idx, param_inst in enumerate(params, start=1):
-                        # Match HLIL instruction
-                        hlil_param_inst = param_inst.hlil
-                        match hlil_param_inst:
-                            # Parameter is the address of `var` or an element of array `var`
-                            case bn.HighLevelILAddressOf(
-                                src=(
-                                    bn.HighLevelILVar(var=param_var)
-                                    | bn.HighLevelILArrayIndex(
-                                        src=bn.HighLevelILDeref(
-                                            src=bn.HighLevelILVar(var=param_var)
-                                        )
-                                    )
-                                )
-                            ):
+                        # Match MLIL instruction
+                        match param_inst:
+                            # Parameter is the address of `var`
+                            case bn.MediumLevelILAddressOf(src=param_var):
                                 if param_var == var:
                                     call_params.add(param_idx)
-                            # Parameter is a variable containing the address of `var`
-                            case bn.HighLevelILVar(var=param_var):
-                                var_addr_assignments = (
-                                    FunctionHelper.get_var_addr_assignments(
-                                        hlil_param_inst.function
-                                    )
-                                )
-                                var_addr_ass_insts = var_addr_assignments.get(var, [])
-                                for var_addr_ass_inst in var_addr_ass_insts:
-                                    if param_var == var_addr_ass_inst.dest:
-                                        call_params.add(param_idx)
-                            # Parameter is a binary operation involving `var`
-                            case bn.HighLevelILBinaryBase(
-                                left=left_inst, right=right_inst
+                            # Parameter is the address of field `var:offset`
+                            case bn.MediumLevelILAddressOfField(
+                                src=param_var, offset=param_offset
                             ):
-                                if (
-                                    isinstance(left_inst, bn.HighLevelILVar)
-                                    and left_inst.var == var
-                                ):
+                                if param_var == var and param_offset == offset:
                                     call_params.add(param_idx)
-                                if (
-                                    isinstance(right_inst, bn.HighLevelILVar)
-                                    and right_inst.var == var
-                                ):
+                            # Parameter is a variable having assigned the address of variable `var`
+                            case bn.MediumLevelILVarSsa(
+                                var=bn.SSAVariable(var=param_var)
+                            ):
+                                # Get pointer map for the current function
+                                ptr_map = FunctionHelper.get_ptr_map(inst.function)
+                                # TODO: `var` and `param_var` are not HLIL here
+                                # Follow parameter if `var` and `param_var` are the same pointer
+                                vars = ptr_map.get(var, set())
+                                param_vars = ptr_map.get(param_var, set())
+                                if vars & param_vars:
                                     call_params.add(param_idx)
                     # Slice the call instruction if we need to follow any parameter
                     if call_params:

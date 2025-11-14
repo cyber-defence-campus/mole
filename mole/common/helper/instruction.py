@@ -15,6 +15,7 @@ class InstructionHelper:
         """
         This method replaces possible address tokens in the given instruction `inst` with the
         corresponding code symbol token.
+        TODO: Bug for `__builtin_memcpy`
         """
         formatted_tokens: List[bn.InstructionTextToken] = []
         try:

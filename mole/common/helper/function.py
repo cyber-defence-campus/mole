@@ -9,6 +9,10 @@ import binaryninja as bn
 class FunctionHelper:
     """
     This class provides helper functions with respect to functions.
+
+    TODO:
+    - Review all functions in this class: which ones can be cached?
+    - `my_func.cache_clear()`
     """
 
     @staticmethod
@@ -196,39 +200,157 @@ class FunctionHelper:
 
     @staticmethod
     @lru_cache(maxsize=32)
-    def get_var_addr_assignments(
-        func: bn.HighLevelILFunction,
-    ) -> Dict[bn.Variable, List[bn.HighLevelILVarInit]]:
+    def get_alias_map(
+        func: bn.MediumLevelILFunction,
+    ) -> Dict[bn.Variable, Set[bn.SSAVariable]]:
         """
-        This method returns a dictionary that maps variables (`var_x`) to a list of variable
-        initialization instructions (`var_y = &var_x`) within `func`. The value for key `var_x` is a
-        list of instructions where the address of `var_x` is assigned to another variable `var_y`.
+        This method finds all aliased variable assignments (`var_y = var_x`, where `var_x` is
+        an aliased variable) in function `func`. It then returns a dictionary mapping the HLIL
+        variable corresponding to `var_x` to a set of MLIL SSA variables corresponding to `var_y`.
         """
 
-        # Find initializtations of variables with an address of another variable (`var_y = &var_x`)
-        # in `inst`
-        def find_var_addr_assignments(
-            inst: bn.HighLevelILInstruction,
-        ) -> Tuple[Optional[bn.Variable], Optional[bn.HighLevelILVarInit]]:
+        # Find aliased assignments (e.g. `var_y = var_x`, where `var_x` is aliased) in instruction
+        # `inst` and return its MLIL destination SSA variable and HLIL source variable
+        def find_aliased_assignments(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.Variable]]:
+            # Determine MLIL destination variable
             match inst:
-                case bn.HighLevelILVarInit(
-                    src=bn.HighLevelILAddressOf(src=bn.HighLevelILVar(var=src_var)),
+                # `var_y = OP(var_x)`, where `var_x` is aliased
+                case bn.MediumLevelILSetVarSsa(
+                    dest=mlil_dest_ssa_var,
+                    src=(
+                        bn.MediumLevelILVarAliased(src=bn.SSAVariable())
+                        | bn.MediumLevelILUnaryBase(
+                            src=bn.MediumLevelILVarAliased(src=bn.SSAVariable())
+                        )
+                    ),
                 ):
-                    return (src_var, inst)
+                    # Determine HLIL source variable
+                    match inst.src.hlil:
+                        case (
+                            bn.HighLevelILVar(var=hlil_src_var)
+                            | bn.HighLevelILUnaryBase(
+                                src=bn.HighLevelILVar(var=hlil_src_var)
+                            )
+                        ):
+                            return (mlil_dest_ssa_var, hlil_src_var)
             return (None, None)
 
-        # Find initializtations of variables with an address of another variable (`var_y = &var_x`)
-        # in `func`
-        var_addr_assignments = {}
-        if func is not None:
-            for var, inst in func.traverse(find_var_addr_assignments):
-                if var is None or inst is None:
+        # Find aliased assignments (e.g. `var_y = var_x`, where `var_x` is aliased) in function
+        # `func`
+        alias_map: Dict[bn.Variable, Set[bn.SSAVariable]] = {}
+        if func is not None and func.ssa_form is not None:
+            for mlil_dest_ssa_var, hlil_src_var in func.ssa_form.traverse(
+                find_aliased_assignments
+            ):
+                mlil_dest_ssa_var = mlil_dest_ssa_var  # type: Optional[bn.SSAVariable]
+                hlil_src_var = hlil_src_var  # type: Optional[bn.Variable]
+                if mlil_dest_ssa_var is not None and hlil_src_var is not None:
+                    alias_map.setdefault(hlil_src_var, set()).add(mlil_dest_ssa_var)
+        return alias_map
+
+    @staticmethod
+    @lru_cache(maxsize=32)
+    def get_ptr_map(
+        func: bn.MediumLevelILFunction,
+    ) -> Dict[bn.Variable, Set[bn.Variable]]:
+        """
+        This method finds all pointer assignments (e.g. `var_y = &var_x`) in function `func`. It
+        then returns a dictionary mapping the MLIL variable corresponding to `var_y` to a set of
+        HLIL variables corresponding to `var_x`.
+        """
+
+        # Find pointer assignment (e.g. `var_y = &var_x`) in instruction `inst`
+        # and return its MLIL destination SSA variable and HLIL source variable
+        def find_ptr_assignments(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.Variable]]:
+            # Determine MLIL destination variable
+            match inst:
+                # `var_y = &var_x` or `var_y = &var_x:offset`
+                case bn.MediumLevelILSetVarSsa(
+                    dest=mlil_dest_ssa_var,
+                    src=(
+                        bn.MediumLevelILAddressOf()
+                        | bn.MediumLevelILAddressOfField()
+                        | bn.MediumLevelILVarSsa()
+                    ),
+                ):
+                    # Determine HLIL source variable
+                    match inst.src.hlil:
+                        case bn.HighLevelILAddressOf(
+                            src=(
+                                bn.HighLevelILVar(var=hlil_src_var)
+                                | bn.HighLevelILArrayIndex(
+                                    src=bn.HighLevelILVar(var=hlil_src_var)
+                                )
+                            )
+                        ):
+                            return (mlil_dest_ssa_var, hlil_src_var)
+            return (None, None)
+
+        # Recursively find all SSA variables having the same value as `ssa_var` assigned
+        def find_var_assignments(ssa_var: bn.SSAVariable) -> Set[bn.SSAVariable]:
+            ssa_vars: Set[bn.SSAVariable] = set()
+            for use_site in ssa_var.use_sites:
+                if not isinstance(use_site, bn.MediumLevelILSetVarSsa):
                     continue
-                insts: List[bn.HighLevelILVarInit] = var_addr_assignments.setdefault(
-                    var, []
-                )
-                insts.append(inst)
-        return var_addr_assignments
+                dest_ssa_var = use_site.dest
+                match use_site.src:
+                    # `var_y = var_x:0`
+                    case (
+                        bn.MediumLevelILVarSsa(var=src_ssa_var)
+                        | bn.MediumLevelILVarSsaField(src=src_ssa_var)
+                        | bn.MediumLevelILVarAliased(src=src_ssa_var)
+                    ):
+                        offset = getattr(use_site.src, "offset", 0)
+                        if src_ssa_var == ssa_var and offset == 0:
+                            ssa_vars |= {dest_ssa_var} | find_var_assignments(
+                                dest_ssa_var
+                            )
+                    # `var_y = var_x + ...` or `var_y = ... + var_x`
+                    case bn.MediumLevelILAdd(left=left_inst, right=right_inst):
+                        if (
+                            isinstance(left_inst, bn.MediumLevelILVarSsa)
+                            and left_inst.var == ssa_var
+                        ):
+                            ssa_vars |= {dest_ssa_var} | find_var_assignments(
+                                dest_ssa_var
+                            )
+                        elif (
+                            isinstance(right_inst, bn.MediumLevelILVarSsa)
+                            and right_inst.var == ssa_var
+                        ):
+                            ssa_vars |= {dest_ssa_var} | find_var_assignments(
+                                dest_ssa_var
+                            )
+            return ssa_vars
+
+        # Create mapping from MLIL destination variable to HLIL source variable
+        ptr_map: Dict[bn.Variable, Set[bn.Variable]] = {}
+        if func is not None and func.ssa_form is not None:
+            # Get map of variable aliases for function `func`
+            alias_map = FunctionHelper.get_alias_map(func)
+            # Find pointer assignment (e.g. `var_y = &var_x`) in function `func`
+            for mlil_dest_ssa_var, hlil_src_var in func.ssa_form.traverse(
+                find_ptr_assignments
+            ):
+                mlil_dest_ssa_var = mlil_dest_ssa_var  # type: Optional[bn.SSAVariable]
+                hlil_src_var = hlil_src_var  # type: Optional[bn.Variable]
+                if mlil_dest_ssa_var is not None and hlil_src_var is not None:
+                    ssa_vars = set([mlil_dest_ssa_var])
+                    # Find other SSA variables having the same pointer assigned
+                    ssa_vars |= find_var_assignments(mlil_dest_ssa_var)
+                    # Find other aliased SSA variables having the same pointer
+                    for alias_ssa_var in alias_map.get(hlil_src_var, set()):
+                        ssa_vars |= set([alias_ssa_var]) | find_var_assignments(
+                            alias_ssa_var
+                        )
+                    # Store mappings from MLIL destination variable to HLIL source variable
+                    for ssa_var in ssa_vars:
+                        ptr_map.setdefault(ssa_var.var, set()).add(hlil_src_var)
+        return ptr_map
 
     @staticmethod
     @lru_cache(maxsize=32)
