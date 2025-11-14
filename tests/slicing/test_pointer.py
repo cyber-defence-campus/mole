@@ -136,3 +136,14 @@ class TestPointerAnalysis(TestSlicing):
             filenames=filenames,
         )
         return
+
+    def test_pointer_analysis_16(
+        self, filenames: List[str] = ["pointer_analysis-16"]
+    ) -> None:
+        self.assert_paths(
+            src=[("getenv", None)],
+            snk=[("strncat", 2), ("system", 1)],
+            call_chains=[["main"], ["main"]],
+            filenames=filenames,
+        )
+        return
