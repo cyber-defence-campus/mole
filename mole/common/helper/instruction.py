@@ -15,20 +15,19 @@ class InstructionHelper:
         """
         This method replaces possible address tokens in the given instruction `inst` with the
         corresponding code symbol token.
-        TODO: Bug for `__builtin_memcpy`
         """
         formatted_tokens: List[bn.InstructionTextToken] = []
         try:
             for token in inst.tokens:
                 match token.type:
                     case bn.InstructionTextTokenType.PossibleAddressToken:
-                        func = inst.function.view.get_function_at(token.value)
-                        if func:
+                        symbol = inst.function.view.get_symbol_at(token.value)
+                        if symbol:
                             formatted_tokens.append(
                                 bn.InstructionTextToken(
                                     bn.InstructionTextTokenType.CodeSymbolToken,
-                                    func.symbol.short_name,
-                                    func.start,
+                                    symbol.short_name,
+                                    token.value,
                                 )
                             )
                         else:
