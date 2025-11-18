@@ -153,8 +153,8 @@ class TestPointerAnalysis(TestSlicing):
     ) -> None:
         self.assert_paths(
             src=[("recv", None)],
-            snk=[("memcpy", 2), ("memcpy", 3)],
-            call_chains=[["main"], ["main"]],
+            snk=[("memcpy", 2), ("memcpy", 3), ("system", 1)],
+            call_chains=[["main"], ["main"], ["main"], ["main"]],
             filenames=filenames,
         )
         return
