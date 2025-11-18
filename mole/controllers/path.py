@@ -277,6 +277,8 @@ class PathController:
             log.warn(tag, "Wait for previous background thread to complete first")
             self._give_feedback("Find", "Other Task Running...")
             return
+        # Clear caches
+        FunctionHelper.cache_clear()
         # Start background thread
         self._give_feedback("Find", "Finding...")
         self._thread = PathService(

@@ -9,10 +9,23 @@ import binaryninja as bn
 class FunctionHelper:
     """
     This class provides helper functions with respect to functions.
-    TODO:
-    - Review all functions in this class: which ones can be cached?
-    - `my_func.cache_clear()`
     """
+
+    maxsize = 32
+
+    @staticmethod
+    def cache_clear() -> None:
+        """
+        This method clears all caches of this class.
+        """
+        FunctionHelper.get_mlil_return_insts.cache_clear()
+        FunctionHelper.get_mlil_direct_call_insts.cache_clear()
+        FunctionHelper.get_mlil_param_insts.cache_clear()
+        FunctionHelper.get_ptr_map.cache_clear()
+        FunctionHelper.get_ssa_memory_definitions.cache_clear()
+        FunctionHelper.get_il_code.cache_clear()
+        FunctionHelper.get_pseudo_c_code.cache_clear()
+        return
 
     @staticmethod
     def get_func_info(
@@ -27,6 +40,7 @@ class FunctionHelper:
         return info
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_mlil_return_insts(
         func: bn.MediumLevelILFunction,
     ) -> List[bn.MediumLevelILInstruction]:
@@ -41,6 +55,7 @@ class FunctionHelper:
         return ret_insts
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_mlil_direct_call_insts(
         func: bn.MediumLevelILFunction,
     ) -> Set[
@@ -159,6 +174,7 @@ class FunctionHelper:
         return call_insts
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_mlil_param_insts(
         func: bn.MediumLevelILFunction,
     ) -> List[Optional[bn.MediumLevelILVarSsa]]:
@@ -198,7 +214,7 @@ class FunctionHelper:
         return param_insts
 
     @staticmethod
-    @lru_cache(maxsize=32)
+    @lru_cache(maxsize=maxsize)
     def get_ptr_map(
         func: bn.MediumLevelILFunction,
     ) -> Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]]:
@@ -263,7 +279,7 @@ class FunctionHelper:
         return ptr_map
 
     @staticmethod
-    @lru_cache(maxsize=32)
+    @lru_cache(maxsize=maxsize)
     def get_ssa_memory_definitions(
         func: bn.MediumLevelILFunction,
         memory_version: int,
@@ -328,6 +344,7 @@ class FunctionHelper:
         return call_inst
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_il_code(
         func: bn.HighLevelILFunction | bn.MediumLevelILFunction | bn.LowLevelILFunction,
     ) -> str:
@@ -342,6 +359,7 @@ class FunctionHelper:
         return "\n".join(code_lines)
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_pseudo_c_code(func: bn.Function) -> str:
         """
         This method returns the pseudo C code of the function `func`.
