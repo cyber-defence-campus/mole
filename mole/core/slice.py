@@ -35,17 +35,19 @@ class MediumLevelILBackwardSlicer:
         return
 
     def _slice_var_mem_definitions(
-        self, var: bn.Variable, inst: bn.MediumLevelILInstruction
+        self, ssa_var: bn.SSAVariable, inst: bn.MediumLevelILInstruction
     ) -> None:
         """
         This method iterates all instructions in the function `inst.function` that define the
         current memory version `inst.ssa_memory_version`. A memory defining instruction
         `mem_def_inst` is then matched against the following cases:
-        - If `mem_def_inst` is an assignment to an alias of `var`, slice its source.
-        - If `mem_def_inst` is an assignment to an aliased field of `var`, slice its source.
-        - If `mem_def_inst` is a call using a pointer to `var` as parameter, slice the call.
+        - If `mem_def_inst` is an assignment to an alias of `ssa_var.var`, slice its source.
+        - If `mem_def_inst` is an assignment to an aliased field of `ssa_var.var`, slice its source.
+        - If `mem_def_inst` is a call using a pointer to `ssa_var.var` as parameter, slice the call.
+
+        TODO: Try to use `ssa_var` instead of `ssa_var.var`
         """
-        var_info = VariableHelper.get_var_info(var)
+        var_info = VariableHelper.get_var_info(ssa_var.var)
         # Get offset if applicable
         offset = getattr(inst, "offset", 0)
         # Get instructions defining the memory version of `inst`
@@ -70,7 +72,7 @@ class MediumLevelILBackwardSlicer:
                     dest=bn.SSAVariable(var=dest_var),
                     src=src_inst,
                 ):
-                    if prev_var == dest_var == var:
+                    if prev_var == dest_var == ssa_var.var:
                         log.debug(
                             self._tag,
                             f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{var_info:s}'",
@@ -84,7 +86,7 @@ class MediumLevelILBackwardSlicer:
                     offset=dest_offset,
                     src=src_inst,
                 ):
-                    if prev_var == dest_var == var and dest_offset == offset:
+                    if prev_var == dest_var == ssa_var.var and dest_offset == offset:
                         log.debug(
                             self._tag,
                             f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{var_info:s}[{dest_offset:d}]'",
@@ -105,26 +107,51 @@ class MediumLevelILBackwardSlicer:
                         match param_inst:
                             # Parameter is the address of `var`
                             case bn.MediumLevelILAddressOf(src=param_var):
-                                if param_var == var:
+                                if param_var == ssa_var.var:
                                     call_params.add(param_idx)
                             # Parameter is the address of field `var:offset`
                             case bn.MediumLevelILAddressOfField(
                                 src=param_var, offset=param_offset
                             ):
-                                if param_var == var and param_offset == offset:
+                                if param_var == ssa_var.var and param_offset == offset:
                                     call_params.add(param_idx)
                             # Parameter is a variable having assigned the address of variable `var`
-                            case bn.MediumLevelILVarSsa(
-                                var=bn.SSAVariable(var=param_var)
-                            ):
+                            case bn.MediumLevelILVarSsa(var=param_ssa_var):
                                 # Get pointer map for the current function
                                 ptr_map = FunctionHelper.get_ptr_map(inst.function)
-                                # TODO: `var` and `param_var` are not HLIL here
-                                # Follow parameter if `var` and `param_var` are the same pointer
-                                vars = ptr_map.get(var, set())
-                                param_vars = ptr_map.get(param_var, set())
-                                if vars & param_vars:
-                                    call_params.add(param_idx)
+                                # Get HLIL pointer instructions for `ssa_var` and `param_ssa_var`
+                                ptr_inst = ptr_map.get(ssa_var, None)
+                                param_ptr_inst = ptr_map.get(param_ssa_var, None)
+                                # Ensure valid HLIL pointer instructions
+                                if ptr_inst is None or param_ptr_inst is None:
+                                    continue
+                                # Compare HLIL pointer instructions
+                                match (ptr_inst, param_ptr_inst):
+                                    # var == param_var
+                                    case (
+                                        # var
+                                        bn.HighLevelILVar(var=var),
+                                        # param_var
+                                        bn.HighLevelILVar(var=param_var),
+                                    ) if var == param_var:
+                                        call_params.add(param_idx)
+                                    # var == &(*param_var)[index]
+                                    case (
+                                        # var
+                                        bn.HighLevelILVar(),
+                                        # (*param_var)[index]
+                                        bn.HighLevelILArrayIndex(
+                                            src=bn.HighLevelILDerefSsa(
+                                                src=bn.HighLevelILVarSsa(
+                                                    var=hlil_param_ssa_var
+                                                )
+                                            )
+                                        ),
+                                    ) if ptr_inst == ptr_map.get(
+                                        hlil_param_ssa_var, None
+                                    ):
+                                        call_params.add(param_idx)
+
                     # Slice the call instruction if we need to follow any parameter
                     if call_params:
                         params_str = (
@@ -153,8 +180,9 @@ class MediumLevelILBackwardSlicer:
         determines all possible callers and follows the corresponding parameter.
         """
         var_info = VariableHelper.get_var_info(ssa_var.var)
-        # Slice all memory defining instructions using the variable
-        self._slice_var_mem_definitions(ssa_var.var, inst)
+        # TODO: Slice all memory defining instructions using the variable
+        # self._slice_var_mem_definitions(ssa_var.var, inst)
+        self._slice_var_mem_definitions(ssa_var, inst)
         # If an instruction containing the SSA variable definition exists in the current
         # function, proceed slicing there (otherwise try find it in callers)
         inst_def = inst.function.get_ssa_var_definition(ssa_var)
@@ -568,7 +596,9 @@ class MediumLevelILBackwardSlicer:
                 bn.MediumLevelILAddressOf(src=var)
                 | bn.MediumLevelILAddressOfField(src=var)
             ):
-                self._slice_var_mem_definitions(var, inst)
+                # TODO
+                # self._slice_var_mem_definitions(var, inst)
+                pass
             case (
                 bn.MediumLevelILVarSsa(src=ssa_var)
                 | bn.MediumLevelILVarSsaField(src=ssa_var)
