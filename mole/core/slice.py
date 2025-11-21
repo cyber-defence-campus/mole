@@ -243,12 +243,14 @@ class MediumLevelILBackwardSlicer:
             # Ignore parameters not corresponding to the intended variable
             if param_var != ssa_var.var:
                 continue
-            # Follow the parameter to all possible callers if we did not go down the call graph
+            # Follow the parameter to all possible callers if we go up the call graph
             if not self._call_tracker.is_going_downwards():
                 for call_inst in direct_call_insts | indirect_call_insts:
                     from_inst = call_inst
                     to_inst = call_inst.params[param_idx - 1]
-                    recursion = self._call_tracker.push_func(to_inst, reverse=True)
+                    recursion = self._call_tracker.push_func(
+                        to_inst, reverse=True, param_idx=param_idx
+                    )
                     from_inst_info = InstructionHelper.get_inst_info(from_inst, False)
                     if not recursion:
                         log.debug(
@@ -762,10 +764,13 @@ class MediumLevelILBackwardSlicer:
                                                 )
                                                 if param_idx not in call_params:
                                                     continue
-                                                # Push callee and proceed slicing its output parameter writing instruction (if no recursion)
+                                                # Push callee and proceed slicing its output
+                                                # parameter writing instruction (if no recursion)
                                                 recursion = (
                                                     self._call_tracker.push_func(
-                                                        mem_def_inst
+                                                        mem_def_inst,
+                                                        reverse=False,
+                                                        param_idx=param_idx,
                                                     )
                                                 )
                                                 if recursion:
@@ -815,7 +820,9 @@ class MediumLevelILBackwardSlicer:
                                 # the call due to reaching its return value
                                 else:
                                     # Push callee and proceed slicing its return instruction (if no recursion)
-                                    recursion = self._call_tracker.push_func(ret_inst)
+                                    recursion = self._call_tracker.push_func(
+                                        ret_inst, reverse=False, param_idx=0
+                                    )
                                     if recursion:
                                         log.debug(
                                             self._tag,
@@ -904,7 +911,7 @@ class MediumLevelILBackwardSlicer:
         This method backward slices the instruction `inst`.
         """
         self._call_tracker = MediumLevelILCallTracker()
-        self._call_tracker.push_func(inst, reverse=True)
+        self._call_tracker.push_func(inst, reverse=True, param_idx=0)
         deque(
             inst.ssa_form.traverse(lambda inst: self._slice_backwards(inst)),
             maxlen=0,

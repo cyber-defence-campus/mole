@@ -94,12 +94,17 @@ class MediumLevelILCallTracker:
         self,
         to_inst: bn.MediumLevelILInstruction,
         reverse: bool = False,
+        param_idx: int = 0,
     ) -> bool:
         """
         This method creates a new call frame with the function `to_inst.function` and pushes it to
-        the top of the call stack. Also, it updates the call graph. If `reverse` is True,
-        `to_inst.function` is considered to be the caller (not the callee). The function returns
-        True in case of recursion, False otherwise.
+        the top of the call stack. Further, it updates the call graph. If `reverse` is `False`,
+        `to_inst.function` is treated as the callee; if `reverse` is `True`, it is treated as the
+        caller. When traversing down the call graph (`reverse==False`), `param_idx` indicates the
+        callee's output parameter that was followed, or `0` if the traversal followed a return
+        instruction. When traversing up the call graph (`reverse==True`), `param_idx` indicates the
+        caller's relevant parameter. The function returns `True` in case of recursion, `False`
+        otherwise.
         """
         # Get the return instruction's function
         func = to_inst.function
@@ -119,10 +124,14 @@ class MediumLevelILCallTracker:
             if len(self._call_stack) >= 2:
                 if not reverse:
                     caller_frame = self._call_stack[-2]
-                    self._call_graph.add_edge(caller_frame.func, func, downwards=True)
+                    self._call_graph.add_edge(
+                        caller_frame.func, func, downwards=True, param_idx=param_idx
+                    )
                 else:
                     callee_frame = self._call_stack[-2]
-                    self._call_graph.add_edge(func, callee_frame.func, downwards=False)
+                    self._call_graph.add_edge(
+                        func, callee_frame.func, downwards=False, param_idx=param_idx
+                    )
             else:
                 self._call_graph.add_node(func)
         return recursion
@@ -220,13 +229,23 @@ class MediumLevelILCallTracker:
         """
         This method prints the call graph (for debugging).
         """
-        for caller, callee in self._call_graph.edges():
+        for caller, callee, attrs in self._call_graph.edges(data=True):
             caller_level = self._call_graph.nodes[caller].get("level", 0)
             callee_level = self._call_graph.nodes[callee].get("level", 0)
             caller_info = FunctionHelper.get_func_info(caller, False)
             callee_info = FunctionHelper.get_func_info(callee, False)
+            if attrs["downwards"]:
+                if attrs["param_idx"] > 0:
+                    follow = f"Followed out_param {attrs['param_idx']:d} downwards"
+                else:
+                    follow = "Followed all possible returns downwards"
+            else:
+                if attrs["param_idx"] > 0:
+                    follow = f"Followed param {attrs['param_idx']:d} upwards"
+                else:
+                    follow = "Followed all possible params upwards"
             print(
-                f"[{caller_level:+d}] {caller_info} -> [{callee_level:+d}] {callee_info}"
+                f"[{caller_level:+d}] {caller_info} -- '{follow:s}' -> [{callee_level:+d}] {callee_info}"
             )
         return
 
