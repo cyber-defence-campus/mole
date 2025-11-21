@@ -162,14 +162,32 @@ class CallGraphWidget(qtw.QWidget):
                 not self.in_path_only.isChecked()
                 or call_graph.nodes[from_call]["in_path"]
             ):
+                from_func = from_call.source_function
+                from_func_tokens = InstructionHelper.mark_func_tokens(
+                    from_func.type_tokens, set(), set()
+                )
                 node_map[from_call] = bn.FlowGraphNode(self.flow_graph)
+                node_map[from_call].lines = [
+                    bn.function.DisassemblyTextLine(
+                        from_func_tokens, address=from_func.start
+                    )
+                ]
                 self.flow_graph.append(node_map[from_call])
             # If needed, add `to_call` to flow graph
             if to_call not in node_map and (
                 not self.in_path_only.isChecked()
                 or call_graph.nodes[to_call]["in_path"]
             ):
+                to_func = to_call.source_function
+                to_func_tokens = InstructionHelper.mark_func_tokens(
+                    to_func.type_tokens, set(), set()
+                )
                 node_map[to_call] = bn.FlowGraphNode(self.flow_graph)
+                node_map[to_call].lines = [
+                    bn.function.DisassemblyTextLine(
+                        to_func_tokens, address=to_func.start
+                    )
+                ]
                 self.flow_graph.append(node_map[to_call])
             # Proceed to next edge if not both nodes are in the flow graph
             if from_call not in node_map or to_call not in node_map:
