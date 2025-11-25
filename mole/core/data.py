@@ -962,6 +962,23 @@ class WidgetSetting:
 
 
 @dataclass
+class CheckboxSetting(WidgetSetting):
+    """
+    This class is a representation of the data associated with a checkbox widget.
+    """
+
+    widget: qtw.QCheckBox = None
+
+    def __eq__(self, other: CheckboxSetting) -> bool:
+        if not isinstance(other, CheckboxSetting):
+            return False
+        return super().__eq__(other)
+
+    def to_dict(self) -> Dict:
+        return super().to_dict()
+
+
+@dataclass
 class SpinboxSetting(WidgetSetting):
     """
     This class is a representation of the data associated with a spinbox widget.

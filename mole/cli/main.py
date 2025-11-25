@@ -40,6 +40,11 @@ def main() -> None:
         help="maximum number of worker threads that backward slicing uses",
     )
     parser.add_argument(
+        "--fix_func_type",
+        action="store_true",
+        help="whether to fix function types during analysis",
+    )
+    parser.add_argument(
         "--max_call_level",
         type=int,
         default=None,
@@ -76,6 +81,7 @@ def main() -> None:
             bv=bv,
             config_model=ConfigModel(ConfigService(args["config_file"]).load_config()),
             max_workers=args["max_workers"],
+            fix_func_type=args["fix_func_type"],
             max_call_level=args["max_call_level"],
             max_slice_depth=args["max_slice_depth"],
             max_memory_slice_depth=args["max_memory_slice_depth"],

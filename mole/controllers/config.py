@@ -1,13 +1,16 @@
 from __future__ import annotations
 from mole.core.data import (
     Category,
-    ComboboxSetting,
     Configuration,
-    DoubleSpinboxSetting,
     Function,
     Library,
     SinkFunction,
     SourceFunction,
+)
+from mole.core.data import (
+    CheckboxSetting,
+    ComboboxSetting,
+    DoubleSpinboxSetting,
     SpinboxSetting,
     TextSetting,
     WidgetSetting,
@@ -174,7 +177,9 @@ class ConfigController:
                     fun.checkbox.setChecked(fun.enabled)
         for setting_name, setting in new_config.settings.items():
             setting.widget = settings.get(setting_name, None)
-            if isinstance(setting, SpinboxSetting) or isinstance(
+            if isinstance(setting, CheckboxSetting):
+                setting.widget.setChecked(setting.value)
+            elif isinstance(setting, SpinboxSetting) or isinstance(
                 setting, DoubleSpinboxSetting
             ):
                 setting.widget.setValue(setting.value)
