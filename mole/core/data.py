@@ -809,27 +809,39 @@ class Path:
         for node, attrs in call_graph.nodes(data=True):
             new_attrs = {**attrs, "in_path": False}
             self.call_graph.add_node(node, **new_attrs)
-        # Change node attribute to `in_path=True` where functions are in the path
+        # Determine path properties
         old_func = None
+        old_inst = None
+        prv_inst = None
         for inst in self.insts:
+            func = inst.function
             # Phi-instructions
             if isinstance(inst, bn.MediumLevelILVarPhi):
                 self.phiis.append(inst)
             # Branch dependencies
             for bch_idx, bch_dep in inst.branch_dependence.items():
                 self.bdeps.setdefault(bch_idx, bch_dep)
-            # Function information
-            func = inst.function
-            # Continue if the function does not change
-            if func == old_func:
-                continue
-            # Function calls
-            self.calls.append((inst.address, func, 0))
-            # Function calls graph
-            if func in self.call_graph:
-                self.call_graph.nodes[func]["in_path"] = True
-            # Store old function
-            old_func = func
+            # Call site (path goes upwards)
+            if call_graph.has_edge(func, old_func):
+                self.call_graph.add_node(old_func, call_site=old_inst.address)
+            # Call site (path goes downwards)
+            if call_graph.has_edge(old_func, func):
+                self.call_graph.add_node(old_func, call_site=prv_inst.address)
+            # Function in path changes
+            if old_func != func:
+                # Function calls
+                self.calls.append((func, 0))
+                # Function calls graph
+                if func in self.call_graph:
+                    self.call_graph.nodes[func]["in_path"] = True
+                # Update old function and instruction
+                old_func = func
+                old_inst = inst
+            prv_inst = inst
+        # Call site (node containing the source instruction)
+        self.call_graph.add_node(
+            self.insts[-1].function, call_site=self.insts[-1].address
+        )
         # Copy all edges with added attribute `in_path` stating whether or not both nodes have
         # `in_path == True`
         for from_node, to_node, attrs in call_graph.edges(data=True):
@@ -856,9 +868,9 @@ class Path:
             log.warn(tag, "Failed to calculate call levels")
         # Update call levels
         for i, call in enumerate(self.calls):
-            call_func = call[1]
+            call_func = call[0]
             call_level = self.call_graph.nodes[call_func].get("level", 0)
-            self.calls[i] = (call[0], call_func, call_level)
+            self.calls[i] = (call_func, call_level)
         return
 
     def update(self, bv: bn.BinaryView) -> Path:

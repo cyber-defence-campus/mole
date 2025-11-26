@@ -249,7 +249,9 @@ class MediumLevelILBackwardSlicer:
                     from_inst = call_inst
                     to_inst = call_inst.params[param_idx - 1]
                     recursion = self._call_tracker.push_func(
-                        to_inst, reverse=True, param_idx=param_idx
+                        to_inst=to_inst,
+                        reverse=True,
+                        param_idx=param_idx,
                     )
                     from_inst_info = InstructionHelper.get_inst_info(from_inst, False)
                     if not recursion:
@@ -768,7 +770,7 @@ class MediumLevelILBackwardSlicer:
                                                 # parameter writing instruction (if no recursion)
                                                 recursion = (
                                                     self._call_tracker.push_func(
-                                                        mem_def_inst,
+                                                        to_inst=mem_def_inst,
                                                         reverse=False,
                                                         param_idx=param_idx,
                                                     )
@@ -821,7 +823,9 @@ class MediumLevelILBackwardSlicer:
                                 else:
                                     # Push callee and proceed slicing its return instruction (if no recursion)
                                     recursion = self._call_tracker.push_func(
-                                        ret_inst, reverse=False, param_idx=0
+                                        to_inst=ret_inst,
+                                        reverse=False,
+                                        param_idx=0,
                                     )
                                     if recursion:
                                         log.debug(
@@ -911,7 +915,7 @@ class MediumLevelILBackwardSlicer:
         This method backward slices the instruction `inst`.
         """
         self._call_tracker = MediumLevelILCallTracker()
-        self._call_tracker.push_func(inst, reverse=True, param_idx=0)
+        self._call_tracker.push_func(to_inst=inst, reverse=True, param_idx=0)
         deque(
             inst.ssa_form.traverse(lambda inst: self._slice_backwards(inst)),
             maxlen=0,

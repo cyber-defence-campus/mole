@@ -106,15 +106,15 @@ class MediumLevelILCallTracker:
         caller's relevant parameter. The function returns `True` in case of recursion, `False`
         otherwise.
         """
-        # Get the return instruction's function
+        # Get the `to_inst`'s function
         func = to_inst.function
         # Create new call frame
         new_call_frame = MediumLevelILCallFrame(func)
-        # Push return instruction to the call frame's instruction stack
+        # Push `to_inst` to the call frame's instruction stack
         new_call_frame.inst_stack.append(to_inst)
         # Detect recursion
         recursion = new_call_frame in self._call_stack
-        # Pop return instruction from the call frame's instruction stack
+        # Pop `to_inst` from the call frame's instruction stack
         new_call_frame.inst_stack.pop()
         # Update call stack
         self._call_stack.append(new_call_frame)

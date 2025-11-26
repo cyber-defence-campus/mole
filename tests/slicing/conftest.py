@@ -104,7 +104,7 @@ class TestSlicing:
             _call_chains = []
             for path in paths:
                 _call_chains.append(
-                    [call[1].source_function.symbol.short_name for call in path.calls]
+                    [call[0].source_function.symbol.short_name for call in path.calls]
                 )
                 # Assert source
                 assert isinstance(
