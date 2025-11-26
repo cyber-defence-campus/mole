@@ -308,7 +308,7 @@ class MediumLevelILBackwardSlicer:
                 )
                 return
         log.debug(self._tag, f"[{call_level:+d}] {inst_info:s}")
-        self._call_tracker.push_inst(inst)
+        self._call_tracker.push_inst(inst, call_params)
         match inst:
             # NOTE: Case order matters
             case bn.MediumLevelILConstPtr(constant=constant):

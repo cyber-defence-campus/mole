@@ -171,10 +171,14 @@ class MediumLevelILCallTracker:
             return old_call_frame.func_params
         return set()
 
-    def push_inst(self, inst: bn.MediumLevelILInstruction) -> None:
+    def push_inst(
+        self, inst: bn.MediumLevelILInstruction, call_params: Set[int] = set()
+    ) -> None:
         """
         This method pushes the given instruction `inst` to the call frame on the top of the call
-        stack.
+        stack. When `inst` is a call instruction, `call_params` may indicate the set of parameters
+        (indices) that the slicer followed before reaching `inst`, or an empty set if it followed
+        the call's return value.
         """
         if self._call_stack:
             curr_call_frame = self._call_stack[-1]
@@ -184,6 +188,11 @@ class MediumLevelILCallTracker:
             if len(curr_call_frame.inst_stack) >= 2:
                 prev_inst = curr_call_frame.inst_stack[-2]
                 curr_call_frame.inst_graph.add_edge(prev_inst, inst)
+                # If any, store call parameters as edge attribute
+                if call_params:
+                    curr_call_frame.inst_graph.edges[prev_inst, inst]["call_params"] = (
+                        call_params
+                    )
             else:
                 curr_call_frame.inst_graph.add_node(inst)
         return

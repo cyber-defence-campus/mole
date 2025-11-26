@@ -613,6 +613,31 @@ class SinkFunction(Function):
                                         for snk_path in snk_paths:
                                             # Combine source and sink paths
                                             combined_path = snk_path + src_path[1:]
+                                            # Identify source parameter index and variable
+                                            if len(combined_path) >= 2:
+                                                src_inst = combined_path[-1]
+                                                prv_inst = combined_path[-2]
+                                                edge_attrs = (
+                                                    snk_inst_graph.get_edge_data(
+                                                        prv_inst, src_inst
+                                                    )
+                                                )
+                                                if edge_attrs is not None:
+                                                    call_params: Set[int] = (
+                                                        edge_attrs.get(
+                                                            "call_params", set()
+                                                        )
+                                                    )
+                                                    if len(call_params) == 1:
+                                                        src_par_idx = call_params.pop()
+                                                        src_par_var = (
+                                                            src_call_inst.params[
+                                                                src_par_idx - 1
+                                                            ]
+                                                        )
+                                                    else:
+                                                        src_par_idx = None
+                                                        src_par_var = None
                                             # Create a new path object
                                             path = Path(
                                                 src_sym_addr=src_sym_addr,

@@ -152,7 +152,7 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-17"]
     ) -> None:
         self.assert_paths(
-            src=[("recv", None)],
+            src=[("recv", None), ("recv", 2)],
             snk=[("memcpy", 2), ("memcpy", 3), ("system", 1)],
             call_chains=[["main"], ["main"], ["main"], ["main"]],
             filenames=filenames,
