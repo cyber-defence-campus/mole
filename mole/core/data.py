@@ -827,6 +827,14 @@ class Path:
             # Call site (path goes downwards)
             if call_graph.has_edge(old_func, func):
                 self.call_graph.add_node(old_func, call_site=prv_inst.address)
+            # Call site (root node)
+            if (
+                call_graph.in_degree(func) == 0
+                and "call_site" not in self.call_graph.nodes[func]
+            ):
+                for call_site in func.source_function.call_sites:
+                    if call_site.address == inst.address:
+                        self.call_graph.add_node(func, call_site=call_site.address)
             # Function in path changes
             if old_func != func:
                 # Function calls
@@ -839,9 +847,10 @@ class Path:
                 old_inst = inst
             prv_inst = inst
         # Call site (node containing the source instruction)
-        self.call_graph.add_node(
-            self.insts[-1].function, call_site=self.insts[-1].address
-        )
+        src_inst = self.insts[-1]
+        src_func = src_inst.function
+        if "call_site" not in self.call_graph.nodes[src_func]:
+            self.call_graph.add_node(src_func, call_site=src_inst.address)
         # Copy all edges with added attribute `in_path` stating whether or not both nodes have
         # `in_path == True`
         for from_node, to_node, attrs in call_graph.edges(data=True):
