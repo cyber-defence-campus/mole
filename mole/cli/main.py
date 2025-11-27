@@ -68,6 +68,9 @@ def main() -> None:
     parser.add_argument(
         "--export_paths_to_yml_file", help="export identified paths in YAML format"
     )
+    parser.add_argument(
+        "--save_bndb", help="save BN database file with analysis results"
+    )
     args = vars(parser.parse_args())
 
     # Change properties of logger
@@ -89,7 +92,11 @@ def main() -> None:
         slicer.start()
         paths = slicer.paths()
         # Export identified paths
-        if args["export_paths_to_yml_file"] or args["export_paths_to_json_file"]:
+        if (
+            args["export_paths_to_yml_file"]
+            or args["export_paths_to_json_file"]
+            or args["save_bndb"]
+        ):
             # Calculate SHA1 hash of binary
             sha1_hash = hl.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
             # Serialize paths
@@ -117,6 +124,12 @@ def main() -> None:
                         default_flow_style=False,
                         encoding="utf-8",
                     )
+            # Write BN database
+            if args["save_bndb"]:
+                bv.store_metadata("mole_paths", json.dumps(s_paths))
+                fp = args["save_bndb"]
+                fp = os.path.abspath(os.path.expanduser(os.path.expandvars(fp)))
+                bv.create_database(fp)
         # Close binary
         bv.file.close()
     except KeyboardInterrupt:
