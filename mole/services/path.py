@@ -4,7 +4,7 @@ from mole.common.log import log
 from mole.common.task import BackgroundTask
 from mole.core.data import Path, SourceFunction, SinkFunction
 from mole.models.config import ConfigModel
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 import binaryninja as bn
 
 
@@ -22,6 +22,7 @@ class PathService(BackgroundTask):
         bv: bn.BinaryView,
         config_model: ConfigModel,
         max_workers: Optional[int] = None,
+        fix_func_type: Optional[bool] = None,
         max_call_level: Optional[int] = None,
         max_slice_depth: Optional[int] = None,
         max_memory_slice_depth: Optional[int] = None,
@@ -45,6 +46,7 @@ class PathService(BackgroundTask):
         self._bv = bv
         self._config_model = config_model
         self._max_workers = max_workers
+        self._fix_func_type = fix_func_type
         self._max_call_level = max_call_level
         self._max_slice_depth = max_slice_depth
         self._max_memory_slice_depth = max_memory_slice_depth
@@ -82,6 +84,12 @@ class PathService(BackgroundTask):
         if max_workers is not None and max_workers <= 0:
             max_workers = None
         log.debug(tag, f"- max_workers: '{max_workers}'")
+        fix_func_type = self._fix_func_type
+        if fix_func_type is None:
+            setting = self._config_model.get_setting("fix_func_type")
+            if setting:
+                fix_func_type = setting.value
+        log.debug(tag, f"- fix_func_type: '{str(fix_func_type):s}'")
         max_call_level = self._max_call_level
         if max_call_level is None:
             setting = self._config_model.get_setting("max_call_level")
@@ -147,6 +155,69 @@ class PathService(BackgroundTask):
         if not src_funs or not snk_funs:
             log.warn(tag, "No source or sink functions configured")
         else:
+            # Fix source/sink function types
+            if fix_func_type:
+                # Source function synopses
+                src_fun_synopses: Dict[str, Tuple[str, Callable[[int], bool]]] = {}
+                for src_fun in src_funs:
+                    for symbol in src_fun.symbols:
+                        src_fun_synopses[symbol] = (
+                            src_fun.synopsis,
+                            src_fun.par_cnt_fun,
+                        )
+                # Sink function synopses
+                snk_fun_synopses: Dict[str, Tuple[str, Callable[[int], bool]]] = {}
+                for snk_fun in snk_funs:
+                    for symbol in snk_fun.symbols:
+                        snk_fun_synopses[symbol] = (
+                            snk_fun.synopsis,
+                            snk_fun.par_cnt_fun,
+                        )
+                # Fix function types
+                fixed = False
+                for func in self._bv.functions:
+                    synopsis, par_cnt_fun = src_fun_synopses.get(
+                        func.name, (None, None)
+                    )
+                    if (
+                        synopsis is not None
+                        and par_cnt_fun is not None
+                        and not par_cnt_fun(len(func.parameter_vars))
+                    ):
+                        try:
+                            type, _ = self._bv.parse_type_string(synopsis)
+                            func.set_user_type(type)
+                            fixed = True
+                            log.info(
+                                tag, f"Fixed type of source function {func.name:s}"
+                            )
+                        except Exception as e:
+                            log.warn(
+                                tag,
+                                f"Failed to fix type of source function {func.name:s}: {str(e):s}",
+                            )
+                    synopsis, par_cnt_fun = snk_fun_synopses.get(
+                        func.name, (None, None)
+                    )
+                    if (
+                        synopsis is not None
+                        and par_cnt_fun is not None
+                        and not par_cnt_fun(len(func.parameter_vars))
+                    ):
+                        try:
+                            type, _ = self._bv.parse_type_string(synopsis)
+                            func.set_user_type(type)
+                            fixed = True
+                            log.info(
+                                tag, f"Fixed type of source function {func.name:s}"
+                            )
+                        except Exception as e:
+                            log.warn(
+                                tag,
+                                f"Failed to fix type of sink function {func.name:s}: {str(e):s}",
+                            )
+                if fixed:
+                    self._bv.update_analysis_and_wait()
             # Backward slice source functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks

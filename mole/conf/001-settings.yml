@@ -4,6 +4,9 @@ settings:
     value: 1
     min_value: -1
     max_value: 256
+  fix_func_type:
+    help: whether to fix types of source/sink functions before slicing
+    value: false
   max_call_level:
     help: backward slicing visits called functions up to the given level
     value: 10

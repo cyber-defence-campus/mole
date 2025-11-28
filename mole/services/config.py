@@ -3,6 +3,7 @@ from mole.common.log import log
 from mole.common.parse import LogicalExpressionParser
 from mole.core.data import (
     Category,
+    CheckboxSetting,
     ComboboxSetting,
     Configuration,
     DoubleSpinboxSetting,
@@ -108,6 +109,31 @@ class ConfigService:
                             help=help,
                             min_value=min_value,
                             max_value=max_value,
+                        )
+                    }
+                )
+            for name in ["fix_func_type"]:
+                setting: Dict = settings.get(name, None)
+                if not setting:
+                    continue
+                try:
+                    value = setting["value"]
+                    help = setting["help"]
+                except KeyError as e:
+                    log.warn(
+                        tag,
+                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
+                    )
+                    continue
+                except Exception as e:
+                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    continue
+                parsed_config["settings"].update(
+                    {
+                        name: CheckboxSetting(
+                            name=name,
+                            value=value,
+                            help=help,
                         )
                     }
                 )

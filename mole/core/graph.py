@@ -111,7 +111,7 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         nx.set_node_attributes(self, -1, "level")
         # Get all nodes included in the path
         in_path_nodes = [
-            node for node, attr in self.nodes(data=True) if attr["in_path"]
+            node for node, attr in self.nodes(data=True) if attr.get("in_path", False)
         ]
         # Create a subgraph view for the in-path nodes
         in_path_subgraph: MediumLevelILFunctionGraph = self.subgraph(in_path_nodes)
