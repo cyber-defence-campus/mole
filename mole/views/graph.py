@@ -154,9 +154,11 @@ class CallGraphWidget(qtw.QWidget):
         node_map: Dict[bn.MediumLevelILFunction, bn.FlowGraphNode] = {}
         # Add nodes to flow graph
         for call, attrs in call_graph.nodes(data=True):
+            call = call  # type: bn.MediumLevelILFunction
             # Ignore node if already added or being out-of-path while in-path-only is enabled
             if call in node_map or (
-                self.in_path_only.isChecked() and not call_graph.nodes[call]["in_path"]
+                self.in_path_only.isChecked()
+                and not call_graph.nodes[call].get("in_path", False)
             ):
                 continue
             # Create flow graph node
@@ -167,24 +169,6 @@ class CallGraphWidget(qtw.QWidget):
                 InstructionHelper.mark_func_tokens(func.type_tokens, set(), set())
             )
             fg_node.lines += [func_tokens]
-            # Add call site tokens
-            call_site: bn.MediumLevelILInstruction = call_graph.nodes[call].get(
-                "call_site", None
-            )
-            if call_site is not None:
-                call_site_tokens = [
-                    bn.InstructionTextToken(
-                        bn.InstructionTextTokenType.CommentToken, "- CS :\t"
-                    ),
-                    bn.InstructionTextToken(
-                        bn.InstructionTextTokenType.AddressDisplayToken,
-                        f"0x{call_site:x}\t",
-                        call_site,
-                    ),
-                ]
-            else:
-                call_site_tokens = []
-            fg_node.lines += [call_site_tokens]
             # Add source tokens
             if "src" in attrs:
                 src_inst = self._path.insts[-1]
@@ -236,6 +220,8 @@ class CallGraphWidget(qtw.QWidget):
             self.flow_graph.append(fg_node)
         # Add edges to flow graph
         for from_call, to_call, attrs in call_graph.edges(data=True):
+            from_call = from_call  # type: bn.MediumLevelILFunction
+            to_call = to_call  # type: bn.MediumLevelILFunction
             fg_from_node = node_map.get(from_call, None)
             fg_to_node = node_map.get(to_call, None)
             path_follows_downwards: bool = attrs["downwards"]
@@ -267,6 +253,19 @@ class CallGraphWidget(qtw.QWidget):
                 to_func_tokens = InstructionHelper.mark_func_tokens(
                     to_call.source_function.type_tokens, set(), {path_follows_param_idx}
                 )
+            # Add call site tokens
+            call_site = attrs.get("call_site", None)
+            if call_site is not None:
+                to_func_tokens += [
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, " @ "
+                    ),
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.AddressDisplayToken,
+                        f"0x{call_site:x}\t",
+                        call_site,
+                    ),
+                ]
             # Mark parameters in function tokens
             fg_to_node.lines = [to_func_tokens] + fg_to_node.lines[1:]
         # Update graph widget

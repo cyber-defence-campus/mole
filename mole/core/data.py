@@ -805,61 +805,34 @@ class Path:
         return f"{snk:s} <-- {src:s}"
 
     def init(self, call_graph: MediumLevelILFunctionGraph) -> None:
-        # Copy all nodes with added attribute `in_path=False`
-        for node, attrs in call_graph.nodes(data=True):
-            new_attrs = {**attrs, "in_path": False}
-            self.call_graph.add_node(node, **new_attrs)
-        # Determine path properties
+        # Create call graph
+        self.call_graph = call_graph.copy()
+        # Iterate instructions in path
         old_func = None
-        old_inst = None
         prv_inst = None
         for inst in self.insts:
+            # Mark instruction's function being in the path
             func = inst.function
+            self.call_graph.nodes[func]["in_path"] = True
+            # Path goes upwards
+            if self.call_graph.has_edge(func, old_func):
+                self.call_graph[func][old_func]["in_path"] = True
+                self.call_graph[func][old_func]["call_site"] = inst.address
+            # Path goes downwards
+            if self.call_graph.has_edge(old_func, func):
+                self.call_graph[old_func][func]["in_path"] = True
+                self.call_graph[old_func][func]["call_site"] = prv_inst.address
             # Phi-instructions
             if isinstance(inst, bn.MediumLevelILVarPhi):
                 self.phiis.append(inst)
             # Branch dependencies
             for bch_idx, bch_dep in inst.branch_dependence.items():
                 self.bdeps.setdefault(bch_idx, bch_dep)
-            # Call site (path goes upwards)
-            if call_graph.has_edge(func, old_func):
-                self.call_graph.add_node(old_func, call_site=old_inst.address)
-            # Call site (path goes downwards)
-            if call_graph.has_edge(old_func, func):
-                self.call_graph.add_node(old_func, call_site=prv_inst.address)
-            # Call site (root node)
-            if (
-                call_graph.in_degree(func) == 0
-                and "call_site" not in self.call_graph.nodes[func]
-            ):
-                for call_site in func.source_function.call_sites:
-                    if call_site.address == inst.address:
-                        self.call_graph.add_node(func, call_site=call_site.address)
             # Function in path changes
             if old_func != func:
-                # Function calls
                 self.calls.append((func, 0))
-                # Function calls graph
-                if func in self.call_graph:
-                    self.call_graph.nodes[func]["in_path"] = True
-                # Update old function and instruction
                 old_func = func
-                old_inst = inst
             prv_inst = inst
-        # Call site (node containing the source instruction)
-        src_inst = self.insts[-1]
-        src_func = src_inst.function
-        if "call_site" not in self.call_graph.nodes[src_func]:
-            self.call_graph.add_node(src_func, call_site=src_inst.address)
-        # Copy all edges with added attribute `in_path` stating whether or not both nodes have
-        # `in_path == True`
-        for from_node, to_node, attrs in call_graph.edges(data=True):
-            in_path = (
-                self.call_graph.nodes[from_node]["in_path"]
-                and self.call_graph.nodes[to_node]["in_path"]
-            )
-            new_attrs = {**attrs, "in_path": in_path}
-            self.call_graph.add_edge(from_node, to_node, **new_attrs)
         # Add `src` node attribute
         src_func = self.insts[-1].function
         if src_func in self.call_graph:
