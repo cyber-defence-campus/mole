@@ -148,15 +148,15 @@ These features help users better inspect and validate identified paths during an
 ### Visualizing Paths As Call Graphs
 Right-clicking a path opens *Mole*'s context menu, and selecting *Show call graph* visualizes the functions involved in that path as a graph.
 <p align="center">
-  <img src="https://i.postimg.cc/PrDLYg0W/call-graph.png" alt="Mole Call Graph"/>
+  <img src="https://i.postimg.cc/kXQVVGmn/call-graph.png" alt="Mole Call Graph"/>
 </p>
 
 The graph above for instance illustrates the following:
 - The path's *source* (*SRC*) is the `uh_tcp_recv` call instruction at address `0x403e78`. The path-relevant parameter of `uh_tcp_recv` is `««$a1_1#3»»`.
-- This source instruction belongs to the function `uh_client_cb`, where the relevant parameter is `««struct req_struct* arg1»»`.
-- `uh_client_cb` calls `uh_slp_proto_request`, with the path-relevant parameter `««struct req_struct* req_struct_1»»`.
-- `uh_slp_proto_request` calls `set_language`, with the path-relevant parameter `««int32_t json_obj»»`.
-- `set_language` calls `exec_and_read_json`, with the path-relevant parameter `««char* command»»`.
+- This source instruction belongs to the function `uh_client_cb`.
+- `uh_client_cb` calls `uh_slp_proto_request` (call site at `0x404454`), with the path-relevant parameter `««struct req_struct* req_struct_1»»`.
+- `uh_slp_proto_request` calls `set_language` (call site at `0x40a068`), with the path-relevant parameter `««int32_t json_obj»»`.
+- `set_language` calls `exec_and_read_json` (call site at `0x409588`), with the path-relevant parameter `««char* command»»`.
 - `exec_and_read_json` contains the path's *sink* (*SNK*), namely the call to `popen` at address `0x408f20`. The path-relevant parameter of `popen` is `««command#0»»`.
 
 **Note**: Parameters and return values relevant to the analyzed path are highlighted using the `««var»»` notation.
