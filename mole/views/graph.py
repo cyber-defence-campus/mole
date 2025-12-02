@@ -232,6 +232,9 @@ class CallGraphWidget(qtw.QWidget):
             to_call = to_call  # type: bn.MediumLevelILFunction
             fg_from_node = node_map.get(from_call, None)
             fg_to_node = node_map.get(to_call, None)
+            # Ignore edge if necessary attributes are missing
+            if "downwards" not in attrs or "param_idx" not in attrs:
+                continue
             path_follows_downwards: bool = attrs["downwards"]
             path_follows_param_idx: int = attrs["param_idx"]
             # Ignore edge if not both nodes are in the flow graph
