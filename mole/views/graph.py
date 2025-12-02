@@ -215,6 +215,14 @@ class CallGraphWidget(qtw.QWidget):
                 ]
                 fg_node.lines += [snk_inst_tokens]
                 fg_node.highlight = self._get_color("snk")
+            # Highlight in-path nodes
+            if (
+                "src" not in attrs
+                and "snk" not in attrs
+                and "in_path" in attrs
+                and attrs["in_path"]
+            ):
+                fg_node.highlight = self._get_color("in_path")
             # Add node to flow graph
             node_map[call] = fg_node
             self.flow_graph.append(fg_node)
