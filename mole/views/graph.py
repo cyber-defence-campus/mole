@@ -237,8 +237,13 @@ class CallGraphWidget(qtw.QWidget):
                 continue
             path_follows_downwards: bool = attrs["downwards"]
             path_follows_param_idx: int = attrs["param_idx"]
+            in_path: bool = attrs.get("in_path", False)
             # Ignore edge if not both nodes are in the flow graph
-            if fg_from_node is None or fg_to_node is None:
+            if (
+                fg_from_node is None
+                or fg_to_node is None
+                or (self.in_path_only.isChecked() and not in_path)
+            ):
                 continue
             # Add edge
             fg_from_node.add_outgoing_edge(
