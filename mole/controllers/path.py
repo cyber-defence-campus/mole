@@ -277,6 +277,8 @@ class PathController:
             log.warn(tag, "Wait for previous background thread to complete first")
             self._give_feedback("Find", "Other Task Running...")
             return
+        # Clear caches
+        FunctionHelper.cache_clear()
         # Start background thread
         self._give_feedback("Find", "Finding...")
         self._thread = PathService(
@@ -868,8 +870,8 @@ class PathController:
         else:
             log.debug(tag, "--- Backward Calls ---")
             calls = path.calls
-        min_call_level = min(calls, key=lambda x: x[2])[2]
-        for _, call_func, call_level in calls:
+        min_call_level = min(calls, key=lambda x: x[1])[1]
+        for call_func, call_level in calls:
             indent = call_level - min_call_level + 1
             call_addr = call_func.source_function.start
             call_name = call_func.source_function.symbol.short_name

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 import binaryninja as bn
 
 
@@ -21,13 +21,13 @@ class InstructionHelper:
             for token in inst.tokens:
                 match token.type:
                     case bn.InstructionTextTokenType.PossibleAddressToken:
-                        func = inst.function.view.get_function_at(token.value)
-                        if func:
+                        symbol = inst.function.view.get_symbol_at(token.value)
+                        if symbol:
                             formatted_tokens.append(
                                 bn.InstructionTextToken(
                                     bn.InstructionTextTokenType.CodeSymbolToken,
-                                    func.symbol.short_name,
-                                    func.start,
+                                    symbol.short_name,
+                                    token.value,
                                 )
                             )
                         else:
@@ -40,8 +40,8 @@ class InstructionHelper:
 
     def mark_func_tokens(
         tokens: List[bn.InstructionTextToken],
-        return_indices: List[int],
-        param_indices: List[int],
+        return_indices: Set[int],
+        param_indices: Set[int],
     ) -> List[bn.InstructionTextToken]:
         """
         This method adds markers around the tokens corresponding to relevant function return values
@@ -163,7 +163,7 @@ class InstructionHelper:
                         bn.InstructionTextTokenType.CommentToken, "»»"
                     )
                 )
-        # Separate parameter tokens
+        # Separate return tokens
         sep_return_tokens: List[List[bn.InstructionTextToken]] = []
         for i, return_token in enumerate(return_tokens):
             sep_return_tokens.append(return_token)

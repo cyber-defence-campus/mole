@@ -11,6 +11,22 @@ class FunctionHelper:
     This class provides helper functions with respect to functions.
     """
 
+    maxsize = 32
+
+    @staticmethod
+    def cache_clear() -> None:
+        """
+        This method clears all caches of this class.
+        """
+        FunctionHelper.get_mlil_return_insts.cache_clear()
+        FunctionHelper.get_mlil_direct_call_insts.cache_clear()
+        FunctionHelper.get_mlil_param_insts.cache_clear()
+        FunctionHelper.get_ptr_map.cache_clear()
+        FunctionHelper.get_ssa_memory_definitions.cache_clear()
+        FunctionHelper.get_il_code.cache_clear()
+        FunctionHelper.get_pseudo_c_code.cache_clear()
+        return
+
     @staticmethod
     def get_func_info(
         func: bn.MediumLevelILFunction, with_class_name: bool = True
@@ -24,6 +40,7 @@ class FunctionHelper:
         return info
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_mlil_return_insts(
         func: bn.MediumLevelILFunction,
     ) -> List[bn.MediumLevelILInstruction]:
@@ -38,6 +55,7 @@ class FunctionHelper:
         return ret_insts
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_mlil_direct_call_insts(
         func: bn.MediumLevelILFunction,
     ) -> Set[
@@ -156,6 +174,7 @@ class FunctionHelper:
         return call_insts
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_mlil_param_insts(
         func: bn.MediumLevelILFunction,
     ) -> List[Optional[bn.MediumLevelILVarSsa]]:
@@ -195,43 +214,72 @@ class FunctionHelper:
         return param_insts
 
     @staticmethod
-    @lru_cache(maxsize=32)
-    def get_var_addr_assignments(
+    @lru_cache(maxsize=maxsize)
+    def get_ptr_map(
         func: bn.MediumLevelILFunction,
-    ) -> Dict[bn.Variable, List[bn.MediumLevelILSetVarSsa]]:
+    ) -> Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]]:
         """
-        This method returns a dictionary mapping variables (`var_y`) to assignment instructions
-        (`var_x = &var_y`) within `func`, where the variable's address (`&var_y`) is assigned to
-        another variable (`var_x`).
+        This method returns a dicitionary, where keys are MLIL SSA variables corresponding to pointers.
+        The values are the corresponding HLIL pointer instructions.
         """
+        ptr_map: Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]] = {}
 
-        # Find variable address assignments (e.g. `var_x = &var_y`) in `inst`
-        def find_var_addr_assignments(
-            inst: bn.MediumLevelILInstruction,
-        ) -> Tuple[Optional[bn.Variable], Optional[bn.MediumLevelILSetVarSsa]]:
+        # Find HLIL pointer instruction for HLIL instruction `inst`
+        def find_hlil_ptrs(
+            inst: bn.HighLevelILInstruction,
+        ) -> Optional[bn.HighLevelILInstruction]:
+            inst = inst.ssa_form if inst is not None else None
             match inst:
-                # TODO: Should we consider the `offset` in MLIL_ADDRESS_OF_FIELD as well?
-                case bn.MediumLevelILSetVarSsa(
-                    src=bn.MediumLevelILAddressOf(src=src)
-                    | bn.MediumLevelILAddressOfField(src=src)
-                ):
-                    return (src, inst)
+                case bn.HighLevelILVar():
+                    return inst
+                case bn.HighLevelILVarSsa(var=ssa_var):
+                    def_inst = inst.function.get_ssa_var_definition(ssa_var)
+                    match def_inst:
+                        case bn.HighLevelILVarInitSsa(src=bn.HighLevelILVar()):
+                            return def_inst.src
+                        case bn.HighLevelILVarInitSsa(
+                            src=bn.HighLevelILAddressOf(src=ptr_inst)
+                        ):
+                            return ptr_inst
+                        case bn.HighLevelILVarInitSsa(
+                            src=bn.HighLevelILUnaryBase(src=src_inst)
+                        ):
+                            return find_hlil_ptrs(src_inst)
+                case bn.HighLevelILAddressOf(src=ptr_inst):
+                    return ptr_inst
+                case bn.HighLevelILUnaryBase(src=src_inst):
+                    return find_hlil_ptrs(src_inst)
+                case bn.HighLevelILBinaryBase(left=left_inst, right=right_inst):
+                    left_ptr_inst = find_hlil_ptrs(left_inst)
+                    if left_ptr_inst is not None:
+                        return left_ptr_inst
+                    right_ptr_inst = find_hlil_ptrs(right_inst)
+                    if right_ptr_inst is not None:
+                        return right_ptr_inst
+            return None
+
+        # Find HLIL pointer instruction for MLIL instruction `inst`
+        def find_mlil_ptrs(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.HighLevelILInstruction]]:
+            match inst:
+                case bn.MediumLevelILVarSsa(src=ssa_var):
+                    return (ssa_var, find_hlil_ptrs(inst.hlil))
             return (None, None)
 
-        # Find variable address assignments (e.g. `var_x = &var_y`) in `func`
-        var_addr_assignments = {}
-        if func is not None and func.ssa_form is not None:
-            for var, inst in func.ssa_form.traverse(find_var_addr_assignments):
-                if var is None or inst is None:
+        # Create mapping of MLIL SSA variables to HLIL pointer instructions in function `func`
+        func = func.ssa_form if func is not None else None
+        if func is not None:
+            for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_ptrs):
+                mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
+                hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
+                if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
                     continue
-                insts: List[bn.MediumLevelILSetVarSsa] = (
-                    var_addr_assignments.setdefault(var, [])
-                )
-                insts.append(inst)
-        return var_addr_assignments
+                ptr_map[mlil_ptr_ssa_var] = hlil_ptr_inst
+        return ptr_map
 
     @staticmethod
-    @lru_cache(maxsize=32)
+    @lru_cache(maxsize=maxsize)
     def get_ssa_memory_definitions(
         func: bn.MediumLevelILFunction,
         memory_version: int,
@@ -296,6 +344,7 @@ class FunctionHelper:
         return call_inst
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_il_code(
         func: bn.HighLevelILFunction | bn.MediumLevelILFunction | bn.LowLevelILFunction,
     ) -> str:
@@ -310,6 +359,7 @@ class FunctionHelper:
         return "\n".join(code_lines)
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_pseudo_c_code(func: bn.Function) -> str:
         """
         This method returns the pseudo C code of the function `func`.

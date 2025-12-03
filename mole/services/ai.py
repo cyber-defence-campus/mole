@@ -154,9 +154,10 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             prompt += f"{custom_tag:s} {InstructionHelper.get_inst_info(inst):s}\n"
         # Call sequence
         prompt += "\n--- Call Sequence ---\n"
-        min_call_level = min(path.calls, key=lambda x: x[2])[2]
-        for call_addr, call_func, call_level in path.calls:
+        min_call_level = min(path.calls, key=lambda x: x[1])[1]
+        for call_func, call_level in path.calls:
             indent = call_level - min_call_level
+            call_addr = call_func.source_function.start
             call_name = call_func.source_function.symbol.short_name
             prompt += f"{'>' * indent:s} 0x{call_addr:x} {call_name:s}\n"
         prompt += "\n"

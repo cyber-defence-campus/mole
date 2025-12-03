@@ -8,8 +8,8 @@ class TestFunctionOutParams(TestSlicing):
         self, filenames: List[str] = ["function_out_params-01"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 3)],
+            srcs=[("getenv", None)],
+            snks=[("memcpy", 3)],
             call_chains=[["main", "get_size"]],
             filenames=filenames,
         )
@@ -19,8 +19,8 @@ class TestFunctionOutParams(TestSlicing):
         self, filenames: List[str] = ["function_out_params-02"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["main", "get_cmd"]],
             filenames=filenames,
         )
@@ -48,8 +48,8 @@ class TestFunctionOutParams(TestSlicing):
         self, filenames: List[str] = ["function_out_params-06"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["main"]],
             filenames=filenames,
         )

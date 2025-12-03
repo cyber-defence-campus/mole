@@ -8,6 +8,7 @@ import PySide6.QtWidgets as qtw
 if TYPE_CHECKING:
     from mole.controllers.config import ConfigController
     from mole.core.data import (
+        CheckboxSetting,
         ComboboxSetting,
         DoubleSpinboxSetting,
         SpinboxSetting,
@@ -160,21 +161,40 @@ class ConfigView(qtw.QWidget):
         """
         # General layout
         gen_lay = qtw.QGridLayout()
-        for i, name in enumerate(["max_workers"]):
-            setting: SpinboxSetting = self.config_ctr.get_setting(name)
-            if not setting:
+        row_cnt = 0
+        for name in ["max_workers"]:
+            sb_set: SpinboxSetting = self.config_ctr.get_setting(name)
+            if not sb_set:
                 continue
-            setting_lbl = qtw.QLabel(f"{name:s}:")
-            setting_lbl.setToolTip(setting.help)
-            gen_lay.addWidget(setting_lbl, i, 0)
-            setting.widget = qtw.QSpinBox()
-            setting.widget.setRange(setting.min_value, setting.max_value)
-            setting.widget.setValue(setting.value)
-            setting.widget.setToolTip(setting.help)
-            setting.widget.valueChanged.connect(
+            sb_set_lbl = qtw.QLabel(f"{name:s}:")
+            sb_set_lbl.setToolTip(sb_set.help)
+            gen_lay.addWidget(sb_set_lbl, row_cnt, 0)
+            sb_set.widget = qtw.QSpinBox()
+            sb_set.widget.setRange(sb_set.min_value, sb_set.max_value)
+            sb_set.widget.setValue(sb_set.value)
+            sb_set.widget.setToolTip(sb_set.help)
+            sb_set.widget.valueChanged.connect(
                 lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
-            gen_lay.addWidget(setting.widget, i, 1)
+            gen_lay.addWidget(sb_set.widget, row_cnt, 1)
+            row_cnt += 1
+        for name in ["fix_func_type"]:
+            cb_set: CheckboxSetting = self.config_ctr.get_setting("fix_func_type")
+            if not cb_set:
+                continue
+            cb_set_lbl = qtw.QLabel("fix_func_type:")
+            cb_set_lbl.setToolTip(cb_set.help)
+            gen_lay.addWidget(cb_set_lbl, row_cnt, 0)
+            cb_set.widget = qtw.QCheckBox()
+            cb_set.widget.setChecked(cb_set.value)
+            cb_set.widget.setToolTip(cb_set.help)
+            cb_set.widget.toggled.connect(
+                lambda value, name="fix_func_type": self.signal_change_setting.emit(
+                    name, value
+                )
+            )
+            gen_lay.addWidget(cb_set.widget, row_cnt, 1)
+            row_cnt += 1
         # General widget
         gen_wid = qtw.QGroupBox("General:")
         gen_wid.setLayout(gen_lay)
@@ -183,20 +203,20 @@ class ConfigView(qtw.QWidget):
         for i, name in enumerate(
             ["max_call_level", "max_slice_depth", "max_memory_slice_depth"]
         ):
-            setting: SpinboxSetting = self.config_ctr.get_setting(name)
-            if not setting:
+            sb_set: SpinboxSetting = self.config_ctr.get_setting(name)
+            if not sb_set:
                 continue
-            setting_lbl = qtw.QLabel(f"{name:s}:")
-            setting_lbl.setToolTip(setting.help)
-            fnd_lay.addWidget(setting_lbl, i, 0)
-            setting.widget = qtw.QSpinBox()
-            setting.widget.setRange(setting.min_value, setting.max_value)
-            setting.widget.setValue(setting.value)
-            setting.widget.setToolTip(setting.help)
-            setting.widget.valueChanged.connect(
+            sb_set_lbl = qtw.QLabel(f"{name:s}:")
+            sb_set_lbl.setToolTip(sb_set.help)
+            fnd_lay.addWidget(sb_set_lbl, i, 0)
+            sb_set.widget = qtw.QSpinBox()
+            sb_set.widget.setRange(sb_set.min_value, sb_set.max_value)
+            sb_set.widget.setValue(sb_set.value)
+            sb_set.widget.setToolTip(sb_set.help)
+            sb_set.widget.valueChanged.connect(
                 lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
-            fnd_lay.addWidget(setting.widget, i, 1)
+            fnd_lay.addWidget(sb_set.widget, i, 1)
         # Find widget
         fnd_wid = qtw.QGroupBox("Finding Paths:")
         fnd_wid.setLayout(fnd_lay)
@@ -205,25 +225,25 @@ class ConfigView(qtw.QWidget):
         for i, name in enumerate(
             ["src_highlight_color", "snk_highlight_color", "path_grouping"]
         ):
-            setting: ComboboxSetting = self.config_ctr.get_setting(name)
-            if not setting:
+            co_set: ComboboxSetting = self.config_ctr.get_setting(name)
+            if not co_set:
                 continue
-            setting_lbl = qtw.QLabel(f"{name:s}:")
-            setting_lbl.setToolTip(setting.help)
-            ins_lay.addWidget(setting_lbl, i, 0)
-            setting.widget = qtw.QComboBox()
-            setting.widget.addItems(setting.items)
-            if setting.value in setting.items:
-                setting.widget.setCurrentText(setting.value)
-            setting.widget.setToolTip(setting.help)
-            setting.widget.currentTextChanged.connect(
+            co_set_lbl = qtw.QLabel(f"{name:s}:")
+            co_set_lbl.setToolTip(co_set.help)
+            ins_lay.addWidget(co_set_lbl, i, 0)
+            co_set.widget = qtw.QComboBox()
+            co_set.widget.addItems(co_set.items)
+            if co_set.value in co_set.items:
+                co_set.widget.setCurrentText(co_set.value)
+            co_set.widget.setToolTip(co_set.help)
+            co_set.widget.currentTextChanged.connect(
                 lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
             if name == "path_grouping":
-                setting.widget.currentTextChanged.connect(
+                co_set.widget.currentTextChanged.connect(
                     self.signal_change_path_grouping
                 )
-            ins_lay.addWidget(setting.widget, i, 1)
+            ins_lay.addWidget(co_set.widget, i, 1)
         # Inspecting widget
         ins_wid = qtw.QGroupBox("Inspecting Path:")
         ins_wid.setLayout(ins_lay)
@@ -231,55 +251,55 @@ class ConfigView(qtw.QWidget):
         aia_lay = qtw.QGridLayout()
         row_cnt = 0
         for name in ["openai_base_url", "openai_api_key", "openai_model"]:
-            setting: TextSetting = self.config_ctr.get_setting(name)
-            if not setting:
+            tt_set: TextSetting = self.config_ctr.get_setting(name)
+            if not tt_set:
                 continue
-            setting_lbl = qtw.QLabel(f"{name:s}:")
-            setting_lbl.setToolTip(setting.help)
-            aia_lay.addWidget(setting_lbl, row_cnt, 0)
-            setting.widget = qtw.QLineEdit()
+            tt_set_lbl = qtw.QLabel(f"{name:s}:")
+            tt_set_lbl.setToolTip(tt_set.help)
+            aia_lay.addWidget(tt_set_lbl, row_cnt, 0)
+            tt_set.widget = qtw.QLineEdit()
             if name == "openai_api_key":
-                setting.widget.setEchoMode(qtw.QLineEdit.EchoMode.Password)
-            setting.widget.setText(setting.value)
-            setting.widget.setToolTip(setting.help)
-            setting.widget.textChanged.connect(
+                tt_set.widget.setEchoMode(qtw.QLineEdit.EchoMode.Password)
+            tt_set.widget.setText(tt_set.value)
+            tt_set.widget.setToolTip(tt_set.help)
+            tt_set.widget.textChanged.connect(
                 lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
-            aia_lay.addWidget(setting.widget, row_cnt, 1)
+            aia_lay.addWidget(tt_set.widget, row_cnt, 1)
             row_cnt += 1
         for name in ["max_turns", "max_completion_tokens"]:
-            setting: SpinboxSetting = self.config_ctr.get_setting(name)
-            if not setting:
+            sb_set: SpinboxSetting = self.config_ctr.get_setting(name)
+            if not sb_set:
                 continue
-            setting_lbl = qtw.QLabel(f"{name:s}:")
-            setting_lbl.setToolTip(setting.help)
-            aia_lay.addWidget(setting_lbl, row_cnt, 0)
-            setting.widget = qtw.QSpinBox()
-            setting.widget.setRange(setting.min_value, setting.max_value)
-            setting.widget.setValue(setting.value)
-            setting.widget.setToolTip(setting.help)
-            setting.widget.valueChanged.connect(
+            sb_set_lbl = qtw.QLabel(f"{name:s}:")
+            sb_set_lbl.setToolTip(sb_set.help)
+            aia_lay.addWidget(sb_set_lbl, row_cnt, 0)
+            sb_set.widget = qtw.QSpinBox()
+            sb_set.widget.setRange(sb_set.min_value, sb_set.max_value)
+            sb_set.widget.setValue(sb_set.value)
+            sb_set.widget.setToolTip(sb_set.help)
+            sb_set.widget.valueChanged.connect(
                 lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
-            aia_lay.addWidget(setting.widget, row_cnt, 1)
+            aia_lay.addWidget(sb_set.widget, row_cnt, 1)
             row_cnt += 1
         for name in ["temperature"]:
-            setting: DoubleSpinboxSetting = self.config_ctr.get_setting(name)
-            if not setting:
+            ds_set: DoubleSpinboxSetting = self.config_ctr.get_setting(name)
+            if not ds_set:
                 continue
-            setting_lbl = qtw.QLabel(f"{name:s}:")
-            setting_lbl.setToolTip(setting.help)
-            aia_lay.addWidget(setting_lbl, row_cnt, 0)
-            setting.widget = qtw.QDoubleSpinBox()
-            setting.widget.setDecimals(1)
-            setting.widget.setSingleStep(0.1)
-            setting.widget.setRange(setting.min_value, setting.max_value)
-            setting.widget.setValue(setting.value)
-            setting.widget.setToolTip(setting.help)
-            setting.widget.valueChanged.connect(
+            ds_set_lbl = qtw.QLabel(f"{name:s}:")
+            ds_set_lbl.setToolTip(ds_set.help)
+            aia_lay.addWidget(ds_set_lbl, row_cnt, 0)
+            ds_set.widget = qtw.QDoubleSpinBox()
+            ds_set.widget.setDecimals(1)
+            ds_set.widget.setSingleStep(0.1)
+            ds_set.widget.setRange(ds_set.min_value, ds_set.max_value)
+            ds_set.widget.setValue(ds_set.value)
+            ds_set.widget.setToolTip(ds_set.help)
+            ds_set.widget.valueChanged.connect(
                 lambda value, name=name: self.signal_change_setting.emit(name, value)
             )
-            aia_lay.addWidget(setting.widget, row_cnt, 1)
+            aia_lay.addWidget(ds_set.widget, row_cnt, 1)
             row_cnt += 1
         # Analyzing widget
         aia_wid = qtw.QGroupBox("Analyzing Path with AI:")

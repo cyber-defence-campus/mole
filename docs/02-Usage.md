@@ -64,7 +64,7 @@ Clicking the *Add* button adds the configured function to a special sub-tab name
   <img src="https://i.postimg.cc/Th88sTbL/manual-03.png" alt="Mole Manual Source / Sink"/>
 </p>
 
-Saving your configuration allows source and sink functions added through the UI to be persisted. These functions are stored in the previously mentioned YAML format in the file `conf/000-foobar.yml` (as described above).
+Saving your configuration allows source and sink functions added through the UI to be persisted. These functions are stored in the previously mentioned YAML format in the file `conf/002-manual.yml` (as described above).
 
 ### OpenAI API Endpoint
 *Mole* includes an AI-assisted analysis mode designed to provide deeper insights into identified paths. This feature leverages *Large Language Models* (*LLMs*) to examine potential vulnerabilities, evaluate their severity, and suggest inputs that could trigger the corresponding code paths.
@@ -87,7 +87,7 @@ Based on our initial testing, OpenAI’s `o4-mini` model offers a good balance b
 > **Privacy Disclaimer**: When using the AI analysis feature, information from the current binary - such as code, symbols, strings, comments, and other contextual data - may be sent to the configured OpenAI-compatible endpoint for processing. **Do not use this feature on binaries containing sensitive, proprietary, or confidential information**, as the data may be transmitted to a third party. Use this functionality at your own discretion and in accordance with your organization’s security policies.
 
 ## Headless Mode
-Use *Mole* with the `-h` flag to display detailed usage information. The example below demonstrates how to run *Mole* on one of the unit tests (make sure to build them first by running `cd test/ && make`):
+Use *Mole* with the `-h` flag to display detailed usage information. The example below demonstrates how to run *Mole* on one of the unit tests (make sure to build them first by running `cd tests/data/ && make`):
 ```
 mole bin/memcpy-01 > ./memcpy-01.log 2>&1
 ```
@@ -148,15 +148,15 @@ These features help users better inspect and validate identified paths during an
 ### Visualizing Paths As Call Graphs
 Right-clicking a path opens *Mole*'s context menu, and selecting *Show call graph* visualizes the functions involved in that path as a graph.
 <p align="center">
-  <img src="https://i.postimg.cc/PrDLYg0W/call-graph.png" alt="Mole Call Graph"/>
+  <img src="https://i.postimg.cc/SKpFZNB3/call-graph.png" alt="Mole Call Graph"/>
 </p>
 
 The graph above for instance illustrates the following:
 - The path's *source* (*SRC*) is the `uh_tcp_recv` call instruction at address `0x403e78`. The path-relevant parameter of `uh_tcp_recv` is `««$a1_1#3»»`.
-- This source instruction belongs to the function `uh_client_cb`, where the relevant parameter is `««struct req_struct* arg1»»`.
-- `uh_client_cb` calls `uh_slp_proto_request`, with the path-relevant parameter `««struct req_struct* req_struct_1»»`.
-- `uh_slp_proto_request` calls `set_language`, with the path-relevant parameter `««int32_t json_obj»»`.
-- `set_language` calls `exec_and_read_json`, with the path-relevant parameter `««char* command»»`.
+- The source instruction is part of the function `uh_client_cb`.
+- `uh_client_cb` calls `uh_slp_proto_request` (call site at `0x404454`), with the path-relevant parameter `««struct req_struct* req_struct_1»»`.
+- `uh_slp_proto_request` calls `set_language` (call site at `0x40a068`), with the path-relevant parameter `««int32_t json_obj»»`.
+- `set_language` calls `exec_and_read_json` (call site at `0x409588`), with the path-relevant parameter `««char* command»»`.
 - `exec_and_read_json` contains the path's *sink* (*SNK*), namely the call to `popen` at address `0x408f20`. The path-relevant parameter of `popen` is `««command#0»»`.
 
 **Note**: Parameters and return values relevant to the analyzed path are highlighted using the `««var»»` notation.

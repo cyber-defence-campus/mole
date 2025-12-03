@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.common.helper.instruction import InstructionHelper
 from mole.core.data import Path
-from typing import Dict, Literal, Optional, TYPE_CHECKING
+from typing import Dict, List, Literal, Optional, TYPE_CHECKING
 import binaryninja as bn
 import binaryninjaui as bnui
 import PySide6.QtCore as qtc
@@ -148,43 +148,38 @@ class CallGraphWidget(qtw.QWidget):
             return
         # Tooltip showing the corresponding path ID
         self.setToolTip(f"Path {self._path_id:d}")
-        # References to calls and call graph
-        calls = self._path.calls
-        call_graph = self._path.call_graph
-        # Add nodes to flow graph
-        nodes_map: Dict[bn.MediumLevelILFunction, bn.FlowGraphNode] = {}
+        # Create flow graph from call graph
         self.flow_graph = bn.FlowGraph()
-        for node, attrs in call_graph.nodes(data=True):
-            node = node  # type: bn.MediumLevelILFunction
-            attrs = attrs  # type: dict[str, Any]
-            # Skip nodes that are not in-path
-            if self.in_path_only.isChecked() and not attrs["in_path"]:
+        call_graph = self._path.call_graph
+        node_map: Dict[bn.MediumLevelILFunction, bn.FlowGraphNode] = {}
+        # Add nodes to flow graph
+        for call, attrs in call_graph.nodes(data=True):
+            call = call  # type: bn.MediumLevelILFunction
+            # Ignore node if already added or being out-of-path while in-path-only is enabled
+            if call in node_map or (
+                self.in_path_only.isChecked()
+                and not call_graph.nodes[call].get("in_path", False)
+            ):
                 continue
-            # Create node
-            flow_graph_node = bn.FlowGraphNode(self.flow_graph)
-            # Get indices of parameters and return values being part of the path
-            param_indices = attrs.get("in_path_param_indices", [])
-            return_indices = attrs.get("in_path_return_indices", [])
-            # Add function tokens to node's text lines
-            func = node.source_function
-            func_tokens = InstructionHelper.mark_func_tokens(
-                func.type_tokens, list(return_indices), list(param_indices)
+            # Create flow graph node
+            fg_node = bn.FlowGraphNode(self.flow_graph)
+            # Add function tokens
+            func = call.source_function
+            func_tokens: List[bn.InstructionTextToken] = (
+                InstructionHelper.mark_func_tokens(func.type_tokens, set(), set())
             )
-            flow_graph_node.lines = [
-                bn.function.DisassemblyTextLine(func_tokens, address=func.start)
-            ]
-            # Source node
+            fg_node.lines += [func_tokens]
+            # Add source tokens
             if "src" in attrs:
-                # Add source instruction tokens to text lines
                 src_inst = self._path.insts[-1]
                 src_inst_par_idx = self._path.src_par_idx
                 src_inst_tokens = InstructionHelper.replace_addr_tokens(src_inst)
                 src_inst_tokens = InstructionHelper.mark_func_tokens(
                     src_inst_tokens,
-                    [0] if src_inst_par_idx is None else [],
-                    [src_inst_par_idx] if src_inst_par_idx is not None else [],
+                    {0} if src_inst_par_idx is None else set(),
+                    {src_inst_par_idx} if src_inst_par_idx is not None else set(),
                 )
-                tokens = [
+                src_inst_tokens = [
                     bn.InstructionTextToken(
                         bn.InstructionTextTokenType.CommentToken, "- SRC:\t"
                     ),
@@ -195,27 +190,19 @@ class CallGraphWidget(qtw.QWidget):
                     ),
                     *src_inst_tokens,
                 ]
-                flow_graph_node.lines += [
-                    bn.function.DisassemblyTextLine(
-                        tokens,
-                        address=src_inst.address,
-                        il_instr=src_inst,
-                    )
-                ]
-                # Highlight node
-                flow_graph_node.highlight = self._get_color("src")
-            # Sink node
+                fg_node.lines += [src_inst_tokens]
+                fg_node.highlight = self._get_color("src")
+            # Add sink tokens
             if "snk" in attrs:
-                # Add sink instruction tokens to text lines
                 snk_inst = self._path.insts[0]
                 snk_inst_par_idx = self._path.snk_par_idx
                 snk_inst_tokens = InstructionHelper.replace_addr_tokens(snk_inst)
                 snk_inst_tokens = InstructionHelper.mark_func_tokens(
                     snk_inst_tokens,
-                    [],
-                    [snk_inst_par_idx] if snk_inst_par_idx is not None else [],
+                    set(),
+                    {snk_inst_par_idx} if snk_inst_par_idx is not None else set(),
                 )
-                tokens = [
+                snk_inst_tokens = [
                     bn.InstructionTextToken(
                         bn.InstructionTextTokenType.CommentToken, "- SNK:\t"
                     ),
@@ -226,41 +213,77 @@ class CallGraphWidget(qtw.QWidget):
                     ),
                     *snk_inst_tokens,
                 ]
-                flow_graph_node.lines += [
-                    bn.function.DisassemblyTextLine(
-                        tokens,
-                        address=snk_inst.address,
-                        il_instr=snk_inst,
-                    )
+                fg_node.lines += [snk_inst_tokens]
+                fg_node.highlight = self._get_color("snk")
+            # Highlight in-path nodes
+            if (
+                "src" not in attrs
+                and "snk" not in attrs
+                and "in_path" in attrs
+                and attrs["in_path"]
+            ):
+                fg_node.highlight = self._get_color("in_path")
+            # Add node to flow graph
+            node_map[call] = fg_node
+            self.flow_graph.append(fg_node)
+        # Add edges to flow graph
+        for from_call, to_call, attrs in call_graph.edges(data=True):
+            from_call = from_call  # type: bn.MediumLevelILFunction
+            to_call = to_call  # type: bn.MediumLevelILFunction
+            fg_from_node = node_map.get(from_call, None)
+            fg_to_node = node_map.get(to_call, None)
+            # Ignore edge if necessary attributes are missing
+            if "downwards" not in attrs or "param_idx" not in attrs:
+                continue
+            path_follows_downwards: bool = attrs["downwards"]
+            path_follows_param_idx: int = attrs["param_idx"]
+            in_path: bool = attrs.get("in_path", False)
+            # Ignore edge if not both nodes are in the flow graph
+            if (
+                fg_from_node is None
+                or fg_to_node is None
+                or (self.in_path_only.isChecked() and not in_path)
+            ):
+                continue
+            # Add edge
+            fg_from_node.add_outgoing_edge(
+                bn.enums.BranchType.UnconditionalBranch, fg_to_node
+            )
+            # Path went down to a possible return instruction
+            if path_follows_downwards and path_follows_param_idx <= 0:
+                to_func_tokens = InstructionHelper.mark_func_tokens(
+                    to_call.source_function.type_tokens, {0}, set()
+                )
+            # Path went down to a specific output parameter
+            elif path_follows_downwards and path_follows_param_idx > 0:
+                to_func_tokens = InstructionHelper.mark_func_tokens(
+                    to_call.source_function.type_tokens, set(), {path_follows_param_idx}
+                )
+            #  Path went up to a possible parameter
+            elif not path_follows_downwards and path_follows_param_idx <= 0:
+                to_func_tokens = InstructionHelper.mark_func_tokens(
+                    to_call.source_function.type_tokens, {0}, set()
+                )
+            # Path went up to a specific parameter
+            else:
+                to_func_tokens = InstructionHelper.mark_func_tokens(
+                    to_call.source_function.type_tokens, set(), {path_follows_param_idx}
+                )
+            # Add call site tokens
+            call_site = attrs.get("call_site", None)
+            if call_site is not None:
+                to_func_tokens += [
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.CommentToken, " @ "
+                    ),
+                    bn.InstructionTextToken(
+                        bn.InstructionTextTokenType.AddressDisplayToken,
+                        f"0x{call_site:x}\t",
+                        call_site,
+                    ),
                 ]
-                # Highlight node
-                flow_graph_node.highlight = self._get_color("snk")
-            # Other nodes
-            if "src" not in attrs and "snk" not in attrs:
-                if "in_path" in attrs and attrs["in_path"]:
-                    flow_graph_node.highlight = self._get_color("in_path")
-            # Add node to graph
-            self.flow_graph.append(flow_graph_node)
-            nodes_map[node] = flow_graph_node
-        # Add in-path edges to flow graph
-        if self.in_path_only.isChecked():
-            # Iterate subsequent function calls in the path
-            for (_, call_func1, _), (_, call_func2, _) in zip(calls, calls[1:]):
-                if call_graph.has_edge(call_func1, call_func2):
-                    nodes_map[call_func1].add_outgoing_edge(
-                        bn.enums.BranchType.UnconditionalBranch, nodes_map[call_func2]
-                    )
-                if call_graph.has_edge(call_func2, call_func1):
-                    nodes_map[call_func2].add_outgoing_edge(
-                        bn.enums.BranchType.UnconditionalBranch, nodes_map[call_func1]
-                    )
-        # Add all edges to flow graph
-        else:
-            for call_func1, call_func2 in call_graph.edges():
-                if call_func1 in nodes_map and call_func2 in nodes_map:
-                    nodes_map[call_func1].add_outgoing_edge(
-                        bn.enums.BranchType.UnconditionalBranch, nodes_map[call_func2]
-                    )
+            # Mark parameters in function tokens
+            fg_to_node.lines = [to_func_tokens] + fg_to_node.lines[1:]
         # Update graph widget
         index = self.layout.indexOf(self.graph_wid)
         self.layout.removeWidget(self.graph_wid)

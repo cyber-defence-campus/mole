@@ -9,8 +9,8 @@ class TestNameMangling(TestSlicing):
         self, filenames: List[str] = ["name_mangling-01"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["overloaded_func", "main"], ["overloaded_func", "main"]],
             filenames=filenames,
         )
@@ -20,8 +20,8 @@ class TestNameMangling(TestSlicing):
         self, filenames: List[str] = ["name_mangling-02"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["MyStruct::my_func", "main"], ["MyClass::my_func", "main"]],
             filenames=filenames,
         )
@@ -31,8 +31,8 @@ class TestNameMangling(TestSlicing):
         self, filenames: List[str] = ["name_mangling-03"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["ns::my_func", "main"]],
             filenames=filenames,
         )
@@ -42,8 +42,8 @@ class TestNameMangling(TestSlicing):
         self, filenames: List[str] = ["name_mangling-04"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["my_func<int32_t>", "main"]],
             filenames=filenames,
         )
@@ -54,8 +54,8 @@ class TestNameMangling(TestSlicing):
         self, filenames: List[str] = ["name_mangling-05"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[
                 ["MyStruct::my_func", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
                 ["MyClass::my_func", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
@@ -69,8 +69,8 @@ class TestNameMangling(TestSlicing):
         self, filenames: List[str] = ["name_mangling-06"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["MyStruct::my_func", "main", "MyStruct::operator+"]],
             filenames=filenames,
         )

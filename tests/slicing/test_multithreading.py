@@ -13,9 +13,9 @@ class TestMultiThreading(TestSlicing):
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             # Assert results
-            paths = self.get_paths(bv, max_workers=1, enable_all_funs=True)
+            paths = self.get_paths(bv, max_workers=1)
             for max_workers in [2, 4, 8, -1]:
-                paths_mt = self.get_paths(bv, max_workers, enable_all_funs=True)
+                paths_mt = self.get_paths(bv, max_workers)
                 for path in paths:
                     if path in paths_mt:
                         paths_mt.remove(path)
