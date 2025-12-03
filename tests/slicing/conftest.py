@@ -34,11 +34,10 @@ class TestSlicing:
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
         log.change_properties(level="debug", runs_headless=True)
-        config = ConfigService().load_config()
-        config.sources = {
-            "libc": config.sources["libc"] if "libc" in config.sources else {}
-        }
-        config.sinks = {"libc": config.sinks["libc"] if "libc" in config.sinks else {}}
+        config_file = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "../../mole/conf/003-libc.yml"
+        )
+        config = ConfigService().import_config(config_file)
         self._model = ConfigModel(config)
         self._ext = os.environ.get("EXT", None)
         return
@@ -67,7 +66,7 @@ class TestSlicing:
         max_call_level: int = 5,
         max_slice_depth: int = -1,
         max_memory_slice_depth: int = -1,
-        enable_all_funs: bool = True,
+        enable_all_funs: bool = False,
     ) -> List[Path]:
         """
         This method is a helper to find paths.
@@ -87,12 +86,25 @@ class TestSlicing:
 
     def assert_paths(
         self,
-        src: List[Tuple[str, Optional[int]]],
-        snk: List[Tuple[str, Optional[int]]],
+        srcs: List[Tuple[str, Optional[int]]],
+        snks: List[Tuple[str, Optional[int]]],
         call_chains: List[List[str]],
         filenames: List[str],
         bv_callback: Optional[Callable[[bn.BinaryView], None]] = lambda bv: None,
     ) -> None:
+        # Ensure relevant source functions are enabled
+        src_names = [src[0] for src in srcs]
+        src_funs = self._model.get_functions("libc", fun_type="Sources")
+        for src_fun in src_funs:
+            if src_fun.name in src_names:
+                src_fun.enabled = True
+        # Ensure relevant sink functions are enabled
+        snk_names = [snk[0] for snk in snks]
+        snk_funs = self._model.get_functions("libc", fun_type="Sinks")
+        for snk_fun in snk_funs:
+            if snk_fun.name in snk_names:
+                snk_fun.enabled = True
+        # Iterate over all test files
         for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
             bv = bn.load(file)
@@ -114,7 +126,7 @@ class TestSlicing:
                 assert (
                     path.src_sym_name,
                     path.src_par_idx,
-                ) in src, "invalid source"
+                ) in srcs, "invalid source"
                 # Assert sink
                 assert isinstance(
                     path.insts[0],
@@ -123,7 +135,7 @@ class TestSlicing:
                 assert (
                     path.snk_sym_name,
                     path.snk_par_idx,
-                ) in snk, "invalid sink"
+                ) in snks, "invalid sink"
             # Assert call chains
             for call_chain in call_chains:
                 if call_chain in _call_chains:

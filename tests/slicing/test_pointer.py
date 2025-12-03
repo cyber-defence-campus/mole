@@ -9,8 +9,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-01"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["main"]],
             filenames=filenames,
         )
@@ -32,8 +32,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-04"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["main"], ["main"]],
             filenames=filenames,
         )
@@ -43,8 +43,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-05"]
     ) -> None:
         self.assert_paths(
-            src=[],
-            snk=[],
+            srcs=[],
+            snks=[],
             call_chains=[],
             filenames=filenames,
         )
@@ -54,8 +54,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-06"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 3)],
+            srcs=[("getenv", None)],
+            snks=[("memcpy", 3)],
             call_chains=[["main", "modify_n"]],
             filenames=filenames,
         )
@@ -65,8 +65,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-07"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 2)],
+            srcs=[("getenv", None)],
+            snks=[("memcpy", 2)],
             call_chains=[["main", "my_getenv"]],
             filenames=filenames,
         )
@@ -94,8 +94,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-11"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["execute", "main"]],
             filenames=filenames,
         )
@@ -105,8 +105,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-12"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[["main"], ["main"]],
             filenames=filenames,
         )
@@ -130,8 +130,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-15"]
     ) -> None:
         self.assert_paths(
-            src=[("getopt", 2)],
-            snk=[("strcpy", 2)],
+            srcs=[("getopt", 2)],
+            snks=[("strcpy", 2)],
             call_chains=[["main"]],
             filenames=filenames,
         )
@@ -141,8 +141,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-16"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("strncat", 2), ("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("strncat", 2), ("system", 1)],
             call_chains=[["main"], ["main"]],
             filenames=filenames,
         )
@@ -152,8 +152,8 @@ class TestPointerAnalysis(TestSlicing):
         self, filenames: List[str] = ["pointer_analysis-17"]
     ) -> None:
         self.assert_paths(
-            src=[("recv", None), ("recv", 2)],
-            snk=[("memcpy", 2), ("memcpy", 3), ("system", 1)],
+            srcs=[("recv", None), ("recv", 2)],
+            snks=[("memcpy", 2), ("memcpy", 3), ("system", 1)],
             call_chains=[["main"], ["main"], ["main"], ["main"]],
             filenames=filenames,
         )

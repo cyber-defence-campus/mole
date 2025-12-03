@@ -8,8 +8,8 @@ class TestSimpleServer(TestSlicing):
         self, filenames: List[str] = ["simple_http_server-01"]
     ) -> None:
         self.assert_paths(
-            src=[("recv", 2)],
-            snk=[("system", 1)],
+            srcs=[("recv", 2)],
+            snks=[("system", 1)],
             call_chains=[["handle_get_request"], ["handle_post_request"]],
             filenames=filenames,
         )
@@ -19,8 +19,8 @@ class TestSimpleServer(TestSlicing):
         self, filenames: List[str] = ["simple_http_server-02"]
     ) -> None:
         self.assert_paths(
-            src=[("recv", 2)],
-            snk=[("system", 1)],
+            srcs=[("recv", 2)],
+            snks=[("system", 1)],
             call_chains=[
                 ["execute_cgi_command", "handle_get_request", "receive_data"],
                 ["execute_cgi_command", "handle_post_request", "receive_data"],
@@ -33,8 +33,8 @@ class TestSimpleServer(TestSlicing):
         self, filenames: List[str] = ["simple_http_server-03"]
     ) -> None:
         self.assert_paths(
-            src=[("recv", 2)],
-            snk=[("system", 1)],
+            srcs=[("recv", 2)],
+            snks=[("system", 1)],
             call_chains=[
                 [
                     "execute_cgi_command",
@@ -73,8 +73,8 @@ class TestSimpleServer(TestSlicing):
         self, filenames: List[str] = ["simple_http_server-04"]
     ) -> None:
         self.assert_paths(
-            src=[("recv", 2)],
-            snk=[("system", 1)],
+            srcs=[("recv", 2)],
+            snks=[("system", 1)],
             call_chains=[
                 [
                     "execute_cgi_command",

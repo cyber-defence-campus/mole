@@ -179,9 +179,33 @@ sources:
             par_slice: i > 2
       Files and Directories:
         functions:
+          open:
+            symbols: [open, _open, __builtin_open]
+            synopsis: int open(const char* path, int flags, ...)
+            enabled: true
+            par_cnt: i >= 2
+            par_slice: 'False'
+          creat:
+            symbols: [creat, _creat, __builtin_creat]
+            synopsis: int creat(const char* path, mode_t mode)
+            enabled: true
+            par_cnt: i == 2
+            par_slice: 'False'
+          openat:
+            symbols: [openat, _openat, __builtin_openat]
+            synopsis: int openat(int dirfd, const char* path, int flags, ...)
+            enabled: true
+            par_cnt: i >= 3
+            par_slice: 'False'
           fopen:
             symbols: [fopen, _fopen, __builtin_fopen]
             synopsis: FILE* fopen(const char* pathname, const char* mode)
+            enabled: true
+            par_cnt: i == 2
+            par_slice: 'False'
+          fdopen:
+            symbols: [fdopen, _fdopen, __builtin_fdopen]
+            synopsis: FILE* fdopen(int fd, const char* mode)
             enabled: true
             par_cnt: i == 2
             par_slice: 'False'
@@ -190,12 +214,6 @@ sources:
             synopsis: FILE* freopen(const char* pathname, const char* mode, FILE* stream)
             enabled: true
             par_cnt: i == 3
-            par_slice: 'False'
-          fdopen:
-            symbols: [fdopen, _fdopen, __builtin_fdopen]
-            synopsis: FILE* fdopen(int fd, const char* mode)
-            enabled: true
-            par_cnt: i == 2
             par_slice: 'False'
           opendir:
             symbols: [opendir, _opendir, __builtin_opendir]
@@ -209,6 +227,12 @@ sources:
             enabled: true
             par_cnt: i == 1
             par_slice: 'False'
+          read:
+            symbols: [read, _read, __builtin_read]
+            synopsis: ssize_t read(int fd, void* buf, size_t count)
+            enabled: true
+            par_cnt: i == 3
+            par_slice: i == 2
           fread:
             symbols: [fread, _fread, __builtin_fread]
             synopsis: size_t fread(void* ptr, size_t size, size_t n, FILE* stream)
@@ -240,6 +264,12 @@ sinks:
     categories:
       Memory Copy:
         functions:
+          bcopy:
+            symbols: [bcopy, _bcopy, __builtin_bcopy]
+            synopsis: void bcopy(const void* src, void* dest, size_t n)
+            enabled: true
+            par_cnt: i == 3
+            par_slice: 'True'
           memcpy:
             symbols: [memcpy, _memcpy, __builtin_memcpy]
             synopsis: void* memcpy(void* dest, const void* src, size_t n)
@@ -339,45 +369,149 @@ sinks:
           sscanf:
             symbols: [sscanf, _sscanf, __builtin_sscanf, __isoc99_sscanf, __isoc23_sscanf]
             synopsis: int sscanf(const char* str, const char* format, ...)
-            enabled: true
+            enabled: false
             par_cnt: i >= 2
             par_slice: 'True'
           swscanf:
             symbols: [swscanf, _swscanf, __builtin_swscanf, __isoc99_swscanf, __isoc223_swscanf]
             synopsis: int sscanf(const wchar_t* ws, const wchar_t* format, ...)
-            enabled: true
+            enabled: false
             par_cnt: i >= 2
             par_slice: 'True'
           vsscanf:
             symbols: [vsscanf, _vsscanf, __builtin_vsscanf, __isoc99_vsscanf, __isoc23_vsscanf]
             synopsis: int vsscanf(const char* s, const char* format, va_list arg)
-            enabled: true
+            enabled: false
             par_cnt: i == 3
             par_slice: 'True'
+          dprintf:
+            symbols: [dprintf, _dprintf, __builtin_dprintf]
+            synopsis: int dprintf(int fildes, const char* format, ...)
+            enabled: false
+            par_cnt: i >= 2
+            par_slice: i >= 2
+          fprintf:
+            symbols: [fprintf, _fprintf, __builtin_fprintf]
+            synopsis: int fprintf(FILE* stream, const char* format, ...)
+            enabled: false
+            par_cnt: i >= 2
+            par_slice: i >= 2
+          printf:
+            symbols: [printf, _printf, __builtin_printf]
+            synopsis: int printf(const char* format, ...)
+            enabled: false
+            par_cnt: i >= 1
+            par_slice: 'True'
+          snprintf:
+            symbols: [snprintf, _snprintf, __builtin_snprintf]
+            synopsis: int snprintf(char* s, size_t n, const char* format, ...)
+            enabled: false
+            par_cnt: i >= 3
+            par_slice: i >= 2
           sprintf:
             symbols: [sprintf, _sprintf, __builtin_sprintf]
             synopsis: int sprintf(char* s, const char* format, ...)
-            enabled: true
+            enabled: false
             par_cnt: i >= 2
             par_slice: i >= 2
-          swprintf:
-            symbols: [swprintf, _swprintf, __builtin_swprintf]
-            synopsis: int swprintf(wchar_t* ws, size_t n, const wchar_t* format, ...)
-            enabled: true
-            par_cnt: i >= 3
+          vdprintf:
+            symbols: [vdprintf, _vdprintf, __builtin_vdprintf]
+            synopsis: int vdprintf(int fildes, const char* format, va_list ap)
+            enabled: false
+            par_cnt: i == 3
+            par_slice: i >= 2
+          vfprintf:
+            symbols: [vfprintf, _vfprintf, __builtin_vfprintf]
+            synopsis: int vfprintf(FILE* stream, const char* format, va_list ap)
+            enabled: false
+            par_cnt: i == 3
+            par_slice: i >= 2
+          vprintf:
+            symbols: [vprintf, _vprintf, __builtin_vprintf]
+            synopsis: int vprintf(const char* format, va_list ap)
+            enabled: false
+            par_cnt: i == 2
+            par_slice: 'True'
+          vsnprintf:
+            symbols: [vsnprintf, _vsnprintf, __builtin_vsnprintf]
+            synopsis: int vsnprintf(char* s, size_t n, const char* format, va_list ap)
+            enabled: false
+            par_cnt: i == 4
             par_slice: i >= 2
           vsprintf:
             symbols: [vsprintf, _vsprintf, __builtin_vsprintf]
             synopsis: int vsprintf(char* s, const char* format, va_list ap)
-            enabled: true
+            enabled: false
             par_cnt: i == 3
+            par_slice: i >= 2
+          swprintf:
+            symbols: [swprintf, _swprintf, __builtin_swprintf]
+            synopsis: int swprintf(wchar_t* ws, size_t n, const wchar_t* format, ...)
+            enabled: false
+            par_cnt: i >= 3
             par_slice: i >= 2
           vswprintf:
             symbols: [vswprintf, _vswprintf, __builtin_vswprintf]
             synopsis: int vswprintf(wchar_t* ws, size_t n, const wchar_t* format, va_list arg)
-            enabled: true
+            enabled: false
             par_cnt: i == 4
             par_slice: i >= 2
+      Process Execution:
+        functions:
+          popen:
+            symbols: [popen, _popen, __builtin_popen]
+            synopsis: FILE* popen(const char* command, const char* type)
+            enabled: true
+            par_cnt: i == 2
+            par_slice: i == 1
+          system:
+            symbols: [system, _system, __builtin_system]
+            synopsis: int system(const char* command)
+            enabled: true
+            par_cnt: i == 1
+            par_slice: 'True'
+          execve:
+            symbols: [execve, _execve, __builtin_execve]
+            synopsis: int execve(const char* path, char * argv[], char* envp[])
+            enabled: true
+            par_cnt: i == 3
+            par_slice: 'True'
+          execl:
+            symbols: [execl, _execl, __builtin_execl]
+            synopsis: int execl(const char* path, const char* arg, ...)
+            enabled: true
+            par_cnt: i >= 2
+            par_slice: 'True'
+          execlp:
+            symbols: [execlp, _execlp, __builtin_execlp]
+            synopsis: int execlp(const char* file, const char* arg, ...)
+            enabled: true
+            par_cnt: i >= 2
+            par_slice: 'True'
+          execle:
+            symbols: [execle, _execle, __builtin_execle]
+            synopsis: int execle(const char* path, const char* arg, ...)
+            enabled: true
+            par_cnt: i >= 2
+            par_slice: 'True'
+          execv:
+            symbols: [execv, _execv, __builtin_execv]
+            synopsis: int execv(const char* path, char* argv[])
+            enabled: true
+            par_cnt: i == 2
+            par_slice: 'True'
+          execvp:
+            symbols: [execvp, _execvp, __builtin_execvp]
+            synopsis: int execvp(const char* file, char* argv[])
+            enabled: true
+            par_cnt: i == 2
+            par_slice: 'True'
+          execvpe:
+            symbols: [execvpe, _execvpe, __builtin_execvpe]
+            synopsis: int execvpe(const char* file, char* argv[], char* envp[])
+            enabled: true
+            par_cnt: i == 3
+            par_slice: 'True'
       Others:
         functions:
           gets:
@@ -386,15 +520,63 @@ sinks:
             enabled: true
             par_cnt: i == 1
             par_slice: 'True'
-          popen:
-            symbols: [popen, _popen, __builtin_popen]
-            synopsis: FILE* popen(const char *command, const char *type)
-            enabled: true
+          unlink:
+            symbols: [unlink, _unlink, __builtin_unlink]
+            synopsis: int unlink(const char* path)
+            enabled: false
+            par_cnt: i == 1
+            par_slice: 'True'
+          unlinkat:
+            symbols: [unlinkat, _unlinkat, __builtin_unlinkat]
+            synopsis: int unlinkat(int dirfd, const char* path, int flags)
+            enabled: false
+            par_cnt: i == 3
+            par_slice: i <= 2
+          rename:
+            symbols: [rename, _rename, __builtin_rename]
+            synopsis: int rename(const char* oldpath, const char *newpath)
+            enabled: false
+            par_cnt: i == 2
+            par_slice: 'True'
+          renameat:
+            symbols: [renameat, _renameat, __builtin_renameat]
+            synopsis: int renameat(int olddirfd, const char* oldpath, int newdirfd, const char* newpath)
+            enabled: false
+            par_cnt: i == 4
+            par_slice: 'True'
+          mkdir:
+            symbols: [mkdir, _mkdir, __builtin_mkdir]
+            synopsis: int mkdir(const char* path, mode_t mode)
+            enabled: false
             par_cnt: i == 2
             par_slice: i == 1
-          system:
-            symbols: [system, _system, __builtin_system]
-            synopsis: int system(const char *command);
-            enabled: true
+          mkdirat:
+            symbols: [mkdirat, _mkdirat, __builtin_mkdirat]
+            synopsis: int mkdirat(int dirfd, const char* path, mode_t mode)
+            enabled: false
+            par_cnt: i == 3
+            par_slice: i <= 2
+          rmdir:
+            symbols: [rmdir, _rmdir, __builtin_rmdir]
+            synopsis: int rmdir(const char* path)
+            enabled: false
+            par_cnt: i == 1
+            par_slice: i == 1
+          dlopen:
+            symbols: [dlopen, _dlopen, __builtin_dlopen]
+            synopsis: void* dlopen(const char* path, int flags)
+            enabled: false
+            par_cnt: i == 2
+            par_slice: i == 1
+          dlmopen:
+            symbols: [dlmopen, _dlmopen, __builtin_dlmopen]
+            synopsis: void* dlmopen(Lmid_t lmid, const char *path, int flags)
+            enabled: false
+            par_cnt: i == 3
+            par_slice: i <= 2
+          free:
+            symbols: [free, _free, __builtin_free]
+            synopsis: void free(void* ptr)
+            enabled: false
             par_cnt: i == 1
             par_slice: 'True'

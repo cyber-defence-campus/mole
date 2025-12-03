@@ -10,8 +10,8 @@ class TestObjectOriented(TestSlicing):
         self, filenames: List[str] = ["object_oriented-01"]
     ) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
             call_chains=[
                 ["MyParent::my_func", "main"],
                 ["MyParent::my_func", "main"],
@@ -61,8 +61,8 @@ class TestObjectOriented(TestSlicing):
             return
 
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1), ("popen", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1), ("popen", 1)],
             call_chains=[
                 ["MyParent::my_func", "main"],
                 ["MyChild::my_func", "main"],
@@ -113,8 +113,8 @@ class TestObjectOriented(TestSlicing):
             return
 
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("system", 1), ("popen", 1)],
+            srcs=[("getenv", None)],
+            snks=[("system", 1), ("popen", 1)],
             call_chains=[
                 ["MyParent::my_func", "main"],
                 ["MyChild::my_func", "main"],

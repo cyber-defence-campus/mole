@@ -7,8 +7,8 @@ import pytest
 class TestVarious(TestSlicing):
     def test_gets_01(self, filenames: List[str] = ["gets-01"]) -> None:
         self.assert_paths(
-            src=[("gets", 1)],
-            snk=[("gets", 1)],
+            srcs=[("gets", 1)],
+            snks=[("gets", 1)],
             call_chains=[["main"]],
             filenames=filenames,
         )
@@ -16,8 +16,8 @@ class TestVarious(TestSlicing):
 
     def test_gets_02(self, filenames: List[str] = ["gets-02"]) -> None:
         self.assert_paths(
-            src=[("gets", 1)],
-            snk=[("gets", 1), ("memcpy", 2)],
+            srcs=[("gets", 1)],
+            snks=[("gets", 1), ("memcpy", 2)],
             call_chains=[["main"], ["main"]],
             filenames=filenames,
         )
@@ -25,8 +25,8 @@ class TestVarious(TestSlicing):
 
     def test_sscanf_01(self, filenames: List[str] = ["sscanf-01"]) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("sscanf", 1), ("__isoc99_sscanf", 1)],
+            srcs=[("getenv", None)],
+            snks=[("sscanf", 1), ("__isoc99_sscanf", 1)],
             call_chains=[["main"]],
             filenames=filenames,
         )
@@ -34,8 +34,8 @@ class TestVarious(TestSlicing):
 
     def test_memcpy_01(self, filenames: List[str] = ["memcpy-01"]) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 3)],
+            srcs=[("getenv", None)],
+            snks=[("memcpy", 3)],
             call_chains=[["main"]],
             filenames=filenames,
         )
@@ -43,8 +43,8 @@ class TestVarious(TestSlicing):
 
     def test_memcpy_02(self, filenames: List[str] = ["memcpy-02"]) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 2), ("memcpy", 3)],
+            srcs=[("getenv", None)],
+            snks=[("memcpy", 2), ("memcpy", 3)],
             call_chains=[["main"], ["main"]],
             filenames=filenames,
         )
@@ -52,8 +52,8 @@ class TestVarious(TestSlicing):
 
     def test_memcpy_03(self, filenames: List[str] = ["memcpy-03"]) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 1)],
+            srcs=[("getenv", None)],
+            snks=[("memcpy", 1)],
             call_chains=[["main"]],
             filenames=filenames,
         )
@@ -61,8 +61,8 @@ class TestVarious(TestSlicing):
 
     def test_memcpy_04(self, filenames: List[str] = ["memcpy-04"]) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 3)],
+            srcs=[("getenv", None)],
+            snks=[("memcpy", 3)],
             call_chains=[["main", "my_getenv"]],
             filenames=filenames,
         )
@@ -70,8 +70,8 @@ class TestVarious(TestSlicing):
 
     def test_memcpy_05(self, filenames: List[str] = ["memcpy-05"]) -> None:
         self.assert_paths(
-            src=[("getenv", None)],
-            snk=[("memcpy", 2), ("memcpy", 3)],
+            srcs=[("getenv", None)],
+            snks=[("memcpy", 2), ("memcpy", 3)],
             call_chains=[["main", "my_getenv"], ["main", "my_getenv"]],
             filenames=filenames,
         )
@@ -79,8 +79,8 @@ class TestVarious(TestSlicing):
 
     def test_memcpy_06(self, filenames: List[str] = ["memcpy-06"]) -> None:
         self.assert_paths(
-            src=[],
-            snk=[],
+            srcs=[],
+            snks=[],
             call_chains=[],
             filenames=filenames,
         )
