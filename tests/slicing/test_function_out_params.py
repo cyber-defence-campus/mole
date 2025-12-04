@@ -1,6 +1,7 @@
 from __future__ import annotations
 from tests.slicing.conftest import TestSlicing
 from typing import List
+import pytest
 
 
 class TestFunctionOutParams(TestSlicing):
@@ -59,4 +60,18 @@ class TestFunctionOutParams(TestSlicing):
         self, filenames: List[str] = ["function_out_params-07"]
     ) -> None:
         self.test_function_out_params_06(filenames)
+        return
+
+    @pytest.mark.xfail(
+        reason="Mole currently only follows an output parameter if it is written in the immediate callee."
+    )
+    def test_function_out_params_08(
+        self, filenames: List[str] = ["function_out_params-08"]
+    ) -> None:
+        self.assert_paths(
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
+            call_chains=[["main", "check_cmd", "get_cmd"]],
+            filenames=filenames,
+        )
         return
