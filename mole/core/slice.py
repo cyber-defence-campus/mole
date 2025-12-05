@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import log
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Callable, Set
+from typing import Callable, Set, Tuple
 import binaryninja as bn
 
 
@@ -34,6 +34,173 @@ class MediumLevelILBackwardSlicer:
         self._call_tracker: MediumLevelILCallTracker = None
         return
 
+    def _is_ptr_equivalent(
+        self,
+        ssa_var: bn.MediumLevelILVarSsa,
+        offset: int,
+        param_inst: bn.MediumLevelILInstruction,
+    ) -> Tuple[bool, str]:
+        """
+        TODO
+        """
+        match param_inst:
+            # `var == &param_var`
+            case bn.MediumLevelILAddressOf(src=param_var):
+                if ssa_var.var == param_var:
+                    return True, ""
+            # `var.offset == &param_var.offset`
+            case bn.MediumLevelILAddressOfField(src=param_var, offset=param_offset):
+                if ssa_var.var == param_var and offset == param_offset:
+                    return True, ""
+            # `ptr_var == param_ptr_var` or `ptr_var == &(*param_ptr_var)[index]`
+            case bn.MediumLevelILVarSsa(var=param_ssa_var):
+                # Get pointer map for the current function
+                ptr_map = FunctionHelper.get_ptr_map(param_inst.function)
+                # Get pointer instructions for `ssa_var` and `param_ssa_var`
+                ptr_inst = ptr_map.get(ssa_var, None)
+                param_ptr_inst = ptr_map.get(param_ssa_var, None)
+                # Ensure valid pointer instructions
+                if ptr_inst is None or param_ptr_inst is None:
+                    return False, ""
+                # Compare pointer instructions
+                match (ptr_inst, param_ptr_inst):
+                    # `ptr_var == param_ptr_var`
+                    case (
+                        # `ptr_var`
+                        bn.HighLevelILVar(var=ptr_var),
+                        # `param_ptr_var`
+                        bn.HighLevelILVar(var=param_ptr_var),
+                    ):
+                        if ptr_var == param_ptr_var:
+                            return True, str(ptr_inst)
+                    # `ptr_var == (*param_ptr_var)[index]`
+                    case (
+                        # `ptr_var`
+                        bn.HighLevelILVar(),
+                        # `(*param_ptr_var)[index]`
+                        bn.HighLevelILArrayIndex(
+                            src=bn.HighLevelILDerefSsa(
+                                src=bn.HighLevelILVarSsa(var=param_ptr_ssa_var)
+                            )
+                        ),
+                    ):
+                        if ptr_inst == ptr_map.get(param_ptr_ssa_var, None):
+                            return True, str(ptr_inst)
+                    # `ptr_var[ptr_index] == param_ptr_var[param_ptr_index]`
+                    case (
+                        # `ptr_var[ptr_index]`
+                        bn.HighLevelILArrayIndex(
+                            src=bn.HighLevelILVarSsa(var=ptr_var),
+                            index=bn.HighLevelILConst(constant=ptr_index),
+                        ),
+                        # `param_ptr_var[param_ptr_index]`
+                        bn.HighLevelILArrayIndex(
+                            src=bn.HighLevelILVarSsa(var=param_ptr_var),
+                            index=bn.HighLevelILConst(constant=param_ptr_index),
+                        ),
+                    ):
+                        if ptr_var == param_ptr_var and ptr_index == param_ptr_index:
+                            return True, str(ptr_inst)
+        return False, ""
+
+    def _slice_todo(
+        self,
+        ssa_var: bn.SSAVariable,
+        offset: int,
+        mem_def_inst: bn.MediumLevelILInstruction,
+    ) -> None:
+        """
+        This method matches a memory defining instruction `mem_def_inst` against the following
+        cases:
+        - If `mem_def_inst` is an assignment to an alias of `ssa_var`, slice its source
+        - If `mem_def_inst` is an assignment to an aliased field of `ssa_var`, slice its source
+        - If `mem_def_inst` is a call using a pointer to `ssa_var` as parameter, slice the call
+        """
+        ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
+        # Ensure memory defining instruction has not yet been followed in the current call frame
+        mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
+        if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
+            log.debug(
+                self._tag,
+                f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+            )
+            return
+        # Match memory defining instruction
+        match mem_def_inst:
+            # Slice the source of assignments having an alias of `var` as destination
+            case bn.MediumLevelILSetVarAliased(
+                prev=prev_ssa_var,
+                dest=dest_ssa_var,
+                src=src_inst,
+            ):
+                if (
+                    prev_ssa_var.var == dest_ssa_var.var == ssa_var.var
+                    and prev_ssa_var.version + 1
+                    == dest_ssa_var.version
+                    <= ssa_var.version
+                ):
+                    log.debug(
+                        self._tag,
+                        f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}'",
+                    )
+                    self._call_tracker.push_mem_def_inst(mem_def_inst)
+                    self._slice_backwards(src_inst)
+            # Slice the source of assignments having an aliased field of `var` as destination
+            case bn.MediumLevelILSetVarAliasedField(
+                prev=prev_ssa_var,
+                dest=dest_ssa_var,
+                offset=dest_offset,
+                src=src_inst,
+            ):
+                if (
+                    prev_ssa_var.var == dest_ssa_var.var == ssa_var.var
+                    and prev_ssa_var.version + 1
+                    == dest_ssa_var.version
+                    <= ssa_var.version
+                    and dest_offset == offset
+                ):
+                    log.debug(
+                        self._tag,
+                        f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}.{dest_offset:d}'",
+                    )
+                    self._call_tracker.push_mem_def_inst(mem_def_inst)
+                    self._slice_backwards(src_inst)
+            # Slice calls having a pointer to `var` as parameter
+            case (
+                bn.MediumLevelILCallSsa(params=params)
+                | bn.MediumLevelILCallUntypedSsa(params=params)
+                | bn.MediumLevelILTailcallSsa(params=params)
+                | bn.MediumLevelILTailcallUntypedSsa(params=params)
+            ):
+                # Find set of call parameters the slicer should follow
+                ptr_inst_str = ""
+                call_params: Set[int] = set()
+                for param_idx, param_inst in enumerate(params, start=1):
+                    is_ptr_equal, ptr_inst_str = self._is_ptr_equivalent(
+                        ssa_var, offset, param_inst
+                    )
+                    if is_ptr_equal:
+                        call_params.add(param_idx)
+
+                # Slice the call instruction if we need to follow any parameter
+                if call_params:
+                    params_str = (
+                        "parameter " if len(call_params) == 1 else "parameters "
+                    )
+                    params_str += ", ".join(map(str, call_params))
+                    ptr_str = (
+                        f"'{ssa_var_info:s} = &{ptr_inst_str:s}'"
+                        if ptr_inst_str
+                        else f"'&{ssa_var_info:s}'"
+                    )
+                    log.debug(
+                        self._tag,
+                        f"Follow call instruction '{mem_def_inst_info:s}' since it uses {ptr_str:s} in {params_str:s}",
+                    )
+                    self._call_tracker.push_mem_def_inst(mem_def_inst)
+                    self._slice_backwards(mem_def_inst, call_params)
+        return
+
     def _slice_var_mem_definitions(
         self, ssa_var: bn.SSAVariable, inst: bn.MediumLevelILInstruction
     ) -> None:
@@ -45,7 +212,7 @@ class MediumLevelILBackwardSlicer:
         - If `mem_def_inst` is an assignment to an aliased field of `ssa_var`, slice its source
         - If `mem_def_inst` is a call using a pointer to `ssa_var` as parameter, slice the call
         """
-        ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
+        # ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
         # Get offset if applicable
         offset = getattr(inst, "offset", 0)
         # Get instructions defining the memory version of `inst`
@@ -54,158 +221,164 @@ class MediumLevelILBackwardSlicer:
         )
         # Iterate memory defining instructions
         for mem_def_inst in mem_def_insts:
-            # Ensure memory defining instruction has not yet been followed in the current call frame
-            mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-            if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
-                log.debug(
-                    self._tag,
-                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
-                )
-                continue
-            # Match memory defining instruction
-            match mem_def_inst:
-                # Slice the source of assignments having an alias of `var` as destination
-                case bn.MediumLevelILSetVarAliased(
-                    prev=prev_ssa_var,
-                    dest=dest_ssa_var,
-                    src=src_inst,
-                ):
-                    if (
-                        prev_ssa_var.var == dest_ssa_var.var == ssa_var.var
-                        and prev_ssa_var.version + 1
-                        == dest_ssa_var.version
-                        <= ssa_var.version
-                    ):
-                        log.debug(
-                            self._tag,
-                            f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}'",
-                        )
-                        self._call_tracker.push_mem_def_inst(mem_def_inst)
-                        self._slice_backwards(src_inst)
-                # Slice the source of assignments having an aliased field of `var` as destination
-                case bn.MediumLevelILSetVarAliasedField(
-                    prev=prev_ssa_var,
-                    dest=dest_ssa_var,
-                    offset=dest_offset,
-                    src=src_inst,
-                ):
-                    if (
-                        prev_ssa_var.var == dest_ssa_var.var == ssa_var.var
-                        and prev_ssa_var.version + 1
-                        == dest_ssa_var.version
-                        <= ssa_var.version
-                        and dest_offset == offset
-                    ):
-                        log.debug(
-                            self._tag,
-                            f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}.{dest_offset:d}'",
-                        )
-                        self._call_tracker.push_mem_def_inst(mem_def_inst)
-                        self._slice_backwards(src_inst)
-                # Slice calls having a pointer to `var` as parameter
-                case (
-                    bn.MediumLevelILCallSsa(params=params)
-                    | bn.MediumLevelILCallUntypedSsa(params=params)
-                    | bn.MediumLevelILTailcallSsa(params=params)
-                    | bn.MediumLevelILTailcallUntypedSsa(params=params)
-                ):
-                    # Find set of call parameters the slicer should follow
-                    ptr_inst_str = ""
-                    call_params: Set[int] = set()
-                    for param_idx, param_inst in enumerate(params, start=1):
-                        # Match parameter instruction
-                        match param_inst:
-                            # `var == &param_var`
-                            case bn.MediumLevelILAddressOf(src=param_var):
-                                if ssa_var.var == param_var:
-                                    call_params.add(param_idx)
-                            # `var.offset == &param_var.offset`
-                            case bn.MediumLevelILAddressOfField(
-                                src=param_var, offset=param_offset
-                            ):
-                                if ssa_var.var == param_var and offset == param_offset:
-                                    call_params.add(param_idx)
-                            # `ptr_var == param_ptr_var` or `ptr_var == &(*param_ptr_var)[index]`
-                            case bn.MediumLevelILVarSsa(var=param_ssa_var):
-                                # Get pointer map for the current function
-                                ptr_map = FunctionHelper.get_ptr_map(inst.function)
-                                # Get pointer instructions for `ssa_var` and `param_ssa_var`
-                                ptr_inst = ptr_map.get(ssa_var, None)
-                                param_ptr_inst = ptr_map.get(param_ssa_var, None)
-                                # Ensure valid pointer instructions
-                                if ptr_inst is None or param_ptr_inst is None:
-                                    continue
-                                # Compare pointer instructions
-                                match (ptr_inst, param_ptr_inst):
-                                    # `ptr_var == param_ptr_var`
-                                    case (
-                                        # `ptr_var`
-                                        bn.HighLevelILVar(var=ptr_var),
-                                        # `param_ptr_var`
-                                        bn.HighLevelILVar(var=param_ptr_var),
-                                    ):
-                                        if ptr_var == param_ptr_var:
-                                            call_params.add(param_idx)
-                                            ptr_inst_str = str(ptr_inst)
-                                    # `ptr_var == (*param_ptr_var)[index]`
-                                    case (
-                                        # `ptr_var`
-                                        bn.HighLevelILVar(),
-                                        # `(*param_ptr_var)[index]`
-                                        bn.HighLevelILArrayIndex(
-                                            src=bn.HighLevelILDerefSsa(
-                                                src=bn.HighLevelILVarSsa(
-                                                    var=param_ptr_ssa_var
-                                                )
-                                            )
-                                        ),
-                                    ):
-                                        if ptr_inst == ptr_map.get(
-                                            param_ptr_ssa_var, None
-                                        ):
-                                            call_params.add(param_idx)
-                                            ptr_inst_str = str(ptr_inst)
-                                    # `ptr_var[ptr_index] == param_ptr_var[param_ptr_index]`
-                                    case (
-                                        # `ptr_var[ptr_index]`
-                                        bn.HighLevelILArrayIndex(
-                                            src=bn.HighLevelILVarSsa(var=ptr_var),
-                                            index=bn.HighLevelILConst(
-                                                constant=ptr_index
-                                            ),
-                                        ),
-                                        # `param_ptr_var[param_ptr_index]`
-                                        bn.HighLevelILArrayIndex(
-                                            src=bn.HighLevelILVarSsa(var=param_ptr_var),
-                                            index=bn.HighLevelILConst(
-                                                constant=param_ptr_index
-                                            ),
-                                        ),
-                                    ):
-                                        if (
-                                            ptr_var == param_ptr_var
-                                            and ptr_index == param_ptr_index
-                                        ):
-                                            call_params.add(param_idx)
-                                            ptr_inst_str = str(ptr_inst)
+            self._slice_todo(ssa_var, offset, mem_def_inst)
+            # # Ensure memory defining instruction has not yet been followed in the current call frame
+            # mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
+            # if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
+            #     log.debug(
+            #         self._tag,
+            #         f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+            #     )
+            #     continue
+            # # Match memory defining instruction
+            # match mem_def_inst:
+            #     # Slice the source of assignments having an alias of `var` as destination
+            #     case bn.MediumLevelILSetVarAliased(
+            #         prev=prev_ssa_var,
+            #         dest=dest_ssa_var,
+            #         src=src_inst,
+            #     ):
+            #         if (
+            #             prev_ssa_var.var == dest_ssa_var.var == ssa_var.var
+            #             and prev_ssa_var.version + 1
+            #             == dest_ssa_var.version
+            #             <= ssa_var.version
+            #         ):
+            #             log.debug(
+            #                 self._tag,
+            #                 f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}'",
+            #             )
+            #             self._call_tracker.push_mem_def_inst(mem_def_inst)
+            #             self._slice_backwards(src_inst)
+            #     # Slice the source of assignments having an aliased field of `var` as destination
+            #     case bn.MediumLevelILSetVarAliasedField(
+            #         prev=prev_ssa_var,
+            #         dest=dest_ssa_var,
+            #         offset=dest_offset,
+            #         src=src_inst,
+            #     ):
+            #         if (
+            #             prev_ssa_var.var == dest_ssa_var.var == ssa_var.var
+            #             and prev_ssa_var.version + 1
+            #             == dest_ssa_var.version
+            #             <= ssa_var.version
+            #             and dest_offset == offset
+            #         ):
+            #             log.debug(
+            #                 self._tag,
+            #                 f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}.{dest_offset:d}'",
+            #             )
+            #             self._call_tracker.push_mem_def_inst(mem_def_inst)
+            #             self._slice_backwards(src_inst)
+            #     # Slice calls having a pointer to `var` as parameter
+            #     case (
+            #         bn.MediumLevelILCallSsa(params=params)
+            #         | bn.MediumLevelILCallUntypedSsa(params=params)
+            #         | bn.MediumLevelILTailcallSsa(params=params)
+            #         | bn.MediumLevelILTailcallUntypedSsa(params=params)
+            #     ):
+            #         # Find set of call parameters the slicer should follow
+            #         ptr_inst_str = ""
+            #         call_params: Set[int] = set()
+            #         for param_idx, param_inst in enumerate(params, start=1):
+            #             is_ptr_equal, ptr_inst_str = self._is_ptr_equivalent(
+            #                 ssa_var, offset, param_inst
+            #             )
+            #             if is_ptr_equal:
+            #                 call_params.add(param_idx)
+            #             # # Match parameter instruction
+            #             # match param_inst:
+            #             #     # `var == &param_var`
+            #             #     case bn.MediumLevelILAddressOf(src=param_var):
+            #             #         if ssa_var.var == param_var:
+            #             #             call_params.add(param_idx)
+            #             #     # `var.offset == &param_var.offset`
+            #             #     case bn.MediumLevelILAddressOfField(
+            #             #         src=param_var, offset=param_offset
+            #             #     ):
+            #             #         if ssa_var.var == param_var and offset == param_offset:
+            #             #             call_params.add(param_idx)
+            #             #     # `ptr_var == param_ptr_var` or `ptr_var == &(*param_ptr_var)[index]`
+            #             #     case bn.MediumLevelILVarSsa(var=param_ssa_var):
+            #             #         # Get pointer map for the current function
+            #             #         ptr_map = FunctionHelper.get_ptr_map(inst.function)
+            #             #         # Get pointer instructions for `ssa_var` and `param_ssa_var`
+            #             #         ptr_inst = ptr_map.get(ssa_var, None)
+            #             #         param_ptr_inst = ptr_map.get(param_ssa_var, None)
+            #             #         # Ensure valid pointer instructions
+            #             #         if ptr_inst is None or param_ptr_inst is None:
+            #             #             continue
+            #             #         # Compare pointer instructions
+            #             #         match (ptr_inst, param_ptr_inst):
+            #             #             # `ptr_var == param_ptr_var`
+            #             #             case (
+            #             #                 # `ptr_var`
+            #             #                 bn.HighLevelILVar(var=ptr_var),
+            #             #                 # `param_ptr_var`
+            #             #                 bn.HighLevelILVar(var=param_ptr_var),
+            #             #             ):
+            #             #                 if ptr_var == param_ptr_var:
+            #             #                     call_params.add(param_idx)
+            #             #                     ptr_inst_str = str(ptr_inst)
+            #             #             # `ptr_var == (*param_ptr_var)[index]`
+            #             #             case (
+            #             #                 # `ptr_var`
+            #             #                 bn.HighLevelILVar(),
+            #             #                 # `(*param_ptr_var)[index]`
+            #             #                 bn.HighLevelILArrayIndex(
+            #             #                     src=bn.HighLevelILDerefSsa(
+            #             #                         src=bn.HighLevelILVarSsa(
+            #             #                             var=param_ptr_ssa_var
+            #             #                         )
+            #             #                     )
+            #             #                 ),
+            #             #             ):
+            #             #                 if ptr_inst == ptr_map.get(
+            #             #                     param_ptr_ssa_var, None
+            #             #                 ):
+            #             #                     call_params.add(param_idx)
+            #             #                     ptr_inst_str = str(ptr_inst)
+            #             #             # `ptr_var[ptr_index] == param_ptr_var[param_ptr_index]`
+            #             #             case (
+            #             #                 # `ptr_var[ptr_index]`
+            #             #                 bn.HighLevelILArrayIndex(
+            #             #                     src=bn.HighLevelILVarSsa(var=ptr_var),
+            #             #                     index=bn.HighLevelILConst(
+            #             #                         constant=ptr_index
+            #             #                     ),
+            #             #                 ),
+            #             #                 # `param_ptr_var[param_ptr_index]`
+            #             #                 bn.HighLevelILArrayIndex(
+            #             #                     src=bn.HighLevelILVarSsa(var=param_ptr_var),
+            #             #                     index=bn.HighLevelILConst(
+            #             #                         constant=param_ptr_index
+            #             #                     ),
+            #             #                 ),
+            #             #             ):
+            #             #                 if (
+            #             #                     ptr_var == param_ptr_var
+            #             #                     and ptr_index == param_ptr_index
+            #             #                 ):
+            #             #                     call_params.add(param_idx)
+            #             #                     ptr_inst_str = str(ptr_inst)
 
-                    # Slice the call instruction if we need to follow any parameter
-                    if call_params:
-                        params_str = (
-                            "parameter " if len(call_params) == 1 else "parameters "
-                        )
-                        params_str += ", ".join(map(str, call_params))
-                        ptr_str = (
-                            f"'{ssa_var_info:s} = &{ptr_inst_str:s}'"
-                            if ptr_inst_str
-                            else f"'&{ssa_var_info:s}'"
-                        )
-                        log.debug(
-                            self._tag,
-                            f"Follow call instruction '{mem_def_inst_info:s}' since it uses {ptr_str:s} in {params_str:s}",
-                        )
-                        self._call_tracker.push_mem_def_inst(mem_def_inst)
-                        self._slice_backwards(mem_def_inst, call_params)
+            #         # Slice the call instruction if we need to follow any parameter
+            #         if call_params:
+            #             params_str = (
+            #                 "parameter " if len(call_params) == 1 else "parameters "
+            #             )
+            #             params_str += ", ".join(map(str, call_params))
+            #             ptr_str = (
+            #                 f"'{ssa_var_info:s} = &{ptr_inst_str:s}'"
+            #                 if ptr_inst_str
+            #                 else f"'&{ssa_var_info:s}'"
+            #             )
+            #             log.debug(
+            #                 self._tag,
+            #                 f"Follow call instruction '{mem_def_inst_info:s}' since it uses {ptr_str:s} in {params_str:s}",
+            #             )
+            #             self._call_tracker.push_mem_def_inst(mem_def_inst)
+            #             self._slice_backwards(mem_def_inst, call_params)
         return
 
     def _slice_ssa_var_definition(
@@ -728,6 +901,189 @@ class MediumLevelILBackwardSlicer:
                                                 f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                                             )
                                             continue
+                                        # TODO: Test call instruction
+                                        if isinstance(
+                                            mem_def_inst,
+                                            bn.MediumLevelILCallSsa
+                                            | bn.MediumLevelILCallUntypedSsa
+                                            | bn.MediumLevelILTailcallSsa
+                                            | bn.MediumLevelILTailcallUntypedSsa,
+                                        ):
+                                            # Get the parameter instructions
+                                            mlil_param_insts = (
+                                                FunctionHelper.get_mlil_param_insts(
+                                                    dest_func
+                                                )
+                                            )
+                                            # Iterate caller's call parameters of interest
+                                            for param_idx in call_params:
+                                                if param_idx <= 0 or param_idx > len(
+                                                    mlil_param_insts
+                                                ):
+                                                    continue
+                                                # Get callee's parameter of interest
+                                                mlil_param_inst = mlil_param_insts[
+                                                    param_idx - 1
+                                                ]
+                                                if mlil_param_inst is None:
+                                                    continue
+                                                param_offset = getattr(
+                                                    mlil_param_inst, "offset", 0
+                                                )
+                                                param_ssa_var = mlil_param_inst.var
+                                                # param_ssa_var_info = (
+                                                #     VariableHelper.get_ssavar_info(
+                                                #         param_ssa_var
+                                                #     )
+                                                # )
+                                                # TODO: Test 1
+                                                # self._slice_todo(
+                                                #     param_ssa_var,
+                                                #     param_offset,
+                                                #     mem_def_inst,
+                                                # )
+
+                                                # Push callee and proceed slicing its output
+                                                # parameter writing instruction (if no recursion)
+                                                recursion = (
+                                                    self._call_tracker.push_func(
+                                                        to_inst=mem_def_inst,
+                                                        reverse=False,
+                                                        param_idx=param_idx,
+                                                    )
+                                                )
+                                                if recursion:
+                                                    log.debug(
+                                                        self._tag,
+                                                        f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                                                    )
+                                                else:
+                                                    # log.debug(
+                                                    #     self._tag,
+                                                    #     f"TODO: Follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since it writes the output parameter variable '{param_ssa_var_info:s}'",
+                                                    # )
+                                                    # self._call_tracker.push_mem_def_inst(
+                                                    #     mem_def_inst
+                                                    # )
+                                                    # self._slice_backwards(
+                                                    #     mem_def_inst,
+                                                    #     set([mem_def_param_idx]),
+                                                    # )
+                                                    self._slice_todo(
+                                                        param_ssa_var,
+                                                        param_offset,
+                                                        mem_def_inst,
+                                                    )
+                                                # Get call level of the callee
+                                                call_level = (
+                                                    self._call_tracker.get_call_level()
+                                                )
+                                                # Get parameters reached in the callee
+                                                param_idxs = (
+                                                    self._call_tracker.pop_func()
+                                                )
+                                                # If maximum call level was reached in the callee, slice all
+                                                # parameters
+                                                if (
+                                                    self._max_call_level >= 0
+                                                    and abs(call_level)
+                                                    > self._max_call_level
+                                                ):
+                                                    for param in inst.params:
+                                                        self._slice_backwards(param)
+                                                # If maximum call level was not reached in the callee, slice only
+                                                # the specifically reached parameters
+                                                else:
+                                                    for param_idx in param_idxs:
+                                                        self._slice_backwards(
+                                                            inst.params[param_idx - 1]
+                                                        )
+
+                                                # # TODO: Test 2
+                                                # hlil_param_inst = mlil_param_inst.hlil
+                                                # if hlil_param_inst is None:
+                                                #     continue
+                                                # # Iterate callee's memory defining instruction's parameters
+                                                # mem_def_params: Set[int] = set()
+                                                # for (
+                                                #     mem_def_param_idx,
+                                                #     mlil_mem_def_param_inst,
+                                                # ) in enumerate(
+                                                #     mem_def_inst.params, start=1
+                                                # ):
+                                                #     hlil_mem_def_param_inst = (
+                                                #         mlil_mem_def_param_inst.hlil
+                                                #     )
+                                                #     if hlil_mem_def_param_inst is None:
+                                                #         continue
+                                                #     if (
+                                                #         hlil_param_inst
+                                                #         == hlil_mem_def_param_inst
+                                                #     ):
+                                                #         mem_def_params.add(
+                                                #             mem_def_param_idx
+                                                #         )
+                                                # # TODO: Test 3
+                                                # ptr_inst_str = ""
+                                                # mem_def_params: Set[int] = set()
+                                                # for mem_def_param_idx, mlil_mem_def_param_inst in enumerate(mem_def_inst.params, start=1):
+                                                #     is_ptr_equal, ptr_inst_str = self._is_ptr_equivalent(
+                                                #         param_ssa_var, param_offset, mlil_mem_def_param_inst
+                                                #     )
+                                                #     if is_ptr_equal:
+                                                #         mem_def_params.add(mem_def_param_idx)
+                                                # # TODO: Test 2 and 3
+                                                # for mem_def_param_idx in mem_def_params:
+                                                #     # Push callee and proceed slicing its output
+                                                #     # parameter writing instruction (if no recursion)
+                                                #     recursion = (
+                                                #         self._call_tracker.push_func(
+                                                #             to_inst=mem_def_inst,
+                                                #             reverse=False,
+                                                #             param_idx=mem_def_param_idx,
+                                                #         )
+                                                #     )
+                                                #     if recursion:
+                                                #         log.debug(
+                                                #             self._tag,
+                                                #             f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                                                #         )
+                                                #     else:
+                                                #         log.debug(
+                                                #             self._tag,
+                                                #             f"TODO: Follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since it writes the output parameter variable '{param_ssa_var_info:s}'",
+                                                #         )
+                                                #         self._call_tracker.push_mem_def_inst(
+                                                #             mem_def_inst
+                                                #         )
+                                                #         self._slice_backwards(
+                                                #             mem_def_inst,
+                                                #             set([mem_def_param_idx]),
+                                                #         )
+                                                #     # Get call level of the callee
+                                                #     call_level = self._call_tracker.get_call_level()
+                                                #     # Get parameters reached in the callee
+                                                #     param_idxs = (
+                                                #         self._call_tracker.pop_func()
+                                                #     )
+                                                #     # If maximum call level was reached in the callee, slice all
+                                                #     # parameters
+                                                #     if (
+                                                #         self._max_call_level >= 0
+                                                #         and abs(call_level)
+                                                #         > self._max_call_level
+                                                #     ):
+                                                #         for param in inst.params:
+                                                #             self._slice_backwards(param)
+                                                #     # If maximum call level was not reached in the callee, slice only
+                                                #     # the specifically reached parameters
+                                                #     else:
+                                                #         for param_idx in param_idxs:
+                                                #             self._slice_backwards(
+                                                #                 inst.params[
+                                                #                     param_idx - 1
+                                                #                 ]
+                                                #             )
                                         # Ensure store instruction
                                         if not isinstance(
                                             mem_def_inst,

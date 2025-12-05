@@ -21,6 +21,7 @@ class FunctionHelper:
         FunctionHelper.get_mlil_return_insts.cache_clear()
         FunctionHelper.get_mlil_direct_call_insts.cache_clear()
         FunctionHelper.get_mlil_param_insts.cache_clear()
+        FunctionHelper.get_var_map.cache_clear()
         FunctionHelper.get_ptr_map.cache_clear()
         FunctionHelper.get_ssa_memory_definitions.cache_clear()
         FunctionHelper.get_il_code.cache_clear()
@@ -215,6 +216,55 @@ class FunctionHelper:
 
     @staticmethod
     @lru_cache(maxsize=maxsize)
+    def get_var_map(
+        func: bn.MediumLevelILFunction,
+    ) -> Dict[bn.SSAVariable, Set[bn.SSAVariable]]:
+        """
+        This method returns a dictionary that maps a MLIL SSA variable to a set of equal MLIL SSA
+        variables. Two MLIL SSA variables are considered equal if they are assigned to each other
+        directly or indirectly (transitive closure).
+        """
+
+        # Find MLIL variable assignments
+        def find_mlil_var_assignments(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.SSAVariable]]:
+            match inst:
+                case bn.MediumLevelILSetVarSsa(
+                    dest=dest_ssa_var, src=bn.MediumLevelILVarSsa(src=src_ssa_var)
+                ):
+                    return (dest_ssa_var, src_ssa_var)
+            return (None, None)
+
+        # Build initial adjacency map of MLIL SSA variables
+        adj_map: Dict[bn.SSAVariable, Set[bn.SSAVariable]] = {}
+        for dest_ssa_var, src_ssa_var in func.traverse(find_mlil_var_assignments):
+            if dest_ssa_var is None or src_ssa_var is None:
+                continue
+            adj_map.setdefault(dest_ssa_var, set()).add(src_ssa_var)
+            adj_map.setdefault(src_ssa_var, set()).add(dest_ssa_var)
+        # Build connected components using BFS
+        visited: Set[bn.SSAVariable] = set()
+        var_map: Dict[bn.SSAVariable, Set[bn.SSAVariable]] = {}
+        for ssa_var in adj_map:
+            if ssa_var in visited:
+                continue
+            # Breadth-first search to collect all equal SSA variables
+            queue: List[bn.SSAVariable] = [ssa_var]
+            equal: Set[bn.SSAVariable] = set()
+            while queue:
+                v = queue.pop()
+                if v in visited:
+                    continue
+                visited.add(v)
+                equal.add(v)
+                queue.extend(adj_map[v])
+            for v in equal:
+                var_map[v] = equal - {v}
+        return var_map
+
+    @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_ptr_map(
         func: bn.MediumLevelILFunction,
     ) -> Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]]:
@@ -222,7 +272,7 @@ class FunctionHelper:
         This method returns a dicitionary, where keys are MLIL SSA variables corresponding to pointers.
         The values are the corresponding HLIL pointer instructions.
         """
-        ptr_map: Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]] = {}
+        func = func.ssa_form if func is not None else None
 
         # Find HLIL pointer instruction for HLIL instruction `inst`
         def find_hlil_ptrs(
@@ -265,17 +315,26 @@ class FunctionHelper:
             match inst:
                 case bn.MediumLevelILVarSsa(src=ssa_var):
                     return (ssa_var, find_hlil_ptrs(inst.hlil))
+                case bn.MediumLevelILSetVarSsa(
+                    src=bn.MediumLevelILLoadSsa(src=ptr_inst),
+                ):
+                    match ptr_inst:
+                        case bn.MediumLevelILVarSsa(src=ssa_var):
+                            return (ssa_var, ptr_inst.hlil)
             return (None, None)
 
         # Create mapping of MLIL SSA variables to HLIL pointer instructions in function `func`
-        func = func.ssa_form if func is not None else None
+        ptr_map: Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]] = {}
         if func is not None:
+            var_map = FunctionHelper.get_var_map(func)
             for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_ptrs):
                 mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
                 hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
                 if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
                     continue
                 ptr_map[mlil_ptr_ssa_var] = hlil_ptr_inst
+                for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
+                    ptr_map[mlil_ptr_ssa_var_alias] = hlil_ptr_inst
         return ptr_map
 
     @staticmethod

@@ -7,14 +7,17 @@ Testcase Description:
 */
 
 __attribute__ ((noinline, optimize("O0")))
-void get_cmd(char** cmd){
+void get_cmd(int debug, char** cmd){
     *cmd = getenv("CMD");
+    if(debug) {
+        printf("[DEBUG] cmd='%s'\n", *cmd);
+    }
     return;
 }
 
 __attribute__ ((noinline, optimize("O0")))
 int check_cmd(char** cmd){
-    get_cmd(cmd);
+    get_cmd(1, cmd);
     if(*cmd != NULL){
         return 0;
     }
