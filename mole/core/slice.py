@@ -62,7 +62,7 @@ class MediumLevelILBackwardSlicer:
     def _slice_ssa_var_mem_definition(
         self,
         ssa_var: bn.SSAVariable,
-        offset: int,
+        inst: bn.MediumLevelILInstruction,
         mem_def_inst: bn.MediumLevelILInstruction,
     ) -> None:
         """
@@ -113,11 +113,11 @@ class MediumLevelILBackwardSlicer:
                     and prev_ssa_var.version + 1
                     == dest_ssa_var.version
                     <= ssa_var.version
-                    and dest_offset == offset
+                    and dest_offset == getattr(inst, "offset", 0)
                 ):
                     log.debug(
                         self._tag,
-                        f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}.{dest_offset:d}'",
+                        f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}:{dest_offset:d}'",
                     )
                     self._call_tracker.push_mem_def_inst(mem_def_inst)
                     self._slice_backwards(src_inst)
@@ -141,7 +141,10 @@ class MediumLevelILBackwardSlicer:
                         case bn.MediumLevelILAddressOfField(
                             src=param_var, offset=param_offset
                         ):
-                            if ssa_var.var == param_var and offset == param_offset:
+                            if (
+                                ssa_var.var == param_var
+                                and getattr(inst, "offset", 0) == param_offset
+                            ):
                                 call_params.add(param_idx)
                         # `ptr_var == param_ptr_var` or `ptr_var == &(*param_ptr_var)[index]`
                         case bn.MediumLevelILVarSsa(var=param_ssa_var):
@@ -229,15 +232,13 @@ class MediumLevelILBackwardSlicer:
         memory version `inst.ssa_memory_version` and slices them if they define memory related to
         `ssa_var`.
         """
-        # Get offset if applicable
-        offset = getattr(inst, "offset", 0)
         # Get instructions defining the memory version of `inst`
         mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
             inst.function, inst.ssa_memory_version, self._max_memory_slice_depth
         )
         # Iterate memory defining instructions
         for mem_def_inst in mem_def_insts:
-            self._slice_ssa_var_mem_definition(ssa_var, offset, mem_def_inst)
+            self._slice_ssa_var_mem_definition(ssa_var, inst, mem_def_inst)
         return
 
     def _slice_ssa_var_definition(
@@ -375,28 +376,26 @@ class MediumLevelILBackwardSlicer:
                                 | bn.MediumLevelILTailcallSsa(params=params)
                                 | bn.MediumLevelILTailcallUntypedSsa(params=params)
                             ):
-                                followed = False
-                                for param_idx, param in enumerate(params, start=1):
-                                    match param:
+                                call_params: Set[int] = set()
+                                for param_idx, param_inst in enumerate(params, start=1):
+                                    match param_inst:
                                         case bn.MediumLevelILConstPtr(
                                             constant=constant
                                         ) if constant == inst.constant:
-                                            log.debug(
-                                                self._tag,
-                                                f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}' as parameter",
-                                            )
-                                            self._call_tracker.push_mem_def_inst(
-                                                mem_def_inst
-                                            )
-                                            self._slice_backwards(mem_def_inst)
-                                            followed = True
-                                    if followed:
-                                        break
-                                if not followed:
+                                            call_params.add(param_idx)
+                                if call_params:
+                                    params_str = (
+                                        "parameter "
+                                        if len(call_params) == 1
+                                        else "parameters "
+                                    )
+                                    params_str += ", ".join(map(str, call_params))
                                     log.debug(
                                         self._tag,
-                                        f"Do not follow instruction '{mem_def_inst_info:s}' since it does not use the pointer '0x{inst.constant:x}'",
+                                        f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}' in {params_str:s}",
                                     )
+                                    self._call_tracker.push_mem_def_inst(mem_def_inst)
+                                    self._slice_backwards(mem_def_inst, call_params)
                 else:
                     log.debug(
                         self._tag,
@@ -868,9 +867,6 @@ class MediumLevelILBackwardSlicer:
                                                     ]
                                                     if mlil_param_inst is None:
                                                         continue
-                                                    param_offset = getattr(
-                                                        mlil_param_inst, "offset", 0
-                                                    )
                                                     param_ssa_var = mlil_param_inst.var
                                                     # Push function containing the memory defining
                                                     # instruction
@@ -886,7 +882,7 @@ class MediumLevelILBackwardSlicer:
                                                     if not recursion:
                                                         self._slice_ssa_var_mem_definition(
                                                             param_ssa_var,
-                                                            param_offset,
+                                                            mlil_param_inst,
                                                             mem_def_inst,
                                                         )
                                                     # Recursion detected
