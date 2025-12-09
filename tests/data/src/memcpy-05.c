@@ -8,7 +8,7 @@ Testcase Description:
 - source in function without inlining
 */
 
-__attribute__ ((noinline)) char* my_getenv(const char* name) {
+__attribute__ ((noinline, optimize("O0"))) char* my_getenv(const char* name) {
     char *env = getenv(name);
     if(env == NULL) {
         return NULL;
