@@ -269,70 +269,93 @@ class FunctionHelper:
         func: bn.MediumLevelILFunction,
     ) -> Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]]:
         """
-        This method returns a dicitionary, where keys are MLIL SSA variables corresponding to pointers.
-        The values are the corresponding HLIL pointer instructions.
+        This method returns a dictionary, where keys are MLIL SSA variables corresponding to
+        pointers. The values are the corresponding HLIL pointer instructions.
         """
         func = func.ssa_form if func is not None else None
 
-        # Find HLIL pointer instruction for HLIL instruction `inst`
-        def find_hlil_ptrs(
-            inst: bn.HighLevelILInstruction,
-        ) -> Optional[bn.HighLevelILInstruction]:
-            inst = inst.ssa_form if inst is not None else None
-            match inst:
-                case bn.HighLevelILVar():
-                    return inst
-                case bn.HighLevelILVarSsa(var=ssa_var):
-                    def_inst = inst.function.get_ssa_var_definition(ssa_var)
-                    match def_inst:
-                        case bn.HighLevelILVarInitSsa(src=bn.HighLevelILVar()):
-                            return def_inst.src
-                        case bn.HighLevelILVarInitSsa(
-                            src=bn.HighLevelILAddressOf(src=ptr_inst)
-                        ):
-                            return ptr_inst
-                        case bn.HighLevelILVarInitSsa(
-                            src=bn.HighLevelILUnaryBase(src=src_inst)
-                        ):
-                            return find_hlil_ptrs(src_inst)
-                case bn.HighLevelILAddressOf(src=ptr_inst):
-                    return ptr_inst
-                case bn.HighLevelILUnaryBase(src=src_inst):
-                    return find_hlil_ptrs(src_inst)
-                case bn.HighLevelILBinaryBase(left=left_inst, right=right_inst):
-                    left_ptr_inst = find_hlil_ptrs(left_inst)
-                    if left_ptr_inst is not None:
-                        return left_ptr_inst
-                    right_ptr_inst = find_hlil_ptrs(right_inst)
-                    if right_ptr_inst is not None:
-                        return right_ptr_inst
-            return None
-
-        # Find HLIL pointer instruction for MLIL instruction `inst`
+        # Find MLIL SSA variables corresponding to pointers and their corresponding HLIL
+        # instructions
         def find_mlil_ptrs(
             inst: bn.MediumLevelILInstruction,
         ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.HighLevelILInstruction]]:
             match inst:
-                case bn.MediumLevelILVarSsa(src=ssa_var):
-                    return (ssa_var, find_hlil_ptrs(inst.hlil))
                 case bn.MediumLevelILSetVarSsa(
-                    src=bn.MediumLevelILLoadSsa(src=ptr_inst),
+                    dest=dest_ssa_var,
+                    src=src_inst,
                 ):
+                    match src_inst:
+                        case bn.MediumLevelILAddressOf() | bn.MediumLevelILVarAliased():
+                            return dest_ssa_var, src_inst.hlil
+                        case bn.MediumLevelILUnaryBase(
+                            src=bn.MediumLevelILVarAliased()
+                        ):
+                            return dest_ssa_var, src_inst.src.hlil
+                case bn.MediumLevelILLoadSsa(src=ptr_inst):
                     match ptr_inst:
-                        case bn.MediumLevelILVarSsa(src=ssa_var):
-                            return (ssa_var, ptr_inst.hlil)
-            return (None, None)
+                        case bn.MediumLevelILVarSsa(src=src_ssa_var):
+                            return src_ssa_var, ptr_inst.hlil
+                        case bn.MediumLevelILUnaryBase(src=src_inst):
+                            match src_inst:
+                                case bn.MediumLevelILVarSsa(src=src_ssa_var):
+                                    return src_ssa_var, src_inst.hlil
+                        case bn.MediumLevelILBinaryBase(
+                            left=left_inst,
+                            right=right_inst,
+                        ):
+                            match left_inst:
+                                case bn.MediumLevelILVarSsa(src=src_ssa_var):
+                                    return src_ssa_var, left_inst.hlil
+                            match right_inst:
+                                case bn.MediumLevelILVarSsa(src=src_ssa_var):
+                                    return src_ssa_var, right_inst.hlil
+            return None, None
 
-        # Create mapping of MLIL SSA variables to HLIL pointer instructions in function `func`
+        # Find MLIL SSA variables corresponding to pointers to array elements and their
+        # corresponding HLIL instructions
+        def find_mlil_array_ptrs(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.HighLevelILInstruction]]:
+            match inst:
+                case bn.MediumLevelILSetVarSsa(
+                    dest=dest_ssa_var,
+                    src=bn.MediumLevelILAdd(
+                        left=left_inst,
+                        right=right_inst,
+                    ),
+                ):
+                    match left_inst:
+                        case bn.MediumLevelILVarSsa(src=src_ssa_var):
+                            if src_ssa_var in ptr_map:
+                                return dest_ssa_var, ptr_map[src_ssa_var]
+                    match right_inst:
+                        case bn.MediumLevelILVarSsa(src=src_ssa_var):
+                            if src_ssa_var in ptr_map:
+                                return dest_ssa_var, ptr_map[src_ssa_var]
+            return None, None
+
+        # Map MLIL SSA variables (corresponding to pointers) to their HLIL instructions
         ptr_map: Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]] = {}
         if func is not None:
             var_map = FunctionHelper.get_var_map(func)
+            # Find pointers
             for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_ptrs):
                 mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
                 hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
                 if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
                     continue
                 ptr_map[mlil_ptr_ssa_var] = hlil_ptr_inst
+                # Find pointer aliases
+                for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
+                    ptr_map[mlil_ptr_ssa_var_alias] = hlil_ptr_inst
+            # Find pointers to array elements
+            for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_array_ptrs):
+                mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
+                hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
+                if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
+                    continue
+                ptr_map[mlil_ptr_ssa_var] = hlil_ptr_inst
+                # Find pointer aliases
                 for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
                     ptr_map[mlil_ptr_ssa_var_alias] = hlil_ptr_inst
         return ptr_map

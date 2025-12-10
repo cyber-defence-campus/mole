@@ -65,7 +65,7 @@ class MediumLevelILBackwardSlicer:
         inst: bn.MediumLevelILInstruction,
         mem_def_inst: bn.MediumLevelILInstruction,
     ) -> None:
-        """
+        """TODO
         This method matches the memory defining instruction `mem_def_inst` against the following
         cases:
         - If `mem_def_inst` is an assignment to an alias of `ssa_var`, slice its source
@@ -156,55 +156,32 @@ class MediumLevelILBackwardSlicer:
                             # Ensure valid pointer instructions
                             if ptr_inst is None or param_ptr_inst is None:
                                 continue
-                            # Compare pointer instructions
+                            # TODO:
                             match (ptr_inst, param_ptr_inst):
-                                # `ptr_var == param_ptr_var`
                                 case (
-                                    # `ptr_var`
-                                    bn.HighLevelILVar(var=ptr_var),
-                                    # `param_ptr_var`
-                                    bn.HighLevelILVar(var=param_ptr_var),
-                                ):
-                                    if ptr_var == param_ptr_var:
-                                        call_params.add(param_idx)
-                                        ptr_inst_str = str(ptr_inst)
-                                # `ptr_var == (*param_ptr_var)[index]`
-                                case (
-                                    # `ptr_var`
                                     bn.HighLevelILVar(),
-                                    # `(*param_ptr_var)[index]`
-                                    bn.HighLevelILArrayIndex(
-                                        src=bn.HighLevelILDerefSsa(
-                                            src=bn.HighLevelILVarSsa(
-                                                var=param_ptr_ssa_var
-                                            )
-                                        )
-                                    ),
+                                    bn.HighLevelILAddressOf(src=src_param_ptr_inst),
                                 ):
-                                    if ptr_inst == ptr_map.get(param_ptr_ssa_var, None):
-                                        call_params.add(param_idx)
-                                        ptr_inst_str = str(ptr_inst)
-                                # `ptr_var[ptr_index] == param_ptr_var[param_ptr_index]`
-                                case (
-                                    # `ptr_var[ptr_index]`
-                                    bn.HighLevelILArrayIndex(
-                                        src=bn.HighLevelILVarSsa(var=ptr_var),
-                                        index=bn.HighLevelILConst(constant=ptr_index),
-                                    ),
-                                    # `param_ptr_var[param_ptr_index]`
-                                    bn.HighLevelILArrayIndex(
-                                        src=bn.HighLevelILVarSsa(var=param_ptr_var),
-                                        index=bn.HighLevelILConst(
-                                            constant=param_ptr_index
-                                        ),
-                                    ),
-                                ):
-                                    if (
-                                        ptr_var == param_ptr_var
-                                        and ptr_index == param_ptr_index
+                                    if InstructionHelper.is_ptr_equivalent(
+                                        ptr_inst, src_param_ptr_inst
                                     ):
                                         call_params.add(param_idx)
-                                        ptr_inst_str = str(ptr_inst)
+                                        ptr_inst_str = str(param_ptr_inst)
+                                case (
+                                    bn.HighLevelILAddressOf(src=src_param_ptr_inst),
+                                    bn.HighLevelILVar(),
+                                ):
+                                    if InstructionHelper.is_ptr_equivalent(
+                                        src_param_ptr_inst, param_ptr_inst
+                                    ):
+                                        call_params.add(param_idx)
+                                        ptr_inst_str = str(param_ptr_inst)
+                                case _:
+                                    if InstructionHelper.is_ptr_equivalent(
+                                        ptr_inst, param_ptr_inst
+                                    ):
+                                        call_params.add(param_idx)
+                                        ptr_inst_str = str(param_ptr_inst)
                 # Slice the call instruction if we need to follow any parameter
                 if call_params:
                     params_str = (

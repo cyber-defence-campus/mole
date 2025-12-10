@@ -307,3 +307,41 @@ class InstructionHelper:
             return None
 
         return [i for i in inst.traverse(find_mlil_call_inst) if i is not None]
+
+    def is_ptr_equivalent(
+        left_inst: bn.HighLevelILInstruction,
+        right_inst: bn.HighLevelILInstruction,
+    ) -> bool:
+        """
+        TODO: This method checks whether two HLIL instructions `left_inst` and `right_inst`...
+        """
+        match (left_inst, right_inst):
+            case (
+                bn.HighLevelILConst(constant=left_constant),
+                bn.HighLevelILConst(constant=right_constant),
+            ):
+                return left_constant == right_constant
+            case (
+                bn.HighLevelILVar(var=left_var),
+                bn.HighLevelILVar(var=right_var),
+            ):
+                return left_var == right_var
+            case (
+                bn.HighLevelILArrayIndex(
+                    src=left_inst,
+                    index=left_index,
+                ),
+                bn.HighLevelILArrayIndex(
+                    src=right_inst,
+                    index=right_index,
+                ),
+            ):
+                return InstructionHelper.is_ptr_equivalent(
+                    left_inst, right_inst
+                ) and InstructionHelper.is_ptr_equivalent(left_index, right_index)
+            case (
+                bn.HighLevelILAddressOf(src=left_inst),
+                bn.HighLevelILAddressOf(src=right_inst),
+            ):
+                return InstructionHelper.is_ptr_equivalent(left_inst, right_inst)
+        return False
