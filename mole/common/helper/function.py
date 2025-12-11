@@ -299,7 +299,7 @@ class FunctionHelper:
                                 else None
                             )
                             return dest_ssa_var, ptr_inst
-                        # `var_p = var_x'`
+                        # `var_p = var_p'`
                         case bn.MediumLevelILVarAliased():
                             ptr_inst = (
                                 src_inst.hlil
@@ -307,7 +307,7 @@ class FunctionHelper:
                                 else None
                             )
                             return dest_ssa_var, ptr_inst
-                        # `var_p = sx(var_x')`
+                        # `var_p = sx(var_p')`
                         case bn.MediumLevelILSx(src=bn.MediumLevelILVarAliased()):
                             ptr_inst = (
                                 src_inst.src.hlil
