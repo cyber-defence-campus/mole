@@ -344,7 +344,7 @@ class FunctionHelper:
                     ),
                 ):
                     match (left_inst, right_inst):
-                        # `left_ssa_var+offset`
+                        # `var_q = var_p + offset`
                         case (
                             bn.MediumLevelILVarSsa(src=left_ssa_var),
                             bn.MediumLevelILConst(constant=offset),
@@ -358,7 +358,7 @@ class FunctionHelper:
                                     left_ptr_inst,
                                     left_ptr_offset + offset,
                                 )
-                        # `right_ssa_var+offset`
+                        # `var_q = offset + var_p`
                         case (
                             bn.MediumLevelILConst(constant=offset),
                             bn.MediumLevelILVarSsa(src=right_ssa_var),
@@ -372,7 +372,7 @@ class FunctionHelper:
                                     right_ptr_inst,
                                     right_ptr_offset + offset,
                                 )
-                        # `left_ssa_var+right_ssa_var`
+                        # `var_q = var_p + var_x` or `var_q = var_x + var_p`
                         case (
                             bn.MediumLevelILVarSsa(src=left_ssa_var),
                             bn.MediumLevelILVarSsa(src=right_ssa_var),
