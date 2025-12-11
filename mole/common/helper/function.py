@@ -299,7 +299,7 @@ class FunctionHelper:
                                 else None
                             )
                             return dest_ssa_var, ptr_inst
-                        # `var_p = var_x`
+                        # `var_p = var_x'`
                         case bn.MediumLevelILVarAliased():
                             ptr_inst = (
                                 src_inst.hlil
@@ -307,7 +307,7 @@ class FunctionHelper:
                                 else None
                             )
                             return dest_ssa_var, ptr_inst
-                        # `var_p = sx(var_x)`
+                        # `var_p = sx(var_x')`
                         case bn.MediumLevelILSx(src=bn.MediumLevelILVarAliased()):
                             ptr_inst = (
                                 src_inst.src.hlil
@@ -327,9 +327,9 @@ class FunctionHelper:
                             return src_ssa_var, src_inst.hlil
             return None, None
 
-        # Find MLIL SSA variables corresponding to pointers to array elements and their
-        # corresponding HLIL_VAR / HLIL_ADDRESS_OF instructions
-        def find_mlil_array_ptrs(
+        # Find MLIL SSA variables corresponding to pointers with offsets and their corresponding
+        # HLIL_VAR / HLIL_ADDRESS_OF instructions
+        def find_mlil_ptrs_offsets(
             inst: bn.MediumLevelILInstruction,
         ) -> Tuple[
             Optional[bn.SSAVariable],
@@ -344,7 +344,7 @@ class FunctionHelper:
                     ),
                 ):
                     match (left_inst, right_inst):
-                        # `left_ssa_var[offset]`
+                        # `left_ssa_var+offset`
                         case (
                             bn.MediumLevelILVarSsa(src=left_ssa_var),
                             bn.MediumLevelILConst(constant=offset),
@@ -358,7 +358,7 @@ class FunctionHelper:
                                     left_ptr_inst,
                                     left_ptr_offset + offset,
                                 )
-                        # `right_ssa_var[offset]`
+                        # `right_ssa_var+offset`
                         case (
                             bn.MediumLevelILConst(constant=offset),
                             bn.MediumLevelILVarSsa(src=right_ssa_var),
@@ -372,7 +372,7 @@ class FunctionHelper:
                                     right_ptr_inst,
                                     right_ptr_offset + offset,
                                 )
-                        # `left_ssa_var[right_ssa_var]` or `right_ssa_var[left_ssa_var]`: fixes 3
+                        # `left_ssa_var+right_ssa_var`
                         case (
                             bn.MediumLevelILVarSsa(src=left_ssa_var),
                             bn.MediumLevelILVarSsa(src=right_ssa_var),
@@ -417,9 +417,9 @@ class FunctionHelper:
                 for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
                     if mlil_ptr_ssa_var_alias not in ptr_map:
                         ptr_map[mlil_ptr_ssa_var_alias] = (hlil_ptr_inst, 0)
-            # Find pointers to array elements
+            # Find pointers with offsets
             for mlil_ptr_ssa_var, (hlil_ptr_inst, hlil_ptr_offset) in func.traverse(
-                find_mlil_array_ptrs
+                find_mlil_ptrs_offsets
             ):
                 mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
                 hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
