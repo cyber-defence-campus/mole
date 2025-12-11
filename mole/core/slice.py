@@ -138,38 +138,40 @@ class MediumLevelILBackwardSlicer:
                 call_offset: int = 0
                 for param_idx, param_inst in enumerate(params, start=1):
                     match param_inst:
-                        # `ssa_var == param_var`
+                        # Parameter is a variable
                         case bn.MediumLevelILVarSsa(var=param_ssa_var):
-                            # Get pointer map for the current function
+                            # Get pointers in the current function
                             ptr_map = FunctionHelper.get_ptr_map(param_inst.function)
                             # Get pointer instructions for `ssa_var` and `param_ssa_var`
-                            ptr_inst, ptr_offset = ptr_map.get(ssa_var, (None, 0))
-                            param_ptr_inst, param_ptr_offset = ptr_map.get(
-                                param_ssa_var, (None, 0)
+                            ptr_inst_ssa_var, ptr_offset_ssa_var = ptr_map.get(
+                                ssa_var, (None, 0)
                             )
-                            # Ensure valid pointer instructions
+                            ptr_inst_param_ssa_var, ptr_offset_param_ssa_var = (
+                                ptr_map.get(param_ssa_var, (None, 0))
+                            )
+                            # Ensure valid pointer instructions and equal offsets
                             if (
-                                ptr_inst is None
-                                or param_ptr_inst is None
-                                or ptr_offset != param_ptr_offset
+                                ptr_inst_ssa_var is None
+                                or ptr_inst_param_ssa_var is None
+                                or ptr_offset_ssa_var != ptr_offset_param_ssa_var
                             ):
                                 continue
                             # Follow parameter if pointer instructions are equivalent
                             if InstructionHelper.is_ptr_equivalent(
-                                ptr_inst, param_ptr_inst
+                                ptr_inst_ssa_var, ptr_inst_param_ssa_var
                             ):
                                 if param_idx not in call_params:
                                     call_params.append(param_idx)
-                                    call_inst = param_ptr_inst
-                                    call_offset = param_ptr_offset
-                        # `ssa_var.var == &param_var`
+                                    call_inst = ptr_inst_param_ssa_var
+                                    call_offset = ptr_offset_param_ssa_var
+                        # Parameter is the address of a variable
                         case bn.MediumLevelILAddressOf(src=param_var):
                             if ssa_var.var == param_var:
                                 if param_idx not in call_params:
                                     call_params.append(param_idx)
-                                    call_inst = param_ptr_inst
-                                    call_offset = param_ptr_offset
-                        # `ssa_var.var:offset == &param_var:offset`
+                                    call_inst = ptr_inst_param_ssa_var
+                                    call_offset = ptr_offset_param_ssa_var
+                        # Parameter is the address of a variable with an offset
                         case bn.MediumLevelILAddressOfField(
                             src=param_var, offset=param_offset
                         ):
@@ -179,8 +181,8 @@ class MediumLevelILBackwardSlicer:
                             ):
                                 if param_idx not in call_params:
                                     call_params.append(param_idx)
-                                    call_inst = param_ptr_inst
-                                    call_offset = param_ptr_offset
+                                    call_inst = ptr_inst_param_ssa_var
+                                    call_offset = ptr_offset_param_ssa_var
                 # Slice the call instruction if we need to follow any parameter
                 if call_params:
                     hlil_inst_str = (
