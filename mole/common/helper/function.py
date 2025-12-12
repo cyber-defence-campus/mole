@@ -21,6 +21,7 @@ class FunctionHelper:
         FunctionHelper.get_mlil_return_insts.cache_clear()
         FunctionHelper.get_mlil_direct_call_insts.cache_clear()
         FunctionHelper.get_mlil_param_insts.cache_clear()
+        FunctionHelper.get_var_map.cache_clear()
         FunctionHelper.get_ptr_map.cache_clear()
         FunctionHelper.get_ssa_memory_definitions.cache_clear()
         FunctionHelper.get_il_code.cache_clear()
@@ -215,67 +216,225 @@ class FunctionHelper:
 
     @staticmethod
     @lru_cache(maxsize=maxsize)
-    def get_ptr_map(
+    def get_var_map(
         func: bn.MediumLevelILFunction,
-    ) -> Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]]:
+    ) -> Dict[bn.SSAVariable, Set[bn.SSAVariable]]:
         """
-        This method returns a dicitionary, where keys are MLIL SSA variables corresponding to pointers.
-        The values are the corresponding HLIL pointer instructions.
+        This method returns a dictionary that maps a MLIL SSA variable to a set of equal MLIL SSA
+        variables. Two MLIL SSA variables are considered equal if they are assigned to each other
+        directly or indirectly (transitive closure).
         """
-        ptr_map: Dict[bn.SSAVariable, Optional[bn.HighLevelILInstruction]] = {}
 
-        # Find HLIL pointer instruction for HLIL instruction `inst`
-        def find_hlil_ptrs(
-            inst: bn.HighLevelILInstruction,
-        ) -> Optional[bn.HighLevelILInstruction]:
-            inst = inst.ssa_form if inst is not None else None
-            match inst:
-                case bn.HighLevelILVar():
-                    return inst
-                case bn.HighLevelILVarSsa(var=ssa_var):
-                    def_inst = inst.function.get_ssa_var_definition(ssa_var)
-                    match def_inst:
-                        case bn.HighLevelILVarInitSsa(src=bn.HighLevelILVar()):
-                            return def_inst.src
-                        case bn.HighLevelILVarInitSsa(
-                            src=bn.HighLevelILAddressOf(src=ptr_inst)
-                        ):
-                            return ptr_inst
-                        case bn.HighLevelILVarInitSsa(
-                            src=bn.HighLevelILUnaryBase(src=src_inst)
-                        ):
-                            return find_hlil_ptrs(src_inst)
-                case bn.HighLevelILAddressOf(src=ptr_inst):
-                    return ptr_inst
-                case bn.HighLevelILUnaryBase(src=src_inst):
-                    return find_hlil_ptrs(src_inst)
-                case bn.HighLevelILBinaryBase(left=left_inst, right=right_inst):
-                    left_ptr_inst = find_hlil_ptrs(left_inst)
-                    if left_ptr_inst is not None:
-                        return left_ptr_inst
-                    right_ptr_inst = find_hlil_ptrs(right_inst)
-                    if right_ptr_inst is not None:
-                        return right_ptr_inst
-            return None
-
-        # Find HLIL pointer instruction for MLIL instruction `inst`
-        def find_mlil_ptrs(
+        # Find MLIL variable assignments
+        def find_mlil_var_assignments(
             inst: bn.MediumLevelILInstruction,
-        ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.HighLevelILInstruction]]:
+        ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.SSAVariable]]:
             match inst:
-                case bn.MediumLevelILVarSsa(src=ssa_var):
-                    return (ssa_var, find_hlil_ptrs(inst.hlil))
+                case bn.MediumLevelILSetVarSsa(
+                    dest=dest_ssa_var, src=bn.MediumLevelILVarSsa(src=src_ssa_var)
+                ):
+                    return (dest_ssa_var, src_ssa_var)
             return (None, None)
 
-        # Create mapping of MLIL SSA variables to HLIL pointer instructions in function `func`
+        # Build initial adjacency map of MLIL SSA variables
+        adj_map: Dict[bn.SSAVariable, Set[bn.SSAVariable]] = {}
+        for dest_ssa_var, src_ssa_var in func.traverse(find_mlil_var_assignments):
+            if dest_ssa_var is None or src_ssa_var is None:
+                continue
+            adj_map.setdefault(dest_ssa_var, set()).add(src_ssa_var)
+            adj_map.setdefault(src_ssa_var, set()).add(dest_ssa_var)
+        # Build connected components using BFS
+        visited: Set[bn.SSAVariable] = set()
+        var_map: Dict[bn.SSAVariable, Set[bn.SSAVariable]] = {}
+        for ssa_var in adj_map:
+            if ssa_var in visited:
+                continue
+            # Breadth-first search to collect all equal SSA variables
+            queue: List[bn.SSAVariable] = [ssa_var]
+            equal: Set[bn.SSAVariable] = set()
+            while queue:
+                v = queue.pop()
+                if v in visited:
+                    continue
+                visited.add(v)
+                equal.add(v)
+                queue.extend(adj_map[v])
+            for v in equal:
+                var_map[v] = equal - {v}
+        return var_map
+
+    @staticmethod
+    @lru_cache(maxsize=maxsize)
+    def get_ptr_map(
+        func: bn.MediumLevelILFunction,
+    ) -> Dict[
+        bn.SSAVariable,
+        Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+    ]:
+        """
+        This method returns a dictionary, where keys are MLIL SSA variables corresponding to
+        pointers. The values are the corresponding HLIL_VAR/HLIL_ADDRESS_OF together with an offset.
+        """
         func = func.ssa_form if func is not None else None
+
+        # Find MLIL SSA variables corresponding to pointers and their corresponding HLIL_VAR /
+        # HLIL_ADDRESS_OF instructions
+        def find_mlil_ptrs(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[
+            Optional[bn.SSAVariable],
+            Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf],
+        ]:
+            match inst:
+                case bn.MediumLevelILSetVarSsa(
+                    dest=dest_ssa_var,
+                    src=src_inst,
+                ):
+                    match src_inst:
+                        # `var_p = &var_x`
+                        case bn.MediumLevelILAddressOf():
+                            ptr_inst = (
+                                src_inst.hlil
+                                if isinstance(src_inst.hlil, bn.HighLevelILAddressOf)
+                                else None
+                            )
+                            return dest_ssa_var, ptr_inst
+                        # `var_p = var_p'`
+                        case bn.MediumLevelILVarAliased():
+                            ptr_inst = (
+                                src_inst.hlil
+                                if isinstance(src_inst.hlil, bn.HighLevelILVar)
+                                else None
+                            )
+                            return dest_ssa_var, ptr_inst
+                        # `var_p = sx(var_p')`
+                        case bn.MediumLevelILSx(src=bn.MediumLevelILVarAliased()):
+                            ptr_inst = (
+                                src_inst.src.hlil
+                                if isinstance(src_inst.src.hlil, bn.HighLevelILVar)
+                                else None
+                            )
+                            return dest_ssa_var, ptr_inst
+                case bn.MediumLevelILLoadSsa(src=src_inst):
+                    match src_inst:
+                        # `[var_p]`
+                        case bn.MediumLevelILVarSsa(src=src_ssa_var):
+                            ptr_inst = (
+                                src_inst.hlil
+                                if isinstance(src_inst.hlil, bn.HighLevelILVar)
+                                else None
+                            )
+                            return src_ssa_var, src_inst.hlil
+            return None, None
+
+        # Find MLIL SSA variables corresponding to pointers with offsets and their corresponding
+        # HLIL_VAR / HLIL_ADDRESS_OF instructions
+        def find_mlil_ptrs_offsets(
+            inst: bn.MediumLevelILInstruction,
+        ) -> Tuple[
+            Optional[bn.SSAVariable],
+            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+        ]:
+            match inst:
+                case bn.MediumLevelILSetVarSsa(
+                    dest=dest_ssa_var,
+                    src=bn.MediumLevelILAdd(
+                        left=left_inst,
+                        right=right_inst,
+                    ),
+                ):
+                    match (left_inst, right_inst):
+                        # `var_q = var_p + offset`
+                        case (
+                            bn.MediumLevelILVarSsa(src=left_ssa_var),
+                            bn.MediumLevelILConst(constant=offset),
+                        ):
+                            # Ensure `left_ssa_var` is a pointer
+                            left_ptr_inst, left_ptr_offset = ptr_map.get(
+                                left_ssa_var, (None, 0)
+                            )
+                            if left_ptr_inst is not None:
+                                return dest_ssa_var, (
+                                    left_ptr_inst,
+                                    left_ptr_offset + offset,
+                                )
+                        # `var_q = offset + var_p`
+                        case (
+                            bn.MediumLevelILConst(constant=offset),
+                            bn.MediumLevelILVarSsa(src=right_ssa_var),
+                        ):
+                            # Ensure `right_ssa_var` is a pointer
+                            right_ptr_inst, right_ptr_offset = ptr_map.get(
+                                right_ssa_var, (None, 0)
+                            )
+                            if right_ptr_inst is not None:
+                                return dest_ssa_var, (
+                                    right_ptr_inst,
+                                    right_ptr_offset + offset,
+                                )
+                        # `var_q = var_p + var_x` or `var_q = var_x + var_p`
+                        case (
+                            bn.MediumLevelILVarSsa(src=left_ssa_var),
+                            bn.MediumLevelILVarSsa(src=right_ssa_var),
+                        ):
+                            # Ensure `left_ssa_var` xor `right_ssa_var` is a pointer
+                            left_ptr_inst, left_ptr_offset = ptr_map.get(
+                                left_ssa_var, (None, 0)
+                            )
+                            right_ptr_inst, right_ptr_offset = ptr_map.get(
+                                right_ssa_var, (None, 0)
+                            )
+                            # Unknown offset (assume 0)
+                            if left_ptr_inst is not None and right_ptr_inst is None:
+                                return dest_ssa_var, (
+                                    left_ptr_inst,
+                                    left_ptr_offset + 0,
+                                )
+                            elif left_ptr_inst is None and right_ptr_inst is not None:
+                                return dest_ssa_var, (
+                                    right_ptr_inst,
+                                    right_ptr_offset + 0,
+                                )
+            return None, (None, 0)
+
+        # Map MLIL SSA variables (corresponding to pointers) to their HLIL_VAR / HLIL_ADDRESS_OF
+        # instructions
+        ptr_map: Dict[
+            bn.SSAVariable,
+            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+        ] = {}
         if func is not None:
+            var_map = FunctionHelper.get_var_map(func)
+            # Find pointers
             for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_ptrs):
                 mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
                 hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
                 if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
                     continue
-                ptr_map[mlil_ptr_ssa_var] = hlil_ptr_inst
+                if mlil_ptr_ssa_var not in ptr_map:
+                    ptr_map[mlil_ptr_ssa_var] = (hlil_ptr_inst, 0)
+                # Find pointer aliases
+                for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
+                    if mlil_ptr_ssa_var_alias not in ptr_map:
+                        ptr_map[mlil_ptr_ssa_var_alias] = (hlil_ptr_inst, 0)
+            # Find pointers with offsets
+            for mlil_ptr_ssa_var, (hlil_ptr_inst, hlil_ptr_offset) in func.traverse(
+                find_mlil_ptrs_offsets
+            ):
+                mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
+                hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
+                hlil_ptr_offset = hlil_ptr_offset  # type: int
+                if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
+                    continue
+                if mlil_ptr_ssa_var not in ptr_map:
+                    ptr_map[mlil_ptr_ssa_var] = (hlil_ptr_inst, hlil_ptr_offset)
+                # Find pointer aliases
+                for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
+                    if mlil_ptr_ssa_var_alias not in ptr_map:
+                        ptr_map[mlil_ptr_ssa_var_alias] = (
+                            hlil_ptr_inst,
+                            hlil_ptr_offset,
+                        )
         return ptr_map
 
     @staticmethod

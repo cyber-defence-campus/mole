@@ -12,7 +12,7 @@ __attribute__ ((noinline, optimize("O0")))
 int main(int argc, char * argv[])
 {
     char data_buf[BUF_SIZE] = "ls";
-    char* data = data_buf;
+    char* data = &data_buf[0];
     char* env_cmd = getenv("CMD");
     int data_len = strlen(data);
     if (env_cmd != NULL)
