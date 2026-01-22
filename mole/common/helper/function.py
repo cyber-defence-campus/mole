@@ -279,6 +279,11 @@ class FunctionHelper:
         func = func.ssa_form if func is not None else None
         if func is None:
             return {}
+        ptr_map: Dict[
+            bn.SSAVariable,
+            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+        ] = {}
+        var_map = FunctionHelper.get_var_map(func)
 
         # Find MLIL SSA variables corresponding to pointers and their corresponding HLIL_VAR /
         # HLIL_ADDRESS_OF instructions
@@ -400,13 +405,6 @@ class FunctionHelper:
                                 )
             return None, (None, 0)
 
-        # Map MLIL SSA variables (corresponding to pointers) to their HLIL_VAR / HLIL_ADDRESS_OF
-        # instructions
-        ptr_map: Dict[
-            bn.SSAVariable,
-            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
-        ] = {}
-        var_map = FunctionHelper.get_var_map(func)
         # Find pointers
         for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_ptrs):
             mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
@@ -458,7 +456,7 @@ class FunctionHelper:
             return {}
         ptr_map = FunctionHelper.get_ptr_map(func)
         var_map = FunctionHelper.get_var_map(func)
-        # Handle pointer parameters
+        # Find pointer parameters
         mlil_param_insts = FunctionHelper.get_mlil_param_insts(func)
         for out_param_idx in param_idxs:
             if out_param_idx <= 0 or out_param_idx > len(mlil_param_insts):
