@@ -267,7 +267,7 @@ class MediumLevelILBackwardSlicer:
                     to_inst = call_inst.params[param_idx - 1]
                     recursion = self._call_tracker.push_func(
                         to_inst=to_inst,
-                        reverse=True,
+                        downwards=False,
                         param_idx=param_idx,
                     )
                     from_inst_info = InstructionHelper.get_inst_info(from_inst, False)
@@ -719,7 +719,7 @@ class MediumLevelILBackwardSlicer:
                                 # Proceed slicing the relevant output parameters, if we followed the
                                 # call due to reaching them
                                 if call_params:
-                                    # Get instructions defining the memory version of `inst`
+                                    # Get instructions defining the memory version of `ret_inst`
                                     mem_def_insts = (
                                         FunctionHelper.get_ssa_memory_definitions(
                                             dest_func,
@@ -793,7 +793,7 @@ class MediumLevelILBackwardSlicer:
                                                         # defining instruction
                                                         recursion = self._call_tracker.push_func(
                                                             to_inst=mem_def_inst,
-                                                            reverse=False,
+                                                            downwards=True,
                                                             param_idx=param_idx,
                                                         )
                                                         # Follow the output parameter defining
@@ -857,7 +857,7 @@ class MediumLevelILBackwardSlicer:
                                                     recursion = (
                                                         self._call_tracker.push_func(
                                                             to_inst=mem_def_inst,
-                                                            reverse=False,
+                                                            downwards=True,
                                                             param_idx=param_idx,
                                                         )
                                                     )
@@ -886,7 +886,7 @@ class MediumLevelILBackwardSlicer:
                                     # Push callee and proceed slicing its return instruction (if no recursion)
                                     recursion = self._call_tracker.push_func(
                                         to_inst=ret_inst,
-                                        reverse=False,
+                                        downwards=True,
                                         param_idx=0,
                                     )
                                     if recursion:
@@ -961,7 +961,7 @@ class MediumLevelILBackwardSlicer:
         This method backward slices the instruction `inst`.
         """
         self._call_tracker = MediumLevelILCallTracker()
-        self._call_tracker.push_func(to_inst=inst, reverse=True, param_idx=0)
+        self._call_tracker.push_func(to_inst=inst, downwards=False, param_idx=0)
         deque(
             inst.ssa_form.traverse(lambda inst: self._slice_backwards(inst)),
             maxlen=0,

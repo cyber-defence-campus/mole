@@ -93,17 +93,17 @@ class MediumLevelILCallTracker:
     def push_func(
         self,
         to_inst: bn.MediumLevelILInstruction,
-        reverse: bool = False,
+        downwards: bool = True,
         param_idx: int = 0,
     ) -> bool:
         """
         This method creates a new call frame with the function `to_inst.function` and pushes it to
-        the top of the call stack. Further, it updates the call graph. If `reverse` is `False`,
-        `to_inst.function` is treated as the callee; if `reverse` is `True`, it is treated as the
-        caller. When traversing down the call graph (`reverse==False`), `param_idx` indicates the
+        the top of the call stack. Further, it updates the call graph. If `downwards` is `True`,
+        `to_inst.function` is treated as the callee; if `downwards` is `False`, it is treated as the
+        caller. When traversing down the call graph (`downwards==True`), `param_idx` indicates the
         callee's output parameter that was followed, or `0` if the traversal followed a return
-        instruction. When traversing up the call graph (`reverse==True`), `param_idx` indicates the
-        caller's relevant parameter. The function returns `True` in case of recursion, `False`
+        instruction. When traversing up the call graph (`downwards==False`), `param_idx` indicates
+        the caller's relevant parameter. The function returns `True` in case of recursion, `False`
         otherwise.
         """
         # Get the `to_inst`'s function
@@ -122,15 +122,21 @@ class MediumLevelILCallTracker:
         if not recursion:
             # Update call graph
             if len(self._call_stack) >= 2:
-                if not reverse:
+                if downwards:
                     caller_frame = self._call_stack[-2]
                     self._call_graph.add_edge(
-                        caller_frame.func, func, downwards=True, param_idx=param_idx
+                        caller_frame.func,
+                        func,
+                        downwards=downwards,
+                        param_idx=param_idx,
                     )
                 else:
                     callee_frame = self._call_stack[-2]
                     self._call_graph.add_edge(
-                        func, callee_frame.func, downwards=False, param_idx=param_idx
+                        func,
+                        callee_frame.func,
+                        downwards=downwards,
+                        param_idx=param_idx,
                     )
             else:
                 self._call_graph.add_node(func)
