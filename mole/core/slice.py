@@ -141,7 +141,10 @@ class MediumLevelILBackwardSlicer:
                         # Parameter is a variable
                         case bn.MediumLevelILVarSsa(var=param_ssa_var):
                             # Get pointers in the current function
-                            ptr_map = FunctionHelper.get_ptr_map(param_inst.function)
+                            out_params = self._call_tracker.get_out_params()
+                            ptr_map = FunctionHelper.get_ptr_map_with_ptr_params(
+                                param_inst.function, out_params
+                            )
                             # Get pointer instructions for `ssa_var` and `param_ssa_var`
                             ptr_inst_ssa_var, ptr_offset_ssa_var = ptr_map.get(
                                 ssa_var, (None, 0)
@@ -289,7 +292,7 @@ class MediumLevelILBackwardSlicer:
                     self._tag,
                     f"Follow parameter {param_idx:d} '{var_info:s}' when going back to specific caller",
                 )
-                self._call_tracker.add_func_param(param_idx)
+                self._call_tracker.add_hit_param(param_idx)
         return
 
     def _slice_backwards(

@@ -14,7 +14,10 @@ class MediumLevelILCallFrame:
 
     def __init__(self, func: bn.MediumLevelILFunction) -> None:
         self.func = func
-        self.func_params: Set[int] = set()
+        # Set of parameter indices that should be sliced when going back to the caller
+        self.hit_param_idxs: Set[int] = set()
+        # Set of parameter indices known to be output parameters
+        self.out_param_idxs: Set[int] = set()
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
         self.last_inst: bn.MediumLevelILInstruction = None
         self.inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
@@ -45,6 +48,14 @@ class MediumLevelILCallTracker:
             MediumLevelILInstructionGraph()
         )
         return
+
+    def get_out_params(self) -> Set[int]:
+        """
+        This method returns the set of output parameter indices of the current call frame.
+        """
+        if self._call_stack:
+            return self._call_stack[-1].out_param_idxs
+        return set()
 
     def get_call_level(self) -> int:
         """
@@ -103,8 +114,8 @@ class MediumLevelILCallTracker:
         caller. When traversing down the call graph (`downwards==True`), `param_idx` indicates the
         callee's output parameter that was followed, or `0` if the traversal followed a return
         instruction. When traversing up the call graph (`downwards==False`), `param_idx` indicates
-        the caller's relevant parameter. The function returns `True` in case of recursion, `False`
-        otherwise.
+        which parameter of the caller is relevant (marked in the graph). The function returns `True`
+        in case of recursion, `False` otherwise.
         """
         # Get the `to_inst`'s function
         func = to_inst.function
@@ -130,6 +141,8 @@ class MediumLevelILCallTracker:
                         downwards=downwards,
                         param_idx=param_idx,
                     )
+                    if param_idx > 0:
+                        new_call_frame.out_param_idxs.add(param_idx)
                 else:
                     callee_frame = self._call_stack[-2]
                     self._call_graph.add_edge(
@@ -145,7 +158,7 @@ class MediumLevelILCallTracker:
     def pop_func(self) -> Set[int]:
         """
         This method pops the top call frame from the call stack and returns a set of parameter
-        indices (`func_params`) that should be sliced further.
+        indices (`hit_param_idxs`) that should be sliced further.
         """
         if self._call_stack:
             # Pop old call frame and get its last instruction
@@ -174,7 +187,7 @@ class MediumLevelILCallTracker:
             old_inst_graph = nx.relabel_nodes(old_call_frame.inst_graph, mapping)
             self._inst_graph = nx.compose(self._inst_graph, old_inst_graph)
             # Return indices of parameters to be sliced further
-            return old_call_frame.func_params
+            return old_call_frame.hit_param_idxs
         return set()
 
     def push_inst(
@@ -222,14 +235,14 @@ class MediumLevelILCallTracker:
             self._call_stack[-1].mem_def_insts.append(inst)
         return
 
-    def add_func_param(self, param_idx: int) -> None:
+    def add_hit_param(self, param_idx: int) -> None:
         """
-        This method adds the given parameter to the `func_params` set of the current call frame.
-        `func_params` is the set of parameters that should be sliced when returning back to the
-        caller of the current function.
+        This method adds the given parameter to the `hit_param_idxs` set of the current call frame.
+        `hit_param_idxs` is the set of parameter indices that should be sliced when returning back
+        to the caller of the current function.
         """
         if self._call_stack:
-            self._call_stack[-1].func_params.add(param_idx)
+            self._call_stack[-1].hit_param_idxs.add(param_idx)
         return
 
     def print_call_stack(self) -> None:
@@ -269,7 +282,12 @@ class MediumLevelILCallTracker:
         This method prints the instruction slice (for debugging).
         """
         for call_level, call_frame in enumerate(self._call_stack):
+            hit_params = ", ".join(str(i) for i in sorted(call_frame.hit_param_idxs))
+            out_params = ", ".join(str(i) for i in sorted(call_frame.out_param_idxs))
             print(f"[{call_level:d}] {str(call_frame):s}")
+            print(f"Hit params: {hit_params:s}")
+            print(f"Out params: {out_params:s}")
+            print("Inst stack:")
             for inst in call_frame.inst_stack:
                 inst_info = InstructionHelper.get_inst_info(inst, False)
                 print(f"  - {inst_info:s}")
