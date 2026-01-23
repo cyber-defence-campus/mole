@@ -142,7 +142,7 @@ class MediumLevelILBackwardSlicer:
                         case bn.MediumLevelILVarSsa(var=param_ssa_var):
                             # Get pointers in the current function
                             out_params = self._call_tracker.get_out_params()
-                            ptr_map = FunctionHelper.get_ptr_map_with_ptr_params(
+                            ptr_map = FunctionHelper.get_ptr_map(
                                 param_inst.function, out_params
                             )
                             # Get pointer instructions for `ssa_var` and `param_ssa_var`
