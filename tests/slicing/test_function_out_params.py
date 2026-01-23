@@ -83,3 +83,14 @@ class TestFunctionOutParams(TestSlicing):
             bv_callback=manually_set_types,
         )
         return
+
+    def test_function_out_params_09(
+        self, filenames: List[str] = ["function_out_params-09"]
+    ) -> None:
+        self.assert_paths(
+            srcs=[("fscanf", None), ("__isoc99_fscanf", None)],
+            snks=[("memcpy", 3)],
+            call_chains=[["main", "read_size"]],
+            filenames=filenames,
+        )
+        return

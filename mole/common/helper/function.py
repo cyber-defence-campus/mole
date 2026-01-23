@@ -22,7 +22,7 @@ class FunctionHelper:
         FunctionHelper.get_mlil_direct_call_insts.cache_clear()
         FunctionHelper.get_mlil_param_insts.cache_clear()
         FunctionHelper.get_var_map.cache_clear()
-        FunctionHelper.get_ptr_map.cache_clear()
+        FunctionHelper._get_ptr_map.cache_clear()
         FunctionHelper.get_ssa_memory_definitions.cache_clear()
         FunctionHelper.get_il_code.cache_clear()
         FunctionHelper.get_pseudo_c_code.cache_clear()
@@ -265,17 +265,16 @@ class FunctionHelper:
 
     @staticmethod
     @lru_cache(maxsize=maxsize)
-    def get_ptr_map(
-        func: bn.MediumLevelILFunction,
+    def _get_ptr_map(
+        func: bn.MediumLevelILFunction, param_idxs: frozenset[int]
     ) -> Dict[
         bn.SSAVariable,
         Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
     ]:
-        """
-        This method returns a dictionary, where keys are MLIL SSA variables corresponding to
-        pointers. The values are the corresponding HLIL_VAR/HLIL_ADDRESS_OF together with an offset.
-        """
-        func = func.ssa_form if func is not None else None
+        ptr_map: Dict[
+            bn.SSAVariable,
+            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+        ] = {}
 
         # Find MLIL SSA variables corresponding to pointers and their corresponding HLIL_VAR /
         # HLIL_ADDRESS_OF instructions
@@ -397,45 +396,90 @@ class FunctionHelper:
                                 )
             return None, (None, 0)
 
-        # Map MLIL SSA variables (corresponding to pointers) to their HLIL_VAR / HLIL_ADDRESS_OF
-        # instructions
-        ptr_map: Dict[
-            bn.SSAVariable,
-            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
-        ] = {}
-        if func is not None:
-            var_map = FunctionHelper.get_var_map(func)
-            # Find pointers
-            for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_ptrs):
-                mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
-                hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
-                if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
-                    continue
-                if mlil_ptr_ssa_var not in ptr_map:
-                    ptr_map[mlil_ptr_ssa_var] = (hlil_ptr_inst, 0)
-                # Find pointer aliases
-                for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
-                    if mlil_ptr_ssa_var_alias not in ptr_map:
-                        ptr_map[mlil_ptr_ssa_var_alias] = (hlil_ptr_inst, 0)
-            # Find pointers with offsets
-            for mlil_ptr_ssa_var, (hlil_ptr_inst, hlil_ptr_offset) in func.traverse(
-                find_mlil_ptrs_offsets
-            ):
-                mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
-                hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
-                hlil_ptr_offset = hlil_ptr_offset  # type: int
-                if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
-                    continue
-                if mlil_ptr_ssa_var not in ptr_map:
-                    ptr_map[mlil_ptr_ssa_var] = (hlil_ptr_inst, hlil_ptr_offset)
-                # Find pointer aliases
-                for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
-                    if mlil_ptr_ssa_var_alias not in ptr_map:
-                        ptr_map[mlil_ptr_ssa_var_alias] = (
-                            hlil_ptr_inst,
-                            hlil_ptr_offset,
-                        )
+        # Get variable map of the function
+        var_map = FunctionHelper.get_var_map(func)
+        # Get MLIL instructions of function parameters
+        mlil_param_insts = FunctionHelper.get_mlil_param_insts(func)
+        # Add known pointer parameters to the pointer map
+        for param_idx in param_idxs:
+            # Get the parameter's MLIL SSA variable and HLIL instruction
+            if not (0 < param_idx <= len(mlil_param_insts)):
+                continue
+            if (mlil_param_inst := mlil_param_insts[param_idx - 1]) is None:
+                continue
+            if (mlil_param_ssa_var := mlil_param_inst.var) is None:
+                continue
+            if (
+                hlil_param_inst := (
+                    mlil_param_inst.hlil
+                    if isinstance(mlil_param_inst.hlil, bn.HighLevelILVar)
+                    else None
+                )
+            ) is None:
+                continue
+            # Add parameter to the pointer map
+            if mlil_param_ssa_var not in ptr_map:
+                ptr_map[mlil_param_ssa_var] = (hlil_param_inst, 0)
+            # Add aliases of the parameter to the pointer map
+            for mlil_param_ssa_var_alias in var_map.get(mlil_param_ssa_var, set()):
+                if mlil_param_ssa_var_alias not in ptr_map:
+                    ptr_map[mlil_param_ssa_var_alias] = (hlil_param_inst, 0)
+        # Find pointers (without offsets) in the function and add them to the pointer map
+        for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_ptrs):
+            # Get the pointer's MLIL SSA variable and HLIL instruction
+            mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
+            hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
+            if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
+                continue
+            # Add pointer to the pointer map
+            if mlil_ptr_ssa_var not in ptr_map:
+                ptr_map[mlil_ptr_ssa_var] = (hlil_ptr_inst, 0)
+            # Add aliases of the pointer to the pointer map
+            for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
+                if mlil_ptr_ssa_var_alias not in ptr_map:
+                    ptr_map[mlil_ptr_ssa_var_alias] = (hlil_ptr_inst, 0)
+        # Find pointers with offsets in the function and add them to the pointer map
+        for mlil_ptr_ssa_var, (hlil_ptr_inst, hlil_ptr_offset) in func.traverse(
+            find_mlil_ptrs_offsets
+        ):
+            # Get the pointer's MLIL SSA variable, HLIL instruction and offset
+            mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
+            hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
+            hlil_ptr_offset = hlil_ptr_offset  # type: int
+            if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
+                continue
+            # Add pointer to the pointer map
+            if mlil_ptr_ssa_var not in ptr_map:
+                ptr_map[mlil_ptr_ssa_var] = (hlil_ptr_inst, hlil_ptr_offset)
+            # Add aliases of the pointer to the pointer map
+            for mlil_ptr_ssa_var_alias in var_map.get(mlil_ptr_ssa_var, set()):
+                if mlil_ptr_ssa_var_alias not in ptr_map:
+                    ptr_map[mlil_ptr_ssa_var_alias] = (hlil_ptr_inst, hlil_ptr_offset)
+        # Return pointer map
         return ptr_map
+
+    @staticmethod
+    def get_ptr_map(
+        func: bn.MediumLevelILFunction,
+        param_idxs: Set[int] = set(),
+    ) -> Dict[
+        bn.SSAVariable,
+        Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+    ]:
+        """
+        This method finds MLIL SSA variables in function `func` that correspond to pointers.
+        Function parameters known to be pointers can be specified in `param_idxs` (set of parameter
+        indices). A dictionary is returned, where keys are MLIL SSA variables corresponding to
+        pointers. The values are the corresponding HLIL_VAR/HLIL_ADDRESS_OF together with an offset.
+        """
+        # Get the function in SSA form
+        if func is None or func.ssa_form is None:
+            return {}
+        func = func.ssa_form
+        # Make parameter indices immutable
+        param_idxs = frozenset(param_idxs) if param_idxs else frozenset({0})
+        # Find pointers in the function and add them to the pointer map
+        return FunctionHelper._get_ptr_map(func, param_idxs)
 
     @staticmethod
     @lru_cache(maxsize=maxsize)
