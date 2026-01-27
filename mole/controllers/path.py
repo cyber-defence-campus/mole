@@ -185,13 +185,6 @@ class PathController:
         # Store BinaryView and PathTreeView
         self._bv = bv
         self.path_tree_view = ptv
-        # Set up signals
-        self.path_tree_view.signal_show_ai_report.connect(self.show_ai_report)
-        self.path_tree_view.path_tree_model.signal_path_modified.connect(
-            lambda: self.path_view.give_feedback(
-                self.path_view._save_but, "Save*", "Save*", 0
-            )
-        )
         # Set up context menu
         self.path_tree_view.setup_context_menu(
             on_log_path=self.log_path,
