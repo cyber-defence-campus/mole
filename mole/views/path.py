@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.views.graph import CallGraphWidget
 from mole.views.path_tree import PathTreeView
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Dict, Optional, Tuple, TYPE_CHECKING
 import binaryninja as bn
 import binaryninjaui as bnui
 import os as os
@@ -34,7 +34,7 @@ class PathView(bnui.SidebarWidget):
         self._bv: Optional[bn.BinaryView] = None
         self._wid: Optional[qtw.QTabWidget] = None
         self.path_ctr: Optional[PathController] = None
-        self.path_tree_view: Optional[PathTreeView] = None
+        self.path_tree_views: Dict[bn.BinaryView, PathTreeView] = {}
         return
 
     def init(self, path_ctr: PathController) -> PathView:
@@ -57,18 +57,16 @@ class PathView(bnui.SidebarWidget):
         main_lay = qtw.QVBoxLayout()
         main_lay.addWidget(scr_wid)
         self.setLayout(main_lay)
-        # Setup path tree
-        self.signal_setup_path_tree.emit(self._bv, self.path_tree_view, self._wid)
         return self
 
     def _init_path_tab(self) -> Tuple[qtw.QWidget, str]:
         """
         This method initializes the tab `Path`.
         """
-        # Create the path tree view
-        self.path_tree_view = PathTreeView()
+        # Initialize path tree widget
+        self._path_tree_view = PathTreeView("Placeholder")
 
-        # Create control buttons
+        # Initialize control buttons
         self._run_but = qtw.QPushButton("Find")
         self._run_but.clicked.connect(self.signal_find_paths.emit)
         self.signal_find_paths_feedback.connect(
@@ -97,7 +95,7 @@ class PathView(bnui.SidebarWidget):
             lambda checked: self.signal_auto_update_paths.emit(checked)
         )
 
-        # Set up button layout
+        # Initialize button widget
         but_lay = qtw.QHBoxLayout()
         but_lay.addWidget(self._run_but)
         but_lay.addWidget(self._load_but)
@@ -106,17 +104,12 @@ class PathView(bnui.SidebarWidget):
         but_wid = qtw.QWidget()
         but_wid.setLayout(but_lay)
 
-        # Set up main layout
+        # Initialize path tab widget
         lay = qtw.QVBoxLayout()
-        lay.addWidget(self.path_tree_view)
+        lay.addWidget(self._path_tree_view)
         lay.addWidget(but_wid)
         wid = qtw.QWidget()
         wid.setLayout(lay)
-
-        # Connect signals
-        self.path_tree_view.path_tree_model.signal_path_modified.connect(
-            lambda: self.give_feedback(self._save_but, "Save*", "Save*", 0)
-        )
 
         return wid, "Paths"
 
@@ -157,14 +150,26 @@ class PathView(bnui.SidebarWidget):
         """
         This method is a callback invoked when the active view in the Binary UI changes.
         """
+        # Ensure the BinaryView changed
         new_bv: bn.BinaryView = vf.getCurrentBinaryView() if vf else None
-        if new_bv != self._bv:
+        if new_bv is not None and new_bv != self._bv:
+            # Create a new PathTreeView if none exists for the BinaryView
+            if new_bv not in self.path_tree_views:
+                new_path_tree_view = PathTreeView(new_bv.file.filename)
+                self.path_tree_views[new_bv] = new_path_tree_view
+            # Take the existing PathTreeView of the BinaryView
+            else:
+                new_path_tree_view = self.path_tree_views[new_bv]
+            # Emit signal to set up the PathTreeView
+            self.signal_setup_path_tree.emit(new_bv, new_path_tree_view, self._wid)
+            # Update the PathTreeView for the newly active BinaryView
+            path_tab_lay = self._path_tree_view.parentWidget().layout()
+            path_tab_lay.replaceWidget(self._path_tree_view, new_path_tree_view)
+            self._path_tree_view.hide()
+            new_path_tree_view.show()
+            # Store the newly active BinaryView and its PathTreeView
             self._bv = new_bv
-            if self._bv is not None:
-                self._bv.register_notification(
-                    FunctionUpdateNotification(self.path_ctr)
-                )
-            self.signal_setup_path_tree.emit(new_bv, self.path_tree_view, self._wid)
+            self._path_tree_view = new_path_tree_view
         return
 
     def show_ai_report_tab(self) -> None:

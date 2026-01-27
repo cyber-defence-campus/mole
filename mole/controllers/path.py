@@ -182,14 +182,18 @@ class PathController:
         """
         This method sets up the path tree view with controller callbacks.
         """
-        # Store references
+        # Store BinaryView and PathTreeView
         self._bv = bv
         self.path_tree_view = ptv
         # Set up signals
-        if self.path_tree_view:
-            self.path_tree_view.signal_show_ai_report.connect(self.show_ai_report)
+        self.path_tree_view.signal_show_ai_report.connect(self.show_ai_report)
+        self.path_tree_view.path_tree_model.signal_path_modified.connect(
+            lambda: self.path_view.give_feedback(
+                self.path_view._save_but, "Save*", "Save*", 0
+            )
+        )
         # Set up context menu
-        ptv.setup_context_menu(
+        self.path_tree_view.setup_context_menu(
             on_log_path=self.log_path,
             on_log_path_diff=self.log_path_diff,
             on_log_call=self.log_call,
@@ -202,12 +206,12 @@ class PathController:
             on_clear_all=self.clear_all_paths,
             on_analyze_paths=self.analyze_paths,
             on_show_ai_report=self.show_ai_report,
-            bv=bv,
+            bv=self._bv,
         )
         # Set up navigation
-        ptv.setup_navigation(bv)
+        self.path_tree_view.setup_navigation(self._bv)
         # Expand all nodes by default
-        ptv.expandAll()
+        self.path_tree_view.expandAll()
         return
 
     def _set_auto_update_paths(self, checked: bool) -> None:

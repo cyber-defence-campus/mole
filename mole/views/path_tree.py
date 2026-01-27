@@ -17,11 +17,12 @@ class PathTreeView(qtw.QTreeView):
 
     signal_show_ai_report = qtc.Signal(list)
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, name: str, parent=None) -> None:
         """
         This method initializes the path tree view.
         """
         super().__init__(parent)
+        self.name = name
         self.path_tree_model = PathTreeModel()
         self.path_sort_proxy_model = PathSortProxyModel()
         self.path_sort_proxy_model.setSourceModel(self.path_tree_model)
@@ -57,6 +58,9 @@ class PathTreeView(qtw.QTreeView):
         # Connect to proxy model data changed signal to capture comment edits
         self.path_sort_proxy_model.dataChanged.connect(self._handle_comment_edit)
         return
+
+    def __repr__(self) -> str:
+        return f"<PathTreeView: {self.name:s}>"
 
     def refresh_view(self) -> None:
         """
