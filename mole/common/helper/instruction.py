@@ -318,6 +318,7 @@ class InstructionHelper:
 
         return [i for i in inst.traverse(find_mlil_call_inst) if i is not None]
 
+    @staticmethod
     def is_ptr_equivalent(
         left_inst: bn.HighLevelILInstruction,
         right_inst: bn.HighLevelILInstruction,
