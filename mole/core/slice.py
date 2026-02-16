@@ -22,19 +22,19 @@ class MediumLevelILBackwardSlicer:
     def __init__(
         self,
         bv: bn.BinaryView,
+        log: Logger,
         custom_tag: str = "",
         max_call_level: int = -1,
         max_memory_slice_depth: int = -1,
         cancelled: Callable[[], bool] = None,
-        log: Logger | None = None,
     ) -> None:
-        self._bv = bv
+        self.bv = bv
+        self.log = log
         self._filename = os.path.basename(bv.file.filename)
         self._tag = custom_tag if custom_tag else tag
         self._max_call_level = max_call_level
         self._max_memory_slice_depth = max_memory_slice_depth
         self._cancelled = cancelled if cancelled else lambda: False
-        self._log = log if log is not None else Logger()
         self._call_tracker: MediumLevelILCallTracker = None
         return
 
@@ -82,7 +82,7 @@ class MediumLevelILBackwardSlicer:
         # Ensure memory defining instruction has not yet been followed in the current call frame
         mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
         if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
-            self._log.debug(
+            self.log.debug(
                 self._tag,
                 f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
             )
@@ -101,7 +101,7 @@ class MediumLevelILBackwardSlicer:
                     == dest_ssa_var.version
                     <= ssa_var.version
                 ):
-                    self._log.debug(
+                    self.log.debug(
                         self._tag,
                         f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}'",
                     )
@@ -122,7 +122,7 @@ class MediumLevelILBackwardSlicer:
                     <= ssa_var.version
                     and dest_offset == getattr(inst, "offset", 0)
                 ):
-                    self._log.debug(
+                    self.log.debug(
                         self._tag,
                         f"Follow source of instruction '{mem_def_inst_info:s}' since it writes to an alias of '{ssa_var_info:s}:{dest_offset:d}'",
                     )
@@ -201,7 +201,7 @@ class MediumLevelILBackwardSlicer:
                         "parameter " if len(call_params) == 1 else "parameters "
                     )
                     params_str += ", ".join(map(str, call_params))
-                    self._log.debug(
+                    self.log.debug(
                         self._tag,
                         f"Follow call instruction '{mem_def_inst_info:s}' since it uses {ssa_var_info:s}{hlil_inst_str:s} in {params_str:s}",
                     )
@@ -257,7 +257,7 @@ class MediumLevelILBackwardSlicer:
         # Determine all instructions calling the current function
         direct_call_insts = FunctionHelper.get_mlil_direct_call_insts(inst.function)
         indirect_call_insts = FunctionHelper.get_mlil_indirect_call_insts(
-            self._bv, inst.function
+            self.bv, inst.function
         )
         # Iterate the current function's parameters
         for param_idx, param_var in enumerate(
@@ -279,20 +279,20 @@ class MediumLevelILBackwardSlicer:
                     )
                     from_inst_info = InstructionHelper.get_inst_info(from_inst, False)
                     if not recursion:
-                        self._log.debug(
+                        self.log.debug(
                             self._tag,
                             f"Follow parameter {param_idx:d} '{var_info:s}' to possible caller '{from_inst_info:s}'",
                         )
                         self._slice_backwards(to_inst)
                     else:
-                        self._log.debug(
+                        self.log.debug(
                             self._tag,
                             f"Do not follow parameter {param_idx:d} '{var_info:s}' to possible caller '{from_inst_info:s}' since recursion detected",
                         )
                     self._call_tracker.pop_func()
             # Follow the parameter in specific caller later
             else:
-                self._log.debug(
+                self.log.debug(
                     self._tag,
                     f"Follow parameter {param_idx:d} '{var_info:s}' when going back to specific caller",
                 )
@@ -315,7 +315,7 @@ class MediumLevelILBackwardSlicer:
         # Check if maximum call level is reached
         call_level = self._call_tracker.get_call_level()
         if self._max_call_level >= 0 and abs(call_level) > self._max_call_level:
-            self._log.debug(
+            self.log.debug(
                 self._tag, f"Maximum call level {self._max_call_level:d} reached"
             )
             return
@@ -330,18 +330,18 @@ class MediumLevelILBackwardSlicer:
             | bn.MediumLevelILTailcallUntypedSsa,
         ):
             if self._call_tracker.is_in_current_call_frame(inst):
-                self._log.debug(
+                self.log.debug(
                     self._tag,
                     f"Do not follow instruction '{inst_info:s}' since followed before in the current call frame",
                 )
                 return
-        self._log.debug(self._tag, f"[{call_level:+d}] {inst_info:s}")
+        self.log.debug(self._tag, f"[{call_level:+d}] {inst_info:s}")
         self._call_tracker.push_inst(inst, call_params)
         match inst:
             # NOTE: Case order matters
             case bn.MediumLevelILConstPtr(constant=constant):
                 # Ignore pointers that are in non-writable segments
-                segment = self._bv.get_segment_at(constant)
+                segment = self.bv.get_segment_at(constant)
                 if segment and segment.writable:
                     # Get instructions defining the memory version of `inst`
                     mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
@@ -356,7 +356,7 @@ class MediumLevelILBackwardSlicer:
                         )
                         # Check if memory defining instruction was followed before
                         if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
-                            self._log.debug(
+                            self.log.debug(
                                 self._tag,
                                 f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                             )
@@ -383,14 +383,14 @@ class MediumLevelILBackwardSlicer:
                                         else "parameters "
                                     )
                                     params_str += ", ".join(map(str, call_params))
-                                    self._log.debug(
+                                    self.log.debug(
                                         self._tag,
                                         f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}' in {params_str:s}",
                                     )
                                     self._call_tracker.push_mem_def_inst(mem_def_inst)
                                     self._slice_backwards(mem_def_inst, call_params)
                 else:
-                    self._log.debug(
+                    self.log.debug(
                         self._tag,
                         f"Do not follow pointer '0x{constant:x}' since it is in a non-writable segment",
                     )
@@ -409,7 +409,7 @@ class MediumLevelILBackwardSlicer:
                     )
                     # Check if memory defining instruction was followed before
                     if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
-                        self._log.debug(
+                        self.log.debug(
                             self._tag,
                             f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                         )
@@ -444,7 +444,7 @@ class MediumLevelILBackwardSlicer:
                                         > store_dest_addr + store_dest_size
                                     ):
                                         continue
-                                    self._log.debug(
+                                    self.log.debug(
                                         self._tag,
                                         f"Follow store instruction '{mem_def_inst_info:s}' since it overwrites the memory loaded by '{inst_info:s}'",
                                     )
@@ -466,7 +466,7 @@ class MediumLevelILBackwardSlicer:
                                     # Ensure load from and store to the same variable
                                     if load_var != store_var:
                                         continue
-                                    self._log.debug(
+                                    self.log.debug(
                                         self._tag,
                                         f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same variable ('{str(hlil_load_inst):s}') as load instruction '{inst_info:s}'",
                                     )
@@ -503,7 +503,7 @@ class MediumLevelILBackwardSlicer:
                                         or load_offset != store_offset
                                     ):
                                         continue
-                                    self._log.debug(
+                                    self.log.debug(
                                         self._tag,
                                         f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same variable ('{str(hlil_load_inst):s}') as load instruction '{inst_info:s}'",
                                     )
@@ -534,7 +534,7 @@ class MediumLevelILBackwardSlicer:
                                         or load_index != store_index
                                     ):
                                         continue
-                                    self._log.debug(
+                                    self.log.debug(
                                         self._tag,
                                         f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same array element ('{str(hlil_load_inst):s}') as load instruction '{inst_info:s}'",
                                     )
@@ -547,7 +547,7 @@ class MediumLevelILBackwardSlicer:
                     load_src_inst_info = InstructionHelper.get_inst_info(
                         load_src_inst, False
                     )
-                    self._log.debug(
+                    self.log.debug(
                         self._tag,
                         f"Follow load source instruction '{load_src_inst_info:s}' since no specific store instruction was found",
                     )
@@ -569,7 +569,7 @@ class MediumLevelILBackwardSlicer:
                     )
                     # Check if memory defining instruction was followed before
                     if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
-                        self._log.debug(
+                        self.log.debug(
                             self._tag,
                             f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                         )
@@ -597,7 +597,7 @@ class MediumLevelILBackwardSlicer:
                                     # Ensure load from and store to the same struct field
                                     if load_var != store_var or load_offset != 0:
                                         continue
-                                    self._log.debug(
+                                    self.log.debug(
                                         self._tag,
                                         f"Follow store struct instruction '{mem_def_inst_info:s}' since it writes the same struct member '{str(hlil_load_inst):s}' as load struct instruction '{inst_info:s}'",
                                     )
@@ -638,7 +638,7 @@ class MediumLevelILBackwardSlicer:
                                         or load_offset != store_offset
                                     ):
                                         continue
-                                    self._log.debug(
+                                    self.log.debug(
                                         self._tag,
                                         f"Follow store struct instruction '{mem_def_inst_info:s}' since it writes the same struct member '{str(hlil_load_inst):s}' as load struct instruction '{inst_info:s}'",
                                     )
@@ -651,7 +651,7 @@ class MediumLevelILBackwardSlicer:
                     load_src_inst_info = InstructionHelper.get_inst_info(
                         load_src_inst, False
                     )
-                    self._log.debug(
+                    self.log.debug(
                         self._tag,
                         f"Follow load struct source instruction '{load_src_inst_info:s}' since no specific struct store instruction was found",
                     )
@@ -698,7 +698,7 @@ class MediumLevelILBackwardSlicer:
                         | bn.MediumLevelILImport(constant=func_addr)
                     ):
                         # Get destination function and its symbol
-                        dest_func = self._bv.get_function_at(func_addr)
+                        dest_func = self.bv.get_function_at(func_addr)
                         dest_symb = dest_func.symbol if dest_func else None
                         # Slicer cannot go into the callee (proceed with function parameters)
                         if (
@@ -747,7 +747,7 @@ class MediumLevelILBackwardSlicer:
                                         if self._call_tracker.is_in_current_mem_def_insts(
                                             mem_def_inst
                                         ):
-                                            self._log.debug(
+                                            self.log.debug(
                                                 self._tag,
                                                 f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                                             )
@@ -811,7 +811,7 @@ class MediumLevelILBackwardSlicer:
                                                             dest_var_info = VariableHelper.get_ssavar_info(
                                                                 dest_var
                                                             )
-                                                            self._log.debug(
+                                                            self.log.debug(
                                                                 self._tag,
                                                                 f"Follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
                                                             )
@@ -823,7 +823,7 @@ class MediumLevelILBackwardSlicer:
                                                             )
                                                         # Recursion detected
                                                         else:
-                                                            self._log.debug(
+                                                            self.log.debug(
                                                                 self._tag,
                                                                 f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
                                                             )
@@ -880,7 +880,7 @@ class MediumLevelILBackwardSlicer:
                                                         )
                                                     # Recursion detected
                                                     else:
-                                                        self._log.debug(
+                                                        self.log.debug(
                                                             self._tag,
                                                             f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
                                                         )
@@ -899,12 +899,12 @@ class MediumLevelILBackwardSlicer:
                                         param_idx=0,
                                     )
                                     if recursion:
-                                        self._log.debug(
+                                        self.log.debug(
                                             self._tag,
                                             f"Do not follow return instruction '{ret_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
                                         )
                                     else:
-                                        self._log.debug(
+                                        self.log.debug(
                                             self._tag,
                                             f"Follow return instruction '{ret_inst_info:s}' of function '{dest_inst_info:s}'",
                                         )
@@ -918,7 +918,7 @@ class MediumLevelILBackwardSlicer:
                             self._slice_backwards(param)
                     # Unhandled function calls
                     case _:
-                        self._log.warn(
+                        self.log.warn(
                             self._tag,
                             f"[{call_level:+d}] {dest_inst_info:s}: Missing call handler",
                         )
@@ -958,7 +958,7 @@ class MediumLevelILBackwardSlicer:
             case bn.MediumLevelILJump() | bn.MediumLevelILJumpTo():
                 self._slice_backwards(inst.dest)
             case _:
-                self._log.warn(
+                self.log.warn(
                     self._tag,
                     f"[{call_level:+d}] {inst_info:s}: Missing instruction handler",
                 )

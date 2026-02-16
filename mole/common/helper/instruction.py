@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, Set, Tuple
+from typing import List, Set, Tuple
 import binaryninja as bn
 
 
@@ -274,12 +274,13 @@ class InstructionHelper:
             inst: bn.HighLevelILInstruction
             | bn.MediumLevelILInstruction
             | bn.LowLevelILInstruction,
-        ) -> Optional[
+        ) -> (
             bn.MediumLevelILCallSsa
             | bn.MediumLevelILCallUntypedSsa
             | bn.MediumLevelILTailcallSsa
             | bn.MediumLevelILTailcallUntypedSsa
-        ]:
+            | None
+        ):
             # HLIL or LLIL
             if isinstance(
                 inst,

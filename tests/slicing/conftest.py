@@ -3,7 +3,7 @@ from mole.common.log import Logger
 from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
 from mole.services.path import PathService
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 import atexit
 import binaryninja as bn
 import os
@@ -55,8 +55,8 @@ class TestSlicing:
 
     def assert_paths(
         self,
-        srcs: List[Tuple[str, Optional[int]]],
-        snks: List[Tuple[str, Optional[int]]],
+        srcs: List[Tuple[str, int | None]],
+        snks: List[Tuple[str, int | None]],
         call_chains: List[List[str]],
         filenames: List[str],
         bv_callback: Callable[[bn.BinaryView], None] = lambda bv: None,

@@ -7,7 +7,7 @@ from mole.common.log import Logger
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
 from mole.core.slice import MediumLevelILBackwardSlicer
 from mole.models.ai import AiVulnerabilityReport
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type
+from typing import Any, Callable, Dict, List, Set, Tuple, Type
 import binaryninja as bn
 import hashlib
 import networkx as nx
@@ -194,13 +194,12 @@ class SourceFunction(Function):
     def find_targets(
         self,
         bv: bn.BinaryView,
-        manual_fun: Optional[SourceFunction],
-        manual_fun_inst: Optional[
-            bn.MediumLevelILCall
-            | bn.MediumLevelILCallSsa
-            | bn.MediumLevelILTailcall
-            | bn.MediumLevelILTailcallSsa
-        ],
+        manual_fun: SourceFunction | None,
+        manual_fun_inst: bn.MediumLevelILCall
+        | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILTailcall
+        | bn.MediumLevelILTailcallSsa
+        | None,
         manual_fun_all_code_xrefs: bool,
         cancelled: Callable[[], bool],
         log: Logger,
@@ -315,7 +314,7 @@ class SourceFunction(Function):
                             continue
                     # Initialize backward slicer
                     src_slicer = MediumLevelILBackwardSlicer(
-                        bv, custom_tag, 0, 0, cancelled, log
+                        bv, log, custom_tag, 0, 0, cancelled
                     )
                     # Initialize the function that decides which parameters to slice
                     if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
@@ -366,13 +365,12 @@ class SinkFunction(Function):
         self,
         bv: bn.BinaryView,
         sources: List[SourceFunction],
-        manual_fun: Optional[SinkFunction],
-        manual_fun_inst: Optional[
-            bn.MediumLevelILCall
-            | bn.MediumLevelILCallSsa
-            | bn.MediumLevelILTailcall
-            | bn.MediumLevelILTailcallSsa
-        ],
+        manual_fun: SinkFunction | None,
+        manual_fun_inst: bn.MediumLevelILCall
+        | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILTailcall
+        | bn.MediumLevelILTailcallSsa
+        | None,
         manual_fun_all_code_xrefs: bool,
         max_call_level: int,
         max_slice_depth: int,
@@ -504,11 +502,11 @@ class SinkFunction(Function):
                         # Initialize backward slicer
                         snk_slicer = MediumLevelILBackwardSlicer(
                             bv,
+                            log,
                             custom_tag,
                             max_call_level,
                             max_memory_slice_depth,
                             cancelled,
-                            log,
                         )
                         # Backward slice the parameter
                         snk_slicer.slice_backwards(snk_par_var)
@@ -714,8 +712,8 @@ class Path:
 
     src_sym_addr: int
     src_sym_name: str
-    src_par_idx: Optional[int]
-    src_par_var: Optional[bn.MediumLevelILInstruction]
+    src_par_idx: int | None
+    src_par_var: bn.MediumLevelILInstruction | None
     src_inst_idx: int
     snk_sym_addr: int
     snk_sym_name: str
@@ -728,14 +726,14 @@ class Path:
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     calls: List[Tuple[bn.MediumLevelILFunction, int]] = field(default_factory=list)
     call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
-    ai_report: Optional[AiVulnerabilityReport] = None
+    ai_report: AiVulnerabilityReport | None = None
 
     def __init__(
         self,
         src_sym_addr: int,
         src_sym_name: str,
-        src_par_idx: Optional[int],
-        src_par_var: Optional[bn.MediumLevelILInstruction],
+        src_par_idx: int | None,
+        src_par_var: bn.MediumLevelILInstruction | None,
         src_inst_idx: int,
         snk_sym_addr: int,
         snk_sym_name: str,
@@ -744,7 +742,7 @@ class Path:
         insts: List[bn.MediumLevelILInstruction],
         comment: str = "",
         sha1_hash: str = "",
-        ai_report: Optional[AiVulnerabilityReport] = None,
+        ai_report: AiVulnerabilityReport | None = None,
     ) -> None:
         self.src_sym_addr = src_sym_addr
         self.src_sym_name = src_sym_name
@@ -916,7 +914,7 @@ class Path:
         }
 
     @classmethod
-    def from_dict(cls: Type[Path], bv: bn.BinaryView, d: Dict) -> Optional[Path]:
+    def from_dict(cls: Type[Path], bv: bn.BinaryView, d: Dict) -> Path | None:
         log = Logger(bv)
         try:
             # Deserialize instructions

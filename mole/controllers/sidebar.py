@@ -46,8 +46,9 @@ class SidebarController:
 
     def _connect_signals(self) -> None:
         """
-        TODO: This method connects all signals in the sidebar.
+        This method connects all signals in the sidebar.
         """
+        # Connect config view signals
         self.config_ctr.config_view.signal_save_config.connect(
             self.config_ctr.save_config
         )
@@ -110,6 +111,7 @@ class SidebarController:
                 ),
             )
         )
+        # Connect path model signals
         self.path_ctr.path_proxy_model.rowsInserted.connect(
             self.path_ctr.path_view.path_tree_view.refresh_view
         )
@@ -122,6 +124,7 @@ class SidebarController:
         self.path_ctr.path_proxy_model.path_tree_model.dataChanged.connect(
             lambda: self.path_ctr.give_feedback("Save", "Save*", "Save*", 0)
         )
+        # Connect path view signals
         self.path_ctr.path_view.signal_find_paths.connect(self.path_ctr.find_paths)
         self.path_ctr.path_view.signal_load_paths.connect(self.path_ctr.load_paths)
         self.path_ctr.path_view.signal_save_paths.connect(self.path_ctr.save_paths)

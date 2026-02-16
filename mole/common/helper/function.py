@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import deque
 from functools import lru_cache
 from mole.common.helper.instruction import InstructionHelper
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Set, Tuple
 import binaryninja as bn
 
 
@@ -178,7 +178,7 @@ class FunctionHelper:
     @lru_cache(maxsize=maxsize)
     def get_mlil_param_insts(
         func: bn.MediumLevelILFunction,
-    ) -> List[Optional[bn.MediumLevelILVarSsa]]:
+    ) -> List[bn.MediumLevelILVarSsa | None]:
         """
         This method returns a list of `MediumLevelILVarSsa` instructions that correspond to the
         parameters of function `func`. The order of the returned instructions corresponds to the one
@@ -194,7 +194,7 @@ class FunctionHelper:
         # Find instructions corresponding to the function parameters
         def find_mlil_param_inst(
             inst: bn.MediumLevelILInstruction,
-        ) -> Tuple[int, Optional[bn.MediumLevelILVarSsa]]:
+        ) -> Tuple[int, bn.MediumLevelILVarSsa | None]:
             if isinstance(inst, bn.MediumLevelILVarSsa):
                 if inst.var.var in param_vars:
                     return (param_vars.index(inst.var.var), inst)
@@ -228,7 +228,7 @@ class FunctionHelper:
         # Find MLIL variable assignments
         def find_mlil_var_assignments(
             inst: bn.MediumLevelILInstruction,
-        ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.SSAVariable]]:
+        ) -> Tuple[bn.SSAVariable | None, bn.SSAVariable | None]:
             match inst:
                 case bn.MediumLevelILSetVarSsa(
                     dest=dest_ssa_var, src=bn.MediumLevelILVarSsa(src=src_ssa_var)
@@ -269,11 +269,11 @@ class FunctionHelper:
         func: bn.MediumLevelILFunction, param_idxs: frozenset[int]
     ) -> Dict[
         bn.SSAVariable,
-        Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+        Tuple[bn.HighLevelILVar | bn.HighLevelILAddressOf | None, int],
     ]:
         ptr_map: Dict[
             bn.SSAVariable,
-            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+            Tuple[bn.HighLevelILVar | bn.HighLevelILAddressOf | None, int],
         ] = {}
 
         # Find MLIL SSA variables corresponding to pointers and their corresponding HLIL_VAR /
@@ -281,8 +281,8 @@ class FunctionHelper:
         def find_mlil_ptrs(
             inst: bn.MediumLevelILInstruction,
         ) -> Tuple[
-            Optional[bn.SSAVariable],
-            Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf],
+            bn.SSAVariable | None,
+            bn.HighLevelILVar | bn.HighLevelILAddressOf | None,
         ]:
             match inst:
                 case bn.MediumLevelILSetVarSsa(
@@ -331,8 +331,8 @@ class FunctionHelper:
         def find_mlil_ptrs_offsets(
             inst: bn.MediumLevelILInstruction,
         ) -> Tuple[
-            Optional[bn.SSAVariable],
-            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+            bn.SSAVariable | None,
+            Tuple[bn.HighLevelILVar | bn.HighLevelILAddressOf | None, int],
         ]:
             match inst:
                 case bn.MediumLevelILSetVarSsa(
@@ -427,8 +427,8 @@ class FunctionHelper:
         # Find pointers (without offsets) in the function and add them to the pointer map
         for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_ptrs):
             # Get the pointer's MLIL SSA variable and HLIL instruction
-            mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
-            hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
+            mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: bn.SSAVariable | None
+            hlil_ptr_inst = hlil_ptr_inst  # type: bn.HighLevelILInstruction | None
             if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
                 continue
             # Add pointer to the pointer map
@@ -443,8 +443,8 @@ class FunctionHelper:
             find_mlil_ptrs_offsets
         ):
             # Get the pointer's MLIL SSA variable, HLIL instruction and offset
-            mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
-            hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
+            mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: bn.SSAVariable | None
+            hlil_ptr_inst = hlil_ptr_inst  # type: bn.HighLevelILInstruction | None
             hlil_ptr_offset = hlil_ptr_offset  # type: int
             if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
                 continue
@@ -464,7 +464,7 @@ class FunctionHelper:
         param_idxs: Set[int] = set(),
     ) -> Dict[
         bn.SSAVariable,
-        Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+        Tuple[bn.HighLevelILVar | bn.HighLevelILAddressOf | None, int],
     ]:
         """
         This method finds MLIL SSA variables in function `func` that correspond to pointers.
