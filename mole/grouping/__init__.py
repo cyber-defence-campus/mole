@@ -94,7 +94,7 @@ def get_all_grouping_strategies() -> List[str]:
     return list(PathGrouper.get_strategy_map().keys())
 
 
-def get_grouper(strategy: str) -> PathGrouper:
+def get_grouper(strategy: str) -> PathGrouper | None:
     """
     This method is a factory method to create a grouper based on the strategy.
 

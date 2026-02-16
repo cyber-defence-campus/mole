@@ -1,12 +1,12 @@
 from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
-from mole.common.log import log
+from mole.common.log import Logger
 from typing import Any, Dict, List, Type
 import binaryninja as bn
 import networkx as nx
 
 
-tag = "Mole.Graph"
+tag = "Graph"
 
 
 class MediumLevelILInstructionGraph(nx.DiGraph):
@@ -73,33 +73,33 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
 
     def add_node(
         self,
-        func: bn.MediumLevelILFunction,
+        node_for_adding: bn.MediumLevelILFunction,
         **attr: Any,
     ) -> None:
         """
-        This method adds a node for the given `func`.
+        This method adds a node for function `node_for_adding`.
         """
-        if not isinstance(func, bn.MediumLevelILFunction):
+        if not isinstance(node_for_adding, bn.MediumLevelILFunction):
             raise TypeError("Node is not of type 'MediumLevelILFunction'")
-        super().add_node(func, **attr)
+        super().add_node(node_for_adding, **attr)
         return
 
     def add_edge(
         self,
-        from_func: bn.MediumLevelILFunction,
-        to_func: bn.MediumLevelILFunction,
+        u_of_edge: bn.MediumLevelILFunction,
+        v_of_edge: bn.MediumLevelILFunction,
         **attr: Any,
     ) -> None:
         """
-        This method adds an edge between `from_func` and `to_func`.
+        This method adds an edge from function `u_of_edge` to function `v_of_edge`.
         """
-        if not isinstance(from_func, bn.MediumLevelILFunction):
+        if not isinstance(u_of_edge, bn.MediumLevelILFunction):
             raise TypeError("Source node is not of type 'MediumLevelILFunction'")
-        if not isinstance(to_func, bn.MediumLevelILFunction):
+        if not isinstance(v_of_edge, bn.MediumLevelILFunction):
             raise TypeError("Target node is not of type 'MediumLevelILFunction'")
-        self.add_node(from_func)
-        self.add_node(to_func)
-        super().add_edge(from_func, to_func, **attr)
+        self.add_node(u_of_edge)
+        self.add_node(v_of_edge)
+        super().add_edge(u_of_edge, v_of_edge, **attr)
         return
 
     def update_call_levels(self) -> bool:
@@ -167,6 +167,7 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         This method deserializes a dictionary to a graph.
         """
         call_graph: MediumLevelILFunctionGraph = cls()
+        log = Logger(bv)
         try:
             # Deserialize nodes
             for node in d["nodes"]:

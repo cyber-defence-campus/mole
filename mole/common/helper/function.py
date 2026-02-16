@@ -524,14 +524,13 @@ class FunctionHelper:
 
     @staticmethod
     def get_mlil_synthetic_call_inst(
-        bv: bn.BinaryView,
         func: bn.MediumLevelILFunction,
-    ) -> Optional[bn.MediumLevelILCallSsa]:
+    ) -> bn.MediumLevelILCallSsa | None:
         """
         This method builds a synthetic call instruction for the function `func` in SSA form.
         """
         func_addr = func.source_function.start
-        call_dest = func.const_pointer(bv.address_size, func_addr)
+        call_dest = func.const_pointer(func.view.address_size, func_addr)
         param_insts = FunctionHelper.get_mlil_param_insts(func)
         call_params = [
             param_inst.expr_index if param_inst is not None else -1

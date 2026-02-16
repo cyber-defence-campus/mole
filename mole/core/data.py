@@ -3,18 +3,18 @@ from dataclasses import dataclass, field
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.symbol import SymbolHelper
-from mole.common.log import log
+from mole.common.log import Logger
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
 from mole.core.slice import MediumLevelILBackwardSlicer
 from mole.models.ai import AiVulnerabilityReport
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type
 import binaryninja as bn
 import hashlib
 import networkx as nx
 import PySide6.QtWidgets as qtw
 
-
-tag = "Mole.Data"
+# TODO: Rework!
+tag = "Data"
 
 
 @dataclass
@@ -27,7 +27,7 @@ class Configuration:
     sinks: Dict[str, Library] = field(default_factory=dict)
     settings: Dict[str, WidgetSetting] = field(default_factory=dict)
 
-    def __eq__(self, other: Configuration) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Configuration):
             return False
         if len(self.sources) != len(other.sources):
@@ -75,7 +75,7 @@ class Library:
     name: str
     categories: Dict[str, Category] = field(default_factory=dict)
 
-    def __eq__(self, other: Library) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Library):
             return False
         if self.name != other.name:
@@ -105,7 +105,7 @@ class Category:
     name: str
     functions: Dict[str, Function] = field(default_factory=dict)
 
-    def __eq__(self, other: Category) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Category):
             return False
         if self.name != other.name:
@@ -144,7 +144,7 @@ class Function:
     par_slice_fun: Callable[[int], bool] = None
     checkbox: qtw.QCheckBox = None
 
-    def __eq__(self, other: Function) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Function):
             return False
         return self.name == other.name
@@ -186,7 +186,7 @@ class SourceFunction(Function):
 
     src_map: Dict[CallSiteKey, Dict[ParamKey, Graphs]] = field(default_factory=dict)
 
-    def __eq__(self, other: Function) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, SourceFunction):
             return False
         return super().__eq__(other)
@@ -203,6 +203,7 @@ class SourceFunction(Function):
         ],
         manual_fun_all_code_xrefs: bool,
         cancelled: Callable[[], bool],
+        log: Logger,
     ) -> None:
         """
         This method finds a set of target instructions that a static backward slice should hit on.
@@ -237,7 +238,7 @@ class SourceFunction(Function):
                             continue
                         # Build a synthetic call instruction
                         call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
-                            bv, func.mlil
+                            func.mlil
                         )
                         if call_inst is None:
                             continue
@@ -314,7 +315,7 @@ class SourceFunction(Function):
                             continue
                     # Initialize backward slicer
                     src_slicer = MediumLevelILBackwardSlicer(
-                        bv, custom_tag, 0, 0, cancelled
+                        bv, custom_tag, 0, 0, cancelled, log
                     )
                     # Initialize the function that decides which parameters to slice
                     if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
@@ -356,7 +357,7 @@ class SinkFunction(Function):
     This class is a representation of the data associated with sink functions.
     """
 
-    def __eq__(self, other: Function) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, SinkFunction):
             return False
         return super().__eq__(other)
@@ -378,6 +379,7 @@ class SinkFunction(Function):
         max_memory_slice_depth: int,
         found_path: Callable[[Path], None],
         cancelled: Callable[[], bool],
+        log: Logger,
     ) -> List[Path]:
         """
         This method tries to find paths, starting from the current sink and ending in one of the
@@ -414,7 +416,7 @@ class SinkFunction(Function):
                             continue
                         # Build a synthetic call instruction
                         call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
-                            bv, caller_func.mlil
+                            caller_func.mlil
                         )
                         if call_inst is None:
                             continue
@@ -506,6 +508,7 @@ class SinkFunction(Function):
                             max_call_level,
                             max_memory_slice_depth,
                             cancelled,
+                            log,
                         )
                         # Backward slice the parameter
                         snk_slicer.slice_backwards(snk_par_var)
@@ -723,7 +726,7 @@ class Path:
     sha1_hash: str = ""
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
-    calls: List[Tuple[int, bn.MediumLevelILFunction, int]] = field(default_factory=list)
+    calls: List[Tuple[bn.MediumLevelILFunction, int]] = field(default_factory=list)
     call_graph: MediumLevelILFunctionGraph = MediumLevelILFunctionGraph()
     ai_report: Optional[AiVulnerabilityReport] = None
 
@@ -762,7 +765,7 @@ class Path:
         self.ai_report = ai_report
         return
 
-    def __eq__(self, other: Path) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Path):
             return False
         return (
@@ -846,8 +849,7 @@ class Path:
             snk_info = f"snk: {self.snk_sym_name:s} | {str(self.snk_par_var):s}"
             self.call_graph.nodes[snk_func]["snk"] = snk_info
         # Calculate call levels
-        if not self.call_graph.update_call_levels():
-            log.warn(tag, "Failed to calculate call levels")
+        self.call_graph.update_call_levels()
         # Update call levels
         for i, call in enumerate(self.calls):
             call_func = call[0]
@@ -855,23 +857,37 @@ class Path:
             self.calls[i] = (call_func, call_level)
         return
 
-    def update(self, bv: bn.BinaryView) -> Path:
+    def update(self) -> Path:
         """
         This method updates the symbol names of the source and sink functions.
         """
         # Ensure path has instructions
         if not self.insts:
-            return
+            return self
         # Update source function's symbol name
         src_inst = self.insts[-1]
-        src_sym_name, _ = InstructionHelper.get_func_signature(bv, src_inst)
-        if src_sym_name:
-            self.src_sym_name = src_sym_name
+        if isinstance(
+            src_inst,
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILTailcall
+            | bn.MediumLevelILTailcallSsa,
+        ):
+            src_sym_name, _ = InstructionHelper.get_func_signature(src_inst)
+            if src_sym_name:
+                self.src_sym_name = src_sym_name
         # Update sink function's symbol name
         snk_inst = self.insts[0]
-        snk_sym_name, _ = InstructionHelper.get_func_signature(bv, snk_inst)
-        if snk_sym_name:
-            self.snk_sym_name = snk_sym_name
+        if isinstance(
+            snk_inst,
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILTailcall
+            | bn.MediumLevelILTailcallSsa,
+        ):
+            snk_sym_name, _ = InstructionHelper.get_func_signature(snk_inst)
+            if snk_sym_name:
+                self.snk_sym_name = snk_sym_name
         return self
 
     def to_dict(self) -> Dict:
@@ -900,7 +916,8 @@ class Path:
         }
 
     @classmethod
-    def from_dict(cls: Path, bv: bn.BinaryView, d: Dict) -> Optional[Path]:
+    def from_dict(cls: Type[Path], bv: bn.BinaryView, d: Dict) -> Optional[Path]:
+        log = Logger(bv)
         try:
             # Deserialize instructions
             insts: List[bn.MediumLevelILInstruction] = []
@@ -969,9 +986,9 @@ class WidgetSetting:
     name: str
     value: Any
     help: str
-    widget: qtw.QWidget = None
+    widget: qtw.QWidget | None = None
 
-    def __eq__(self, other: WidgetSetting) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, WidgetSetting):
             return False
         return self.name == other.name
@@ -986,9 +1003,7 @@ class CheckboxSetting(WidgetSetting):
     This class is a representation of the data associated with a checkbox widget.
     """
 
-    widget: qtw.QCheckBox = None
-
-    def __eq__(self, other: CheckboxSetting) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, CheckboxSetting):
             return False
         return super().__eq__(other)
@@ -1005,9 +1020,8 @@ class SpinboxSetting(WidgetSetting):
 
     min_value: int = field(default_factory=int)
     max_value: int = field(default_factory=int)
-    widget: qtw.QSpinBox = None
 
-    def __eq__(self, other: SpinboxSetting) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, SpinboxSetting):
             return False
         return super().__eq__(other)
@@ -1026,9 +1040,8 @@ class DoubleSpinboxSetting(WidgetSetting):
 
     min_value: float = field(default_factory=float)
     max_value: float = field(default_factory=float)
-    widget: qtw.QDoubleSpinBox = None
 
-    def __eq__(self, other: DoubleSpinboxSetting) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, DoubleSpinboxSetting):
             return False
         return super().__eq__(other)
@@ -1046,9 +1059,8 @@ class ComboboxSetting(WidgetSetting):
     """
 
     items: List[str] = field(default_factory=list)
-    widget: qtw.QComboBox = None
 
-    def __eq__(self, other: ComboboxSetting) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, ComboboxSetting):
             return False
         return super().__eq__(other)
@@ -1065,9 +1077,7 @@ class TextSetting(WidgetSetting):
     This class is a representation of the data associated with a text input widget.
     """
 
-    widget: qtw.QLineEdit = None
-
-    def __eq__(self, other: TextSetting) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, TextSetting):
             return False
         return super().__eq__(other)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
-from mole.common.log import log
+from mole.common.log import Logger
 import binaryninja as bn
 
 
@@ -26,7 +26,8 @@ def get_code_for_functions_containing(
     bv: bn.BinaryView,
     addr: str,
     il_type: str,
-    tag: str = None,
+    log: Logger,
+    tag: str,
 ) -> str:
     """
     This method returns code of functions containing address `addr`, in the specified BNIL
@@ -65,7 +66,8 @@ def get_code_for_functions_by_name(
     bv: bn.BinaryView,
     name: str,
     il_type: str,
-    tag: str = None,
+    log: Logger,
+    tag: str,
 ) -> str:
     """
     This method returns code of functions with name `name`, in the specified BNIL representation
@@ -98,7 +100,8 @@ def get_code_for_functions_by_name(
 def get_callers_by_address(
     bv: bn.BinaryView,
     addr: str,
-    tag: str = None,
+    log: Logger,
+    tag: str,
 ) -> str:
     """
     This method returns the callers of functions containing address `addr`.
@@ -130,7 +133,8 @@ def get_callers_by_address(
 def get_callers_by_name(
     bv: bn.BinaryView,
     name: str,
-    tag: str = None,
+    log: Logger,
+    tag: str,
 ) -> str:
     """
     This method returns the callers of functions with name `name`.

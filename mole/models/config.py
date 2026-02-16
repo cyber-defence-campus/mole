@@ -1,39 +1,38 @@
 from __future__ import annotations
 from mole.core.data import Configuration, Function, Library, WidgetSetting
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal
 
 
 class ConfigModel:
     """
-    This class implements a model to handle Mole's configuration.
+    This class implements a model for Mole's configuration.
     """
 
     def __init__(self, config: Configuration) -> None:
         """
-        Initialize the configuration model with optional pre-loaded configuration.
-
-        Args:
-            config: A Configuration object to initialize the model with.
-                    If None, an empty configuration will be created.
+        This method initializes the configuration model.
         """
+        super().__init__()
         self._config = config
         return
 
-    def get(self) -> Configuration:
+    @property
+    def config(self) -> Configuration:
         """
-        This method returns the configuration.
+        This method returns the current configuration.
         """
         return self._config
 
-    def set(self, config: Configuration) -> None:
+    @config.setter
+    def config(self, config: Configuration) -> None:
         """
-        This method sets the configuration.
+        This method sets the current configuration.
         """
         self._config = config
         return
 
     def get_libraries(
-        self, fun_type: Optional[Literal["Sources", "Sinks"]]
+        self, fun_type: Literal["Sources", "Sinks"] | None
     ) -> Dict[str, Library]:
         """
         This method returns all libraries matching the given type.
@@ -47,11 +46,11 @@ class ConfigModel:
 
     def get_functions(
         self,
-        lib_name: Optional[str] = None,
-        cat_name: Optional[str] = None,
-        fun_name: Optional[str] = None,
-        fun_type: Optional[Literal["Sources", "Sinks"]] = None,
-        fun_enabled: Optional[bool] = None,
+        lib_name: str | None = None,
+        cat_name: str | None = None,
+        fun_name: str | None = None,
+        fun_type: Literal["Sources", "Sinks"] | None = None,
+        fun_enabled: bool | None = None,
     ) -> List[Function]:
         """
         This method returns all functions matching the given attributes. An attribute of `None`
@@ -64,7 +63,9 @@ class ConfigModel:
             case "Sinks":
                 libs = self._config.sinks.values()
             case _:
-                libs = self._config.sources.values() + self._config.sinks.values()
+                libs = list(self._config.sources.values()) + list(
+                    self._config.sinks.values()
+                )
         for lib in libs:
             if lib_name is None or lib.name == lib_name:
                 for cat in lib.categories.values():
@@ -75,7 +76,7 @@ class ConfigModel:
                                     funs.append(fun)
         return funs
 
-    def get_setting(self, name: str) -> Optional[WidgetSetting]:
+    def get_setting(self, name: str) -> WidgetSetting | None:
         """
         This method returns the setting with name `name`.
         """

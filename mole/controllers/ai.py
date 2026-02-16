@@ -1,5 +1,5 @@
 from __future__ import annotations
-from mole.controllers.config import ConfigController
+from mole.common.log import Logger
 from mole.core.data import Path
 from mole.models.ai import AiVulnerabilityReport
 from mole.views.ai import AiView
@@ -8,95 +8,59 @@ from typing import Callable, List, Tuple
 import binaryninja as bn
 
 
-tag = "Mole.AI"
+tag = "Ai"
 
 
 class AiController:
     """
-    This class implements a controller to analyze paths using AI.
+    This class implements a controller for Mole's AI.
     """
 
     def __init__(
         self,
+        bv: bn.BinaryView,
+        log: Logger,
+        ai_service: AiService,
         ai_view: AiView,
-        config_ctr: ConfigController,
     ) -> None:
         """
         This method initializes the AI controller.
         """
-        # Initialization
-        self.ai_view = ai_view.init(self)
-        self.config_ctr = config_ctr
+        self.bv = bv
+        self.log = log
+        self.ai_service = ai_service
+        self.ai_view = ai_view
         return
 
     def analyze_paths(
         self,
-        bv: bn.BinaryView,
         paths: List[Tuple[int, Path]],
-        analyzed_path: Callable[[int, AiVulnerabilityReport], None],
-    ) -> AiService:
+        path_callback: Callable[[int, AiVulnerabilityReport], None] | None = None,
+    ) -> None:
         """
-        This method starts a service that analyzes each path using AI.
+        This method analyzes the given paths with AI and adds the results to the model/view
+        accordingly.
         """
-        # Get settings
-        max_workers = None
-        max_workers_setting = self.config_ctr.get_setting("max_workers")
-        if max_workers_setting:
-            max_workers = int(max_workers_setting.value)
-            if max_workers <= 0:
-                max_workers = None
-        base_url = ""
-        base_url_setting = self.config_ctr.get_setting("openai_base_url")
-        if base_url_setting:
-            base_url = str(base_url_setting.value)
-        api_key = ""
-        api_key_setting = self.config_ctr.get_setting("openai_api_key")
-        if api_key_setting:
-            api_key = str(api_key_setting.value)
-        model = ""
-        model_setting = self.config_ctr.get_setting("openai_model")
-        if model_setting:
-            model = str(model_setting.value)
-        max_turns = 0
-        max_turns_setting = self.config_ctr.get_setting("max_turns")
-        if max_turns_setting:
-            max_turns = int(max_turns_setting.value)
-        max_completion_tokens = None
-        max_completion_tokens_setting = self.config_ctr.get_setting(
-            "max_completion_tokens"
-        )
-        if max_completion_tokens_setting:
-            max_completion_tokens = int(max_completion_tokens_setting.value)
-            if max_completion_tokens < 1:
-                max_completion_tokens = None
-        temperature = None
-        temperature_setting = self.config_ctr.get_setting("temperature")
-        if temperature_setting:
-            temperature = float(temperature_setting.value)
-            if temperature < 0.0 or temperature > 2.0:
-                temperature = None
-        # Initialize and start AI service
-        ai_service = AiService(
-            bv=bv,
-            paths=paths,
-            analyzed_path=analyzed_path,
-            max_workers=max_workers,
-            base_url=base_url,
-            api_key=api_key,
-            model=model,
-            max_turns=max_turns,
-            max_completion_tokens=max_completion_tokens,
-            temperature=temperature,
+        # Detect newly attached debuggers
+        self.log.detect_attached_debugger()
+        # Analyze paths in background thread
+        self.ai_service.analyze_paths(
             initial_progress_text="Mole analyzes paths...",
             can_cancel=True,
+            paths=paths,
+            path_callback=path_callback,
         )
-        ai_service.start()
-        # Return AI service instance
-        return ai_service
+        return
 
-    def show_report(self, report: AiVulnerabilityReport) -> None:
+    def show_report(self, path: Path | None) -> None:
         """
-        This method shows the AI-generated `report` in the AI view.
+        This method shows the given path's AI-generated report in the AI view.
         """
-        self.ai_view.show_report(report)
+        # Detect newly attached debuggers
+        self.log.detect_attached_debugger()
+        # Show report in AI view
+        if path is not None and path.ai_report is not None:
+            bn.execute_on_main_thread(
+                lambda report=path.ai_report: self.ai_view.show_report(report)
+            )
         return

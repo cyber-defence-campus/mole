@@ -1,4 +1,5 @@
 from __future__ import annotations
+from mole.common.log import Logger
 from mole.core.data import Category, Configuration, Library
 from mole.core.data import SinkFunction, SourceFunction
 from mole.core.data import (
@@ -25,7 +26,7 @@ def temp_file() -> Generator[IO[str], None, None]:
 @pytest.fixture
 def config_service() -> ConfigService:
     """Provides a ConfigService instance."""
-    return ConfigService()
+    return ConfigService(Logger())
 
 
 @pytest.fixture

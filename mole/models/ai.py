@@ -9,7 +9,7 @@ from mole.core.ai import (
 )
 from mole.models import IndexedLabeledEnum
 from pydantic import BaseModel
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 
 class SeverityLevel(IndexedLabeledEnum):
@@ -100,7 +100,7 @@ class ToolParameter:
     name: str
     type: str
     description: str
-    enum: Optional[List[str]] = None
+    enum: List[str] | None = None
 
 
 @dataclass
@@ -109,12 +109,12 @@ class ToolFunction:
     description: str
     parameters: List[ToolParameter]
     required: List[str]
-    handler: Optional[Callable[..., Any]] = None
+    handler: Callable[..., Any] | None = None
 
     def to_dict(self) -> Dict:
         properties = {}
         for parameter in self.parameters:
-            parameter_dict = {
+            parameter_dict: Dict[str, str | List[str]] = {
                 "type": parameter.type,
                 "description": parameter.description,
             }

@@ -38,6 +38,7 @@ class InstructionHelper:
             pass
         return formatted_tokens
 
+    @staticmethod
     def mark_func_tokens(
         tokens: List[bn.InstructionTextToken],
         return_indices: Set[int],
@@ -198,11 +199,14 @@ class InstructionHelper:
 
     @staticmethod
     def get_func_signature(
-        bv: bn.BinaryView,
         inst: bn.MediumLevelILCall
+        | bn.MediumLevelILCallUntyped
         | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
         | bn.MediumLevelILTailcall
-        | bn.MediumLevelILTailcallSsa,
+        | bn.MediumLevelILTailcallUntyped
+        | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa,
     ) -> Tuple[str, str]:
         """
         This method returns the name and signature of the target function being called by `inst`.
@@ -213,11 +217,16 @@ class InstructionHelper:
             inst,
             (
                 bn.MediumLevelILCall,
+                bn.MediumLevelILCallUntyped,
                 bn.MediumLevelILCallSsa,
+                bn.MediumLevelILCallUntypedSsa,
                 bn.MediumLevelILTailcall,
+                bn.MediumLevelILTailcallUntyped,
                 bn.MediumLevelILTailcallSsa,
+                bn.MediumLevelILTailcallUntypedSsa,
             ),
         ):
+            bv = inst.function.view
             if isinstance(
                 inst.dest, (bn.MediumLevelILConstPtr, bn.MediumLevelILImport)
             ):
