@@ -1,10 +1,5 @@
 from __future__ import annotations
 from concurrent import futures
-from mole.core.data import (
-    CheckboxSetting,
-    ComboboxSetting,
-    SpinboxSetting,
-)
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
 from mole.core.slice import MediumLevelILBackwardSlicer
 from mole.common.helper.function import FunctionHelper
@@ -15,11 +10,14 @@ from mole.common.task import BackgroundService
 from mole.grouping import get_grouper, PathGrouper
 from mole.models.config import (
     CallSiteKey,
+    CheckboxSetting,
+    ComboboxSetting,
     ConfigModel,
     Graphs,
     ParamKey,
-    SourceFunction,
     SinkFunction,
+    SourceFunction,
+    SpinboxSetting,
 )
 from mole.models.path import Path
 from typing import Callable, cast, Dict, List, Set, Tuple

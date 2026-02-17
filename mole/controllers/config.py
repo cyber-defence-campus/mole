@@ -3,19 +3,17 @@ from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.common.parse import LogicalExpressionParser
-from mole.core.data import (
-    CheckboxSetting,
-    ComboboxSetting,
-    DoubleSpinboxSetting,
-    SpinboxSetting,
-    TextSetting,
-)
 from mole.models.config import (
     Category,
+    CheckboxSetting,
+    ComboboxSetting,
     Configuration,
+    DoubleSpinboxSetting,
     Library,
     SinkFunction,
     SourceFunction,
+    SpinboxSetting,
+    TextSetting,
 )
 from typing import Any, Dict, Literal, Tuple, TYPE_CHECKING
 import binaryninja as bn

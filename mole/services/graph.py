@@ -1,6 +1,5 @@
 from __future__ import annotations
-from mole.core.data import ComboboxSetting
-from mole.models.config import ConfigModel
+from mole.models.config import ComboboxSetting, ConfigModel
 import PySide6.QtWidgets as qtw
 from typing import Literal
 import binaryninja as bn

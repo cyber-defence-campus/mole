@@ -1,17 +1,15 @@
 from __future__ import annotations
 from mole.common.log import Logger
-from mole.core.data import (
-    ComboboxSetting,
-    DoubleSpinboxSetting,
-    SpinboxSetting,
-    TextSetting,
-)
 from mole.models.config import (
     Category,
+    ComboboxSetting,
     Configuration,
+    DoubleSpinboxSetting,
     Library,
-    SourceFunction,
     SinkFunction,
+    SourceFunction,
+    SpinboxSetting,
+    TextSetting,
 )
 from mole.services.config import ConfigService
 from typing import Generator, IO

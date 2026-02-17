@@ -4,7 +4,6 @@ from datetime import datetime
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.common.task import BackgroundService
-from mole.core.data import DoubleSpinboxSetting, SpinboxSetting, TextSetting
 from mole.models.ai import (
     AiVulnerabilityReport,
     VulnerabilityClass,
@@ -12,7 +11,12 @@ from mole.models.ai import (
     SeverityLevel,
     tools,
 )
-from mole.models.config import ConfigModel
+from mole.models.config import (
+    ConfigModel,
+    DoubleSpinboxSetting,
+    SpinboxSetting,
+    TextSetting,
+)
 from openai import OpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,

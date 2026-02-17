@@ -1,12 +1,12 @@
 from __future__ import annotations
-from mole.core.data import (
+from mole.models.config import (
     CheckboxSetting,
     ComboboxSetting,
+    ConfigModel,
     DoubleSpinboxSetting,
     SpinboxSetting,
     TextSetting,
 )
-from mole.models.config import ConfigModel
 from typing import Literal
 import binaryninja as bn
 import os
