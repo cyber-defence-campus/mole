@@ -2,18 +2,20 @@ from __future__ import annotations
 from mole.common.log import Logger
 from mole.common.parse import LogicalExpressionParser
 from mole.core.data import (
-    Category,
     CheckboxSetting,
     ComboboxSetting,
-    Configuration,
     DoubleSpinboxSetting,
-    Library,
-    SinkFunction,
-    SourceFunction,
     SpinboxSetting,
     TextSetting,
 )
 from mole.grouping import get_all_grouping_strategies
+from mole.models.config import (
+    Category,
+    Configuration,
+    Library,
+    SourceFunction,
+    SinkFunction,
+)
 from typing import Dict
 import fnmatch as fn
 import os as os

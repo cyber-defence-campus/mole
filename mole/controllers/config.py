@@ -4,16 +4,18 @@ from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.common.parse import LogicalExpressionParser
 from mole.core.data import (
-    Category,
-    Configuration,
     CheckboxSetting,
     ComboboxSetting,
     DoubleSpinboxSetting,
+    SpinboxSetting,
+    TextSetting,
+)
+from mole.models.config import (
+    Category,
+    Configuration,
     Library,
     SinkFunction,
     SourceFunction,
-    SpinboxSetting,
-    TextSetting,
 )
 from typing import Any, Dict, Literal, Tuple, TYPE_CHECKING
 import binaryninja as bn
@@ -325,7 +327,8 @@ class ConfigController:
                 fun.enabled = not fun.enabled
             else:
                 fun.enabled = fun_enabled
-            fun.checkbox.setChecked(fun.enabled)
+            if fun.checkbox is not None:
+                fun.checkbox.setChecked(fun.enabled)
         self.config_view.signal_save_config_feedback.emit("Save*", "Save*", 0)
         return
 

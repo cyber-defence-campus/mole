@@ -18,7 +18,7 @@ class SymbolHelper:
         section = bv.get_section_by_name(section_name)
         if section is None:
             return None
-        for symbol in bv.symbols.get(symbol_name, []):
+        for symbol in bv.get_symbols_by_name(symbol_name):
             if section.start <= symbol.address < section.end:
                 return symbol
         return None
@@ -34,7 +34,7 @@ class SymbolHelper:
         """
         mlil_ssa_code_refs = {}
         for symbol_name in symbol_names:
-            for symbol in bv.symbols.get(symbol_name, []):
+            for symbol in bv.get_symbols_by_name(symbol_name):
                 # Check if the symbol is in the PE sections .idata
                 idata = bv.sections.get(".idata")
                 in_idata = idata.start <= symbol.address < idata.end if idata else False

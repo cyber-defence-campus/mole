@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
 from mole.common.log import Logger
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Tuple, Type
 import binaryninja as bn
 import networkx as nx
 
@@ -16,53 +16,62 @@ class MediumLevelILInstructionGraph(nx.DiGraph):
 
     def add_node(
         self,
-        inst: bn.MediumLevelILInstruction,
+        node_for_adding: bn.MediumLevelILInstruction
+        | Tuple[bn.MediumLevelILInstruction | None, bn.MediumLevelILInstruction | None]
+        | None,
         **attr: Any,
     ) -> None:
         """
-        This method adds a node for the given `inst`.
+        This method adds a node for the given `node_for_adding`.
         """
-        if not isinstance(inst, bn.MediumLevelILInstruction | None) and not (
-            isinstance(inst, tuple)
-            and len(inst) == 2
-            and all(isinstance(i, bn.MediumLevelILInstruction | None) for i in inst)
-        ):
-            raise TypeError(
-                "Node is not of type 'MediumLevelILInstruction' or '(MediumLevelILInstruction, MediumLevelILInstruction)'"
+        if not isinstance(node_for_adding, bn.MediumLevelILInstruction | None) and not (
+            isinstance(node_for_adding, tuple)
+            and len(node_for_adding) == 2
+            and all(
+                isinstance(i, bn.MediumLevelILInstruction | None)
+                for i in node_for_adding
             )
-        super().add_node(inst, **attr)
+        ):
+            raise TypeError("MediumLevelILInstructionGraph node with invalid type")
+        super().add_node(node_for_adding, **attr)
         return
 
     def add_edge(
         self,
-        from_inst: bn.MediumLevelILInstruction,
-        to_inst: bn.MediumLevelILInstruction,
+        u_of_edge: bn.MediumLevelILInstruction
+        | Tuple[bn.MediumLevelILInstruction | None, bn.MediumLevelILInstruction | None]
+        | None,
+        v_of_edge: bn.MediumLevelILInstruction
+        | Tuple[bn.MediumLevelILInstruction | None, bn.MediumLevelILInstruction | None]
+        | None,
         **attr: Any,
     ) -> None:
         """
-        This method adds an edge from `from_inst` and `to_inst`.
+        This method adds an edge from `u_of_edge` to `v_of_edge`.
         """
-        if not isinstance(from_inst, bn.MediumLevelILInstruction | None) and not (
-            isinstance(from_inst, tuple)
-            and len(from_inst) == 2
+        if not isinstance(u_of_edge, bn.MediumLevelILInstruction | None) and not (
+            isinstance(u_of_edge, tuple)
+            and len(u_of_edge) == 2
             and all(
-                isinstance(i, bn.MediumLevelILInstruction | None) for i in from_inst
+                isinstance(i, bn.MediumLevelILInstruction | None) for i in u_of_edge
             )
         ):
             raise TypeError(
-                "Source node is not of type 'MediumLevelILInstruction' or '(MediumLevelILInstruction, MediumLevelILInstruction)'"
+                "MediumLevelILInstructionGraph source node with invalid type"
             )
-        if not isinstance(to_inst, bn.MediumLevelILInstruction | None) and not (
-            isinstance(to_inst, tuple)
-            and len(to_inst) == 2
-            and all(isinstance(i, bn.MediumLevelILInstruction | None) for i in to_inst)
+        if not isinstance(v_of_edge, bn.MediumLevelILInstruction | None) and not (
+            isinstance(v_of_edge, tuple)
+            and len(v_of_edge) == 2
+            and all(
+                isinstance(i, bn.MediumLevelILInstruction | None) for i in v_of_edge
+            )
         ):
             raise TypeError(
-                "Target node is not of type 'MediumLevelILInstruction' or '(MediumLevelILInstruction, MediumLevelILInstruction)'"
+                "MediumLevelILInstructionGraph target node with invalid type"
             )
-        self.add_node(from_inst)
-        self.add_node(to_inst)
-        super().add_edge(from_inst, to_inst, **attr)
+        self.add_node(u_of_edge)
+        self.add_node(v_of_edge)
+        super().add_edge(u_of_edge, v_of_edge, **attr)
         return
 
 
