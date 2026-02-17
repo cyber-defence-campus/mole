@@ -4,8 +4,7 @@ from datetime import datetime
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.common.task import BackgroundService
-from mole.core.data import DoubleSpinboxSetting, Path, SpinboxSetting, TextSetting
-from mole.models.config import ConfigModel
+from mole.core.data import DoubleSpinboxSetting, SpinboxSetting, TextSetting
 from mole.models.ai import (
     AiVulnerabilityReport,
     VulnerabilityClass,
@@ -13,19 +12,22 @@ from mole.models.ai import (
     SeverityLevel,
     tools,
 )
+from mole.models.config import ConfigModel
 from openai import OpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,
     ParsedChatCompletionMessage,
     ParsedFunctionToolCall,
 )
-from typing import Any, Callable, cast, Dict, Iterable, List, Tuple
+from typing import Any, Callable, cast, Dict, Iterable, List, Tuple, TYPE_CHECKING
 import binaryninja as bn
 import json
 import os
 import random
 import textwrap
 
+if TYPE_CHECKING:
+    from mole.models.path import Path
 
 tag = "Ai"
 

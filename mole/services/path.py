@@ -3,7 +3,6 @@ from concurrent import futures
 from mole.core.data import (
     CheckboxSetting,
     ComboboxSetting,
-    Path,
     SpinboxSetting,
 )
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
@@ -22,6 +21,7 @@ from mole.models.config import (
     SourceFunction,
     SinkFunction,
 )
+from mole.models.path import Path
 from typing import Callable, cast, Dict, List, Set, Tuple
 import binaryninja as bn
 import hashlib

@@ -1,11 +1,13 @@
 from __future__ import annotations
 from mole.common.log import Logger
-from mole.core.data import Path
 from mole.models.ai import AiVulnerabilityReport
 from mole.views.ai import AiView
 from mole.services.ai import AiService
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, TYPE_CHECKING
 import binaryninja as bn
+
+if TYPE_CHECKING:
+    from mole.models.path import Path
 
 
 tag = "Ai"

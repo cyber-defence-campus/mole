@@ -1,10 +1,12 @@
 from __future__ import annotations
-from mole.core.data import Path
 from mole.models.path import PathColumn, PathProxyModel, PathTreeModel
-from typing import Callable, cast, List, Tuple
+from typing import Callable, cast, List, Tuple, TYPE_CHECKING
 import binaryninjaui as bnui
 import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
+
+if TYPE_CHECKING:
+    from mole.models.path import Path
 
 
 class PathView(qtw.QWidget):

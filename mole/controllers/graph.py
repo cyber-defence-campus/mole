@@ -1,10 +1,12 @@
 from __future__ import annotations
-from mole.core.data import Path
 from mole.common.helper.instruction import InstructionHelper
-from mole.views.graph import GraphView
 from mole.services.graph import GraphService
-from typing import cast, Dict, List
+from mole.views.graph import GraphView
+from typing import cast, Dict, List, TYPE_CHECKING
 import binaryninja as bn
+
+if TYPE_CHECKING:
+    from mole.models.path import Path
 
 
 class GraphController:

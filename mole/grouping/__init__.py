@@ -4,14 +4,16 @@ here to be discovered dynamically.
 """
 
 from __future__ import annotations
-from mole.core.data import Path
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple, Type, TYPE_CHECKING
 import importlib
 import inspect
 import os
 import pkgutil
 import sys
+
+if TYPE_CHECKING:
+    from mole.models.path import Path
 
 
 class PathGrouper(ABC):

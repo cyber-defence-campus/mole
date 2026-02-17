@@ -3,9 +3,11 @@ This module implements a source / sink grouping strategy.
 """
 
 from __future__ import annotations
-from mole.core.data import Path
 from mole.grouping import PathGrouper
-from typing import List, Tuple
+from typing import List, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mole.models.path import Path
 
 
 class SourceSinkPathGrouper(PathGrouper):
