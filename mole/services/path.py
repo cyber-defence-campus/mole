@@ -6,7 +6,7 @@ from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.symbol import SymbolHelper
 from mole.common.log import Logger
-from mole.common.task import BackgroundService
+from mole.common.worker import WorkerService
 from mole.grouping import get_grouper, PathGrouper
 from mole.models.config import (
     CallSiteKey,
@@ -24,13 +24,12 @@ from typing import Callable, cast, Dict, List, Set, Tuple
 import binaryninja as bn
 import hashlib
 import networkx as nx
-import os
 
 
 tag = "Path"
 
 
-class PathService(BackgroundService):
+class PathService(WorkerService):
     """
     This class implements a service for Mole's path.
     """
@@ -592,7 +591,7 @@ class PathService(BackgroundService):
         | None,
         manual_fun_all_code_xrefs: bool,
         path_callback: Callable[[Path], None] = lambda _: None,
-        finished_callback: Callable[[], None] = lambda: None,
+        progress_callback: Callable[[str], None] = lambda _: None,
     ) -> List[Path]:
         """
         This method searches for paths using static backward slicing.
@@ -664,6 +663,9 @@ class PathService(BackgroundService):
                             )
                 if fixed:
                     self.bv.update_analysis_and_wait()
+            # Total tasks
+            curr_task = 0
+            total_tasks = len(src_funs) + len(snk_funs)
             # Backward slice source functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks
@@ -683,14 +685,11 @@ class PathService(BackgroundService):
                         )
                     )
                 # Wait for tasks to complete
-                filename = os.path.basename(self.bv.file.filename)
-                self.set_progress(
-                    "find", f"[{filename:s}] Sliced sources: 0/{len(tasks):d}"
-                )
-                for cnt, _ in enumerate(futures.as_completed(tasks), start=1):
-                    self.set_progress(
-                        "find", f"[{filename:s}] Sliced sources: {cnt:d}/{len(tasks):d}"
-                    )
+                for _ in futures.as_completed(tasks):
+                    if self.cancelled(thread_name="find"):
+                        break
+                    curr_task += 1
+                    progress_callback(f"Cancel [{curr_task / total_tasks:.0%}]")
             # Backward slice sink functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks
@@ -715,26 +714,21 @@ class PathService(BackgroundService):
                         ),
                     )
                 # Wait for tasks to complete and collect paths
-                filename = os.path.basename(self.bv.file.filename)
-                self.set_progress(
-                    "find", f"[{filename:s}] Sliced sinks: 0/{len(tasks):d}"
-                )
-                for cnt, task in enumerate(futures.as_completed(tasks), start=1):
-                    self.set_progress(
-                        "find", f"[{filename:s}] Sliced sinks: {cnt:d}/{len(tasks):d}"
-                    )
+                for task in futures.as_completed(tasks):
+                    if self.cancelled(thread_name="find"):
+                        break
                     # Collect paths from task results
                     if task.done() and not task.exception():
                         paths = cast(List[Path], task.result())
                         self._paths.extend(paths)
+                    curr_task += 1
+                    progress_callback(f"Cancel [{curr_task / total_tasks:.0%}]")
         self.log.info(tag, "Backward slicing completed")
-        finished_callback()
+        progress_callback("Find")
         return self._paths
 
     def find_paths(
         self,
-        initial_progress_text: str = "",
-        can_cancel: bool = False,
         max_workers: int | None = None,
         fix_func_type: bool | None = None,
         max_call_level: int | None = None,
@@ -753,7 +747,7 @@ class PathService(BackgroundService):
         | None = None,
         manual_fun_all_code_xrefs: bool = False,
         path_callback: Callable[[Path], None] = lambda _: None,
-        finished_callback: Callable[[], None] = lambda: None,
+        progress_callback: Callable[[str], None] = lambda _: None,
     ) -> None:
         """
         This method searches for paths in a background thread.
@@ -854,8 +848,6 @@ class PathService(BackgroundService):
         # Start background task
         self.start(
             thread_name="find",
-            initial_progress_text=initial_progress_text,
-            can_cancel=can_cancel,
             run=self._find_paths,
             max_workers=max_workers,
             fix_func_type=fix_func_type,
@@ -868,6 +860,6 @@ class PathService(BackgroundService):
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
             path_callback=path_callback,
-            finished_callback=finished_callback,
+            progress_callback=progress_callback,
         )
         return

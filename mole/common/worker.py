@@ -1,67 +1,65 @@
 from __future__ import annotations
 from typing import Any, Callable, Dict, Tuple
-import binaryninja as bn
+import threading
 
 
-class BackgroundThread(bn.BackgroundTaskThread):
+class WorkerThread(threading.Thread):
     """
-    This class implements a generic background thread.
+    This class implements a generic worker thread.
     """
 
     def __init__(
-        self,
-        initial_progress_text: str = "",
-        can_cancel: bool = False,
-        run: Callable[..., Any] | None = None,
-        *args: Any,
-        **kwargs: Any,
+        self, run: Callable[..., Any] | None = None, *args: Any, **kwargs: Any
     ) -> None:
         """
-        This method initializes the background thread.
+        This method initializes the worker thread.
         """
-        super().__init__(initial_progress_text, can_cancel)
+        super().__init__()
         self._run = run
         self._args: Tuple[Any, ...] = args
         self._kwargs: Dict[str, Any] = kwargs
-        self._is_running: bool = False
         self._results: Any = None
+        self._cancel_event = threading.Event()
         return
-
-    @property
-    def is_alive(self) -> bool:
-        """
-        This property returns whether the background thread is currently running or not.
-        """
-        return self._is_running and not self.finished
 
     def run(self) -> None:
         """
-        This method runs the background thread.
+        This method runs the worker thread.
         """
-        self._is_running = True
-        if self._run:
+        if self._run is not None:
             self._results = self._run(*self._args, **self._kwargs)
-        self._is_running = False
         return
+
+    def cancelled(self) -> bool:
+        """
+        This method returns whether or not the worker thread was cancelled.
+        """
+        return self._cancel_event.is_set()
+
+    def cancel(self) -> None:
+        """
+        This method cancels the worker thread.
+        """
+        return self._cancel_event.set()
 
     def results(self) -> Any:
         """
-        This method waits for the background thread to complete and returns its results.
+        This method waits for the worker thread to complete and returns its results.
         """
         self.join()
         return self._results
 
 
-class BackgroundService:
+class WorkerService:
     """
-    This class implements a generic background service.
+    This class implements a generic worker service.
     """
 
     def __init__(self) -> None:
         """
-        This method initializes the background service.
+        This method initializes the worker service.
         """
-        self._threads: Dict[str, BackgroundThread] = {}
+        self._threads: Dict[str, WorkerThread] = {}
         return
 
     def is_alive(self, thread_name: str = "") -> bool:
@@ -70,9 +68,9 @@ class BackgroundService:
         name is given, it returns whether or not any thread of the service is alive.
         """
         if not thread_name:
-            return any(thread.is_alive for thread in self._threads.values())
+            return any(thread.is_alive() for thread in self._threads.values())
         thread = self._threads.get(thread_name)
-        return thread is not None and thread.is_alive
+        return thread is not None and thread.is_alive()
 
     def cancelled(self, thread_name: str = "") -> bool:
         """
@@ -80,9 +78,9 @@ class BackgroundService:
         thread name is given, it returns whether or not any thread of the service was cancelled.
         """
         if not thread_name:
-            return any(thread.cancelled for thread in self._threads.values())
+            return any(thread.cancelled() for thread in self._threads.values())
         thread = self._threads.get(thread_name)
-        return thread is not None and thread.cancelled
+        return thread is not None and thread.cancelled()
 
     def cancel(self, thread_name: str = "") -> None:
         """
@@ -98,27 +96,9 @@ class BackgroundService:
                 thread.cancel()
         return
 
-    def get_progress(self, thread_name: str) -> str | None:
-        """
-        This method returns the progress of the thread with the given name.
-        """
-        _thread = self._threads.get(thread_name)
-        return _thread.progress if _thread is not None else None
-
-    def set_progress(self, thread_name: str, value: str) -> None:
-        """
-        This method sets the progress of the thread with the given name.
-        """
-        _thread = self._threads.get(thread_name)
-        if _thread is not None:
-            _thread.progress = value
-        return
-
     def start(
         self,
         thread_name: str,
-        initial_progress_text: str = "",
-        can_cancel: bool = False,
         run: Callable[..., Any] | None = None,
         *args: Any,
         **kwargs: Any,
@@ -131,9 +111,7 @@ class BackgroundService:
         if self.is_alive(thread_name):
             return False
         # Start background thread
-        self._threads[thread_name] = BackgroundThread(
-            initial_progress_text=initial_progress_text,
-            can_cancel=can_cancel,
+        self._threads[thread_name] = WorkerThread(
             run=run,
             *args,
             **kwargs,

@@ -189,13 +189,11 @@ class PathController:
         # Find paths in background thread
         self.give_feedback("Find", new_text="Cancel")
         self.path_service.find_paths(
-            initial_progress_text="Mole finds paths...",
-            can_cancel=False,
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
             path_callback=self.add_path,
-            finished_callback=lambda: self.give_feedback("Find", new_text="Find"),
+            progress_callback=lambda text: self.give_feedback("Find", new_text=text),
         )
         return
 
@@ -266,22 +264,23 @@ class PathController:
                         if path is not None:
                             self.add_path(path.update())
                             cnt_loaded_paths += 1
+                        self.give_feedback(
+                            "Load", new_text=f"Load [{i / len(s_paths):.0%}]"
+                        )
                     except Exception as e:
                         self.log.error(tag, f"Failed to load path #{i:d}: {str(e):s}")
             except KeyError:
                 pass
             except Exception as e:
                 self.log.error(tag, f"Failed to load paths: {str(e):s}")
-            self.give_feedback("Save", "Save", "Save", 0)
+            self.give_feedback("Load", new_text="Load")
+            self.give_feedback("Save", new_text="Save")
             self.log.info(tag, f"Loaded {cnt_loaded_paths:d} path(s)")
             return
 
         # Start background task
-        self.give_feedback("Load", "Loading...")
         self.path_service.start(
             thread_name="load",
-            initial_progress_text="Mole loads paths...",
-            can_cancel=True,
             run=_load_paths,
         )
         return
@@ -315,20 +314,21 @@ class PathController:
                         s_paths.append(s_path)
                         # Increment exported path counter
                         cnt_saved_paths += 1
+                        self.give_feedback(
+                            "Save", new_text=f"Save [{i / len(paths):.0%}]"
+                        )
                     except Exception as e:
                         self.log.error(tag, f"Failed to save path #{i:d}: {str(e):s}")
                 self.bv.store_metadata("mole_paths", json.dumps(s_paths))
             except Exception as e:
                 self.log.error(tag, f"Failed to save paths: {str(e):s}")
+            self.give_feedback("Save", new_text="Save")
             self.log.info(tag, f"Saved {cnt_saved_paths:d} path(s)")
             return
 
         # Start a background task
-        self.give_feedback("Save", "Saving...", "Save", 1000)
         self.path_service.start(
             thread_name="save",
-            initial_progress_text="Mole saves paths...",
-            can_cancel=True,
             run=_save_paths,
         )
         return
@@ -400,8 +400,6 @@ class PathController:
         # Start background task
         self.path_service.start(
             thread_name="import",
-            initial_progress_text="Mole imports paths...",
-            can_cancel=True,
             run=_import_paths,
         )
         return
@@ -469,8 +467,6 @@ class PathController:
         # Start background task
         self.path_service.start(
             thread_name="export",
-            initial_progress_text="Mole exports paths...",
-            can_cancel=True,
             run=_export_paths,
         )
         return

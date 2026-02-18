@@ -47,8 +47,6 @@ class AiController:
         self.log.detect_attached_debugger()
         # Analyze paths in background thread
         self.ai_service.analyze_paths(
-            initial_progress_text="Mole analyzes paths...",
-            can_cancel=True,
             paths=paths,
             path_callback=path_callback,
         )

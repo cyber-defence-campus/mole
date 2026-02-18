@@ -3,7 +3,7 @@ from concurrent import futures
 from datetime import datetime
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
-from mole.common.task import BackgroundService
+from mole.common.worker import WorkerService
 from mole.models.ai import (
     AiVulnerabilityReport,
     VulnerabilityClass,
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 tag = "Ai"
 
 
-class AiService(BackgroundService):
+class AiService(WorkerService):
     """
     This class implements a service for Mole's AI.
     """
@@ -428,14 +428,8 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 )
                 tasks[task] = path_id
             # Wait for tasks to complete
-            filename = os.path.basename(self.bv.file.filename)
-            self.set_progress(
-                "analyze", f"[{filename:s}] Analyzed paths: 0/{len(tasks):d}"
-            )
             for cnt, task in enumerate(futures.as_completed(tasks), start=1):
-                self.set_progress(
-                    "analyze", f"[{filename:s}] Analyzed paths: {cnt:d}/{len(paths):d}"
-                )
+                self.log.debug(tag, f"Analyzed paths: {cnt:d}/{len(paths):d}")
                 path_id = tasks[task]
                 # Collect vulnerability reports from task results
                 if task.done() and not task.exception():
@@ -447,8 +441,6 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
 
     def analyze_paths(
         self,
-        initial_progress_text: str = "",
-        can_cancel: bool = False,
         max_workers: int | None = None,
         openai_base_url: str = "",
         openai_api_key: str = "",
@@ -511,8 +503,6 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         # Start background task
         self.start(
             thread_name="analyze",
-            initial_progress_text=initial_progress_text,
-            can_cancel=can_cancel,
             run=self._analyze_paths,
             max_workers=max_workers,
             openai_base_url=openai_base_url,
