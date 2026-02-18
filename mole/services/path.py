@@ -592,6 +592,7 @@ class PathService(BackgroundService):
         | None,
         manual_fun_all_code_xrefs: bool,
         path_callback: Callable[[Path], None] = lambda _: None,
+        finished_callback: Callable[[], None] = lambda: None,
     ) -> List[Path]:
         """
         This method searches for paths using static backward slicing.
@@ -727,6 +728,7 @@ class PathService(BackgroundService):
                         paths = cast(List[Path], task.result())
                         self._paths.extend(paths)
         self.log.info(tag, "Backward slicing completed")
+        finished_callback()
         return self._paths
 
     def find_paths(
@@ -751,10 +753,15 @@ class PathService(BackgroundService):
         | None = None,
         manual_fun_all_code_xrefs: bool = False,
         path_callback: Callable[[Path], None] = lambda _: None,
+        finished_callback: Callable[[], None] = lambda: None,
     ) -> None:
         """
         This method searches for paths in a background thread.
         """
+        # Cancel path finding thread if already running
+        if self.is_alive("find"):
+            self.cancel("find")
+            return
         # Ensure no other thread is running
         if self.is_alive():
             self.log.warn(tag, "Another thread of the path service is still runnning")
@@ -861,5 +868,6 @@ class PathService(BackgroundService):
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
             path_callback=path_callback,
+            finished_callback=finished_callback,
         )
         return

@@ -187,14 +187,15 @@ class PathController:
         # Detect newly attached debuggers
         self.log.detect_attached_debugger()
         # Find paths in background thread
-        self.give_feedback("Find", "Finding...")
+        self.give_feedback("Find", new_text="Cancel")
         self.path_service.find_paths(
             initial_progress_text="Mole finds paths...",
-            can_cancel=True,
+            can_cancel=False,
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
             path_callback=self.add_path,
+            finished_callback=lambda: self.give_feedback("Find", new_text="Find"),
         )
         return
 

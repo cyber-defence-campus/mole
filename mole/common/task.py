@@ -84,6 +84,20 @@ class BackgroundService:
         thread = self._threads.get(thread_name)
         return thread is not None and thread.cancelled
 
+    def cancel(self, thread_name: str = "") -> None:
+        """
+        This method cancels the thread with the given name. If no thread name is given, it cancels
+        all threads of the service.
+        """
+        if not thread_name:
+            for thread in self._threads.values():
+                thread.cancel()
+        else:
+            thread = self._threads.get(thread_name)
+            if thread is not None:
+                thread.cancel()
+        return
+
     def get_progress(self, thread_name: str) -> str | None:
         """
         This method returns the progress of the thread with the given name.
