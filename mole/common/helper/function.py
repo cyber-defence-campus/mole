@@ -97,7 +97,6 @@ class FunctionHelper:
 
     @staticmethod
     def get_mlil_indirect_call_insts(
-        bv: bn.BinaryView,
         func: bn.MediumLevelILFunction,
     ) -> Set[
         bn.MediumLevelILCallSsa
@@ -116,6 +115,7 @@ class FunctionHelper:
             | bn.MediumLevelILTailcallUntypedSsa
         ] = set()
         # Iterate all data references of `func`
+        bv = func.view
         data_refs = bv.get_data_refs(func.source_function.start)
         for data_ref in data_refs:
             # Ensure a valid function pointer is stored at the data reference

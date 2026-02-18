@@ -28,8 +28,8 @@ class ConfigView(qtw.QWidget):
     signal_export_config = qtc.Signal()
     signal_export_config_feedback = qtc.Signal(str, str, int)
     signal_check_functions = qtc.Signal(object, object, object, object, object)
-    signal_clear_manual_functions = qtc.Signal(object, object)
-    signal_change_setting = qtc.Signal(object, object)
+    signal_clear_manual_functions = qtc.Signal(str, str)
+    signal_change_setting = qtc.Signal(str, object)
     signal_change_highlight_color = qtc.Signal()
     signal_change_path_grouping = qtc.Signal()
 

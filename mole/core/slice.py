@@ -252,9 +252,7 @@ class MediumLevelILBackwardSlicer:
             return
         # Determine all instructions calling the current function
         direct_call_insts = FunctionHelper.get_mlil_direct_call_insts(inst.function)
-        indirect_call_insts = FunctionHelper.get_mlil_indirect_call_insts(
-            self.bv, inst.function
-        )
+        indirect_call_insts = FunctionHelper.get_mlil_indirect_call_insts(inst.function)
         # Iterate the current function's parameters
         for param_idx, param_var in enumerate(
             inst.function.source_function.parameter_vars,
