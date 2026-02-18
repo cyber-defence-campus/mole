@@ -1,6 +1,6 @@
 from __future__ import annotations
 from tests.slicing.conftest import TestSlicing
-from typing import List
+from typing import cast, List
 import binaryninja as bn
 import pytest
 
@@ -27,6 +27,8 @@ class TestObjectOriented(TestSlicing):
         self, filenames: List[str] = ["object_oriented-02"]
     ) -> None:
         def manually_set_types(bv: bn.BinaryView) -> None:
+            if bv.arch is None:
+                return
             main_func = bv.get_functions_by_name("main")[0]
             # Manually define class MyParent
             p_class = """
@@ -41,7 +43,9 @@ class TestObjectOriented(TestSlicing):
                 bv.define_user_type(name, type)
             # Manually set type and name of variable `p` (i.e. `MyParent* p = ...`)
             p_class_type = bv.get_type_by_name("MyParent")
-            p_new_inst: bn.HighLevelILVarInit = main_func.call_sites[0].hlil
+            if p_class_type is None:
+                return
+            p_new_inst = cast(bn.HighLevelILVarInit, main_func.call_sites[0].hlil)
             p_new_inst.dest.type = bn.Type.pointer(bv.arch, p_class_type)
             # Manually define class MyChild
             c_class = """
@@ -56,7 +60,9 @@ class TestObjectOriented(TestSlicing):
                 bv.define_user_type(name, type)
             # Manually set type and name of variable `c` (i.e. `MyChild* c = ...`)
             c_class_type = bv.get_type_by_name("MyChild")
-            c_new_inst: bn.HighLevelILVarInit = main_func.call_sites[2].hlil
+            if c_class_type is None:
+                return
+            c_new_inst = cast(bn.HighLevelILVarInit, main_func.call_sites[2].hlil)
             c_new_inst.dest.type = bn.Type.pointer(bv.arch, c_class_type)
             return
 
@@ -79,6 +85,8 @@ class TestObjectOriented(TestSlicing):
         self, filenames: List[str] = ["object_oriented-03"]
     ) -> None:
         def manually_set_types(bv: bn.BinaryView) -> None:
+            if bv.arch is None:
+                return
             main_func = bv.get_functions_by_name("main")[0]
             # Manually define class MyParent
             p_class = """
@@ -93,7 +101,9 @@ class TestObjectOriented(TestSlicing):
                 bv.define_user_type(name, type)
             # Manually set type and name of variable `p` (i.e. `MyParent* p = ...`)
             p_class_type = bv.get_type_by_name("MyParent")
-            p_new_inst: bn.HighLevelILVarInit = main_func.call_sites[1].hlil
+            if p_class_type is None:
+                return
+            p_new_inst = cast(bn.HighLevelILVarInit, main_func.call_sites[1].hlil)
             p_new_inst.dest.type = bn.Type.pointer(bv.arch, p_class_type)
             # Manually define class MyChild
             c_class = """
@@ -108,7 +118,9 @@ class TestObjectOriented(TestSlicing):
                 bv.define_user_type(name, type)
             # Manually set type and name of variable `c` (i.e. `MyChild* c = ...`)
             c_class_type = bv.get_type_by_name("MyChild")
-            c_new_inst: bn.HighLevelILVarInit = main_func.call_sites[6].hlil
+            if c_class_type is None:
+                return
+            c_new_inst = cast(bn.HighLevelILVarInit, main_func.call_sites[6].hlil)
             c_new_inst.dest.type = bn.Type.pointer(bv.arch, c_class_type)
             return
 
