@@ -34,7 +34,7 @@ class MediumLevelILBackwardSlicer:
         self._tag = custom_tag if custom_tag else tag
         self._max_call_level = max_call_level
         self._max_memory_slice_depth = max_memory_slice_depth
-        self._cancelled = cancelled if cancelled else lambda: False
+        self._cancelled = cancelled
         self._call_tracker: MediumLevelILCallTracker = MediumLevelILCallTracker()
         return
 

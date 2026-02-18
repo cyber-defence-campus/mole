@@ -24,6 +24,7 @@ from typing import Callable, cast, Dict, List, Set, Tuple
 import binaryninja as bn
 import hashlib
 import networkx as nx
+import os
 
 
 tag = "Path"
@@ -80,7 +81,7 @@ class PathService(BackgroundService):
         resulting instruction and call graphs in the source function's `graph_map`.
         """
         # Custom tag for logging
-        custom_tag = f"{tag:s}.Src.{src_fun.name:s}"
+        custom_tag = f"{tag:s}] [Src:{src_fun.name:s}"
         # Clear function's graph map
         src_fun.graph_map.clear()
         # Get code cross-references
@@ -243,7 +244,7 @@ class PathService(BackgroundService):
         """
         paths: List[Path] = []
         # Custom tag for logging
-        custom_tag = f"{tag:s}.Snk.{snk_fun.name:s}"
+        custom_tag = f"{tag:s}] [Snk:{snk_fun.name:s}"
         # Calculate SHA1 hash of binary
         if self.bv.file.raw is not None:
             sha1_hash = hashlib.sha1(
@@ -681,9 +682,14 @@ class PathService(BackgroundService):
                         )
                     )
                 # Wait for tasks to complete
-                self.progress = f"Mole processes {len(tasks):d} source functions"
+                filename = os.path.basename(self.bv.file.filename)
+                self.set_progress(
+                    "find", f"[{filename:s}] Sliced sources: 0/{len(tasks):d}"
+                )
                 for cnt, _ in enumerate(futures.as_completed(tasks), start=1):
-                    self.progress = f"Mole processed source {cnt:d}/{len(tasks):d}"
+                    self.set_progress(
+                        "find", f"[{filename:s}] Sliced sources: {cnt:d}/{len(tasks):d}"
+                    )
             # Backward slice sink functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks
@@ -705,12 +711,17 @@ class PathService(BackgroundService):
                             max_slice_depth,
                             max_memory_slice_depth,
                             path_callback,
-                        )
+                        ),
                     )
                 # Wait for tasks to complete and collect paths
-                self.progress = f"Mole processes {len(tasks):d} sink functions"
+                filename = os.path.basename(self.bv.file.filename)
+                self.set_progress(
+                    "find", f"[{filename:s}] Sliced sinks: 0/{len(tasks):d}"
+                )
                 for cnt, task in enumerate(futures.as_completed(tasks), start=1):
-                    self.progress = f"Mole processed sink {cnt:d}/{len(tasks):d}"
+                    self.set_progress(
+                        "find", f"[{filename:s}] Sliced sinks: {cnt:d}/{len(tasks):d}"
+                    )
                     # Collect paths from task results
                     if task.done() and not task.exception():
                         paths = cast(List[Path], task.result())

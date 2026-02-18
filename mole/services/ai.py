@@ -428,8 +428,14 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 )
                 tasks[task] = path_id
             # Wait for tasks to complete
+            filename = os.path.basename(self.bv.file.filename)
+            self.set_progress(
+                "analyze", f"[{filename:s}] Analyzed paths: 0/{len(tasks):d}"
+            )
             for cnt, task in enumerate(futures.as_completed(tasks), start=1):
-                self.progress = f"Mole analyzed path {cnt:d}/{len(paths):d}"
+                self.set_progress(
+                    "analyze", f"[{filename:s}] Analyzed paths: {cnt:d}/{len(paths):d}"
+                )
                 path_id = tasks[task]
                 # Collect vulnerability reports from task results
                 if task.done() and not task.exception():
