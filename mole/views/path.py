@@ -1,4 +1,5 @@
 from __future__ import annotations
+from mole.common.helper.ui import give_feedback
 from mole.models.path import PathColumn, PathProxyModel, PathTreeModel
 from typing import Callable, cast, List, Tuple, TYPE_CHECKING
 import binaryninjaui as bnui
@@ -39,7 +40,7 @@ class PathView(qtw.QWidget):
         find_but_wid = qtw.QPushButton("Find")
         find_but_wid.clicked.connect(self.signal_find_paths.emit)
         self.signal_find_paths_feedback.connect(
-            lambda tmp_text, new_text, msec: self._give_feedback(
+            lambda tmp_text, new_text, msec: give_feedback(
                 find_but_wid, tmp_text, new_text, msec
             )
         )
@@ -47,7 +48,7 @@ class PathView(qtw.QWidget):
         load_but_wid = qtw.QPushButton("Load")
         load_but_wid.clicked.connect(self.signal_load_paths.emit)
         self.signal_load_paths_feedback.connect(
-            lambda tmp_text, new_text, msec: self._give_feedback(
+            lambda tmp_text, new_text, msec: give_feedback(
                 load_but_wid, tmp_text, new_text, msec
             )
         )
@@ -55,7 +56,7 @@ class PathView(qtw.QWidget):
         save_but_wid = qtw.QPushButton("Save")
         save_but_wid.clicked.connect(self.signal_save_paths.emit)
         self.signal_save_paths_feedback.connect(
-            lambda tmp_text, new_text, msec: self._give_feedback(
+            lambda tmp_text, new_text, msec: give_feedback(
                 save_but_wid, tmp_text, new_text, msec
             )
         )
@@ -80,36 +81,6 @@ class PathView(qtw.QWidget):
         tab_lay.addWidget(self.path_tree_view)
         tab_lay.addWidget(but_wid)
         self.setLayout(tab_lay)
-        return
-
-    def _give_feedback(
-        self,
-        button: qtw.QPushButton,
-        tmp_text: str = "",
-        new_text: str = "",
-        msec: int = 1000,
-    ) -> None:
-        """
-        This method changes `button`'s text to `tmp_text` for `msec` milliseconds and then back to
-        `new_text`. If `tmp_text` is empty or `msec` is less than or equal to 0, it directly sets
-        the button's text to `new_text`. If `new_text` is empty, it restores the current text of
-        the button.
-        """
-
-        def restore(text: str) -> None:
-            button.setText(text)
-            button.setEnabled(True)
-            return
-
-        if button:
-            if not new_text:
-                new_text = button.text()
-            if tmp_text and msec > 0:
-                button.setEnabled(False)
-                button.setText(tmp_text)
-                qtc.QTimer.singleShot(msec, lambda text=new_text: restore(text))
-            else:
-                button.setText(new_text)
         return
 
 

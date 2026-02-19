@@ -1,4 +1,5 @@
 from __future__ import annotations
+from mole.common.helper.ui import give_feedback
 from mole.models.config import (
     CheckboxSetting,
     ComboboxSetting,
@@ -69,7 +70,7 @@ class ConfigView(qtw.QWidget):
         save_but_wid = qtw.QPushButton("Save")
         save_but_wid.clicked.connect(self.signal_save_config.emit)
         self.signal_save_config_feedback.connect(
-            lambda tmp_text, new_text, msec: self._give_feedback(
+            lambda tmp_text, new_text, msec: give_feedback(
                 save_but_wid, tmp_text, new_text, msec
             )
         )
@@ -77,7 +78,7 @@ class ConfigView(qtw.QWidget):
         reset_but_wid = qtw.QPushButton("Reset")
         reset_but_wid.clicked.connect(self.signal_reset_config.emit)
         self.signal_reset_config_feedback.connect(
-            lambda tmp_text, new_text, msec: self._give_feedback(
+            lambda tmp_text, new_text, msec: give_feedback(
                 reset_but_wid, tmp_text, new_text, msec
             )
         )
@@ -85,7 +86,7 @@ class ConfigView(qtw.QWidget):
         import_but_wid = qtw.QPushButton("Import")
         import_but_wid.clicked.connect(self.signal_import_config.emit)
         self.signal_import_config_feedback.connect(
-            lambda tmp_text, new_text, msec: self._give_feedback(
+            lambda tmp_text, new_text, msec: give_feedback(
                 import_but_wid, tmp_text, new_text, msec
             )
         )
@@ -93,7 +94,7 @@ class ConfigView(qtw.QWidget):
         export_but_wid = qtw.QPushButton("Export")
         export_but_wid.clicked.connect(self.signal_export_config.emit)
         self.signal_export_config_feedback.connect(
-            lambda tmp_text, new_text, msec: self._give_feedback(
+            lambda tmp_text, new_text, msec: give_feedback(
                 export_but_wid, tmp_text, new_text, msec
             )
         )
@@ -364,36 +365,6 @@ class ConfigView(qtw.QWidget):
         scr_wid.setWidget(set_wid)
         return scr_wid
 
-    def _give_feedback(
-        self,
-        button: qtw.QPushButton,
-        tmp_text: str = "",
-        new_text: str = "",
-        msec: int = 1000,
-    ) -> None:
-        """
-        This method changes `button`'s text to `tmp_text` for `msec` milliseconds and then back to
-        `new_text`. If `tmp_text` is empty or `msec` is less than or equal to 0, it directly sets
-        the button's text to `new_text`. If `new_text` is empty, it restores the current text of
-        the button.
-        """
-
-        def restore(text: str) -> None:
-            button.setText(text)
-            button.setEnabled(True)
-            return
-
-        if button:
-            if not new_text:
-                new_text = button.text()
-            if tmp_text and msec > 0:
-                button.setEnabled(False)
-                button.setText(tmp_text)
-                qtc.QTimer.singleShot(msec, lambda text=new_text: restore(text))
-            else:
-                button.setText(new_text)
-        return
-
     def model(self) -> ConfigModel:
         """
         This method returns the model for the config view.
@@ -500,7 +471,7 @@ class ConfigDialog(qtw.QDialog):
             )
         )
         self.signal_find_feedback.connect(
-            lambda tmp_text, new_text, msec: self._give_feedback(
+            lambda tmp_text, new_text, msec: give_feedback(
                 find_but, tmp_text, new_text, msec
             )
         )
@@ -517,7 +488,7 @@ class ConfigDialog(qtw.QDialog):
             )
         )
         self.signal_add_feedback.connect(
-            lambda tmp_text, new_text, msec: self._give_feedback(
+            lambda tmp_text, new_text, msec: give_feedback(
                 add_but, tmp_text, new_text, msec
             )
         )
@@ -568,34 +539,4 @@ class ConfigDialog(qtw.QDialog):
         self.par_cnt_wid.setText(par_cnt)
         self.par_slice_wid.setText(par_slice)
         self.all_code_xrefs_wid.setChecked(all_code_xrefs)
-        return
-
-    def _give_feedback(
-        self,
-        button: qtw.QPushButton,
-        tmp_text: str = "",
-        new_text: str = "",
-        msec: int = 1000,
-    ) -> None:
-        """
-        This method changes `button`'s text to `tmp_text` for `msec` milliseconds and then back to
-        `new_text`. If `tmp_text` is empty or `msec` is less than or equal to 0, it directly sets
-        the button's text to `new_text`. If `new_text` is empty, it restores the current text of
-        the button.
-        """
-
-        def restore(text: str) -> None:
-            button.setText(text)
-            button.setEnabled(True)
-            return
-
-        if button:
-            if not new_text:
-                new_text = button.text()
-            if tmp_text and msec > 0:
-                button.setEnabled(False)
-                button.setText(tmp_text)
-                qtc.QTimer.singleShot(msec, lambda text=new_text: restore(text))
-            else:
-                button.setText(new_text)
         return

@@ -591,12 +591,13 @@ class PathService(WorkerService):
         | None,
         manual_fun_all_code_xrefs: bool,
         path_callback: Callable[[Path], None] = lambda _: None,
-        progress_callback: Callable[[str], None] = lambda _: None,
+        progress_callback: Callable[[str, str, int], None] = lambda _, __, ___: None,
     ) -> List[Path]:
         """
         This method searches for paths using static backward slicing.
         """
         self.log.info(tag, "Starting backward slicing")
+        progress_callback("", "Cancel [0%]", 0)
         if not src_funs or not snk_funs:
             self.log.warn(tag, "No source or sink functions configured")
         else:
@@ -689,7 +690,7 @@ class PathService(WorkerService):
                     if self.cancelled(thread_name="find"):
                         break
                     curr_task += 1
-                    progress_callback(f"Cancel [{curr_task / total_tasks:.0%}]")
+                    progress_callback("", f"Cancel [{curr_task / total_tasks:.0%}]", 0)
             # Backward slice sink functions
             with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tasks
@@ -722,9 +723,9 @@ class PathService(WorkerService):
                         paths = cast(List[Path], task.result())
                         self._paths.extend(paths)
                     curr_task += 1
-                    progress_callback(f"Cancel [{curr_task / total_tasks:.0%}]")
+                    progress_callback("", f"Cancel [{curr_task / total_tasks:.0%}]", 0)
+        progress_callback("Cancel [Done]", "Find", 1000)
         self.log.info(tag, "Backward slicing completed")
-        progress_callback("Find")
         return self._paths
 
     def find_paths(
@@ -747,7 +748,7 @@ class PathService(WorkerService):
         | None = None,
         manual_fun_all_code_xrefs: bool = False,
         path_callback: Callable[[Path], None] = lambda _: None,
-        progress_callback: Callable[[str], None] = lambda _: None,
+        progress_callback: Callable[[str, str, int], None] = lambda _, __, ___: None,
     ) -> None:
         """
         This method searches for paths in a background thread.

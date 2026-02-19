@@ -187,13 +187,14 @@ class PathController:
         # Detect newly attached debuggers
         self.log.detect_attached_debugger()
         # Find paths in background thread
-        self.give_feedback("Find", new_text="Cancel")
         self.path_service.find_paths(
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
             path_callback=self.add_path,
-            progress_callback=lambda text: self.give_feedback("Find", new_text=text),
+            progress_callback=lambda tmp_text, new_text, msec: self.give_feedback(
+                "Find", tmp_text, new_text, msec
+            ),
         )
         return
 
@@ -232,6 +233,7 @@ class PathController:
 
         # Define background task
         def _load_paths() -> None:
+            self.give_feedback("Load", "", "Load [0%]", 0)
             # Clear all existing paths
             self.clear_paths()
             # Load paths from database
@@ -265,7 +267,7 @@ class PathController:
                             self.add_path(path.update())
                             cnt_loaded_paths += 1
                         self.give_feedback(
-                            "Load", new_text=f"Load [{i / len(s_paths):.0%}]"
+                            "Load", "", f"Load [{i / len(s_paths):.0%}]", 0
                         )
                     except Exception as e:
                         self.log.error(tag, f"Failed to load path #{i:d}: {str(e):s}")
@@ -273,12 +275,13 @@ class PathController:
                 pass
             except Exception as e:
                 self.log.error(tag, f"Failed to load paths: {str(e):s}")
-            self.give_feedback("Load", new_text="Load")
-            self.give_feedback("Save", new_text="Save")
+            self.give_feedback("Load", "Load [Done]", "Load", 1000)
+            self.give_feedback("Save", "", "Save", 0)
             self.log.info(tag, f"Loaded {cnt_loaded_paths:d} path(s)")
             return
 
         # Start background task
+        self.path_view
         self.path_service.start(
             thread_name="load",
             run=_load_paths,
@@ -298,6 +301,7 @@ class PathController:
 
         # Define background task
         def _save_paths() -> None:
+            self.give_feedback("Save", "", "Save [0%]", 0)
             # Get all existing paths
             paths = self.get_paths()
             # Save paths to database
@@ -315,14 +319,14 @@ class PathController:
                         # Increment exported path counter
                         cnt_saved_paths += 1
                         self.give_feedback(
-                            "Save", new_text=f"Save [{i / len(paths):.0%}]"
+                            "Save", "", f"Save [{i / len(paths):.0%}]", 0
                         )
                     except Exception as e:
                         self.log.error(tag, f"Failed to save path #{i:d}: {str(e):s}")
                 self.bv.store_metadata("mole_paths", json.dumps(s_paths))
             except Exception as e:
                 self.log.error(tag, f"Failed to save paths: {str(e):s}")
-            self.give_feedback("Save", new_text="Save")
+            self.give_feedback("Save", "Save [Done]", "Save", 1000)
             self.log.info(tag, f"Saved {cnt_saved_paths:d} path(s)")
             return
 
