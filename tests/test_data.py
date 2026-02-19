@@ -1,6 +1,6 @@
 from __future__ import annotations
 from mole.common.log import Logger
-from mole.models.config import (
+from mole.data.config import (
     Category,
     ComboboxSetting,
     Configuration,

@@ -6,7 +6,7 @@ from typing import cast, Dict, List, TYPE_CHECKING
 import binaryninja as bn
 
 if TYPE_CHECKING:
-    from mole.models.path import Path
+    from mole.data.path import Path
 
 
 class GraphController:

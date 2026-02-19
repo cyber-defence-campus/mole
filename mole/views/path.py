@@ -7,7 +7,7 @@ import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
 
 if TYPE_CHECKING:
-    from mole.models.path import Path
+    from mole.data.path import Path
 
 
 class PathView(qtw.QWidget):

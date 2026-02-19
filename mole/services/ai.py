@@ -4,19 +4,15 @@ from datetime import datetime
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.common.worker import WorkerService
+from mole.data.ai import tools
+from mole.data.config import DoubleSpinboxSetting, SpinboxSetting, TextSetting
 from mole.models.ai import (
     AiVulnerabilityReport,
     VulnerabilityClass,
     VulnerabilityReport,
     SeverityLevel,
-    tools,
 )
-from mole.models.config import (
-    ConfigModel,
-    DoubleSpinboxSetting,
-    SpinboxSetting,
-    TextSetting,
-)
+from mole.models.config import ConfigModel
 from openai import OpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,
@@ -31,7 +27,7 @@ import random
 import textwrap
 
 if TYPE_CHECKING:
-    from mole.models.path import Path
+    from mole.data.path import Path
 
 tag = "Ai"
 

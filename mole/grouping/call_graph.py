@@ -7,7 +7,7 @@ from mole.grouping.source_sink import SourceSinkPathGrouper
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mole.models.path import Path
+    from mole.data.path import Path
 
 
 class CallgraphPathGrouper(SourceSinkPathGrouper):

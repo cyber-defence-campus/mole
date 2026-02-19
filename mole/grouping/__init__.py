@@ -13,7 +13,7 @@ import pkgutil
 import sys
 
 if TYPE_CHECKING:
-    from mole.models.path import Path
+    from mole.data.path import Path
 
 
 class PathGrouper(ABC):

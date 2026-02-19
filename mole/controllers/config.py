@@ -3,7 +3,7 @@ from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.common.parse import LogicalExpressionParser
-from mole.models.config import (
+from mole.data.config import (
     Category,
     CheckboxSetting,
     ComboboxSetting,

@@ -1,9 +1,10 @@
 from __future__ import annotations
 from mole.common.log import Logger
 from mole.common.helper.instruction import InstructionHelper
+from mole.data.config import ComboboxSetting, SourceFunction, SinkFunction
+from mole.data.path import Path
 from mole.models.ai import AiVulnerabilityReport
-from mole.models.config import ComboboxSetting, SourceFunction, SinkFunction
-from mole.models.path import Path, PathTreeModel
+from mole.models.path import PathTreeModel
 from mole.services.path import PathService
 from PySide6 import QtWidgets as qtw
 from typing import cast, Dict, List, Literal, Tuple, TYPE_CHECKING

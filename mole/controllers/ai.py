@@ -7,7 +7,7 @@ from typing import Callable, List, Tuple, TYPE_CHECKING
 import binaryninja as bn
 
 if TYPE_CHECKING:
-    from mole.models.path import Path
+    from mole.data.path import Path
 
 
 tag = "Ai"

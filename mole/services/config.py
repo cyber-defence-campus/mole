@@ -1,8 +1,7 @@
 from __future__ import annotations
 from mole.common.log import Logger
 from mole.common.parse import LogicalExpressionParser
-from mole.grouping import get_all_grouping_strategies
-from mole.models.config import (
+from mole.data.config import (
     Category,
     CheckboxSetting,
     ComboboxSetting,
@@ -14,6 +13,7 @@ from mole.models.config import (
     SpinboxSetting,
     TextSetting,
 )
+from mole.grouping import get_all_grouping_strategies
 from typing import Dict
 import fnmatch as fn
 import os as os

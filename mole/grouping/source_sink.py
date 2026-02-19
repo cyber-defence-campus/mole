@@ -7,7 +7,7 @@ from mole.grouping import PathGrouper
 from typing import List, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mole.models.path import Path
+    from mole.data.path import Path
 
 
 class SourceSinkPathGrouper(PathGrouper):

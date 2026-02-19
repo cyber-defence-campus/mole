@@ -7,19 +7,19 @@ from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.symbol import SymbolHelper
 from mole.common.log import Logger
 from mole.common.worker import WorkerService
-from mole.grouping import get_grouper, PathGrouper
-from mole.models.config import (
+from mole.data.config import (
     CallSiteKey,
     CheckboxSetting,
     ComboboxSetting,
-    ConfigModel,
     Graphs,
     ParamKey,
     SinkFunction,
     SourceFunction,
     SpinboxSetting,
 )
-from mole.models.path import Path
+from mole.data.path import Path
+from mole.grouping import get_grouper, PathGrouper
+from mole.models.config import ConfigModel
 from typing import Callable, cast, Dict, List, Set, Tuple
 import binaryninja as bn
 import hashlib
