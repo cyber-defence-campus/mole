@@ -208,7 +208,7 @@ class ConfigService:
                         )
                     }
                 )
-            for name in ["openai_base_url", "openai_api_key", "openai_model"]:
+            for name in ["base_url", "api_key", "model"]:
                 setting = settings.get(name, {})
                 if not setting:
                     continue

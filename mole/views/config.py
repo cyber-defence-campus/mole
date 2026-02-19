@@ -296,7 +296,7 @@ class ConfigView(qtw.QWidget):
         # Analyzing layout
         aia_lay = qtw.QGridLayout()
         row_cnt = 0
-        for name in ["openai_base_url", "openai_api_key", "openai_model"]:
+        for name in ["base_url", "api_key", "model"]:
             tt_set = model.get_setting(name)
             if not isinstance(tt_set, TextSetting):
                 continue
@@ -304,7 +304,7 @@ class ConfigView(qtw.QWidget):
             tt_set_lbl.setToolTip(tt_set.help)
             aia_lay.addWidget(tt_set_lbl, row_cnt, 0)
             tt_set.widget = qtw.QLineEdit()
-            if name == "openai_api_key":
+            if name == "api_key":
                 tt_set.widget.setEchoMode(qtw.QLineEdit.EchoMode.Password)
             tt_set.widget.setText(tt_set.value)
             tt_set.widget.setToolTip(tt_set.help)

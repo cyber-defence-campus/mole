@@ -51,15 +51,15 @@ class AiService(WorkerService):
         return
 
     def _create_openai_client(
-        self, openai_base_url: str, openai_api_key: str, custom_tag: str
+        self, base_url: str, api_key: str, custom_tag: str
     ) -> OpenAI | None:
         """
         This method creates a new OpenAI client.
         """
         client = None
-        if openai_base_url and openai_api_key:
+        if base_url and api_key:
             try:
-                client = OpenAI(base_url=openai_base_url, api_key=openai_api_key)
+                client = OpenAI(base_url=base_url, api_key=api_key)
             except Exception as e:
                 self.log.error(
                     custom_tag, f"Failed to create OpenAI client: {str(e):s}"
@@ -159,7 +159,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         self,
         client: OpenAI,
         messages: Iterable[ChatCompletionMessageParam],
-        openai_model: str,
+        model: str,
         max_completion_tokens: int | None,
         temperature: float | None,
         token_usage: Dict[str, int],
@@ -174,7 +174,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             # Send messages and receive completion message
             completion = client.beta.chat.completions.parse(
                 messages=messages,
-                model=openai_model,
+                model=model,
                 tools=self._tools,
                 max_completion_tokens=max_completion_tokens,
                 temperature=temperature,
@@ -245,9 +245,9 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         self,
         path_id: int,
         path: Path,
-        openai_base_url: str = "",
-        openai_api_key: str = "",
-        openai_model: str = "",
+        base_url: str = "",
+        api_key: str = "",
+        model: str = "",
         max_turns: int = 0,
         max_completion_tokens: int | None = None,
         temperature: float | None = None,
@@ -258,7 +258,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         # Custom tag for logging
         custom_tag = f"{tag:s}] [Path:{path_id:d}"
         # Create OpenAI client
-        client = self._create_openai_client(openai_base_url, openai_api_key, custom_tag)
+        client = self._create_openai_client(base_url, api_key, custom_tag)
         # No OpenAI client available (mock mode)
         if client is None:
             self.log.warn(
@@ -308,7 +308,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 response = self._send_messages(
                     client,
                     messages,
-                    openai_model,
+                    model,
                     max_completion_tokens,
                     temperature,
                     token_usage,
@@ -366,7 +366,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             report: VulnerabilityReport = response.parsed
             vuln_report = AiVulnerabilityReport(
                 path_id=path_id,
-                model=openai_model,
+                model=model,
                 turns=turn,
                 tool_calls=cnt_tool_calls,
                 prompt_tokens=token_usage["prompt_tokens"],
@@ -394,9 +394,9 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
     def _analyze_paths(
         self,
         max_workers: int | None = None,
-        openai_base_url: str = "",
-        openai_api_key: str = "",
-        openai_model: str = "",
+        base_url: str = "",
+        api_key: str = "",
+        model: str = "",
         max_turns: int = 0,
         max_completion_tokens: int | None = None,
         temperature: float | None = None,
@@ -417,9 +417,9 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                     self._analyze_path,
                     path_id=path_id,
                     path=path,
-                    openai_base_url=openai_base_url,
-                    openai_api_key=openai_api_key,
-                    openai_model=openai_model,
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=model,
                     max_turns=max_turns,
                     max_completion_tokens=max_completion_tokens,
                     temperature=temperature,
@@ -440,9 +440,9 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
     def analyze_paths(
         self,
         max_workers: int | None = None,
-        openai_base_url: str = "",
-        openai_api_key: str = "",
-        openai_model: str = "",
+        base_url: str = "",
+        api_key: str = "",
+        model: str = "",
         max_turns: int = 0,
         max_completion_tokens: int | None = None,
         temperature: float | None = None,
@@ -465,21 +465,21 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         if max_workers is not None and max_workers <= 0:
             max_workers = None
         self.log.debug(tag, f"- max_workers          : '{max_workers}'")
-        setting = self.config_model.get_setting("openai_base_url")
+        setting = self.config_model.get_setting("base_url")
         if isinstance(setting, TextSetting):
-            openai_base_url = str(setting.value)
-        self.log.debug(tag, f"- openai_base_url      : '{openai_base_url:s}'")
-        setting = self.config_model.get_setting("openai_api_key")
+            base_url = str(setting.value)
+        self.log.debug(tag, f"- base_url             : '{base_url:s}'")
+        setting = self.config_model.get_setting("api_key")
         if isinstance(setting, TextSetting):
-            openai_api_key = str(setting.value)
+            api_key = str(setting.value)
         self.log.debug(
             tag,
-            f"- openai_api_key       : '{openai_api_key[:3]:s}{'...' if openai_api_key else 'mock-mode':s}'",
+            f"- api_key              : '{api_key[:3]:s}{'...' if api_key else 'mock-mode':s}'",
         )
-        setting = self.config_model.get_setting("openai_model")
+        setting = self.config_model.get_setting("model")
         if isinstance(setting, TextSetting):
-            openai_model = str(setting.value)
-        self.log.debug(tag, f"- openai_model         : '{openai_model:s}'")
+            model = str(setting.value)
+        self.log.debug(tag, f"- model                : '{model:s}'")
         setting = self.config_model.get_setting("max_turns")
         if isinstance(setting, SpinboxSetting):
             max_turns = int(setting.value)
@@ -503,9 +503,9 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             thread_name="analyze",
             run=self._analyze_paths,
             max_workers=max_workers,
-            openai_base_url=openai_base_url,
-            openai_api_key=openai_api_key,
-            openai_model=openai_model,
+            base_url=base_url,
+            api_key=api_key,
+            model=model,
             max_turns=max_turns,
             max_completion_tokens=max_completion_tokens,
             temperature=temperature,
