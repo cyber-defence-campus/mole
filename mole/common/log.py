@@ -50,7 +50,14 @@ class Logger:
                     bv = vf.getCurrentBinaryView()
         # File tag
         if bv is not None:
-            self._file_tag = f"[{os.path.basename(bv.file.filename)}]"
+            # Project file
+            if bv.project_file is not None:
+                self._file_tag = (
+                    f"[{bv.project_file.project.name:s}/{bv.project_file.name:s}]"
+                )
+            # Not a project file
+            else:
+                self._file_tag = f"[{os.path.basename(bv.file.filename)}]"
         return
 
     def detect_attached_debugger(self) -> None:
