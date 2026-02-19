@@ -328,8 +328,10 @@ class PathTreeView(qtw.QTreeView):
         on_update_paths: Callable[[], None],
         on_remove_paths: Callable[[List[int]], None],
         on_clear_paths: Callable[[], None],
-        on_analyze_paths: Callable[[List[Tuple[int, Path]]], None],
-        on_show_report: Callable[[Path | None], None],
+        is_ai_analysis_alive: Callable[[], bool],
+        on_start_ai_analysis: Callable[[List[Tuple[int, Path]]], None],
+        on_cancel_ai_analysis: Callable[[], None],
+        on_show_ai_report: Callable[[Path | None], None],
     ) -> None:
         """
         This method sets up a context menu for the path tree view.
@@ -393,25 +395,31 @@ class PathTreeView(qtw.QTreeView):
         )
         menu.addSeparator()
         # Add AI-specific actions to the context menu
-        analyze_paths_action = menu.addAction("Run AI analysis")
+        start_ai_analysis_action = menu.addAction("Start AI analysis")
         paths: List[Tuple[int, Path]] = []
-        if len(expanded_path_ids) >= 1:
-            analyze_paths_action.setEnabled(True)
+        if len(expanded_path_ids) >= 1 and not is_ai_analysis_alive():
+            start_ai_analysis_action.setEnabled(True)
             for path_id in expanded_path_ids:
                 path = path_tree_model.get_path(path_id)
                 if path is not None:
                     paths.append((path_id, path))
         else:
-            analyze_paths_action.setEnabled(False)
-        analyze_paths_action.triggered.connect(lambda: on_analyze_paths(paths))
-        show_report_action = menu.addAction("Show AI report")
-        show_report_action.setEnabled(False)
+            start_ai_analysis_action.setEnabled(False)
+        start_ai_analysis_action.triggered.connect(lambda: on_start_ai_analysis(paths))
+        cancel_ai_analysis_action = menu.addAction("Cancel AI analysis")
+        if is_ai_analysis_alive():
+            cancel_ai_analysis_action.setEnabled(True)
+        else:
+            cancel_ai_analysis_action.setEnabled(False)
+        cancel_ai_analysis_action.triggered.connect(lambda: on_cancel_ai_analysis())
+        show_ai_report_action = menu.addAction("Show AI report")
+        show_ai_report_action.setEnabled(False)
         path = None
         if len(expanded_path_ids) == 1:
             path = path_tree_model.get_path(expanded_path_ids[0])
             if path is not None and path.ai_report is not None:
-                show_report_action.setEnabled(True)
-        show_report_action.triggered.connect(lambda: on_show_report(path))
+                show_ai_report_action.setEnabled(True)
+        show_ai_report_action.triggered.connect(lambda: on_show_ai_report(path))
         menu.addSeparator()
         # Add tree-specific actions to the context menu
         expand_all_action = menu.addAction("Expand all")

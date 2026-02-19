@@ -144,10 +144,12 @@ class SidebarController:
                 on_update_paths=self.path_ctr.update_paths,
                 on_remove_paths=self.path_ctr.remove_paths,
                 on_clear_paths=self.path_ctr.clear_paths,
-                on_analyze_paths=lambda paths: self.ai_ctr.analyze_paths(
+                is_ai_analysis_alive=lambda: self.ai_ctr.ai_service.is_alive("analyze"),
+                on_start_ai_analysis=lambda paths: self.ai_ctr.analyze_paths(
                     paths, self.path_ctr.add_path_report
                 ),
-                on_show_report=self.ai_ctr.show_report,
+                on_cancel_ai_analysis=lambda: self.ai_ctr.ai_service.cancel("analyze"),
+                on_show_ai_report=self.ai_ctr.show_report,
             )
         )
         self.path_ctr.path_view.path_tree_view.doubleClicked.connect(

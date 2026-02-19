@@ -255,7 +255,6 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         max_turns: int = 0,
         max_completion_tokens: int | None = None,
         temperature: float | None = None,
-        path_callback: Callable[[int, AiVulnerabilityReport], None] | None = None,
     ) -> AiVulnerabilityReport | None:
         """
         This method analyzes the given path with AI.
@@ -355,6 +354,10 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                         f"Received final response in conversation turn {turn:d}",
                     )
                     break
+                # User cancellation
+                if self.cancelled("analyze"):
+                    self.log.warn(custom_tag, f"Cancel conversation in turn {turn:d}")
+                    return None
                 # Execute tool calls and add results to the conversation messages
                 messages.extend(
                     self._execute_tool_calls(response.tool_calls, custom_tag)
@@ -424,7 +427,6 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                     max_turns=max_turns,
                     max_completion_tokens=max_completion_tokens,
                     temperature=temperature,
-                    path_callback=path_callback,
                 )
                 tasks[task] = path_id
             # Wait for tasks to complete
