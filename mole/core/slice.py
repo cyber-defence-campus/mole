@@ -294,7 +294,11 @@ class MediumLevelILBackwardSlicer:
         return
 
     def _slice_backwards(
-        self, inst: bn.MediumLevelILInstruction, call_params: Set[int] = set()
+        self,
+        inst: bn.MediumLevelILInstruction,
+        call_params: Set[int] = set(),
+        *args,
+        **kwargs,
     ) -> None:
         """
         This method backward slices instruction `inst` based on its type. `call_params` is a set of
@@ -967,7 +971,7 @@ class MediumLevelILBackwardSlicer:
         self._call_tracker = MediumLevelILCallTracker()
         self._call_tracker.push_func(to_inst=inst, downwards=False, param_idx=0)
         deque(
-            inst.ssa_form.traverse(self._slice_backwards),  # type: ignore
+            inst.ssa_form.traverse(self._slice_backwards),
             maxlen=0,
         )
         self._call_tracker.pop_func()

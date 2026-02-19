@@ -275,6 +275,8 @@ class InstructionHelper:
             | bn.MediumLevelILInstruction
             | bn.LowLevelILInstruction
             | None,
+            *args,
+            **kwargs,
         ) -> (
             bn.MediumLevelILCallSsa
             | bn.MediumLevelILCallUntypedSsa
@@ -313,11 +315,7 @@ class InstructionHelper:
                 return inst.ssa_form
             return None
 
-        return [
-            i
-            for i in inst.traverse(find_mlil_call_inst)  # type: ignore
-            if i is not None
-        ]
+        return [i for i in inst.traverse(find_mlil_call_inst) if i is not None]
 
     @staticmethod
     def is_ptr_equivalent(
