@@ -273,7 +273,8 @@ class InstructionHelper:
         def find_mlil_call_inst(
             inst: bn.HighLevelILInstruction
             | bn.MediumLevelILInstruction
-            | bn.LowLevelILInstruction,
+            | bn.LowLevelILInstruction
+            | None,
         ) -> (
             bn.MediumLevelILCallSsa
             | bn.MediumLevelILCallUntypedSsa
@@ -300,23 +301,23 @@ class InstructionHelper:
                     mlil_inst = None
                 return find_mlil_call_inst(mlil_inst)
             # MLIL
-            if isinstance(
-                inst,
+            if inst is not None and isinstance(
+                inst.ssa_form,
                 (
-                    bn.MediumLevelILCall,
                     bn.MediumLevelILCallSsa,
-                    bn.MediumLevelILCallUntyped,
                     bn.MediumLevelILCallUntypedSsa,
-                    bn.MediumLevelILTailcall,
                     bn.MediumLevelILTailcallSsa,
-                    bn.MediumLevelILTailcallUntyped,
                     bn.MediumLevelILTailcallUntypedSsa,
                 ),
             ):
                 return inst.ssa_form
             return None
 
-        return [i for i in inst.traverse(find_mlil_call_inst) if i is not None]
+        return [
+            i
+            for i in inst.traverse(find_mlil_call_inst)  # type: ignore
+            if i is not None
+        ]
 
     @staticmethod
     def is_ptr_equivalent(

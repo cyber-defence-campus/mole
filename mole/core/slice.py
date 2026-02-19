@@ -967,7 +967,7 @@ class MediumLevelILBackwardSlicer:
         self._call_tracker = MediumLevelILCallTracker()
         self._call_tracker.push_func(to_inst=inst, downwards=False, param_idx=0)
         deque(
-            inst.ssa_form.traverse(self._slice_backwards),
+            inst.ssa_form.traverse(self._slice_backwards),  # type: ignore
             maxlen=0,
         )
         self._call_tracker.pop_func()
