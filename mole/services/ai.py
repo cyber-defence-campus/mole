@@ -267,12 +267,15 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             self.log.warn(
                 custom_tag, "Running in mock mode since no OpenAI client available"
             )
+            warning_txt = "--- WARNING ---\n"
+            warning_txt += "This report was generated in mock mode. Its severity and related details are randomly generated and do not reflect real findings.\n"
+            warning_txt += "--------------\n\n"
             vuln_report = AiVulnerabilityReport(
                 truePositive=random.choice([True, True, True, False]),
                 vulnerabilityClass=random.choice(list(VulnerabilityClass)),
-                shortExplanation="Mock mode simulates a potential vulnerability.",
+                shortExplanation=warning_txt + "Sample explanation",
                 severityLevel=random.choice(list(SeverityLevel)),
-                inputExample=f"0x{random.getrandbits(32):08x}",
+                inputExample=warning_txt + "Sample input example",
                 path_id=path_id,
                 model="mock-mode",
                 turns=random.randint(1, max_turns),
