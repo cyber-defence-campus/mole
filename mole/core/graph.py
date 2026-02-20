@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
 from mole.common.log import Logger
-from typing import Any, Dict, List, Tuple, Type
+from typing import Any, cast, Dict, List, Tuple, Type
 import binaryninja as bn
 import networkx as nx
 
@@ -117,13 +117,15 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
         True if the update was successful, False otherwise.
         """
         # Set all node levels to -1
-        nx.set_node_attributes(self, -1, "level")
+        nx.set_node_attributes(self, {n: -1 for n in self.nodes}, "level")
         # Get all nodes included in the path
         in_path_nodes = [
-            node for node, attr in self.nodes(data=True) if attr.get("in_path", False)
+            node for node, attrs in self.nodes(data=True) if attrs.get("in_path", False)
         ]
         # Create a subgraph view for the in-path nodes
-        in_path_subgraph: MediumLevelILFunctionGraph = self.subgraph(in_path_nodes)
+        in_path_subgraph = cast(
+            MediumLevelILFunctionGraph, self.subgraph(in_path_nodes)
+        )
         # Ensure in-path subgraph is weakly connected (connected when ignoring direction)
         if not nx.is_weakly_connected(in_path_subgraph):
             return False
@@ -182,6 +184,11 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
             for node in d["nodes"]:
                 addr = int(node["adr"], 0)
                 func = bv.get_function_at(addr)
+                if func is None or func.mlil is None or func.mlil.ssa_form is None:
+                    log.error(
+                        tag, f"No valid MLIL SSA function found at address 0x{addr:x}"
+                    )
+                    continue
                 func_info = FunctionHelper.get_func_info(func.mlil.ssa_form, True)
                 if func_info != node["func"]:
                     log.warn(tag, "Function mismatch:")
@@ -193,8 +200,28 @@ class MediumLevelILFunctionGraph(nx.DiGraph):
             for edge in d["edges"]:
                 src_addr = int(edge["src"], 0)
                 src_func = bv.get_function_at(src_addr)
+                if (
+                    src_func is None
+                    or src_func.mlil is None
+                    or src_func.mlil.ssa_form is None
+                ):
+                    log.error(
+                        tag,
+                        f"No valid MLIL SSA function found at address 0x{src_addr:x}",
+                    )
+                    continue
                 tgt_addr = int(edge["snk"], 0)
                 tgt_func = bv.get_function_at(tgt_addr)
+                if (
+                    tgt_func is None
+                    or tgt_func.mlil is None
+                    or tgt_func.mlil.ssa_form is None
+                ):
+                    log.error(
+                        tag,
+                        f"No valid MLIL SSA function found at address 0x{tgt_addr:x}",
+                    )
+                    continue
                 atts = edge["att"]
                 call_graph.add_edge(
                     src_func.mlil.ssa_form, tgt_func.mlil.ssa_form, **atts

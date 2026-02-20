@@ -4,7 +4,7 @@ from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.core.graph import MediumLevelILFunctionGraph
 from mole.models.ai import AiVulnerabilityReport
-from typing import Dict, List, Tuple, Type
+from typing import cast, Dict, List, Tuple, Type
 import binaryninja as bn
 
 
@@ -25,7 +25,7 @@ class Path:
     snk_sym_addr: int
     snk_sym_name: str
     snk_par_idx: int
-    snk_par_var: bn.MediumLevelILInstruction
+    snk_par_var: bn.MediumLevelILInstruction | None
     insts: List[bn.MediumLevelILInstruction]
     comment: str = ""
     sha1_hash: str = ""
@@ -45,7 +45,7 @@ class Path:
         snk_sym_addr: int,
         snk_sym_name: str,
         snk_par_idx: int,
-        snk_par_var: bn.MediumLevelILInstruction,
+        snk_par_var: bn.MediumLevelILInstruction | None,
         insts: List[bn.MediumLevelILInstruction],
         comment: str = "",
         sha1_hash: str = "",
@@ -129,7 +129,9 @@ class Path:
             # Path goes downwards
             if self.call_graph.has_edge(old_func, func):
                 self.call_graph[old_func][func]["in_path"] = True
-                self.call_graph[old_func][func]["call_site"] = prv_inst.address
+                self.call_graph[old_func][func]["call_site"] = (
+                    prv_inst.address if prv_inst is not None else 0x0
+                )
             # Phi-instructions
             if isinstance(inst, bn.MediumLevelILVarPhi):
                 self.phiis.append(inst)
@@ -229,9 +231,23 @@ class Path:
             for inst_dict in d["insts"]:
                 inst_dict = inst_dict  # type: Dict[str, str]
                 fun_addr = int(inst_dict["fun_addr"], 0)
-                expr_idx = int(inst_dict["expr_idx"], 0)
+                expr_idx = bn.mediumlevelil.ExpressionIndex(
+                    int(inst_dict["expr_idx"], 0)
+                )
                 func = bv.get_function_at(fun_addr)
+                if func is None or func.mlil is None or func.mlil.ssa_form is None:
+                    log.error(
+                        tag,
+                        f"No valid MLIL SSA function found at address 0x{fun_addr:x}",
+                    )
+                    continue
                 inst = func.mlil.ssa_form.get_expr(expr_idx)
+                if inst is None:
+                    log.error(
+                        tag,
+                        f"No valid MLIL SSA instruction found at expression index {expr_idx:d}",
+                    )
+                    continue
                 inst_info = InstructionHelper.get_inst_info(inst, True)
                 if inst_info != inst_dict["inst"]:
                     log.warn(tag, "Instruction mismatch:")
@@ -241,14 +257,20 @@ class Path:
             # Deserialize parameter variables
             src_par_idx = d["src_par_idx"]
             if src_par_idx is not None and src_par_idx > 0:
-                inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa = insts[-1]
+                inst = cast(
+                    bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa, insts[-1]
+                )
                 src_par_var = inst.params[src_par_idx - 1]
             else:
                 src_par_var = None
             snk_par_idx = d["snk_par_idx"]
             if snk_par_idx is not None and snk_par_idx > 0:
-                inst: bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa = insts[0]
-                snk_par_var = inst.params[snk_par_idx - 1]
+                inst = cast(
+                    bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa, insts[0]
+                )
+                snk_par_var = cast(
+                    bn.MediumLevelILInstruction, inst.params[snk_par_idx - 1]
+                )
             else:
                 snk_par_var = None
             # Deserialize path

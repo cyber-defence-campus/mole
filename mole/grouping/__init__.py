@@ -62,15 +62,15 @@ class PathGrouper(ABC):
         return all_subclasses
 
     @staticmethod
-    def get_strategy_map() -> Dict[str, PathGrouper]:
+    def get_strategy_map() -> Dict[str, PathGrouper | None]:
         """
         This method returns a mapping of all available strategy names to their implementations.
         Dynamically discovers all `PathGrouper` subclasses.
 
         Returns:
-            Dictionary mapping strategy names to `PathGrouper` instances
+            Dictionary mapping strategy names to `PathGrouper` instances or None
         """
-        strategy_map = {"None": None}
+        strategy_map: Dict[str, PathGrouper | None] = {"None": None}
         # Find all PathGrouper subclasses and instantiate them
         for cls in PathGrouper.get_all_subclasses():
             # Skip the abstract base class itself

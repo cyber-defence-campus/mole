@@ -16,6 +16,7 @@ from mole.models.config import ConfigModel
 from openai import OpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,
+    ChatCompletionFunctionToolParam,
     ParsedChatCompletionMessage,
     ParsedFunctionToolCall,
 )
@@ -47,7 +48,9 @@ class AiService(WorkerService):
         self.bv = bv
         self.log = log
         self.config_model = config_model
-        self._tools = [tool.to_dict() for tool in tools.values()]
+        self._tools = [
+            ChatCompletionFunctionToolParam(**tool.to_dict()) for tool in tools.values()
+        ]
         return
 
     def _create_openai_client(
@@ -214,11 +217,11 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
 
     def _execute_tool_calls(
         self, tool_calls: List[ParsedFunctionToolCall], custom_tag: str = tag
-    ) -> List[Dict[str, str]]:
+    ) -> List[ChatCompletionMessageParam]:
         """
         This method executes the given tool calls and returns their results.
         """
-        results = []
+        results: List[ChatCompletionMessageParam] = []
         for tool_call in tool_calls:
             try:
                 if tool_call.type == "function":
@@ -283,10 +286,16 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         # OpenAI client available
         else:
             # Initial messages
-            messages = [
-                {"role": "system", "content": self._create_system_prompt(max_turns)},
-                {"role": "user", "content": self._create_user_prompt(path)},
-            ]
+            messages = cast(
+                List[ChatCompletionMessageParam],
+                [
+                    {
+                        "role": "system",
+                        "content": self._create_system_prompt(max_turns),
+                    },
+                    {"role": "user", "content": self._create_user_prompt(path)},
+                ],
+            )
             # Conversation turns
             response = None
             cnt_tool_calls = 0
@@ -324,25 +333,23 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                     custom_tag, f"Received response in conversation turn {turn:d}"
                 )
                 # Add response to conversation messages
-                messages.append(
-                    {
-                        "role": response.role,
-                        "content": response.content,
-                        "tool_calls": [
-                            {
-                                "id": tool_call.id,
-                                "type": tool_call.type,
-                                "function": {
-                                    "name": tool_call.function.name,
-                                    "arguments": tool_call.function.arguments,
-                                },
-                            }
-                            for tool_call in response.tool_calls
-                        ]
-                        if response.tool_calls is not None
-                        else None,
-                    }
-                )
+                message_dict = {
+                    "role": response.role,
+                    "content": response.content,
+                }
+                if response.tool_calls is not None:
+                    message_dict["tool_calls"] = [
+                        {
+                            "id": tool_call.id,
+                            "type": tool_call.type,
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments,
+                            },
+                        }
+                        for tool_call in response.tool_calls
+                    ]
+                messages.append(cast(ChatCompletionMessageParam, message_dict))
                 # Terminate conversation if no more tool calls requested
                 if not response.tool_calls:
                     self.log.info(
