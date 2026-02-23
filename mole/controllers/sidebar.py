@@ -127,6 +127,7 @@ class SidebarController:
         # Connect path view signals
         self.path_ctr.path_view.signal_find_paths.connect(self.path_ctr.find_paths)
         self.path_ctr.path_view.signal_load_paths.connect(self.path_ctr.load_paths)
+        self.path_ctr.path_view.signal_load_paths.emit()
         self.path_ctr.path_view.signal_save_paths.connect(self.path_ctr.save_paths)
         self.path_ctr.path_view.signal_auto_update_paths.connect(
             lambda enable: setattr(self.path_ctr, "auto_update_paths", enable)
