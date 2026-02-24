@@ -278,9 +278,13 @@ class InstructionHelper:
             *args,
             **kwargs,
         ) -> (
-            bn.MediumLevelILCallSsa
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntyped
             | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcall
             | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntyped
             | bn.MediumLevelILTailcallUntypedSsa
             | None
         ):
@@ -306,9 +310,13 @@ class InstructionHelper:
             if inst is not None and isinstance(
                 inst.ssa_form,
                 (
+                    bn.MediumLevelILCall,
                     bn.MediumLevelILCallSsa,
+                    bn.MediumLevelILCallUntyped,
                     bn.MediumLevelILCallUntypedSsa,
+                    bn.MediumLevelILTailcall,
                     bn.MediumLevelILTailcallSsa,
+                    bn.MediumLevelILTailcallUntyped,
                     bn.MediumLevelILTailcallUntypedSsa,
                 ),
             ):
