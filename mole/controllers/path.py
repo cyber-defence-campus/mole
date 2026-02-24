@@ -114,7 +114,7 @@ class PathController:
         """
         path_grouper = self.path_service.get_path_grouper()
         path_tree_model = cast(PathTreeModel, self.path_proxy_model.sourceModel())
-        bn.execute_on_main_thread(lambda: path_tree_model.add_path(path, path_grouper))
+        path_tree_model.add_path(path, path_grouper)
         return
 
     def add_path_report(self, path_id: int, ai_report: AiVulnerabilityReport) -> None:
@@ -122,9 +122,7 @@ class PathController:
         This method adds the given path's AI-generated report to the model.
         """
         path_tree_model = cast(PathTreeModel, self.path_proxy_model.sourceModel())
-        bn.execute_on_main_thread(
-            lambda: path_tree_model.add_path_report(path_id, ai_report)
-        )
+        path_tree_model.add_path_report(path_id, ai_report)
         return
 
     def update_paths(self) -> None:
@@ -135,9 +133,7 @@ class PathController:
         path_tree_model = cast(PathTreeModel, self.path_proxy_model.sourceModel())
         path_count = len(path_tree_model.paths)
         if path_count > 0:
-            bn.execute_on_main_thread(
-                lambda: path_tree_model.update_paths(path_grouper)
-            )
+            path_tree_model.update_paths(path_grouper)
         return
 
     def regroup_paths(self) -> None:
@@ -148,9 +144,7 @@ class PathController:
         path_tree_model = cast(PathTreeModel, self.path_proxy_model.sourceModel())
         path_count = len(path_tree_model.paths)
         if path_count > 0:
-            bn.execute_on_main_thread(
-                lambda: path_tree_model.regroup_paths(path_grouper)
-            )
+            path_tree_model.regroup_paths(path_grouper)
             self.log.info(tag, f"Regrouped {path_count:d} path(s)")
         return
 
@@ -164,7 +158,7 @@ class PathController:
         path_tree_model = cast(PathTreeModel, self.path_proxy_model.sourceModel())
         path_count = len(path_tree_model.paths)
         if path_count > 0:
-            bn.execute_on_main_thread(path_tree_model.clear_paths)
+            path_tree_model.clear_paths()
         self.log.info(tag, f"Cleared {path_count:d} path(s)")
         return
 
@@ -270,6 +264,7 @@ class PathController:
                         path = Path.from_dict(self.bv, s_path)
                         if path is not None:
                             self.add_path(path.update())
+                            # Increment loaded path counter
                             cnt_loaded_paths += 1
                         self.give_feedback(
                             "Load", "", f"Cancel [{i / len(s_paths):.0%}]", 0
@@ -280,7 +275,7 @@ class PathController:
                 pass
             except Exception as e:
                 self.log.error(tag, f"Failed to load paths: {str(e):s}")
-            self.give_feedback("Load", "Cancel [Done]", "Load", 1000)
+            self.give_feedback("Load", "Cancelling...", "Load", 1000)
             self.give_feedback("Save", "", "Save", 0)
             self.log.info(tag, f"Loaded {cnt_loaded_paths:d} path(s)")
             return
@@ -330,7 +325,7 @@ class PathController:
                 self.bv.store_metadata("mole_paths", json.dumps(s_paths))
             except Exception as e:
                 self.log.error(tag, f"Failed to save paths: {str(e):s}")
-            self.give_feedback("Save", "Cancel [Done]", "Save", 1000)
+            self.give_feedback("Save", "Cancelling...", "Save", 1000)
             self.log.info(tag, f"Saved {cnt_saved_paths:d} path(s)")
             return
 
@@ -726,8 +721,6 @@ class PathController:
         # Detect newly attached debuggers
         self.log.detect_attached_debugger()
         # Remove selected paths
-        bn.execute_on_main_thread(
-            lambda: self.path_proxy_model.path_tree_model.remove_paths(path_ids)
-        )
+        self.path_proxy_model.path_tree_model.remove_paths(path_ids)
         self.log.info(tag, f"Removed {len(path_ids):d} path(s)")
         return

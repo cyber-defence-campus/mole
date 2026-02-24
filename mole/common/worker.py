@@ -59,6 +59,7 @@ class WorkerService:
         """
         This method initializes the worker service.
         """
+        self._lock = threading.RLock()
         self._threads: Dict[str, WorkerThread] = {}
         return
 
@@ -67,34 +68,37 @@ class WorkerService:
         This method returns whether or not the thread with the given name is alive. If no thread
         name is given, it returns whether or not any thread of the service is alive.
         """
-        if not thread_name:
-            return any(thread.is_alive() for thread in self._threads.values())
-        thread = self._threads.get(thread_name)
-        return thread is not None and thread.is_alive()
+        with self._lock:
+            if not thread_name:
+                return any(thread.is_alive() for thread in self._threads.values())
+            thread = self._threads.get(thread_name)
+            return thread is not None and thread.is_alive()
 
     def cancelled(self, thread_name: str = "") -> bool:
         """
         This method returns whether or not the thread with the given name was cancelled. If no
         thread name is given, it returns whether or not any thread of the service was cancelled.
         """
-        if not thread_name:
-            return any(thread.cancelled() for thread in self._threads.values())
-        thread = self._threads.get(thread_name)
-        return thread is not None and thread.cancelled()
+        with self._lock:
+            if not thread_name:
+                return any(thread.cancelled() for thread in self._threads.values())
+            thread = self._threads.get(thread_name)
+            return thread is not None and thread.cancelled()
 
     def cancel(self, thread_name: str = "") -> None:
         """
         This method cancels the thread with the given name. If no thread name is given, it cancels
         all threads of the service.
         """
-        if not thread_name:
-            for thread in self._threads.values():
-                thread.cancel()
-        else:
-            thread = self._threads.get(thread_name)
-            if thread is not None:
-                thread.cancel()
-        return
+        with self._lock:
+            if not thread_name:
+                for thread in self._threads.values():
+                    thread.cancel()
+            else:
+                thread = self._threads.get(thread_name)
+                if thread is not None:
+                    thread.cancel()
+            return
 
     def start(
         self,
@@ -107,21 +111,23 @@ class WorkerService:
         This method starts the thread with the given name. It returns `True` if the thread was
         correctly started, and `False` if the same thread is already running.
         """
-        # Background thread is already running
-        if self.is_alive(thread_name):
-            return False
-        # Start background thread
-        self._threads[thread_name] = WorkerThread(
-            run=run,
-            *args,
-            **kwargs,
-        )
-        self._threads[thread_name].start()
-        return True
+        with self._lock:
+            # Background thread is already running
+            if self.is_alive(thread_name):
+                return False
+            # Start background thread
+            self._threads[thread_name] = WorkerThread(
+                run=run,
+                *args,
+                **kwargs,
+            )
+            self._threads[thread_name].start()
+            return True
 
     def results(self, thread_name: str) -> Any:
         """
         This method waits for the thread with the given name to complete and returns its results.
         """
-        _thread = self._threads.get(thread_name)
+        with self._lock:
+            _thread = self._threads.get(thread_name)
         return _thread.results() if _thread is not None else None

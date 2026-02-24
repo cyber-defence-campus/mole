@@ -4,6 +4,7 @@ from mole.grouping import PathGrouper
 from mole.models.ai import AiVulnerabilityReport
 from mole.models import IndexedLabeledEnum
 from typing import Dict, List, Tuple
+import binaryninja as bn
 import PySide6.QtCore as qtc
 import PySide6.QtGui as qtui
 
@@ -348,15 +349,19 @@ class PathTreeModel(qtui.QStandardItemModel):
             # Create group item if it does not yet exist and add it to its parent item
             if internal_id not in self._group_items:
                 group_item = self._create_group_item(display_name, level)
-                parent_item.appendRow(group_item)
+                bn.execute_on_main_thread_and_wait(
+                    lambda: parent_item.appendRow(group_item)
+                )
                 self._group_items[internal_id] = group_item
             # Update parent item for the next iteration
             parent_item = self._group_items[internal_id]
         # Create path items
         path_items = self._create_path_items(path, self._path_id)
-        parent_item.appendRow(path_items)
+        bn.execute_on_main_thread_and_wait(lambda: parent_item.appendRow(path_items))
         # Emit data change signal
-        self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
+        bn.execute_on_main_thread(
+            lambda: self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
+        )
         return
 
     def add_path_report(self, path_id: int, ai_report: AiVulnerabilityReport) -> None:
@@ -384,22 +389,26 @@ class PathTreeModel(qtui.QStandardItemModel):
         else:
             text = f"{ai_report.severityLevel.label:s}*"
             sort = ai_report.severityLevel.index - 1
-        severity_item.setText(text)
-        severity_item.setData(sort, PathRole.SORT.index)
-        # Color formatting
-        if ai_report.truePositive:
-            match ai_report.severityLevel.label:
-                case "Critical":
-                    severity_item.setForeground(qtui.QBrush(qtui.QColor("#FF0000")))
-                case "High":
-                    severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFA500")))
-                case "Medium":
-                    severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFF00")))
-                case _:
-                    severity_item.setForeground(qtui.QBrush(qtui.QColor("#008000")))
-        else:
-            severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFFFF")))
-        self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
+
+        def _add_path_report() -> None:
+            severity_item.setText(text)
+            severity_item.setData(sort, PathRole.SORT.index)
+            # Color formatting
+            if ai_report.truePositive:
+                match ai_report.severityLevel.label:
+                    case "Critical":
+                        severity_item.setForeground(qtui.QBrush(qtui.QColor("#FF0000")))
+                    case "High":
+                        severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFA500")))
+                    case "Medium":
+                        severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFF00")))
+                    case _:
+                        severity_item.setForeground(qtui.QBrush(qtui.QColor("#008000")))
+            else:
+                severity_item.setForeground(qtui.QBrush(qtui.QColor("#FFFFFF")))
+            self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
+
+        bn.execute_on_main_thread(_add_path_report)
         return
 
     def update_paths(self, path_grouper: PathGrouper | None) -> None:
@@ -420,27 +429,31 @@ class PathTreeModel(qtui.QStandardItemModel):
                     # Update path and create new path items
                     path.update()
                     path_items = self._create_path_items(path, item_id)
-                    # Path has parents (is in a group)
-                    if parent_items:
-                        # Update path items
-                        parent_item = parent_items[-1]
-                        for col in range(parent_item.columnCount()):
-                            child_item = parent_item.child(row, col)
-                            new_text = path_items[col].text()
-                            child_item.setText(new_text)
-                        # Update group names
-                        group_keys = (
-                            path_grouper.get_group_keys(path)
-                            if path_grouper is not None
-                            else []
-                        )
-                        for i, (group_name, _, _) in enumerate(group_keys):
-                            parent_items[i].setText(group_name)
-                    # Path has no parents (is top-level)
-                    else:
-                        # Replace row (not bothering about collapsing/expanding groups)
-                        self.removeRow(row)
-                        self.insertRow(row, path_items)
+
+                    def __update_item_recusively() -> None:
+                        # Path has parents (is in a group)
+                        if parent_items:
+                            # Update path items
+                            parent_item = parent_items[-1]
+                            for col in range(parent_item.columnCount()):
+                                child_item = parent_item.child(row, col)
+                                new_text = path_items[col].text()
+                                child_item.setText(new_text)
+                            # Update group names
+                            group_keys = (
+                                path_grouper.get_group_keys(path)
+                                if path_grouper is not None
+                                else []
+                            )
+                            for i, (group_name, _, _) in enumerate(group_keys):
+                                parent_items[i].setText(group_name)
+                        # Path has no parents (is top-level)
+                        else:
+                            # Replace row (not bothering about collapsing/expanding groups)
+                            self.removeRow(row)
+                            self.insertRow(row, path_items)
+
+                    bn.execute_on_main_thread(__update_item_recusively)
             # Item is a group
             else:
                 # Iterate item's children and update them recursively
@@ -497,12 +510,16 @@ class PathTreeModel(qtui.QStandardItemModel):
             parent_item, child_item, child_row = self.find_path_item(path_id)
             # Remove the path item
             if child_item is not None:
-                if parent_item is not None:
-                    # Remove from parent
-                    parent_item.removeRow(child_row)
-                else:
-                    # Remove from top-level
-                    self.removeRow(child_row)
+
+                def _remove_path() -> None:
+                    if parent_item is not None:
+                        # Remove from parent
+                        parent_item.removeRow(child_row)
+                    else:
+                        # Remove from top-level
+                        self.removeRow(child_row)
+
+                bn.execute_on_main_thread_and_wait(_remove_path)
                 cnt_removed_paths += 1
             # Remove the path from the map
             if path_id in self._path_map:
@@ -511,7 +528,9 @@ class PathTreeModel(qtui.QStandardItemModel):
         self._remove_empty_groups()
         # Emit data change signal
         if cnt_removed_paths > 0:
-            self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
+            bn.execute_on_main_thread(
+                lambda: self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
+            )
         return cnt_removed_paths
 
     def clear_paths(self) -> None:
@@ -521,6 +540,10 @@ class PathTreeModel(qtui.QStandardItemModel):
         self._path_id = 0
         self._path_map.clear()
         self._group_items.clear()
-        self.removeRows(0, self.rowCount())
-        self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
+
+        def _clear_paths() -> None:
+            self.removeRows(0, self.rowCount())
+            self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
+
+        bn.execute_on_main_thread(_clear_paths)
         return

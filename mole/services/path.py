@@ -724,7 +724,7 @@ class PathService(WorkerService):
                         self._paths.extend(paths)
                     curr_task += 1
                     progress_callback("", f"Cancel [{curr_task / total_tasks:.0%}]", 0)
-        progress_callback("Cancel [Done]", "Find", 1000)
+        progress_callback("Cancelling...", "Find", 1000)
         self.log.info(tag, "Backward slicing completed")
         return self._paths
 
@@ -754,8 +754,8 @@ class PathService(WorkerService):
         This method searches for paths in a background thread.
         """
         # Cancel path finding thread if already running
-        if self.is_alive("find"):
-            self.cancel("find")
+        if self.is_alive(thread_name="find"):
+            self.cancel(thread_name="find")
             return
         # Ensure no other thread is running
         if self.is_alive():
