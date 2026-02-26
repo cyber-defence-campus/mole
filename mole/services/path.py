@@ -234,7 +234,7 @@ class PathService(WorkerService):
         max_call_level: int,
         max_slice_depth: int | None,
         max_memory_slice_depth: int,
-        found_path: Callable[[Path], None],
+        found_path: Callable[[List[Path]], None],
     ) -> List[Path]:
         """
         This method performs backward slicing on the given sink function `snk_fun`. It then checks
@@ -532,7 +532,7 @@ class PathService(WorkerService):
                                             paths.append(path)
                                             # Execute callback on a newly found path
                                             if found_path:
-                                                found_path(path)
+                                                found_path([path])
                                             # Log newly found path
                                             t_log = f"Interesting path: {str(path):s}"
                                             t_log = f"{t_log:s} [L:{len(path.insts):d},P:{len(path.phiis):d},B:{len(path.bdeps):d}]!"
@@ -590,7 +590,7 @@ class PathService(WorkerService):
         | bn.MediumLevelILTailcallSsa
         | None,
         manual_fun_all_code_xrefs: bool,
-        path_callback: Callable[[Path], None] = lambda _: None,
+        path_callback: Callable[[List[Path]], None] = lambda _: None,
         progress_callback: Callable[[str, str, int], None] = lambda _, __, ___: None,
     ) -> List[Path]:
         """
@@ -747,7 +747,7 @@ class PathService(WorkerService):
         | bn.MediumLevelILTailcallUntypedSsa
         | None = None,
         manual_fun_all_code_xrefs: bool = False,
-        path_callback: Callable[[Path], None] = lambda _: None,
+        path_callback: Callable[[List[Path]], None] = lambda _: None,
         progress_callback: Callable[[str, str, int], None] = lambda _, __, ___: None,
     ) -> None:
         """

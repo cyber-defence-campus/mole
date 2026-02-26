@@ -112,14 +112,14 @@ class SidebarController:
             )
         )
         # Connect path model signals
-        self.path_ctr.path_proxy_model.rowsInserted.connect(
-            self.path_ctr.path_view.path_tree_view.refresh_view
-        )
         self.path_ctr.path_proxy_model.modelReset.connect(
             self.path_ctr.path_view.path_tree_view.refresh_view
         )
         self.path_ctr.path_proxy_model.dataChanged.connect(
             self.path_ctr.path_view.path_tree_view.handle_comment_edit
+        )
+        self.path_ctr.path_proxy_model.path_tree_model.signal_paths_updated.connect(
+            self.path_ctr.path_view.path_tree_view.refresh_view
         )
         self.path_ctr.path_proxy_model.path_tree_model.dataChanged.connect(
             lambda: self.path_ctr.give_feedback("Save", "Save*", "Save*", 0)

@@ -106,6 +106,8 @@ class PathTreeModel(qtui.QStandardItemModel):
     This class implements a tree model for Mole's paths.
     """
 
+    signal_paths_updated = qtc.Signal()
+
     def __init__(self) -> None:
         """
         This method initializes the path tree model.
@@ -331,37 +333,74 @@ class PathTreeModel(qtui.QStandardItemModel):
         ]
         return path_row
 
-    def add_path(self, path: Path, path_grouper: PathGrouper | None) -> None:
+    def add_paths(self, paths: List[Path], path_grouper: PathGrouper | None) -> None:
         """
-        This method adds the given path to the model using the given grouper.
+        This method adds the given paths to the model using the given grouper.
         """
-        # Increment path ID and add to map
-        self._path_id += 1
-        self._path_map[self._path_id] = path
-        # Get group keys
-        if path_grouper is not None:
-            group_keys = path_grouper.get_group_keys(path)
-        else:
-            group_keys = []
-        # Create group items
-        parent_item = self
-        for display_name, internal_id, level in group_keys:
-            # Create group item if it does not yet exist and add it to its parent item
-            if internal_id not in self._group_items:
-                group_item = self._create_group_item(display_name, level)
-                bn.execute_on_main_thread_and_wait(
-                    lambda: parent_item.appendRow(group_item)
-                )
-                self._group_items[internal_id] = group_item
-            # Update parent item for the next iteration
-            parent_item = self._group_items[internal_id]
-        # Create path items
-        path_items = self._create_path_items(path, self._path_id)
-        bn.execute_on_main_thread_and_wait(lambda: parent_item.appendRow(path_items))
-        # Emit data change signal
-        bn.execute_on_main_thread(
-            lambda: self.dataChanged.emit(qtc.QModelIndex(), qtc.QModelIndex())
-        )
+        # Add new groups items to the model and map path items to their group
+        path_items_map: Dict[str, List[List[qtui.QStandardItem]]] = {}
+        for path in paths:
+            # Increment path ID and store path
+            self._path_id += 1
+            self._path_map[self._path_id] = path
+            # Add new group items to the model and store path items to the correct group
+            group_name = ""
+            parent_group_item: qtui.QStandardItem | None = None
+            group_keys = (
+                path_grouper.get_group_keys(path) if path_grouper is not None else []
+            )
+            for display_name, internal_name, level in group_keys:
+                group_item = self._group_items.get(internal_name, None)
+                # Create the group items that do not yet exist and add them to the model
+                if group_item is None:
+                    # Create and store new group item
+                    group_item = self._create_group_item(display_name, level)
+                    self._group_items[internal_name] = group_item
+
+                    # Add new group item to the model
+                    def _add_group_item(item: qtui.QStandardItem) -> None:
+                        # Add new group item to the root item
+                        if parent_group_item is None:
+                            self.appendRow(item)
+                        # Add new group item to its parent group item
+                        else:
+                            parent_group_item.appendRow(item)
+                        return
+
+                    bn.execute_on_main_thread_and_wait(
+                        lambda: _add_group_item(group_item)
+                        if group_item is not None
+                        else None
+                    )
+                # Update the path's group name
+                group_name = internal_name
+                # Update the parent group item for the next iteration
+                parent_group_item = group_item
+            # Create path items and map them to their group item
+            path_items = self._create_path_items(path, self._path_id)
+            path_items_map.setdefault(group_name, []).append(path_items)
+        # Add path items to the model
+        for group_name, path_items_list in path_items_map.items():
+            group_item = self._group_items.get(group_name, None)
+
+            # Add new path items to the model
+            def _add_path_items() -> None:
+                # Signal upcoming layout change
+                self.layoutAboutToBeChanged.emit()
+                # Add new path items to the root item
+                if group_item is None:
+                    for path_items in path_items_list:
+                        self.appendRow(path_items)
+                # Add new path items to their parent group item
+                else:
+                    for path_items in path_items_list:
+                        group_item.appendRow(path_items)
+                # Signal layout change and paths update
+                self.layoutChanged.emit()
+                self.signal_paths_updated.emit()
+                return
+
+            bn.execute_on_main_thread_and_wait(lambda: _add_path_items())
         return
 
     def add_path_report(self, path_id: int, ai_report: AiVulnerabilityReport) -> None:
@@ -467,7 +506,9 @@ class PathTreeModel(qtui.QStandardItemModel):
             _update_item_recursively(self.item(row, 0), row, [])
         return
 
-    def regroup_paths(self, path_grouper: PathGrouper | None) -> None:
+    def regroup_paths(
+        self, path_grouper: PathGrouper | None, batch_size: int = 100
+    ) -> None:
         """
         This method regroups all paths in the model using the given grouper.
         """
@@ -475,9 +516,10 @@ class PathTreeModel(qtui.QStandardItemModel):
         paths = self.paths
         # Clear paths
         self.clear_paths()
-        # Re-add paths
-        for path in paths:
-            self.add_path(path, path_grouper)
+        # Re-add paths in batches with new grouping strategy
+        for i in range(0, len(paths), batch_size):
+            paths_batch = paths[i : i + batch_size]
+            self.add_paths(paths_batch, path_grouper)
         return
 
     def _remove_empty_groups(self) -> None:

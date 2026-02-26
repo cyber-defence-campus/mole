@@ -108,13 +108,13 @@ class PathController:
         path_tree_model = cast(PathTreeModel, self.path_proxy_model.sourceModel())
         return path_tree_model.get_path(path_id)
 
-    def add_path(self, path: Path) -> None:
+    def add_paths(self, paths: List[Path]) -> None:
         """
-        This method adds the given path to the model.
+        This method adds the given paths to the model.
         """
         path_grouper = self.path_service.get_path_grouper()
         path_tree_model = cast(PathTreeModel, self.path_proxy_model.sourceModel())
-        path_tree_model.add_path(path, path_grouper)
+        path_tree_model.add_paths(paths, path_grouper)
         return
 
     def add_path_report(self, path_id: int, ai_report: AiVulnerabilityReport) -> None:
@@ -186,7 +186,7 @@ class PathController:
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
-            path_callback=self.add_path,
+            path_callback=self.add_paths,
             progress_callback=lambda tmp_text, new_text, msec: self.give_feedback(
                 "Find", tmp_text, new_text, msec
             ),
@@ -215,7 +215,7 @@ class PathController:
             )
         return err_msg
 
-    def load_paths(self) -> None:
+    def load_paths(self, batch_size: int = 100) -> None:
         """
         This method loads paths from the binary's database.
         """
@@ -249,6 +249,7 @@ class PathController:
                 s_paths: List[Dict] = json.loads(
                     str(self.bv.query_metadata("mole_paths"))
                 )
+                paths: List[Path] = []
                 for i, s_path in enumerate(s_paths, start=1):
                     try:
                         # Check if user cancelled the background task
@@ -260,17 +261,29 @@ class PathController:
                                 tag,
                                 f"Path #{i:d} seems to origin from another binary",
                             )
-                        # Deserialize and add path
+                        # Deserialize path
                         path = Path.from_dict(self.bv, s_path)
+                        # Add single path or append to batch
                         if path is not None:
-                            self.add_path(path.update())
-                            # Increment loaded path counter
+                            # Add single path
+                            if len(s_paths) <= batch_size:
+                                self.add_paths([path.update()])
+                            # Add paths to batch
+                            else:
+                                paths.append(path.update())
                             cnt_loaded_paths += 1
+                        # Add batch of paths
+                        if len(paths) >= batch_size:
+                            self.add_paths(paths)
+                            paths.clear()
                         self.give_feedback(
                             "Load", "", f"Cancel [{i / len(s_paths):.0%}]", 0
                         )
                     except Exception as e:
                         self.log.error(tag, f"Failed to load path #{i:d}: {str(e):s}")
+                # Add remaining paths
+                if len(paths) > 0:
+                    self.add_paths(paths)
             except KeyError:
                 pass
             except Exception as e:
@@ -336,7 +349,7 @@ class PathController:
         )
         return
 
-    def import_paths(self) -> None:
+    def import_paths(self, batch_size: int = 100) -> None:
         """
         This method imports paths from a file.
         """
@@ -375,6 +388,7 @@ class PathController:
                         cnt_total_paths += 1
                 # Iteratively import paths from the JSON file
                 with open(filepath, "r") as f:
+                    paths: List[Path] = []
                     for i, s_path in enumerate(ijson.items(f, "item"), start=1):
                         try:
                             # Check if user cancelled the background task
@@ -386,15 +400,28 @@ class PathController:
                                     tag,
                                     f"Path #{i:d} seems to origin from another binary",
                                 )
-                            # Deserialize and add path
+                            # Deserialize path
                             path = Path.from_dict(self.bv, s_path)
+                            # Add single path or append to batch
                             if path is not None:
-                                self.add_path(path.update())
+                                # Add single path
+                                if cnt_total_paths <= batch_size:
+                                    self.add_paths([path.update()])
+                                # Add paths to batch
+                                else:
+                                    paths.append(path.update())
                                 cnt_imported_paths += 1
+                            # Add batch of paths
+                            if len(paths) >= batch_size:
+                                self.add_paths(paths)
+                                paths.clear()
                         except Exception as e:
                             self.log.error(
                                 tag, f"Failed to import path #{i:d}: {str(e):s}"
                             )
+                    # Add remaining paths
+                    if len(paths) > 0:
+                        self.add_paths(paths)
             except Exception as e:
                 self.log.error(tag, f"Failed to import paths: {str(e):s}")
             self.log.info(tag, f"Imported {cnt_imported_paths:d} path(s)")
