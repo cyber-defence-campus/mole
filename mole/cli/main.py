@@ -157,6 +157,26 @@ def main() -> None:
                 )
                 + 1
             )
+        sources: Dict[str, List[str]] = {}
+        for lib_name in config_model.get_libraries("Sources").keys():
+            src_funcs = [
+                func.name
+                for func in config_model.get_functions(
+                    lib_name=lib_name, fun_type="Sources", fun_enabled=True
+                )
+            ]
+            if src_funcs:
+                sources.setdefault(lib_name, []).extend(src_funcs)
+        sinks: Dict[str, List[str]] = {}
+        for lib_name in config_model.get_libraries("Sinks").keys():
+            snk_funcs = [
+                func.name
+                for func in config_model.get_functions(
+                    lib_name=lib_name, fun_type="Sinks", fun_enabled=True
+                )
+            ]
+            if snk_funcs:
+                sinks.setdefault(lib_name, []).extend(snk_funcs)
         # Output summary of results in machine-readable format
         print(
             json.dumps(
@@ -165,18 +185,8 @@ def main() -> None:
                     / 1000,
                     "paths_total": len(paths),
                     "paths_stats": paths_stats,
-                    "sources": [
-                        func.name
-                        for func in config_model.get_functions(
-                            fun_type="Sources", fun_enabled=True
-                        )
-                    ],
-                    "sinks": [
-                        func.name
-                        for func in config_model.get_functions(
-                            fun_type="Sinks", fun_enabled=True
-                        )
-                    ],
+                    "sources": sources,
+                    "sinks": sinks,
                 },
                 indent=2,
             )
