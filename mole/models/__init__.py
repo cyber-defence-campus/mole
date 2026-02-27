@@ -1,9 +1,12 @@
 from __future__ import annotations
 from enum import Enum
-from typing import List
+from typing import List, Type
 
 
 class IndexedLabeledEnum(Enum):
+    _label: str
+    _value: int
+
     def __new__(cls, index: int, label: str = "") -> IndexedLabeledEnum:
         obj = object.__new__(cls)
         obj._value_ = index
@@ -19,14 +22,14 @@ class IndexedLabeledEnum(Enum):
         return self._label
 
     @classmethod
-    def indexes(cls: IndexedLabeledEnum) -> List[int]:
+    def indexes(cls: Type[IndexedLabeledEnum]) -> List[int]:
         """
         This method returns a list with the enum members' indexes.
         """
         return [member._value_ for member in cls]
 
     @classmethod
-    def labels(cls: IndexedLabeledEnum) -> List[str]:
+    def labels(cls: Type[IndexedLabeledEnum]) -> List[str]:
         """
         This method returns a list with the enum members' labels.
         """

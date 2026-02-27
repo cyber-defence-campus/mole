@@ -1,9 +1,13 @@
 from __future__ import annotations
-from mole.core.data import Category, Configuration, Library
-from mole.core.data import SinkFunction, SourceFunction
-from mole.core.data import (
+from mole.common.log import Logger
+from mole.data.config import (
+    Category,
     ComboboxSetting,
+    Configuration,
     DoubleSpinboxSetting,
+    Library,
+    SinkFunction,
+    SourceFunction,
     SpinboxSetting,
     TextSetting,
 )
@@ -25,7 +29,7 @@ def temp_file() -> Generator[IO[str], None, None]:
 @pytest.fixture
 def config_service() -> ConfigService:
     """Provides a ConfigService instance."""
-    return ConfigService()
+    return ConfigService(Logger())
 
 
 @pytest.fixture
@@ -137,18 +141,18 @@ def test_config() -> Configuration:
                 items=["Call Graph", "Source / Sink", "None"],
                 help="strategy used to group paths",
             ),
-            "openai_base_url": TextSetting(
-                name="openai_base_url",
+            "base_url": TextSetting(
+                name="base_url",
                 value="https://api.openai.com/v1",
                 help="OpenAI API base URL",
             ),
-            "openai_api_key": TextSetting(
-                name="openai_api_key",
+            "api_key": TextSetting(
+                name="api_key",
                 value="",
                 help="OpenAI API key",
             ),
-            "openai_model": TextSetting(
-                name="openai_model",
+            "model": TextSetting(
+                name="model",
                 value="o4-mini",
                 help="OpenAI model",
             ),

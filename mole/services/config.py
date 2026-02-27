@@ -1,7 +1,7 @@
 from __future__ import annotations
-from mole.common.log import log
+from mole.common.log import Logger
 from mole.common.parse import LogicalExpressionParser
-from mole.core.data import (
+from mole.data.config import (
     Category,
     CheckboxSetting,
     ComboboxSetting,
@@ -20,23 +20,24 @@ import os as os
 import yaml as yaml
 
 
-tag = "Mole.Config"
+tag = "Config"
 
 
 class ConfigService:
     """
-    This class implements a service to handle Mole's configuration.
+    This class implements a service for Mole's configuration.
     """
 
-    def __init__(self, config_file: str = "") -> None:
+    def __init__(self, log: Logger, config_file: str = "") -> None:
         """
-        This method initializes a configuration service.
+        This method initializes the configuration service.
         """
+        self.log = log
         self._config_file = config_file
         self._config_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "../conf/"
         )
-        self._parser = LogicalExpressionParser()
+        self._parser = LogicalExpressionParser(self.log)
         return
 
     def _parse_config(
@@ -67,9 +68,15 @@ class ConfigService:
                                     fun = SinkFunction(name=fun_name, **fun)
                                 case _:
                                     continue
-                            fun.par_cnt_fun = self._parser.parse(fun.par_cnt)
-                            fun.par_dataflow_fun = self._parser.parse(fun.par_dataflow)
-                            fun.par_slice_fun = self._parser.parse(fun.par_slice)
+                            fun.par_cnt_fun = self._parser.parse(fun.par_cnt) or (
+                                lambda _: False
+                            )
+                            fun.par_dataflow_fun = self._parser.parse(
+                                fun.par_dataflow
+                            ) or (lambda _: False)
+                            fun.par_slice_fun = self._parser.parse(fun.par_slice) or (
+                                lambda _: False
+                            )
                             fun.enabled = fun.enabled if not ignore_enabled else False
                             cat_functions[fun_name] = fun
                         lib_categories[cat_name] = Category(cat_name, cat_functions)
@@ -84,7 +91,7 @@ class ConfigService:
                 "max_turns",
                 "max_completion_tokens",
             ]:
-                setting: Dict = settings.get(name, None)
+                setting: Dict = settings.get(name, {})
                 if not setting:
                     continue
                 try:
@@ -93,13 +100,15 @@ class ConfigService:
                     value = min(max(setting["value"], min_value), max_value)
                     help = setting["help"]
                 except KeyError as e:
-                    log.warn(
+                    self.log.warn(
                         tag,
                         f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
                     )
                     continue
                 except Exception as e:
-                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    self.log.warn(
+                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
+                    )
                     continue
                 parsed_config["settings"].update(
                     {
@@ -113,20 +122,22 @@ class ConfigService:
                     }
                 )
             for name in ["fix_func_type"]:
-                setting: Dict = settings.get(name, None)
+                setting: Dict = settings.get(name, {})
                 if not setting:
                     continue
                 try:
                     value = setting["value"]
                     help = setting["help"]
                 except KeyError as e:
-                    log.warn(
+                    self.log.warn(
                         tag,
                         f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
                     )
                     continue
                 except Exception as e:
-                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    self.log.warn(
+                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
+                    )
                     continue
                 parsed_config["settings"].update(
                     {
@@ -138,7 +149,7 @@ class ConfigService:
                     }
                 )
             for name in ["temperature"]:
-                setting: Dict = settings.get(name, None)
+                setting: Dict = settings.get(name, {})
                 if not setting:
                     continue
                 try:
@@ -147,13 +158,15 @@ class ConfigService:
                     value = min(max(setting["value"], min_value), max_value)
                     help = setting["help"]
                 except KeyError as e:
-                    log.warn(
+                    self.log.warn(
                         tag,
                         f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
                     )
                     continue
                 except Exception as e:
-                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    self.log.warn(
+                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
+                    )
                     continue
                 parsed_config["settings"].update(
                     {
@@ -167,20 +180,22 @@ class ConfigService:
                     }
                 )
             for name in ["src_highlight_color", "snk_highlight_color", "path_grouping"]:
-                setting = settings.get(name, None)
+                setting = settings.get(name, {})
                 if not setting:
                     continue
                 try:
                     value = setting["value"]
                     help = setting["help"]
                 except KeyError as e:
-                    log.warn(
+                    self.log.warn(
                         tag,
                         f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
                     )
                     continue
                 except Exception as e:
-                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    self.log.warn(
+                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
+                    )
                     continue
                 if name == "path_grouping":
                     items = get_all_grouping_strategies()
@@ -193,27 +208,29 @@ class ConfigService:
                         )
                     }
                 )
-            for name in ["openai_base_url", "openai_api_key", "openai_model"]:
-                setting = settings.get(name, None)
+            for name in ["base_url", "api_key", "model"]:
+                setting = settings.get(name, {})
                 if not setting:
                     continue
                 try:
                     value = setting["value"]
                     help = setting["help"]
                 except KeyError as e:
-                    log.warn(
+                    self.log.warn(
                         tag,
                         f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
                     )
                     continue
                 except Exception as e:
-                    log.warn(tag, f"Failed to parse setting '{name:s}': {str(e):s}")
+                    self.log.warn(
+                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
+                    )
                     continue
                 parsed_config["settings"].update(
                     {name: TextSetting(name=name, value=value, help=help)}
                 )
         except Exception as e:
-            log.warn(tag, f"Failed to parse configuration: '{str(e):s}'")
+            self.log.warn(tag, f"Failed to parse configuration: '{str(e):s}'")
         return Configuration(**parsed_config)
 
     def load_config(self) -> Configuration:
@@ -322,9 +339,9 @@ class ConfigService:
             config = self._parse_config(config_dict, ignore_enabled)
             return config
         except FileNotFoundError:
-            log.warn(tag, f"Configuration file '{config_file:s}' not found")
+            self.log.warn(tag, f"Configuration file '{config_file:s}' not found")
         except Exception as e:
-            log.warn(
+            self.log.warn(
                 tag,
                 f"Failed to parse configuration file '{config_file:s}': '{str(e):s}'",
             )
@@ -364,6 +381,8 @@ class ConfigService:
                 case "sinks":
                     new_libs = source.sinks
                     old_libs = target.sinks
+                case _:
+                    continue
             for new_lib_name, new_lib in new_libs.items():
                 if new_lib_name not in old_libs:
                     old_libs[new_lib_name] = new_lib

@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import deque
 from functools import lru_cache
 from mole.common.helper.instruction import InstructionHelper
-from typing import Dict, List, Optional, Set, Tuple
+from typing import cast, Dict, List, Set, Tuple
 import binaryninja as bn
 
 
@@ -97,7 +97,6 @@ class FunctionHelper:
 
     @staticmethod
     def get_mlil_indirect_call_insts(
-        bv: bn.BinaryView,
         func: bn.MediumLevelILFunction,
     ) -> Set[
         bn.MediumLevelILCallSsa
@@ -116,12 +115,12 @@ class FunctionHelper:
             | bn.MediumLevelILTailcallUntypedSsa
         ] = set()
         # Iterate all data references of `func`
+        bv = func.view
         data_refs = bv.get_data_refs(func.source_function.start)
         for data_ref in data_refs:
             # Ensure a valid function pointer is stored at the data reference
             func_ptr = bv.read_pointer(data_ref)
-            func = bv.get_function_at(func_ptr)
-            if func is None:
+            if bv.get_function_at(func_ptr) is None:
                 continue
             # Ensure a valid data variable is stored at the data reference
             data_var = bv.get_data_var_at(data_ref)
@@ -129,7 +128,7 @@ class FunctionHelper:
                 continue
             # Get data variable's type name and offset
             try:
-                name = data_var.type.name
+                name = data_var.type.name.name[0]
                 offset = data_ref - data_var.address
             except Exception:
                 continue
@@ -148,6 +147,8 @@ class FunctionHelper:
                         if ref_func.mlil is None or ref_func.mlil.ssa_form is None:
                             continue
                     # Iterate all call sites of (instructions calling) the referenced function
+                    if ref_func.mlil is None or ref_func.mlil.ssa_form is None:
+                        continue
                     ref_func = ref_func.mlil.ssa_form
                     for call_site in ref_func.source_function.call_sites:
                         for inst in call_site.mlils:
@@ -178,23 +179,23 @@ class FunctionHelper:
     @lru_cache(maxsize=maxsize)
     def get_mlil_param_insts(
         func: bn.MediumLevelILFunction,
-    ) -> List[Optional[bn.MediumLevelILVarSsa]]:
+    ) -> List[bn.MediumLevelILVarSsa | None]:
         """
         This method returns a list of `MediumLevelILVarSsa` instructions that correspond to the
         parameters of function `func`. The order of the returned instructions corresponds to the one
         of the parameters in the function signature.
         """
         param_vars = list(func.source_function.parameter_vars)
-        param_insts = len(param_vars) * [None]
+        param_insts: List[bn.MediumLevelILVarSsa | None] = [None] * len(param_vars)
 
-        func = func.ssa_form
-        if func is None:
+        if func is None or func.ssa_form is None:
             return param_insts
+        func = func.ssa_form
 
         # Find instructions corresponding to the function parameters
         def find_mlil_param_inst(
-            inst: bn.MediumLevelILInstruction,
-        ) -> Tuple[int, Optional[bn.MediumLevelILVarSsa]]:
+            inst: bn.MediumLevelILInstruction, *args, **kwargs
+        ) -> Tuple[int, bn.MediumLevelILVarSsa | None]:
             if isinstance(inst, bn.MediumLevelILVarSsa):
                 if inst.var.var in param_vars:
                     return (param_vars.index(inst.var.var), inst)
@@ -227,8 +228,8 @@ class FunctionHelper:
 
         # Find MLIL variable assignments
         def find_mlil_var_assignments(
-            inst: bn.MediumLevelILInstruction,
-        ) -> Tuple[Optional[bn.SSAVariable], Optional[bn.SSAVariable]]:
+            inst: bn.MediumLevelILInstruction, *args, **kwargs
+        ) -> Tuple[bn.SSAVariable | None, bn.SSAVariable | None]:
             match inst:
                 case bn.MediumLevelILSetVarSsa(
                     dest=dest_ssa_var, src=bn.MediumLevelILVarSsa(src=src_ssa_var)
@@ -269,20 +270,20 @@ class FunctionHelper:
         func: bn.MediumLevelILFunction, param_idxs: frozenset[int]
     ) -> Dict[
         bn.SSAVariable,
-        Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+        Tuple[bn.HighLevelILVar | bn.HighLevelILAddressOf | None, int],
     ]:
         ptr_map: Dict[
             bn.SSAVariable,
-            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+            Tuple[bn.HighLevelILVar | bn.HighLevelILAddressOf | None, int],
         ] = {}
 
         # Find MLIL SSA variables corresponding to pointers and their corresponding HLIL_VAR /
         # HLIL_ADDRESS_OF instructions
         def find_mlil_ptrs(
-            inst: bn.MediumLevelILInstruction,
+            inst: bn.MediumLevelILInstruction, *args, **kwargs
         ) -> Tuple[
-            Optional[bn.SSAVariable],
-            Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf],
+            bn.SSAVariable | None,
+            bn.HighLevelILVar | bn.HighLevelILAddressOf | None,
         ]:
             match inst:
                 case bn.MediumLevelILSetVarSsa(
@@ -323,16 +324,16 @@ class FunctionHelper:
                                 if isinstance(src_inst.hlil, bn.HighLevelILVar)
                                 else None
                             )
-                            return src_ssa_var, src_inst.hlil
+                            return src_ssa_var, ptr_inst
             return None, None
 
         # Find MLIL SSA variables corresponding to pointers with offsets and their corresponding
         # HLIL_VAR / HLIL_ADDRESS_OF instructions
         def find_mlil_ptrs_offsets(
-            inst: bn.MediumLevelILInstruction,
+            inst: bn.MediumLevelILInstruction, *args, **kwargs
         ) -> Tuple[
-            Optional[bn.SSAVariable],
-            Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+            bn.SSAVariable | None,
+            Tuple[bn.HighLevelILVar | bn.HighLevelILAddressOf | None, int],
         ]:
             match inst:
                 case bn.MediumLevelILSetVarSsa(
@@ -427,8 +428,10 @@ class FunctionHelper:
         # Find pointers (without offsets) in the function and add them to the pointer map
         for mlil_ptr_ssa_var, hlil_ptr_inst in func.traverse(find_mlil_ptrs):
             # Get the pointer's MLIL SSA variable and HLIL instruction
-            mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
-            hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
+            mlil_ptr_ssa_var = cast(bn.SSAVariable | None, mlil_ptr_ssa_var)
+            hlil_ptr_inst = cast(
+                bn.HighLevelILVar | bn.HighLevelILAddressOf | None, hlil_ptr_inst
+            )
             if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
                 continue
             # Add pointer to the pointer map
@@ -443,9 +446,11 @@ class FunctionHelper:
             find_mlil_ptrs_offsets
         ):
             # Get the pointer's MLIL SSA variable, HLIL instruction and offset
-            mlil_ptr_ssa_var = mlil_ptr_ssa_var  # type: Optional[bn.SSAVariable]
-            hlil_ptr_inst = hlil_ptr_inst  # type: Optional[bn.HighLevelILInstruction]
-            hlil_ptr_offset = hlil_ptr_offset  # type: int
+            mlil_ptr_ssa_var = cast(bn.SSAVariable | None, mlil_ptr_ssa_var)
+            hlil_ptr_inst = cast(
+                bn.HighLevelILVar | bn.HighLevelILAddressOf | None, hlil_ptr_inst
+            )
+            hlil_ptr_offset = cast(int, hlil_ptr_offset)
             if mlil_ptr_ssa_var is None or hlil_ptr_inst is None:
                 continue
             # Add pointer to the pointer map
@@ -464,7 +469,7 @@ class FunctionHelper:
         param_idxs: Set[int] = set(),
     ) -> Dict[
         bn.SSAVariable,
-        Tuple[Optional[bn.HighLevelILVar | bn.HighLevelILAddressOf], int],
+        Tuple[bn.HighLevelILVar | bn.HighLevelILAddressOf | None, int],
     ]:
         """
         This method finds MLIL SSA variables in function `func` that correspond to pointers.
@@ -477,9 +482,9 @@ class FunctionHelper:
             return {}
         func = func.ssa_form
         # Make parameter indices immutable
-        param_idxs = frozenset(param_idxs) if param_idxs else frozenset({0})
+        _param_idxs = frozenset(param_idxs) if param_idxs else frozenset({0})
         # Find pointers in the function and add them to the pointer map
-        return FunctionHelper._get_ptr_map(func, param_idxs)
+        return FunctionHelper._get_ptr_map(func, _param_idxs)
 
     @staticmethod
     @lru_cache(maxsize=maxsize)
@@ -524,17 +529,18 @@ class FunctionHelper:
 
     @staticmethod
     def get_mlil_synthetic_call_inst(
-        bv: bn.BinaryView,
         func: bn.MediumLevelILFunction,
-    ) -> Optional[bn.MediumLevelILCallSsa]:
+    ) -> bn.MediumLevelILCall | None:
         """
         This method builds a synthetic call instruction for the function `func` in SSA form.
         """
         func_addr = func.source_function.start
-        call_dest = func.const_pointer(bv.address_size, func_addr)
+        call_dest = func.const_pointer(func.view.address_size, func_addr)
         param_insts = FunctionHelper.get_mlil_param_insts(func)
         call_params = [
-            param_inst.expr_index if param_inst is not None else -1
+            param_inst.expr_index
+            if param_inst is not None
+            else bn.mediumlevelil.ExpressionIndex(-1)
             for param_inst in param_insts
         ]
         expr_idx = func.call(
@@ -544,7 +550,9 @@ class FunctionHelper:
             loc=bn.ILSourceLocation(func_addr, 0),
         )
         call_inst = func.get_expr(expr_idx)
-        return call_inst
+        if isinstance(call_inst, bn.MediumLevelILCall):
+            return call_inst
+        return None
 
     @staticmethod
     @lru_cache(maxsize=maxsize)
@@ -567,7 +575,11 @@ class FunctionHelper:
         """
         This method returns the pseudo C code of the function `func`.
         """
-        if not func or func.pseudo_c_if_available is None:
+        if (
+            func.hlil is None
+            or func.hlil.root is None
+            or func.pseudo_c_if_available is None
+        ):
             return ""
         code_lines = []
         for code_line in func.pseudo_c_if_available.get_linear_lines(func.hlil.root):

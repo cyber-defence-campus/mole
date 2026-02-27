@@ -2,83 +2,74 @@ from __future__ import annotations
 from concurrent import futures
 from datetime import datetime
 from mole.common.helper.instruction import InstructionHelper
-from mole.common.log import log
-from mole.common.task import BackgroundTask
-from mole.core.data import Path
+from mole.common.log import Logger
+from mole.common.worker import WorkerService
+from mole.data.ai import tools
+from mole.data.config import DoubleSpinboxSetting, SpinboxSetting, TextSetting
 from mole.models.ai import (
     AiVulnerabilityReport,
-    SeverityLevel,
-    tools,
     VulnerabilityClass,
     VulnerabilityReport,
+    SeverityLevel,
 )
+from mole.models.config import ConfigModel
 from openai import OpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,
+    ChatCompletionFunctionToolParam,
     ParsedChatCompletionMessage,
     ParsedFunctionToolCall,
 )
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, cast, Dict, Iterable, List, Tuple, TYPE_CHECKING
 import binaryninja as bn
 import json
 import os
 import random
 import textwrap
 
+if TYPE_CHECKING:
+    from mole.data.path import Path
 
-tag = "Mole.AI"
+tag = "Ai"
 
 
-class AiService(BackgroundTask):
+class AiService(WorkerService):
     """
-    This class implements a background task that analyzes paths using AI.
+    This class implements a service for Mole's AI.
     """
 
     def __init__(
-        self,
-        bv: bn.BinaryView,
-        paths: List[Tuple[int, Path]],
-        analyzed_path: Callable[[int, AiVulnerabilityReport], None],
-        max_workers: Optional[int],
-        base_url: str,
-        api_key: str,
-        model: str,
-        max_turns: int,
-        max_completion_tokens: int,
-        temperature: float,
-        initial_progress_text: str = "",
-        can_cancel: bool = False,
+        self, bv: bn.BinaryView, log: Logger, config_model: ConfigModel
     ) -> None:
         """
         This method initializes the AI service.
         """
-        super().__init__(initial_progress_text, can_cancel)
-        self._bv = bv
-        self._paths = paths
-        self._analyzed_path = analyzed_path
-        self._max_workers = max_workers
-        self._base_url = base_url
-        self._api_key = api_key
-        self._model = model
-        self._max_turns = max_turns
-        self._max_completion_tokens = max_completion_tokens
-        self._temperature = temperature
-        self._tools = [tool.to_dict() for tool in tools.values()]
+        super().__init__()
+        self.bv = bv
+        self.log = log
+        self.config_model = config_model
+        self._tools = [
+            ChatCompletionFunctionToolParam(**tool.to_dict()) for tool in tools.values()
+        ]
         return
 
-    def _create_openai_client(self, custom_tag: str = tag) -> Optional[OpenAI]:
+    def _create_openai_client(
+        self, base_url: str, api_key: str, custom_tag: str
+    ) -> OpenAI | None:
         """
         This method creates a new OpenAI client.
         """
         client = None
-        if self._base_url and self._api_key:
+        if base_url and api_key:
             try:
-                client = OpenAI(base_url=self._base_url, api_key=self._api_key)
+                client = OpenAI(base_url=base_url, api_key=api_key)
             except Exception as e:
-                log.error(custom_tag, f"Failed to create OpenAI client: {str(e):s}")
+                self.log.error(
+                    custom_tag, f"Failed to create OpenAI client: {str(e):s}"
+                )
         return client
 
-    def _create_system_prompt(self) -> str:
+    def _create_system_prompt(self, max_turns: int) -> str:
         vuln_class_lst = "\n".join(
             f"   - `{vuln_class:s}`" for vuln_class in list(VulnerabilityClass)
         )
@@ -103,14 +94,14 @@ Perform the following steps:
 Use the following tools to support your analysis:
 {tool_lst:s}
 
-Be proactive in exploring upstream paths, analyzing data/control dependencies, and reasoning about practical exploitability. You have {str(self._max_turns):s} turns to complete your assessment.
+Be proactive in exploring upstream paths, analyzing data/control dependencies, and reasoning about practical exploitability. You have {max_turns:d} turns to complete your assessment.
 """
         )
         return prompt
 
     def _create_user_prompt(self, path: Path) -> str:
         # Filename
-        filename = os.path.basename(self._bv.file.filename)
+        filename = os.path.basename(self.bv.file.filename)
         if filename.endswith(".bndb"):
             filename = filename[:-5]
         # Function names and addresses
@@ -144,7 +135,11 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 inst_basic_block = inst.il_basic_block
                 if inst_basic_block != basic_block:
                     basic_block = inst_basic_block
-                    fun_name = basic_block.function.symbol.short_name
+                    fun_name = (
+                        basic_block.function.symbol.short_name
+                        if basic_block.function is not None
+                        else "unknown"
+                    )
                     bb_addr = basic_block[0].address
                     prompt += (
                         f"{custom_tag:s} - FUN: '{fun_name:s}', BB: 0x{bb_addr:x}\n"
@@ -167,9 +162,12 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         self,
         client: OpenAI,
         messages: Iterable[ChatCompletionMessageParam],
+        model: str,
+        max_completion_tokens: int | None,
+        temperature: float | None,
         token_usage: Dict[str, int],
         custom_tag: str = tag,
-    ) -> Optional[ParsedChatCompletionMessage]:
+    ) -> ParsedChatCompletionMessage | None:
         """
         This method sends the given messages to the OpenAI client and returns the completion
         message.
@@ -179,10 +177,10 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
             # Send messages and receive completion message
             completion = client.beta.chat.completions.parse(
                 messages=messages,
-                model=self._model,
+                model=model,
                 tools=self._tools,
-                max_completion_tokens=self._max_completion_tokens,
-                temperature=self._temperature,
+                max_completion_tokens=max_completion_tokens,
+                temperature=temperature,
                 response_format=VulnerabilityReport,
             )
             message = completion.choices[0].message
@@ -191,7 +189,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 token_usage["completion_tokens"] += completion.usage.completion_tokens
                 token_usage["total_tokens"] += completion.usage.total_tokens
         except Exception as e:
-            log.error(custom_tag, f"Failed to send messages: {str(e):s}")
+            self.log.error(custom_tag, f"Failed to send messages: {str(e):s}")
         return message
 
     def _execute_tool_call(
@@ -204,11 +202,14 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         result = None
         try:
             args = json.loads(func_args)
-            args["bv"] = self._bv
+            args["bv"] = self.bv
+            args["log"] = self.log
             args["tag"] = custom_tag
-            result = tools[func_name].handler(**args)
+            tool = tools.get(func_name, None)
+            if tool is not None and tool.handler is not None:
+                result = tool.handler(**args)
         except Exception as e:
-            log.error(
+            self.log.error(
                 custom_tag,
                 f"Failed to execute tool call '{func_name:s}' with arguments '{func_args:s}': {str(e):s}",
             )
@@ -216,11 +217,11 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
 
     def _execute_tool_calls(
         self, tool_calls: List[ParsedFunctionToolCall], custom_tag: str = tag
-    ) -> List[Dict[str, str]]:
+    ) -> List[ChatCompletionMessageParam]:
         """
         This method executes the given tool calls and returns their results.
         """
-        results = []
+        results: List[ChatCompletionMessageParam] = []
         for tool_call in tool_calls:
             try:
                 if tool_call.type == "function":
@@ -234,7 +235,7 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                     content = "Error: Unsupported tool call type"
             except Exception as e:
                 content = f"Error: {str(e):s}"
-                log.error(
+                self.log.error(
                     custom_tag,
                     f"Failed to execute tool call '{tool_call.id:s}': {str(e):s}",
                 )
@@ -244,43 +245,60 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
         return results
 
     def _analyze_path(
-        self, path_id: int, path: Path
-    ) -> Optional[AiVulnerabilityReport]:
+        self,
+        path_id: int,
+        path: Path,
+        base_url: str = "",
+        api_key: str = "",
+        model: str = "",
+        max_turns: int = 0,
+        max_completion_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> AiVulnerabilityReport | None:
         """
-        This method analyzes a path using AI and returns a vulnerability report.
+        This method analyzes the given path with AI.
         """
         # Custom tag for logging
         custom_tag = f"{tag:s}] [Path:{path_id:d}"
         # Create OpenAI client
-        client = self._create_openai_client(custom_tag)
+        client = self._create_openai_client(base_url, api_key, custom_tag)
         # No OpenAI client available (mock mode)
         if client is None:
-            log.warn(
+            self.log.warn(
                 custom_tag, "Running in mock mode since no OpenAI client available"
             )
+            warning_txt = "--- WARNING ---\n"
+            warning_txt += "This report was generated in mock mode. Its severity and related details are randomly generated and do not reflect real findings.\n"
+            warning_txt += "--------------\n\n"
             vuln_report = AiVulnerabilityReport(
                 truePositive=random.choice([True, True, True, False]),
                 vulnerabilityClass=random.choice(list(VulnerabilityClass)),
-                shortExplanation="Mock mode simulates a potential vulnerability.",
+                shortExplanation=warning_txt + "Sample explanation",
                 severityLevel=random.choice(list(SeverityLevel)),
-                inputExample=f"0x{random.getrandbits(32):08x}",
+                inputExample=warning_txt + "Sample input example",
                 path_id=path_id,
                 model="mock-mode",
-                turns=random.randint(1, self._max_turns),
-                tool_calls=random.randint(1, self._max_turns * 2),
-                prompt_tokens=random.randint(1, self._max_completion_tokens),
-                completion_tokens=random.randint(1, self._max_completion_tokens),
-                total_tokens=random.randint(1, self._max_completion_tokens),
+                turns=random.randint(1, max_turns),
+                tool_calls=random.randint(1, max_turns * 2),
+                prompt_tokens=random.randint(1, 100000),
+                completion_tokens=random.randint(1, 100000),
+                total_tokens=random.randint(1, 100000),
                 temperature=random.uniform(0.0, 2.0),
                 timestamp=datetime.now(),
             )
         # OpenAI client available
         else:
             # Initial messages
-            messages = [
-                {"role": "system", "content": self._create_system_prompt()},
-                {"role": "user", "content": self._create_user_prompt(path)},
-            ]
+            messages = cast(
+                List[ChatCompletionMessageParam],
+                [
+                    {
+                        "role": "system",
+                        "content": self._create_system_prompt(max_turns),
+                    },
+                    {"role": "user", "content": self._create_user_prompt(path)},
+                ],
+            )
             # Conversation turns
             response = None
             cnt_tool_calls = 0
@@ -289,50 +307,63 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 "completion_tokens": 0,
                 "total_tokens": 0,
             }
-            for turn in range(1, self._max_turns + 1):
+            turn = 0
+            for turn in range(1, max_turns + 1):
                 # User cancellation
-                if self.cancelled:
-                    log.warn(custom_tag, f"Cancel conversation in turn {turn:d}")
+                if self.cancelled("analyze"):
+                    self.log.warn(custom_tag, f"Cancel conversation in turn {turn:d}")
                     return None
                 # Send messages and receive response
-                log.info(custom_tag, f"Sending messages in conversation turn {turn:d}")
+                self.log.info(
+                    custom_tag, f"Sending messages in conversation turn {turn:d}"
+                )
                 response = self._send_messages(
-                    client, messages, token_usage, custom_tag
+                    client,
+                    messages,
+                    model,
+                    max_completion_tokens,
+                    temperature,
+                    token_usage,
+                    custom_tag,
                 )
                 if not response:
-                    log.error(
+                    self.log.error(
                         custom_tag,
                         f"No response received in conversation turn {turn:d}",
                     )
                     return None
-                log.info(custom_tag, f"Received response in conversation turn {turn:d}")
-                # Add response to conversation messages
-                messages.append(
-                    {
-                        "role": response.role,
-                        "content": response.content,
-                        "tool_calls": [
-                            {
-                                "id": tool_call.id,
-                                "type": tool_call.type,
-                                "function": {
-                                    "name": tool_call.function.name,
-                                    "arguments": tool_call.function.arguments,
-                                },
-                            }
-                            for tool_call in response.tool_calls
-                        ]
-                        if response.tool_calls is not None
-                        else None,
-                    }
+                self.log.info(
+                    custom_tag, f"Received response in conversation turn {turn:d}"
                 )
+                # Add response to conversation messages
+                message_dict = {
+                    "role": response.role,
+                    "content": response.content,
+                }
+                if response.tool_calls is not None:
+                    message_dict["tool_calls"] = [
+                        {
+                            "id": tool_call.id,
+                            "type": tool_call.type,
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments,
+                            },
+                        }
+                        for tool_call in response.tool_calls
+                    ]
+                messages.append(cast(ChatCompletionMessageParam, message_dict))
                 # Terminate conversation if no more tool calls requested
                 if not response.tool_calls:
-                    log.info(
+                    self.log.info(
                         custom_tag,
                         f"Received final response in conversation turn {turn:d}",
                     )
                     break
+                # User cancellation
+                if self.cancelled("analyze"):
+                    self.log.warn(custom_tag, f"Cancel conversation in turn {turn:d}")
+                    return None
                 # Execute tool calls and add results to the conversation messages
                 messages.extend(
                     self._execute_tool_calls(response.tool_calls, custom_tag)
@@ -340,75 +371,155 @@ Be proactive in exploring upstream paths, analyzing data/control dependencies, a
                 cnt_tool_calls += len(response.tool_calls)
             # Return vulnerability report if final response is available
             if not response or not response.parsed:
-                log.error(custom_tag, "No vulnerability report received")
+                self.log.error(custom_tag, "No vulnerability report received")
                 return None
             report: VulnerabilityReport = response.parsed
             vuln_report = AiVulnerabilityReport(
                 path_id=path_id,
-                model=self._model,
+                model=model,
                 turns=turn,
                 tool_calls=cnt_tool_calls,
                 prompt_tokens=token_usage["prompt_tokens"],
                 completion_tokens=token_usage["completion_tokens"],
                 total_tokens=token_usage["total_tokens"],
-                temperature=self._temperature,
+                temperature=temperature if temperature is not None else 1.0,
                 timestamp=datetime.now(),
                 **report.to_dict(),
             )
         # Return vulnerability report and log a summary
-        log.info(custom_tag, "Vulnerability Report Summary:")
-        log.info(
+        self.log.info(custom_tag, "Vulnerability Report Summary:")
+        self.log.info(
             custom_tag,
             f"- True Positive     : {'Yes' if vuln_report.truePositive else 'No'}",
         )
-        log.info(
+        self.log.info(
             custom_tag, f"- Severity Level    : {vuln_report.severityLevel.label:s}"
         )
-        log.info(
+        self.log.info(
             custom_tag,
             f"- Vulnerability Type: {vuln_report.vulnerabilityClass.label:s}",
         )
         return vuln_report
 
-    def run(self) -> None:
+    def _analyze_paths(
+        self,
+        max_workers: int | None = None,
+        base_url: str = "",
+        api_key: str = "",
+        model: str = "",
+        max_turns: int = 0,
+        max_completion_tokens: int | None = None,
+        temperature: float | None = None,
+        paths: List[Tuple[int, Path]] = [],
+        path_callback: Callable[[int, AiVulnerabilityReport], None] | None = None,
+    ) -> None:
         """
-        This method analyzes each path in a worker thread.
+        This method analyzes the given paths with AI.
         """
-        log.info(tag, "Starting AI analysis")
-        # Settings
-        log.debug(tag, "Settings")
-        log.debug(tag, f"- max_workers          : '{self._max_workers}'")
-        log.debug(tag, f"- base_url             : '{self._base_url}'")
-        log.debug(
-            tag, f"- api_key              : '{'[API_KEY]' if self._api_key else ''}'"
-        )
-        log.debug(tag, f"- model                : '{self._model:s}'")
-        log.debug(tag, f"- max_turns            : '{self._max_turns:d}'")
-        max_completion_tokens = (
-            f"{self._max_completion_tokens:d}"
-            if self._max_completion_tokens
-            else "None"
-        )
-        log.debug(tag, f"- max_completion_tokens: '{max_completion_tokens:s}'")
-        temperature = f"{self._temperature:.1f}" if self._temperature else "None"
-        log.debug(tag, f"- temperature          : '{temperature:s}'")
-        # Analyze paths using AI
-        with futures.ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+        self.log.info(tag, "Starting AI analysis")
+        with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit tasks
             tasks: Dict[futures.Future, int] = {}
-            for path_id, path in self._paths:
-                if self.cancelled:
+            for path_id, path in paths:
+                if self.cancelled("analyze"):
                     break
-                task = executor.submit(self._analyze_path, path_id, path)
+                task = executor.submit(
+                    self._analyze_path,
+                    path_id=path_id,
+                    path=path,
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=model,
+                    max_turns=max_turns,
+                    max_completion_tokens=max_completion_tokens,
+                    temperature=temperature,
+                )
                 tasks[task] = path_id
             # Wait for tasks to complete
             for cnt, task in enumerate(futures.as_completed(tasks), start=1):
-                self.progress = f"Mole analyzed path {cnt:d}/{len(self._paths):d}"
+                self.log.debug(tag, f"Analyzed paths: {cnt:d}/{len(paths):d}")
                 path_id = tasks[task]
                 # Collect vulnerability reports from task results
                 if task.done() and not task.exception():
-                    vuln_report = task.result()
-                    if vuln_report:
-                        self._analyzed_path(path_id, vuln_report)
-        log.info(tag, "AI analysis completed")
+                    vuln_report = cast(AiVulnerabilityReport | None, task.result())
+                    if path_callback is not None and vuln_report is not None:
+                        path_callback(path_id, vuln_report)
+        self.log.info(tag, "AI analysis completed")
+        return
+
+    def analyze_paths(
+        self,
+        max_workers: int | None = None,
+        base_url: str = "",
+        api_key: str = "",
+        model: str = "",
+        max_turns: int = 0,
+        max_completion_tokens: int | None = None,
+        temperature: float | None = None,
+        paths: List[Tuple[int, Path]] = [],
+        path_callback: Callable[[int, AiVulnerabilityReport], None] | None = None,
+    ) -> None:
+        """
+        This method analyzes the given paths with AI in a background thread.
+        """
+        # Ensure no other analyze thread is running
+        if self.is_alive("analyze"):
+            self.log.warn(tag, "Another thread of the path service is still runnning")
+            return
+        # Determine settings
+        self.log.debug(tag, "Settings")
+        if max_workers is None:
+            setting = self.config_model.get_setting("max_workers")
+            if isinstance(setting, SpinboxSetting):
+                max_workers = int(setting.value)
+        if max_workers is not None and max_workers <= 0:
+            max_workers = None
+        self.log.debug(tag, f"- max_workers          : '{max_workers}'")
+        setting = self.config_model.get_setting("base_url")
+        if isinstance(setting, TextSetting):
+            base_url = str(setting.value)
+        self.log.debug(tag, f"- base_url             : '{base_url:s}'")
+        setting = self.config_model.get_setting("api_key")
+        if isinstance(setting, TextSetting):
+            api_key = str(setting.value)
+        self.log.debug(
+            tag,
+            f"- api_key              : '{api_key[:3]:s}{'...' if api_key else 'mock-mode':s}'",
+        )
+        setting = self.config_model.get_setting("model")
+        if isinstance(setting, TextSetting):
+            model = str(setting.value)
+        self.log.debug(tag, f"- model                : '{model:s}'")
+        setting = self.config_model.get_setting("max_turns")
+        if isinstance(setting, SpinboxSetting):
+            max_turns = int(setting.value)
+        self.log.debug(tag, f"- max_turns            : '{max_turns:d}'")
+        if max_completion_tokens is None:
+            setting = self.config_model.get_setting("max_completion_tokens")
+            if isinstance(setting, SpinboxSetting):
+                max_completion_tokens = int(setting.value)
+        if max_completion_tokens is not None and max_completion_tokens <= 0:
+            max_completion_tokens = None
+        self.log.debug(tag, f"- max_completion_tokens: '{max_completion_tokens}'")
+        if temperature is None:
+            setting = self.config_model.get_setting("temperature")
+            if isinstance(setting, DoubleSpinboxSetting):
+                temperature = float(setting.value)
+        if temperature is not None and (temperature < 0.0 or temperature > 2.0):
+            temperature = None
+        self.log.debug(tag, f"- temperature          : '{temperature}'")
+        # Start background task
+        self.start(
+            thread_name="analyze",
+            run=self._analyze_paths,
+            max_workers=max_workers,
+            base_url=base_url,
+            api_key=api_key,
+            model=model,
+            max_turns=max_turns,
+            max_completion_tokens=max_completion_tokens,
+            temperature=temperature,
+            paths=paths,
+            path_callback=path_callback,
+        )
         return

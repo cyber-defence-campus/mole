@@ -1,4 +1,3 @@
-from typing import Optional
 import json
 import os
 import re
@@ -6,7 +5,7 @@ import re
 
 def readme_to_json_string(
     readme_filename="README.md", save_test_file=True
-) -> Optional[str]:
+) -> str | None:
     """
     Reads the README file and returns its content as a JSON-escaped string.
     Only keeps the first section content and removes all other sections.

@@ -1,9 +1,9 @@
 from lark import Lark, Token, Transformer, v_args
-from mole.common.log import log
-from typing import Callable, Optional
+from mole.common.log import Logger
+from typing import Callable
 
 
-tag = "Mole.Parse"
+tag = "Parse"
 
 
 class LogicalExpressionParser:
@@ -39,10 +39,11 @@ class LogicalExpressionParser:
     %ignore WS
     """
 
-    def __init__(self) -> None:
+    def __init__(self, log: Logger) -> None:
         """
         This method initializes a parser for logical expressions.
         """
+        self.log = log
         self._parser = Lark(
             grammar=self.grammar,
             parser="lalr",
@@ -50,20 +51,20 @@ class LogicalExpressionParser:
         )
         return
 
-    def parse(self, expr: str) -> Optional[Callable[[int], bool]]:
+    def parse(self, expr: str) -> Callable[[int], bool] | None:
         """
         This method parses a logical exression.
         """
         if expr:
             try:
-                e = self._parser.parse(expr).children[0]
+                e = str(self._parser.parse(expr).children[0])
 
                 def f(i):
                     return eval(e)
 
                 return f
             except Exception as e:
-                log.warn(tag, f"Failed to parse expression '{expr}': {str(e):s}")
+                self.log.warn(tag, f"Failed to parse expression '{expr:s}': {str(e):s}")
         return None
 
 

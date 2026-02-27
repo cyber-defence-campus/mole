@@ -1,10 +1,9 @@
 from __future__ import annotations
-from mole.common.log import log
-from mole.core.data import Path
+from mole.common.log import Logger
 from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
 from mole.services.path import PathService
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 import atexit
 import binaryninja as bn
 import os
@@ -32,12 +31,9 @@ class TestSlicing:
 
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
-        log.change_properties(level="debug", runs_headless=True)
-        config_file = os.path.join(
+        self._config_file = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "../../mole/conf/003-libc.yml"
         )
-        config = ConfigService().import_config(config_file)
-        self._model = ConfigModel(config)
         self._ext = os.environ.get("EXT", None)
         return
 
@@ -57,49 +53,27 @@ class TestSlicing:
                         tested_files.add(filename)
         return files
 
-    def get_paths(
-        self,
-        bv: bn.BinaryView,
-        max_workers: int | None = 1,
-        fix_func_type: bool | None = False,
-        max_call_level: int = 5,
-        max_slice_depth: int = -1,
-        max_memory_slice_depth: int = -1,
-        enable_all_funs: bool = False,
-    ) -> List[Path]:
-        """
-        This method is a helper to find paths.
-        """
-        slicer = PathService(
-            bv=bv,
-            config_model=self._model,
-            max_workers=max_workers,
-            fix_func_type=fix_func_type,
-            max_call_level=max_call_level,
-            max_slice_depth=max_slice_depth,
-            max_memory_slice_depth=max_memory_slice_depth,
-            enable_all_funs=enable_all_funs,
-        )
-        slicer.start()
-        return slicer.paths()
-
     def assert_paths(
         self,
-        srcs: List[Tuple[str, Optional[int]]],
-        snks: List[Tuple[str, Optional[int]]],
+        srcs: List[Tuple[str, int | None]],
+        snks: List[Tuple[str, int | None]],
         call_chains: List[List[str]],
         filenames: List[str],
-        bv_callback: Optional[Callable[[bn.BinaryView], None]] = lambda bv: None,
+        bv_callback: Callable[[bn.BinaryView], None] = lambda bv: None,
     ) -> None:
+        # Logger
+        log = Logger()
+        # Configuration model
+        model = ConfigModel(ConfigService(log).import_config(self._config_file))
         # Ensure relevant source functions are enabled
         src_names = [src[0] for src in srcs]
-        src_funs = self._model.get_functions("libc", fun_type="Sources")
+        src_funs = model.get_functions("libc", fun_type="Sources")
         for src_fun in src_funs:
             if src_fun.name in src_names:
                 src_fun.enabled = True
         # Ensure relevant sink functions are enabled
         snk_names = [snk[0] for snk in snks]
-        snk_funs = self._model.get_functions("libc", fun_type="Sinks")
+        snk_funs = model.get_functions("libc", fun_type="Sinks")
         for snk_fun in snk_funs:
             if snk_fun.name in snk_names:
                 snk_fun.enabled = True
@@ -109,8 +83,17 @@ class TestSlicing:
             bv = bn.load(file)
             bv.update_analysis_and_wait()
             bv_callback(bv)
-            # Find paths in test binary with backward slicing
-            paths = self.get_paths(bv)
+            # Find paths in test binary
+            path_service = PathService(bv, log, model)
+            path_service.find_paths(
+                max_workers=1,
+                fix_func_type=False,
+                max_call_level=5,
+                max_slice_depth=-1,
+                max_memory_slice_depth=-1,
+                enable_all_funs=False,
+            )
+            paths = path_service.get_paths()
             # Determine call chains
             _call_chains = []
             for path in paths:

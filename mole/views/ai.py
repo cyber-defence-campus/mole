@@ -1,45 +1,40 @@
 from __future__ import annotations
 from mole.models.ai import AiVulnerabilityReport
-from typing import Optional, TYPE_CHECKING
+import PySide6.QtCore as qtc
 import PySide6.QtWidgets as qtw
-
-
-if TYPE_CHECKING:
-    from mole.controllers.ai import AiController
 
 
 class AiView(qtw.QWidget):
     """
-    This class implements a view to display AI-generated vulnerability reports.
+    This class implements a view for Mole's AI tab.
     """
+
+    signal_show_ai_report_tab = qtc.Signal()
 
     def __init__(self) -> None:
         """
         This method initializes the AI view.
         """
         super().__init__()
-        self.ai_ctr: Optional[AiController] = None
         self._path_id_lbl: qtw.QLabel = qtw.QLabel("")
-        self._vuln_type_lbl: qtw.QLabel = qtw.QLabel("")
         self._true_positive_lbl: qtw.QLabel = qtw.QLabel("")
         self._severity_lbl: qtw.QLabel = qtw.QLabel("")
-        self._score_lbl: qtw.QLabel = qtw.QLabel("")
+        self._vuln_type_lbl: qtw.QLabel = qtw.QLabel("")
         self._explanation_txt: qtw.QPlainTextEdit = qtw.QPlainTextEdit(readOnly=True)
         self._input_example_txt: qtw.QPlainTextEdit = qtw.QPlainTextEdit(readOnly=True)
-        self._model_lbl: qtw.QLabel = qtw.QLabel("")
-        self._tool_calls_lbl: qtw.QLabel = qtw.QLabel("")
-        self._turns: qtw.QLabel = qtw.QLabel("")
-        self._token_usage_lbl: qtw.QLabel = qtw.QLabel("")
-        self._temperature_lbl: qtw.QLabel = qtw.QLabel("")
-        self._timestamp_lbl: qtw.QLabel = qtw.QLabel("")
+        self._model_lbl = qtw.QLabel()
+        self._turns: qtw.QLabel = qtw.QLabel()
+        self._tool_calls_lbl: qtw.QLabel = qtw.QLabel()
+        self._token_usage_lbl: qtw.QLabel = qtw.QLabel()
+        self._temperature_lbl: qtw.QLabel = qtw.QLabel()
+        self._timestamp_lbl: qtw.QLabel = qtw.QLabel()
+        self._init_widgets()
         return
 
-    def init(self, ai_ctr: AiController) -> AiView:
+    def _init_widgets(self) -> None:
         """
-        This method sets the controller and initializes relevant UI components.
+        This method initializes the AI view's widgets.
         """
-        # Set controller
-        self.ai_ctr = ai_ctr
         # Summary layout
         summary_lay = qtw.QGridLayout()
         summary_lay.addWidget(qtw.QLabel("Path ID:"), 0, 0)
@@ -71,7 +66,7 @@ class AiView(qtw.QWidget):
         # Input box widget
         input_box_wid = qtw.QGroupBox("Input Example:")
         input_box_wid.setLayout(input_box_lay)
-        # Information layout
+        # Info layout
         info_lay = qtw.QGridLayout()
         info_lay.addWidget(qtw.QLabel("Model:"), 0, 0)
         info_lay.addWidget(self._model_lbl, 0, 1)
@@ -85,13 +80,13 @@ class AiView(qtw.QWidget):
         info_lay.addWidget(self._temperature_lbl, 4, 1)
         info_lay.addWidget(qtw.QLabel("Timestamp:"), 5, 0)
         info_lay.addWidget(self._timestamp_lbl, 5, 1)
-        # Information widget
+        # Info widget
         info_wid = qtw.QWidget()
         info_wid.setLayout(info_lay)
-        # Information box layout
+        # Info box layout
         info_box_lay = qtw.QVBoxLayout()
         info_box_lay.addWidget(info_wid)
-        # Information box widget
+        # Info box widget
         info_box_wid = qtw.QGroupBox("Information:")
         info_box_wid.setLayout(info_box_lay)
         # Report layout
@@ -100,22 +95,22 @@ class AiView(qtw.QWidget):
         report_lay.addWidget(explanation_box_wid)
         report_lay.addWidget(input_box_wid)
         report_lay.addWidget(info_box_wid)
-        # Widget to display an AI-generated vulnerability report
+        # Report widget
         report_wid = qtw.QWidget()
         report_wid.setLayout(report_lay)
-        # Widget to display when a result is available
-        scr_wid = qtw.QScrollArea()
-        scr_wid.setWidgetResizable(True)
-        scr_wid.setWidget(report_wid)
-        # Main layout
-        main_lay = qtw.QVBoxLayout()
-        main_lay.addWidget(scr_wid)
-        self.setLayout(main_lay)
-        return self
+        # Scroll widget
+        scroll_wid = qtw.QScrollArea()
+        scroll_wid.setWidgetResizable(True)
+        scroll_wid.setWidget(report_wid)
+        # Tab layout
+        tab_lay = qtw.QVBoxLayout()
+        tab_lay.addWidget(scroll_wid)
+        self.setLayout(tab_lay)
+        return
 
-    def show_report(self, report: AiVulnerabilityReport) -> None:
+    def show_report(self, report: AiVulnerabilityReport, show_tab: bool = True) -> None:
         """
-        This method shows AI-generated `report` in the AI view.
+        This method shows the given AI-generated report in the AI view.
         """
         warning_txt = "--- WARNING ---\n"
         warning_txt += "This report has been identified as a FALSE POSITIVE. Its severity and related details might be inaccurate.\n"
@@ -161,4 +156,7 @@ class AiView(qtw.QWidget):
             timestamp_txt = "N/A"
         self._temperature_lbl.setText(f"{report.temperature:.1f}")
         self._timestamp_lbl.setText(timestamp_txt)
+        # Switch to AI report tab
+        if show_tab:
+            self.signal_show_ai_report_tab.emit()
         return

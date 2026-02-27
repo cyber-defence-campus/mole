@@ -1,15 +1,15 @@
 from __future__ import annotations
-from mole.common.log import log
+from mole.common.log import Logger
 from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
 from mole.services.path import PathService
 from typing import Dict, List
 import argparse as ap
 import binaryninja as bn
-import hashlib as hl
-import json as json
-import os as os
-import yaml as yaml
+import hashlib
+import json
+import os
+import yaml
 
 
 def main() -> None:
@@ -72,25 +72,31 @@ def main() -> None:
         "--save_bndb", help="save BN database file with analysis results"
     )
     args = vars(parser.parse_args())
-
-    # Change properties of logger
-    log.change_properties(level=args["log_level"], runs_headless=True)
+    # Load and analyze binary with Binary Ninja
     try:
-        # Load and analyze binary with Binary Ninja
         bv = bn.load(args["file"])
         bv.update_analysis_and_wait()
-        # Analyze binary with Mole
-        slicer = PathService(
-            bv=bv,
-            config_model=ConfigModel(ConfigService(args["config_file"]).load_config()),
+    except Exception:
+        bv = None
+    if bv is None:
+        print(f"Failed to load binary '{args['file']:s}'.")
+        return
+    # Initialize logger
+    log = Logger(bv, args["log_level"])
+    # Analyze binary with Mole
+    try:
+        # Find paths
+        path_service = PathService(
+            bv, log, ConfigModel(ConfigService(log, args["config_file"]).load_config())
+        )
+        path_service.find_paths(
             max_workers=args["max_workers"],
             fix_func_type=args["fix_func_type"],
             max_call_level=args["max_call_level"],
             max_slice_depth=args["max_slice_depth"],
             max_memory_slice_depth=args["max_memory_slice_depth"],
         )
-        slicer.start()
-        paths = slicer.paths()
+        paths = path_service.get_paths()
         # Export identified paths
         if (
             args["export_paths_to_yml_file"]
@@ -98,7 +104,12 @@ def main() -> None:
             or args["save_bndb"]
         ):
             # Calculate SHA1 hash of binary
-            sha1_hash = hl.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
+            if bv.file.raw is not None:
+                sha1_hash = hashlib.sha1(
+                    bv.file.raw.read(0, bv.file.raw.end)
+                ).hexdigest()
+            else:
+                sha1_hash = ""
             # Serialize paths
             s_paths: List[Dict] = []
             for path in paths:

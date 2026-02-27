@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, Set, Tuple
+from typing import List, Set, Tuple
 import binaryninja as bn
 
 
@@ -38,6 +38,7 @@ class InstructionHelper:
             pass
         return formatted_tokens
 
+    @staticmethod
     def mark_func_tokens(
         tokens: List[bn.InstructionTextToken],
         return_indices: Set[int],
@@ -198,11 +199,14 @@ class InstructionHelper:
 
     @staticmethod
     def get_func_signature(
-        bv: bn.BinaryView,
         inst: bn.MediumLevelILCall
+        | bn.MediumLevelILCallUntyped
         | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
         | bn.MediumLevelILTailcall
-        | bn.MediumLevelILTailcallSsa,
+        | bn.MediumLevelILTailcallUntyped
+        | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa,
     ) -> Tuple[str, str]:
         """
         This method returns the name and signature of the target function being called by `inst`.
@@ -213,11 +217,16 @@ class InstructionHelper:
             inst,
             (
                 bn.MediumLevelILCall,
+                bn.MediumLevelILCallUntyped,
                 bn.MediumLevelILCallSsa,
+                bn.MediumLevelILCallUntypedSsa,
                 bn.MediumLevelILTailcall,
+                bn.MediumLevelILTailcallUntyped,
                 bn.MediumLevelILTailcallSsa,
+                bn.MediumLevelILTailcallUntypedSsa,
             ),
         ):
+            bv = inst.function.view
             if isinstance(
                 inst.dest, (bn.MediumLevelILConstPtr, bn.MediumLevelILImport)
             ):
@@ -264,13 +273,21 @@ class InstructionHelper:
         def find_mlil_call_inst(
             inst: bn.HighLevelILInstruction
             | bn.MediumLevelILInstruction
-            | bn.LowLevelILInstruction,
-        ) -> Optional[
-            bn.MediumLevelILCallSsa
+            | bn.LowLevelILInstruction
+            | None,
+            *args,
+            **kwargs,
+        ) -> (
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntyped
             | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcall
             | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntyped
             | bn.MediumLevelILTailcallUntypedSsa
-        ]:
+            | None
+        ):
             # HLIL or LLIL
             if isinstance(
                 inst,
@@ -290,8 +307,8 @@ class InstructionHelper:
                     mlil_inst = None
                 return find_mlil_call_inst(mlil_inst)
             # MLIL
-            if isinstance(
-                inst,
+            if inst is not None and isinstance(
+                inst.ssa_form,
                 (
                     bn.MediumLevelILCall,
                     bn.MediumLevelILCallSsa,
@@ -308,6 +325,7 @@ class InstructionHelper:
 
         return [i for i in inst.traverse(find_mlil_call_inst) if i is not None]
 
+    @staticmethod
     def is_ptr_equivalent(
         left_inst: bn.HighLevelILInstruction,
         right_inst: bn.HighLevelILInstruction,

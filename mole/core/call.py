@@ -2,7 +2,7 @@ from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import List, Set
+from typing import cast, List, Set
 import binaryninja as bn
 import networkx as nx
 
@@ -19,12 +19,12 @@ class MediumLevelILCallFrame:
         # Set of parameter indices known to be output parameters
         self.out_param_idxs: Set[int] = set()
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
-        self.last_inst: bn.MediumLevelILInstruction = None
+        self.last_inst: bn.MediumLevelILInstruction | None = None
         self.inst_graph: MediumLevelILInstructionGraph = MediumLevelILInstructionGraph()
         self.mem_def_insts: List[bn.MediumLevelILInstruction] = []
         return
 
-    def __eq__(self, other: MediumLevelILCallFrame) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, MediumLevelILCallFrame):
             raise TypeError("Call frame is not of type MediumLevelILCallFrame")
         return self.func == other.func
@@ -185,7 +185,10 @@ class MediumLevelILCallTracker:
                 node: (cur_last_inst, node) for node in old_call_frame.inst_graph.nodes
             }
             old_inst_graph = nx.relabel_nodes(old_call_frame.inst_graph, mapping)
-            self._inst_graph = nx.compose(self._inst_graph, old_inst_graph)
+            self._inst_graph = cast(
+                MediumLevelILInstructionGraph,
+                nx.compose(self._inst_graph, old_inst_graph),
+            )
             # Return indices of parameters to be sliced further
             return old_call_frame.hit_param_idxs
         return set()

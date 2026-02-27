@@ -47,13 +47,13 @@ settings:
   path_grouping:
     help: strategy used to group paths
     value: Call Graph
-  openai_base_url:
-    help: OpenAI API base URL
+  base_url:
+    help: OpenAI-compatible API endpoint
     value: "https://api.openai.com/v1"
-  openai_api_key:
+  api_key:
     help: OpenAI API key
     value: ""
-  openai_model:
+  model:
     help: OpenAI model
     value: "o4-mini"
   max_turns:

@@ -73,9 +73,9 @@ To enable AI-based analysis, you must first configure an OpenAI-compatible endpo
 
 | Setting               | Description                                                                        |
 |-----------------------|------------------------------------------------------------------------------------|
-| openai_base_url       | URL of OpenAI-compatible API endpoint (e.g., `https://api.openai.com/v1`)          |
-| openai_api_key        | API key for authentication (leave empty for `MOCK` mode)                           |
-| openai_model          | Model to use (e.g., `o4-mini`)                                                     |
+| base_url              | URL of OpenAI-compatible API endpoint (e.g., `https://api.openai.com/v1`)          |
+| api_key               | API key for authentication (leave empty for `MOCK` mode)                           |
+| model                 | Model to use (e.g., `o4-mini`)                                                     |
 | max_turns             | Maximum number of turns in a conversation                                          |
 | max_completion_tokens | Maximum number of tokens in a completion                                           |
 | temperature           | Sampling temperature (lower values make the output more focused and deterministic) |

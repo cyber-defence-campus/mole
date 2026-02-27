@@ -4,14 +4,16 @@ here to be discovered dynamically.
 """
 
 from __future__ import annotations
-from mole.core.data import Path
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple, Type, TYPE_CHECKING
 import importlib
 import inspect
 import os
 import pkgutil
 import sys
+
+if TYPE_CHECKING:
+    from mole.data.path import Path
 
 
 class PathGrouper(ABC):
@@ -60,15 +62,15 @@ class PathGrouper(ABC):
         return all_subclasses
 
     @staticmethod
-    def get_strategy_map() -> Dict[str, PathGrouper]:
+    def get_strategy_map() -> Dict[str, PathGrouper | None]:
         """
         This method returns a mapping of all available strategy names to their implementations.
         Dynamically discovers all `PathGrouper` subclasses.
 
         Returns:
-            Dictionary mapping strategy names to `PathGrouper` instances
+            Dictionary mapping strategy names to `PathGrouper` instances or None
         """
-        strategy_map = {"None": None}
+        strategy_map: Dict[str, PathGrouper | None] = {"None": None}
         # Find all PathGrouper subclasses and instantiate them
         for cls in PathGrouper.get_all_subclasses():
             # Skip the abstract base class itself
@@ -94,7 +96,7 @@ def get_all_grouping_strategies() -> List[str]:
     return list(PathGrouper.get_strategy_map().keys())
 
 
-def get_grouper(strategy: str) -> PathGrouper:
+def get_grouper(strategy: str) -> PathGrouper | None:
     """
     This method is a factory method to create a grouper based on the strategy.
 
