@@ -195,8 +195,8 @@ class PathTreeView(qtw.QTreeView):
         This method refreshes the view by expanding all items and resizing columns. It is called
         when new paths are added to ensure proper display.
         """
-        self._resize_columns_to_contents()
         self._apply_spanning()
+        self._resize_columns_to_contents()
         self.expandAll()
         return
 
