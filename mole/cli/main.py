@@ -29,7 +29,7 @@ def main() -> None:
     parser.add_argument("--config_file", help="custom configuration file to use")
     parser.add_argument(
         "--log_level",
-        choices=["error", "warning", "info", "debug"],
+        choices=["error", "warning", "info", "debug", "none"],
         default="debug",
         help="log level",
     )

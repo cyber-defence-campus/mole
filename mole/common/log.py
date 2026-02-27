@@ -12,12 +12,12 @@ class Logger:
     This class implements a logger that can print messages to Binary Ninja's log and to the console.
     """
 
-    _levels = ["debug", "info", "warning", "error"]
+    _levels = ["debug", "info", "warning", "error", "none"]
 
     def __init__(
         self,
         bv: bn.BinaryView | None = None,
-        level: Literal["debug", "info", "warning", "error"] = "debug",
+        level: Literal["debug", "info", "warning", "error", "none"] = "debug",
     ) -> None:
         """
         This method initializes a logger that can be used to write messages of a given level (and
@@ -129,7 +129,7 @@ class Logger:
         text = self._tag_msg(tag, msg)
         if not self._runs_headless and not self._runs_debugger:
             self._logger.log_debug(text)
-        elif self._level <= 0:
+        elif self._runs_debugger or self._level <= 0:
             self._print(
                 "DEBG",
                 text,
@@ -137,7 +137,9 @@ class Logger:
                 on_color=on_color,
                 print_raw=print_raw,
                 attrs=attrs,
+                file=sys.stdout if self._runs_debugger else sys.stderr,
             )
+
         return
 
     def info(
@@ -155,7 +157,7 @@ class Logger:
         text = self._tag_msg(tag, msg)
         if not self._runs_headless and not self._runs_debugger:
             self._logger.log_info(text)
-        elif self._level <= 1:
+        elif self._runs_debugger or self._level <= 1:
             self._print(
                 "INFO",
                 text,
@@ -163,6 +165,7 @@ class Logger:
                 on_color=on_color,
                 print_raw=print_raw,
                 attrs=attrs,
+                file=sys.stdout if self._runs_debugger else sys.stderr,
             )
         return
 
@@ -181,7 +184,7 @@ class Logger:
         text = self._tag_msg(tag, msg)
         if not self._runs_headless and not self._runs_debugger:
             self._logger.log_warn(text)
-        elif self._level <= 2:
+        elif self._runs_debugger or self._level <= 2:
             self._print(
                 "WARN",
                 text,
@@ -189,6 +192,7 @@ class Logger:
                 on_color=on_color,
                 print_raw=print_raw,
                 attrs=attrs,
+                file=sys.stdout if self._runs_debugger else sys.stderr,
             )
         return
 
@@ -207,7 +211,7 @@ class Logger:
         text = self._tag_msg(tag, msg)
         if not self._runs_headless and not self._runs_debugger:
             self._logger.log_error(text)
-        elif self._level <= 3:
+        elif self._runs_debugger or self._level <= 3:
             self._print(
                 "ERRO",
                 text,
@@ -215,5 +219,6 @@ class Logger:
                 on_color=on_color,
                 print_raw=print_raw,
                 attrs=attrs,
+                file=sys.stdout if self._runs_debugger else sys.stderr,
             )
         return
