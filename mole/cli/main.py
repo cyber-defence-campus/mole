@@ -8,7 +8,9 @@ import argparse as ap
 import binaryninja as bn
 import hashlib
 import json
+import math
 import os
+import time
 import yaml
 
 
@@ -72,6 +74,8 @@ def main() -> None:
         "--save_bndb", help="save BN database file with analysis results"
     )
     args = vars(parser.parse_args())
+    # Time before analysis
+    start_time = time.time()
     # Load and analyze binary with Binary Ninja
     try:
         bv = bn.load(args["file"])
@@ -141,6 +145,37 @@ def main() -> None:
                 fp = args["save_bndb"]
                 fp = os.path.abspath(os.path.expanduser(os.path.expandvars(fp)))
                 bv.create_database(fp)
+        # Time after analysis
+        end_time = time.time()
+        # Calculate path statistics
+        paths_stats: Dict[str, Dict[str, int]] = {}
+        for path in paths:
+            paths_stats[path.src_sym_name][path.snk_sym_name] = (
+                paths_stats.setdefault(path.src_sym_name, {}).setdefault(
+                    path.snk_sym_name, 0
+                )
+                + 1
+            )
+        # Output summary of results in machine-readable format
+        print(
+            json.dumps(
+                {
+                    "analysis_time_seconds": math.trunc((end_time - start_time) * 1000)
+                    / 1000,
+                    "paths_total": len(paths),
+                    "paths_stats": paths_stats,
+                    "sources": sorted(paths_stats.keys()),
+                    "sinks": sorted(
+                        {
+                            snk
+                            for snk_map in paths_stats.values()
+                            for snk in snk_map.keys()
+                        }
+                    ),
+                },
+                indent=2,
+            )
+        )
         # Close binary
         bv.file.close()
     except KeyboardInterrupt:
