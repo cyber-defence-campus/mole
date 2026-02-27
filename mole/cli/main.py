@@ -90,9 +90,10 @@ def main() -> None:
     # Analyze binary with Mole
     try:
         # Find paths
-        path_service = PathService(
-            bv, log, ConfigModel(ConfigService(log, args["config_file"]).load_config())
+        config_model = ConfigModel(
+            ConfigService(log, args["config_file"]).load_config()
         )
+        path_service = PathService(bv, log, config_model)
         path_service.find_paths(
             max_workers=args["max_workers"],
             fix_func_type=args["fix_func_type"],
@@ -164,14 +165,18 @@ def main() -> None:
                     / 1000,
                     "paths_total": len(paths),
                     "paths_stats": paths_stats,
-                    "sources": sorted(paths_stats.keys()),
-                    "sinks": sorted(
-                        {
-                            snk
-                            for snk_map in paths_stats.values()
-                            for snk in snk_map.keys()
-                        }
-                    ),
+                    "sources": [
+                        func.name
+                        for func in config_model.get_functions(
+                            fun_type="Sources", fun_enabled=True
+                        )
+                    ],
+                    "sinks": [
+                        func.name
+                        for func in config_model.get_functions(
+                            fun_type="Sinks", fun_enabled=True
+                        )
+                    ],
                 },
                 indent=2,
             )
