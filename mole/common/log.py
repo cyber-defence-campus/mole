@@ -92,7 +92,7 @@ class Logger:
         on_color: str = "",
         print_raw: bool = False,
         attrs: List[str] = [],
-        file=sys.stdout,
+        file=sys.stderr,
     ) -> None:
         """
         This method prints the given message to the console.
@@ -137,7 +137,6 @@ class Logger:
                 on_color=on_color,
                 print_raw=print_raw,
                 attrs=attrs,
-                file=sys.stdout,
             )
         return
 
@@ -164,7 +163,6 @@ class Logger:
                 on_color=on_color,
                 print_raw=print_raw,
                 attrs=attrs,
-                file=sys.stdout,
             )
         return
 
@@ -191,7 +189,6 @@ class Logger:
                 on_color=on_color,
                 print_raw=print_raw,
                 attrs=attrs,
-                file=sys.stderr,
             )
         return
 
@@ -218,6 +215,5 @@ class Logger:
                 on_color=on_color,
                 print_raw=print_raw,
                 attrs=attrs,
-                file=sys.stderr,
             )
         return
