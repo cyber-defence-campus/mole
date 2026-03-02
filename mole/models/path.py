@@ -385,8 +385,6 @@ class PathTreeModel(qtui.QStandardItemModel):
 
             # Add new path items to the model
             def _add_path_items() -> None:
-                # Signal upcoming layout change
-                self.layoutAboutToBeChanged.emit()
                 # Add new path items to the root item
                 if group_item is None:
                     for path_items in path_items_list:
@@ -395,12 +393,10 @@ class PathTreeModel(qtui.QStandardItemModel):
                 else:
                     for path_items in path_items_list:
                         group_item.appendRow(path_items)
-                # Signal layout change and paths update
-                self.layoutChanged.emit()
-                self.signal_paths_updated.emit()
                 return
 
             bn.execute_on_main_thread_and_wait(lambda: _add_path_items())
+        self.signal_paths_updated.emit()
         return
 
     def add_path_report(self, path_id: int, ai_report: AiVulnerabilityReport) -> None:
