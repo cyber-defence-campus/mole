@@ -1,17 +1,16 @@
 from __future__ import annotations
 from mole.common.log import Logger
 from mole.models.config import ConfigModel
+from mole.models.path import Path
 from mole.services.config import ConfigService
 from mole.services.path import PathService
 from typing import Dict, List
 import argparse as ap
 import binaryninja as bn
-import hashlib
 import json
 import math
 import os
 import time
-import yaml
 
 
 def main() -> None:
@@ -65,10 +64,7 @@ def main() -> None:
         help="maximum memory slice depth to stop the search",
     )
     parser.add_argument(
-        "--export_paths_to_json_file", help="export identified paths in JSON format"
-    )
-    parser.add_argument(
-        "--export_paths_to_yml_file", help="export identified paths in YAML format"
+        "--export_paths", help="export identified paths in NDJSON format"
     )
     parser.add_argument(
         "--save_bndb", help="save BN database file with analysis results"
@@ -87,8 +83,35 @@ def main() -> None:
         return
     # Initialize logger
     log = Logger(bv, args["log_level"])
+    # File handle for exporting paths
+    export_file = None
     # Analyze binary with Mole
     try:
+        # Open file for exporting paths
+        if args["export_paths"]:
+            export_file = open(
+                os.path.abspath(
+                    os.path.expanduser(os.path.expandvars(args["export_paths"]))
+                ),
+                "a",
+                buffering=1,
+            )
+        # Serialized paths
+        s_paths: List[Dict] = []
+
+        # Serialize and export paths
+        def serialize_and_export_paths(paths: List[Path]) -> None:
+            for path in paths:
+                # Serialize path
+                s_path = path.to_dict()
+                # Store serialized path
+                s_paths.append(s_path)
+                # Write NDJSON data
+                if export_file is not None:
+                    json.dump(s_path, export_file)
+                    export_file.write("\n")
+            return
+
         # Find paths
         config_model = ConfigModel(
             ConfigService(log, args["config_file"]).load_config()
@@ -100,52 +123,17 @@ def main() -> None:
             max_call_level=args["max_call_level"],
             max_slice_depth=args["max_slice_depth"],
             max_memory_slice_depth=args["max_memory_slice_depth"],
+            path_callback=serialize_and_export_paths
+            if args["export_paths"] or args["save_bndb"]
+            else lambda _: None,
         )
         paths = path_service.get_paths()
-        # Export identified paths
-        if (
-            args["export_paths_to_yml_file"]
-            or args["export_paths_to_json_file"]
-            or args["save_bndb"]
-        ):
-            # Calculate SHA1 hash of binary
-            if bv.file.raw is not None:
-                sha1_hash = hashlib.sha1(
-                    bv.file.raw.read(0, bv.file.raw.end)
-                ).hexdigest()
-            else:
-                sha1_hash = ""
-            # Serialize paths
-            s_paths: List[Dict] = []
-            for path in paths:
-                s_path = path.to_dict()
-                s_path["sha1"] = sha1_hash
-                s_paths.append(s_path)
-            # Write JSON data (default)
-            if args["export_paths_to_json_file"]:
-                fp = args["export_paths_to_json_file"]
-                fp = os.path.abspath(os.path.expanduser(os.path.expandvars(fp)))
-                with open(fp, "w") as f:
-                    json.dump(s_paths, f, indent=2)
-            # Write YAML data
-            if args["export_paths_to_yml_file"]:
-                fp = args["export_paths_to_yml_file"]
-                fp = os.path.abspath(os.path.expanduser(os.path.expandvars(fp)))
-                with open(os.path.abspath(fp), "w") as f:
-                    yaml.safe_dump(
-                        s_paths,
-                        f,
-                        sort_keys=False,
-                        default_style=None,
-                        default_flow_style=False,
-                        encoding="utf-8",
-                    )
-            # Write BN database
-            if args["save_bndb"]:
-                bv.store_metadata("mole_paths", json.dumps(s_paths))
-                fp = args["save_bndb"]
-                fp = os.path.abspath(os.path.expanduser(os.path.expandvars(fp)))
-                bv.create_database(fp)
+        # Write Binary Ninja database
+        if args["save_bndb"]:
+            bv.store_metadata("mole_paths", json.dumps(s_paths))
+            fp = args["save_bndb"]
+            fp = os.path.abspath(os.path.expanduser(os.path.expandvars(fp)))
+            bv.create_database(fp)
         # Time after analysis
         end_time = time.time()
         # Calculate path statistics
@@ -197,6 +185,10 @@ def main() -> None:
         log.info(msg="Keyboard interrupt caught")
     except Exception as e:
         log.error(msg=f"Exception caught: '{str(e):s}'")
+    finally:
+        # Close export file
+        if export_file is not None:
+            export_file.close()
     return
 
 
