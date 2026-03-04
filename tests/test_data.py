@@ -78,6 +78,7 @@ def test_config() -> Configuration:
                 },
             ),
         },
+        propagators={},
         settings={
             "max_workers": SpinboxSetting(
                 name="max_workers",

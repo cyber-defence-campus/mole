@@ -165,6 +165,17 @@ def main() -> None:
             ]
             if snk_funcs:
                 sinks.setdefault(lib_name, []).extend(snk_funcs)
+        propagators: Dict[str, List[str]] = {}
+        if args["fix_func_type"]:
+            for lib_name in config_model.get_libraries("Propagators").keys():
+                prp_funcs = [
+                    func.name
+                    for func in config_model.get_functions(
+                        lib_name=lib_name, fun_type="Propagators"
+                    )
+                ]
+                if prp_funcs:
+                    propagators.setdefault(lib_name, []).extend(prp_funcs)
         # Output summary of results in machine-readable format
         print(
             json.dumps(
@@ -175,6 +186,7 @@ def main() -> None:
                     "paths_stats": paths_stats,
                     "sources": sources,
                     "sinks": sinks,
+                    "propagators": propagators,
                 },
                 indent=2,
             )

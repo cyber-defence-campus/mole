@@ -16,6 +16,7 @@ class Configuration:
 
     sources: Dict[str, Library] = field(default_factory=dict)
     sinks: Dict[str, Library] = field(default_factory=dict)
+    propagators: Dict[str, Library] = field(default_factory=dict)
     settings: Dict[str, WidgetSetting] = field(default_factory=dict)
 
     def __eq__(self, other: object) -> bool:
@@ -35,6 +36,13 @@ class Configuration:
                 return False
             if lib != other.sinks[lib_name]:
                 return False
+        if len(self.propagators) != len(other.propagators):
+            return False
+        for lib_name, lib in self.propagators.items():
+            if lib_name not in other.propagators:
+                return False
+            if lib != other.propagators[lib_name]:
+                return False
         if len(self.settings) != len(other.settings):
             return False
         for setting_name, setting in self.settings.items():
@@ -51,10 +59,18 @@ class Configuration:
         sinks = {}
         for lib_name, lib in self.sinks.items():
             sinks[lib_name] = lib.to_dict()
+        propagators = {}
+        for lib_name, lib in self.propagators.items():
+            propagators[lib_name] = lib.to_dict()
         settings = {}
         for setting_name, setting in self.settings.items():
             settings[setting_name] = setting.to_dict()
-        return {"sources": sources, "sinks": sinks, "settings": settings}
+        return {
+            "sources": sources,
+            "sinks": sinks,
+            "propagators": propagators,
+            "settings": settings,
+        }
 
 
 @dataclass
@@ -196,6 +212,18 @@ class SinkFunction(Function):
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, SinkFunction):
+            return False
+        return super().__eq__(other)
+
+
+@dataclass
+class PropagatorFunction(Function):
+    """
+    This class is a representation of the data associated with propagator functions.
+    """
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, PropagatorFunction):
             return False
         return super().__eq__(other)
 
