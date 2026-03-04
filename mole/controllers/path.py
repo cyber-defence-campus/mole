@@ -457,13 +457,11 @@ class PathController:
         def _export_paths() -> None:
             nonlocal path_ids
             # Export paths to file
-            ident = 2
             cnt_exported_paths = 0
             try:
                 # Iteratively export paths to the JSON file
                 with open(filepath, "w") as f:
                     path_ids = path_ids if path_ids else self.get_path_ids()
-                    f.write("[\n")
                     for i, path_id in enumerate(path_ids, start=1):
                         try:
                             # Check if user cancelled the background task
@@ -473,23 +471,17 @@ class PathController:
                             path = self.get_path(path_id)
                             if path is None:
                                 continue
-                            # Serialize and dump path
+                            # Serialize path
                             s_path = path.to_dict()
-                            if i != 1:
-                                f.write(",\n")
-                            f.write(" " * ident)
-                            f.write(
-                                json.dumps(s_path, indent=ident).replace(
-                                    "\n", "\n" + " " * ident
-                                )
-                            )
+                            # Write NDJSON data
+                            json.dump(s_path, f)
+                            f.write("\n")
                             # Increment exported path counter
                             cnt_exported_paths += 1
                         except Exception as e:
                             self.log.error(
                                 tag, f"Failed to export path #{i:d}: {str(e):s}"
                             )
-                    f.write("\n]")
             except Exception as e:
                 self.log.error(tag, f"Failed to export paths: {str(e):s}")
             self.log.info(tag, f"Exported {cnt_exported_paths:d} path(s)")
