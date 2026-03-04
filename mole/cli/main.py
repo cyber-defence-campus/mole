@@ -7,7 +7,6 @@ from mole.services.path import PathService
 from typing import Dict, List
 import argparse as ap
 import binaryninja as bn
-import hashlib
 import json
 import math
 import os
@@ -88,11 +87,6 @@ def main() -> None:
     export_file = None
     # Analyze binary with Mole
     try:
-        # Calculate SHA1 hash of binary
-        if bv.file.raw is not None:
-            sha1_hash = hashlib.sha1(bv.file.raw.read(0, bv.file.raw.end)).hexdigest()
-        else:
-            sha1_hash = ""
         # Open file for exporting paths
         if args["export_paths"]:
             export_file = open(
@@ -110,8 +104,6 @@ def main() -> None:
             for path in paths:
                 # Serialize path
                 s_path = path.to_dict()
-                # Add SHA1 hash of binary
-                s_path["sha1"] = sha1_hash
                 # Store serialized path
                 s_paths.append(s_path)
                 # Write NDJSON data
