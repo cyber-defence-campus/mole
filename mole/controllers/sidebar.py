@@ -140,7 +140,7 @@ class SidebarController:
                 on_log_call=self.path_ctr.log_call,
                 on_highlight_path=self.path_ctr.highlight_path,
                 on_show_call_graph=self.graph_ctr.show_call_graph,
-                on_import_paths=self.path_ctr.import_paths,
+                on_import_paths=lambda: self.path_ctr.import_paths(),
                 on_export_paths=self.path_ctr.export_paths,
                 on_update_paths=self.path_ctr.update_paths,
                 on_remove_paths=self.path_ctr.remove_paths,

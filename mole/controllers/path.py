@@ -11,7 +11,6 @@ from typing import cast, Dict, List, Literal, Tuple, TYPE_CHECKING
 import binaryninja as bn
 import difflib
 import hashlib
-import ijson
 import json
 import os
 
@@ -361,7 +360,7 @@ class PathController:
             return
         # Open dialog to select file path
         filepath, _ = qtw.QFileDialog.getOpenFileName(
-            caption="Open File", filter="JSON Files (*.json);;All Files (*)"
+            caption="Open File", filter="NDJSON Files (*.json *.ndjson);;All Files (*)"
         )
         if not filepath:
             self.log.warn(tag, "No paths imported")
@@ -381,19 +380,21 @@ class PathController:
                     ).hexdigest()
                 else:
                     sha1_hash = ""
-                # Count the total number of paths to be imported
-                cnt_total_paths = 0
-                with open(filepath, "r") as f:
-                    for _ in ijson.items(f, "item"):
-                        cnt_total_paths += 1
-                # Iteratively import paths from the JSON file
+                # Iteratively import paths from the NDJSON file
                 with open(filepath, "r") as f:
                     paths: List[Path] = []
-                    for i, s_path in enumerate(ijson.items(f, "item"), start=1):
+                    cnt_total_paths = sum(1 for _ in f)
+                    f.seek(0)
+                    for i, line in enumerate(f, start=1):
                         try:
                             # Check if user cancelled the background task
                             if self.path_service.cancelled(thread_name="import"):
                                 break
+                            # Load path from line (NDJSON format)
+                            line = line.strip()
+                            if not line:
+                                continue
+                            s_path = json.loads(line)
                             # Compare SHA1 hashes
                             if s_path["sha1_hash"] != sha1_hash:
                                 self.log.warn(
@@ -446,7 +447,7 @@ class PathController:
             return
         # Open dialog to select file path
         filepath, _ = qtw.QFileDialog.getSaveFileName(
-            caption="Save As", filter="JSON Files (*.json);;All Files (*)"
+            caption="Save As", filter="NDJSON Files (*.json *.ndjson);;All Files (*)"
         )
         if not filepath:
             self.log.info(tag, "No paths exported")
