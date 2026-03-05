@@ -1,13 +1,13 @@
 # Usage
 This section provides some guidance on how to use *Mole*.
 ## Configuration
-*Mole* is implemented as a *Binary Ninja* sidebar, with a dedicated **_Configure_** tab that contains all plugin settings. Within this tab, the *Sources* and *Sinks* sub-tabs allow you to enable or disable available source and sink functions, respectively. General settings can be configured in the *Settings* sub-tab.
+*Mole* is implemented as a *Binary Ninja* sidebar, with a dedicated **_Config_** tab that contains all plugin settings. Within this tab, the *Sources* and *Sinks* sub-tabs allow you to enable or disable available source and sink functions, respectively. General settings can be configured in the *Settings* sub-tab.
 
 <p align="center">
-  <img src="https://i.postimg.cc/SsDV6vX7/configure-tab.png" alt="Mole Configure Tab"/>
+  <img src="https://i.postimg.cc/C5CchqLD/configure-tab.png" alt="Mole Configure Tab"/>
 </p>
 
-Clicking the *Save* button stores the current configuration and writes it to the file `conf/000-mole.yml` (see the table below). These saved values are also applied when *Mole* is run in [headless mode](02-Usage.md#headless-mode), unless they are overwritten by command-line arguments. The *Reset* button restores all configuration options to their default values.
+Clicking the *Save* button stores the current configuration and writes it to the file `conf/000-mole.yml` (see the table below). The saved settings are also used when *Mole* runs in [headless mode](02-Usage.md#headless-mode), unless a different configuration file is specified with the `--config_file` command-line argument. The *Reset* button restores all configuration options to their default values. The *Export* and *Import* buttons allow you to export or import the current configuration. For example, you may export a specific configuration as a backup or reuse it when running *Mole* in headless mode.
 
 All configuration files are located in the [`conf/`](../mole/conf/) directory. The table below lists the purpose of each file:
 
@@ -32,7 +32,7 @@ sources:                                             # Collection of function so
         functions:                                   # Collection of functions
           getenv:                                    # Function identifier
             symbols: [getenv, __builtin_getenv]      # List of symbols to match the function
-            synopsis: char* getenv(const char* name) # Human-readable function signature for reference
+            synopsis: char* getenv(const char* name) # Function type signature
             enabled: true                            # Whether the function is enabled by default
             par_cnt: i == 1                          # Expression to validate the correct number of parameters
             par_slice: 'False'                       # Expression specifying which parameter should be sliced
@@ -61,15 +61,32 @@ Clicking the *Find* button starts the slicing process. If the selected instructi
 Clicking the *Add* button adds the configured function to a special sub-tab named **_manual_**, where you can enable or disable it for future analyses.
 
 <p align="center">
-  <img src="https://i.postimg.cc/Th88sTbL/manual-03.png" alt="Mole Manual Source / Sink"/>
+  <img src="https://i.postimg.cc/RFTjGFjn/manual-03.png" alt="Mole Manual Source / Sink"/>
 </p>
 
 Saving your configuration allows source and sink functions added through the UI to be persisted. These functions are stored in the previously mentioned YAML format in the file `conf/002-manual.yml` (as described above).
 
+### Propagator Functions
+In addition to sources and sinks described in the preceding section, you can define a third category of functions in the YAML configuration files: **propagators**. Propagators are functions that **propagate taint**, in contrast to sources and sinks, which respectively introduce and expose taint.
+
+Propagators are useful for functions whose type signatures are incorrectly inferred by Binary Ninja (for example, when the argument types or the number of arguments are wrong). When the `fix_func_type` setting is enabled, the type signatures of sources, sinks, and propagators are corrected by parsing the corresponding `synopsis`. Accurate type signatures are important because they ensure that taint propagates properly through these functions.
+
+The format of propagators is almost identical to that of sources and sinks described above. The only difference is that the keys `enabled` (function type signatures are always fixed when `fix_func_type` is enabled) and `par_slice` have no effect for propagators.
+```YAML
+propagators:                                         # Collection of function propagators
+  libc:                                              # Library identifier
+    categories:                                      # Collection of function categories
+      String Utilities:                              # Category identifier
+        functions:                                   # Collection of functions
+          strlen:                                    # Function identifier
+            symbols: [strlen, __builtin_strlen]      # List of symbols to match the function
+            synopsis: size_t strlen(const char* s)   # Function type signature
+            par_cnt: i == 1                          # Expression to validate the correct number of parameters
+```
 ### OpenAI API Endpoint
 *Mole* includes an AI-assisted analysis mode designed to provide deeper insights into identified paths. This feature leverages *Large Language Models* (*LLMs*) to examine potential vulnerabilities, evaluate their severity, and suggest inputs that could trigger the corresponding code paths.
 
-To enable AI-based analysis, you must first configure an OpenAI-compatible endpoint in the *Configure / Settings* sub-tab. The following settings are available:
+To enable AI-based analysis, you must first configure an OpenAI-compatible endpoint in the *Config / Settings* sub-tab. The following settings are available:
 
 | Setting               | Description                                                                        |
 |-----------------------|------------------------------------------------------------------------------------|
@@ -94,7 +111,7 @@ mole bin/memcpy-01 > ./memcpy-01.log 2>&1
 
 ## Example
 ### Inspecting Paths
-Below is an example log output as given by *Mole*. The listed path is identified on unit test [memcpy-01.c](../test/src/memcpy-01.c), when compiled for `linux-armv7`. At log level *INFO*, the following output is given:
+Below is an example log output as given by *Mole*. The listed path is identified on unit test [memcpy-01.c](../test/src/memcpy-01.c), when compiled for `linux-x86_64`. At log level *INFO*, the following output is given:
 ```
 [...]
 Interesting path: 0x401145 memcpy(arg#3:rdx#1) <-- 0x401119 getenv [L:12,P:0,B:1]!
@@ -164,7 +181,7 @@ The graph above for instance illustrates the following:
 In summary, the graph shows that a JSON object received over TCP may eventually be passed as a command string to `popen` within the `set_language` functionality. The graph therefore provides a rapid and effective way to pinpoint the nature of the potential underlying vulnerability.
 
 ### Analyzing Paths With AI
-Once [configured](02-Usage.md#openai-api-endpoint), you can initiate AI analysis by right-clicking on any path (or a group of selected paths) in the *Paths* tab and choosing *Run AI analysis* from the context menu.
+Once [configured](02-Usage.md#openai-api-endpoint), you can initiate AI analysis by right-clicking on any path (or a group of selected paths) in the *Paths* tab and choosing *Start AI analysis* from the context menu.
 
 The analysis may take some time, depending on the complexity of the paths and the model in use. Once complete, an AI-generated severity level will appear in the path tree view.
 
