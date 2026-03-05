@@ -2,6 +2,7 @@ from __future__ import annotations
 from mole.common.log import Logger
 from mole.data.config import (
     Category,
+    CheckboxSetting,
     ComboboxSetting,
     Configuration,
     DoubleSpinboxSetting,
@@ -46,8 +47,8 @@ def test_config() -> Configuration:
                         functions={
                             "getenv": SourceFunction(
                                 name="getenv",
-                                symbols=["getenv", "__builtin_getenv"],
-                                synopsis="char* getenv(const char* name)",
+                                symbols=["getenv", "_getenv", "__builtin_getenv"],
+                                synopsis="char * getenv(const char *name)",
                                 enabled=True,
                                 par_cnt="i == 1",
                                 par_slice="False",
@@ -67,8 +68,8 @@ def test_config() -> Configuration:
                         functions={
                             "memcpy": SinkFunction(
                                 name="memcpy",
-                                symbols=["memcpy", "__builtin_memcpy"],
-                                synopsis="void* memcpy(void* dest, const void* src, size_t n)",
+                                symbols=["memcpy", "_memcpy", "__builtin_memcpy"],
+                                synopsis="void * memcpy (void *to, const void *from, size_t size)",
                                 enabled=True,
                                 par_cnt="i == 3",
                                 par_slice="True",
@@ -82,28 +83,28 @@ def test_config() -> Configuration:
         settings={
             "max_workers": SpinboxSetting(
                 name="max_workers",
-                value=-1,
+                value=1,
                 min_value=-1,
                 max_value=256,
                 help="maximum number of worker thread that backward slicing uses",
             ),
             "max_call_level": SpinboxSetting(
                 name="max_call_level",
-                value=5,
+                value=10,
                 min_value=-1,
                 max_value=99,
                 help="backward slicing visits called functions up to the given level",
             ),
             "max_slice_depth": SpinboxSetting(
                 name="max_slice_depth",
-                value=-1,
+                value=1000,
                 min_value=-1,
                 max_value=9999,
                 help="maximum slice depth to stop the search",
             ),
             "max_memory_slice_depth": SpinboxSetting(
                 name="max_memory_slice_depth",
-                value=-1,
+                value=10,
                 min_value=-1,
                 max_value=9999,
                 help="maximum memory slice depth to stop the search",
@@ -160,14 +161,14 @@ def test_config() -> Configuration:
             "max_turns": SpinboxSetting(
                 name="max_turns",
                 value=10,
-                min_value=2,
+                min_value=1,
                 max_value=256,
                 help="maximum number of turns in a conversation with the AI",
             ),
             "max_completion_tokens": SpinboxSetting(
                 name="max_completion_tokens",
                 value=4096,
-                min_value=-1,
+                min_value=0,
                 max_value=100000,
                 help="maximum number of tokens in a completion",
             ),
@@ -177,6 +178,11 @@ def test_config() -> Configuration:
                 min_value=0.0,
                 max_value=2.0,
                 help="the sampling temperature to use",
+            ),
+            "fix_func_type": CheckboxSetting(
+                name="fix_func_type",
+                value=True,
+                help="whether to fix types of source/sink functions before slicing",
             ),
         },
     )
