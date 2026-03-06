@@ -6,7 +6,7 @@
   <img src="https://i.postimg.cc/mrcXH34C/image-1.png" alt="Mole Logo"/>
 </p>
 
-**_Mole_** is a *Binary Ninja* plugin designed to identify **interesting paths** in binaries. It performs **static backward slicing** on variables using *Binary Ninja*'s [*Medium Level Intermediate Language* (*MLIL*)](https://docs.binary.ninja/dev/bnil-mlil.html) in its *Static Single Assignment* (*SSA*) form.
+**_Mole_** is a *Binary Ninja* plugin designed to identify **interesting execution paths** in binaries. It performs **backward slicing** on variables using *Binary Ninja*'s [*Medium Level Intermediate Language* (*MLIL*)](https://docs.binary.ninja/dev/bnil-mlil.html) in *Static Single Assignment* (*SSA*) form, forming the basis for a **static taint analysis**.
 
 In *Mole*, a **path** refers to the flow of data between a defined source and sink. What constitutes an "interesting" path depends on the analysis goals. For instance, when searching for **vulnerabilities**, one might look for paths where untrusted inputs (sources) influence sensitive operations (sinks) in potentially dangerous ways.
 
