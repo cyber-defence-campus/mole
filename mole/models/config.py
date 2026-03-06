@@ -32,7 +32,7 @@ class ConfigModel:
         return
 
     def get_libraries(
-        self, fun_type: Literal["Sources", "Sinks"] | None
+        self, fun_type: Literal["Sources", "Sinks", "Propagators"] | None
     ) -> Dict[str, Library]:
         """
         This method returns all libraries matching the given type.
@@ -42,6 +42,8 @@ class ConfigModel:
                 return self._config.sources
             case "Sinks":
                 return self._config.sinks
+            case "Propagators":
+                return self._config.propagators
         return {}
 
     def get_functions(
@@ -49,7 +51,7 @@ class ConfigModel:
         lib_name: str | None = None,
         cat_name: str | None = None,
         fun_name: str | None = None,
-        fun_type: Literal["Sources", "Sinks"] | None = None,
+        fun_type: Literal["Sources", "Sinks", "Propagators"] | None = None,
         fun_enabled: bool | None = None,
     ) -> List[Function]:
         """
@@ -62,9 +64,13 @@ class ConfigModel:
                 libs = self._config.sources.values()
             case "Sinks":
                 libs = self._config.sinks.values()
+            case "Propagators":
+                libs = self._config.propagators.values()
             case _:
-                libs = list(self._config.sources.values()) + list(
-                    self._config.sinks.values()
+                libs = (
+                    list(self._config.sources.values())
+                    + list(self._config.sinks.values())
+                    + list(self._config.propagators.values())
                 )
         for lib in libs:
             if lib_name is None or lib.name == lib_name:

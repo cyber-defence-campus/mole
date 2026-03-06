@@ -8,6 +8,7 @@ from mole.data.config import (
     Configuration,
     DoubleSpinboxSetting,
     Library,
+    PropagatorFunction,
     SinkFunction,
     SourceFunction,
     SpinboxSetting,
@@ -44,28 +45,36 @@ class ConfigService:
         self, config: Dict, ignore_enabled: bool = False
     ) -> Configuration:
         """
-        This method parses the plain configuration `conf` into a `Configuration` instance. If
+        This method parses the plain configuration `config` into a `Configuration` instance. If
         `ignore_enabled` is `True`, all functions will be disabled.
         """
-        parsed_config = {"sources": {}, "sinks": {}, "settings": {}}
+        parsed_config = {"sources": {}, "sinks": {}, "propagators": {}, "settings": {}}
         if not config:
             return Configuration(**parsed_config)
         try:
-            # Parse sources and sinks
-            for type in ["sources", "sinks"]:
+            # Parse sources, sinks and propagators
+            for type in ["sources", "sinks", "propagators"]:
                 libs: Dict[str, Dict] = config.get(type, {})
+                if libs is None:
+                    continue
                 for lib_name, lib in libs.items():
                     lib_categories = {}
                     categories: Dict[str, Dict] = lib.get("categories", {})
+                    if categories is None:
+                        continue
                     for cat_name, cat in categories.items():
                         cat_functions = {}
                         functions: Dict[str, Dict] = cat.get("functions", {})
+                        if functions is None:
+                            continue
                         for fun_name, fun in functions.items():
                             match type:
                                 case "sources":
                                     fun = SourceFunction(name=fun_name, **fun)
                                 case "sinks":
                                     fun = SinkFunction(name=fun_name, **fun)
+                                case "propagators":
+                                    fun = PropagatorFunction(name=fun_name, **fun)
                                 case _:
                                     continue
                             fun.par_cnt_fun = self._parser.parse(fun.par_cnt) or (
@@ -83,6 +92,8 @@ class ConfigService:
                     parsed_config[type][lib_name] = Library(lib_name, lib_categories)
             # Parse settings
             settings: Dict[str, Dict] = config.get("settings", {})
+            if settings is None:
+                settings = {}
             for name in [
                 "max_workers",
                 "max_call_level",
@@ -201,6 +212,8 @@ class ConfigService:
                     items = get_all_grouping_strategies()
                 else:
                     items = setting.get("items", [])
+                if items is None:
+                    items = []
                 parsed_config["settings"].update(
                     {
                         name: ComboboxSetting(
@@ -372,8 +385,8 @@ class ConfigService:
         """
         if not source:
             return
-        # Update sources and sinks
-        for type in ["sources", "sinks"]:
+        # Update sources, sinks and propagators
+        for type in ["sources", "sinks", "propagators"]:
             match type:
                 case "sources":
                     new_libs = source.sources
@@ -381,6 +394,9 @@ class ConfigService:
                 case "sinks":
                     new_libs = source.sinks
                     old_libs = target.sinks
+                case "propagators":
+                    new_libs = source.propagators
+                    old_libs = target.propagators
                 case _:
                     continue
             for new_lib_name, new_lib in new_libs.items():
