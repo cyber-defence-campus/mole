@@ -23,11 +23,11 @@ all: $(C_BIN_FILES) $(CPP_BIN_FILES)
 
 # Compile .c files
 $(BIN_DIR)/%$(EXT): $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -o $@ $<
+	-$(CC) $(CFLAGS) -o $@ $<
 
 # Compile .cpp files
 $(BIN_DIR)/%$(EXT): $(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
+	-$(CXX) $(CXXFLAGS) -o $@ $<
 
 # Remove binaries
 clean:

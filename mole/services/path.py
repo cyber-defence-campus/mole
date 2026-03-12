@@ -13,6 +13,7 @@ from mole.data.config import (
     ComboboxSetting,
     Graphs,
     ParamKey,
+    PropagatorFunction,
     SinkFunction,
     SourceFunction,
     SpinboxSetting,
@@ -583,6 +584,7 @@ class PathService(WorkerService):
         max_memory_slice_depth: int,
         src_funs: List[SourceFunction],
         snk_funs: List[SinkFunction],
+        prp_funs: List[PropagatorFunction],
         manual_fun: SourceFunction | SinkFunction | None,
         manual_fun_inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallSsa
@@ -619,9 +621,18 @@ class PathService(WorkerService):
                             snk_fun.synopsis,
                             snk_fun.par_cnt_fun,
                         )
+                # Propagator function synopses
+                prp_fun_synopses: Dict[str, Tuple[str, Callable[[int], bool]]] = {}
+                for prp_fun in prp_funs:
+                    for symbol in prp_fun.symbols:
+                        prp_fun_synopses[symbol] = (
+                            prp_fun.synopsis,
+                            prp_fun.par_cnt_fun,
+                        )
                 # Fix function types
                 fixed = False
                 for func in self.bv.functions:
+                    # Fix source function types
                     synopsis, par_cnt_fun = src_fun_synopses.get(
                         func.name, (None, None)
                     )
@@ -642,6 +653,7 @@ class PathService(WorkerService):
                                 tag,
                                 f"Failed to fix type of source function {func.name:s}: {str(e):s}",
                             )
+                    # Fix sink function types
                     synopsis, par_cnt_fun = snk_fun_synopses.get(
                         func.name, (None, None)
                     )
@@ -661,6 +673,28 @@ class PathService(WorkerService):
                             self.log.warn(
                                 tag,
                                 f"Failed to fix type of sink function {func.name:s}: {str(e):s}",
+                            )
+                    # Fix propagator function types
+                    synopsis, par_cnt_fun = prp_fun_synopses.get(
+                        func.name, (None, None)
+                    )
+                    if (
+                        synopsis is not None
+                        and par_cnt_fun is not None
+                        and not par_cnt_fun(len(func.parameter_vars))
+                    ):
+                        try:
+                            type, _ = self.bv.parse_type_string(synopsis)
+                            func.set_user_type(type)
+                            fixed = True
+                            self.log.info(
+                                tag,
+                                f"Fixed type of propagator function '{func.name:s}'",
+                            )
+                        except Exception as e:
+                            self.log.warn(
+                                tag,
+                                f"Failed to fix type of propagator function '{func.name:s}': {str(e):s}",
                             )
                 if fixed:
                     self.bv.update_analysis_and_wait()
@@ -843,6 +877,12 @@ class PathService(WorkerService):
                 if not snk_funs:
                     snk_funs = [manual_fun]
         self.log.debug(tag, f"- number of sinks       : '{len(snk_funs):d}'")
+        # Propagator functions
+        prp_funs = cast(
+            List[PropagatorFunction],
+            self.config_model.get_functions(fun_type="Propagators"),
+        )
+        self.log.debug(tag, f"- number of propagators : '{len(prp_funs):d}'")
         # Clear previous paths and caches
         self._paths.clear()
         FunctionHelper.cache_clear()
@@ -857,6 +897,7 @@ class PathService(WorkerService):
             max_memory_slice_depth=max_memory_slice_depth,
             src_funs=src_funs,
             snk_funs=snk_funs,
+            prp_funs=prp_funs,
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
             manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
