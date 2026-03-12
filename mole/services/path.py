@@ -688,12 +688,13 @@ class PathService(WorkerService):
                             func.set_user_type(type)
                             fixed = True
                             self.log.info(
-                                tag, f"Fixed type of propagator function {func.name:s}"
+                                tag,
+                                f"Fixed type of propagator function '{func.name:s}'",
                             )
                         except Exception as e:
                             self.log.warn(
                                 tag,
-                                f"Failed to fix type of propagator function {func.name:s}: {str(e):s}",
+                                f"Failed to fix type of propagator function '{func.name:s}': {str(e):s}",
                             )
                 if fixed:
                     self.bv.update_analysis_and_wait()

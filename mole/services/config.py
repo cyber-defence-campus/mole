@@ -314,6 +314,7 @@ class ConfigService:
             yaml.safe_dump(
                 config_dict,
                 f,
+                width=float("inf"),
                 sort_keys=False,
                 default_style=None,
                 default_flow_style=False,
@@ -330,6 +331,7 @@ class ConfigService:
                     "sinks": {"manual": sinks.get("manual", {})},
                 },
                 f,
+                width=float("inf"),
                 sort_keys=False,
                 default_style=None,
                 default_flow_style=False,
@@ -372,6 +374,7 @@ class ConfigService:
             yaml.safe_dump(
                 config_dict,
                 f,
+                width=float("inf"),
                 sort_keys=False,
                 default_style=None,
                 default_flow_style=False,
