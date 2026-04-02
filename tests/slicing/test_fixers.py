@@ -2,12 +2,9 @@ from __future__ import annotations
 from mole.common.log import Logger
 from mole.data.config import (
     Category,
-    CheckboxSetting,
     Configuration,
+    Function,
     Library,
-    PropagatorFunction,
-    SinkFunction,
-    SourceFunction,
 )
 from mole.services.config import ConfigService
 from tests.slicing.conftest import TestSlicing
@@ -35,81 +32,67 @@ def config_service() -> ConfigService:
 def test_config() -> Configuration:
     """Provides a test Configuration object."""
     return Configuration(
-        sources={
+        taint_model={
             "libc": Library(
                 name="libc",
                 categories={
-                    "Environment Accesses": Category(
-                        name="Environment Accesses",
+                    "26.4 Environment Variables": Category(
+                        name="26.4 Environment Variables",
                         functions={
-                            "getenv": SourceFunction(
+                            "getenv": Function(
                                 name="getenv",
                                 symbols=["getenv", "_getenv", "__builtin_getenv"],
                                 synopsis="char * getenv(const char *name)",
-                                enabled=True,
-                                par_cnt="i == 1",
                                 par_slice="False",
+                                src_enabled=True,
+                                snk_enabled=False,
+                                fix_enabled=False,
                             )
                         },
-                    )
-                },
-            ),
-        },
-        sinks={
-            "libc": Library(
-                name="libc",
-                categories={
-                    "Process Execution": Category(
-                        name="Process Execution",
+                    ),
+                    "27.4 Running a Command": Category(
+                        name="27.4 Running a Command",
                         functions={
-                            "system": SinkFunction(
+                            "system": Function(
                                 name="system",
                                 symbols=["system", "_system", "__builtin_system"],
                                 synopsis="int system (const char *command)",
-                                enabled=True,
-                                par_cnt="i == 1",
-                                par_slice="True",
+                                par_slice="i == 1",
+                                src_enabled=False,
+                                snk_enabled=True,
+                                fix_enabled=False,
                             )
                         },
-                    )
+                    ),
                 },
             ),
-        },
-        propagators={
             "unit-test": Library(
                 name="unit-test",
                 categories={
                     "Propagators": Category(
                         name="Propagators",
                         functions={
-                            "my_exec": PropagatorFunction(
+                            "my_exec": Function(
                                 name="my_exec",
                                 symbols=["my_exec"],
                                 synopsis="void my_exec(char* cmd)",
-                                par_cnt="i == 1",
+                                fix_enabled=True,
                             )
                         },
                     )
                 },
             ),
         },
-        settings={
-            "fix_func_type": CheckboxSetting(
-                name="fix_func_type",
-                value=True,
-                help="whether to fix types of source/sink functions before slicing",
-            ),
-        },
     )
 
 
-class TestPropagators(TestSlicing):
-    def test_propagator_01(
+class TestFixers(TestSlicing):
+    def test_fixer_01(
         self,
         temp_file: IO[str],
         config_service: ConfigService,
         test_config: Configuration,
-        filenames: List[str] = ["propagator-01"],
+        filenames: List[str] = ["fixer-01"],
     ) -> None:
         # Export configuration to temporary file
         config_service.export_config(test_config, temp_file.name)

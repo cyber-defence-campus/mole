@@ -6,22 +6,20 @@ from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.common.helper.symbol import SymbolHelper
 from mole.common.log import Logger
+from mole.common.parse import LogicalExpressionParser
 from mole.common.worker import WorkerService
 from mole.data.config import (
     CallSiteKey,
-    CheckboxSetting,
     ComboboxSetting,
+    Function,
     Graphs,
     ParamKey,
-    PropagatorFunction,
-    SinkFunction,
-    SourceFunction,
     SpinboxSetting,
 )
 from mole.data.path import Path
 from mole.grouping import get_grouper, PathGrouper
 from mole.models.config import ConfigModel
-from typing import Callable, cast, Dict, List, Set, Tuple
+from typing import Callable, cast, List, Set, Tuple
 import binaryninja as bn
 import hashlib
 import networkx as nx
@@ -46,6 +44,7 @@ class PathService(WorkerService):
         self.log = log
         self.config_model = config_model
         self._paths: List[Path] = []
+        self._parser = LogicalExpressionParser(self.log)
         return
 
     def get_path_grouper(self) -> PathGrouper | None:
@@ -67,14 +66,14 @@ class PathService(WorkerService):
 
     def _slice_src_function(
         self,
-        src_fun: SourceFunction,
-        manual_fun: SourceFunction | None,
+        src_fun: Function,
+        manual_fun: Function | None,
         manual_fun_inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallSsa
         | bn.MediumLevelILTailcall
         | bn.MediumLevelILTailcallSsa
         | None,
-        manual_fun_all_code_xrefs: bool,
+        manual_all_callsites: bool,
     ) -> None:
         """
         This method performs backward slicing on the given source function `src_fun`. It stores the
@@ -87,9 +86,13 @@ class PathService(WorkerService):
         # Get code cross-references
         code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
         # Source manually configured via UI
-        if manual_fun is not None and manual_fun_inst is not None:
+        if (
+            manual_fun is not None
+            and manual_fun.src_enabled
+            and manual_fun_inst is not None
+        ):
             # Source without code cross-references
-            if not manual_fun_all_code_xrefs or not code_refs:
+            if not code_refs or not manual_all_callsites:
                 code_refs = {}
                 for symbol_name in src_fun.symbols:
                     mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
@@ -163,29 +166,6 @@ class PathService(WorkerService):
                         custom_tag,
                         f"Analyze argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
                     )
-                    # Perform dataflow analysis on the parameter
-                    if src_fun.par_dataflow_fun(src_par_idx):
-                        # Ignore constant parameters
-                        if (
-                            src_par_var.operation
-                            != bn.MediumLevelILOperation.MLIL_VAR_SSA
-                        ):
-                            self.log.debug(
-                                custom_tag,
-                                f"0x{src_sym_addr:x} Ignore constant argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
-                            )
-                            continue
-                        # Ignore parameters that can be determined with dataflow analysis
-                        possible_sizes = src_par_var.possible_values
-                        if (
-                            possible_sizes.type
-                            != bn.RegisterValueType.UndeterminedValue
-                        ):
-                            self.log.debug(
-                                custom_tag,
-                                f"0x{src_sym_addr:x} Ignore dataflow determined argument 'arg#{src_par_idx:d}:{str(src_par_var):s}'",
-                            )
-                            continue
                     # Initialize backward slicer
                     src_slicer = MediumLevelILBackwardSlicer(
                         self.bv,
@@ -196,7 +176,11 @@ class PathService(WorkerService):
                         lambda: self.cancelled(thread_name="find"),
                     )
                     # Initialize the function that decides which parameters to slice
-                    if isinstance(manual_fun, SourceFunction) and manual_fun_inst:
+                    if (
+                        manual_fun is not None
+                        and manual_fun.src_enabled
+                        and manual_fun_inst is not None
+                    ):
                         par_slice_fun = manual_fun.par_slice_fun
                     else:
                         par_slice_fun = src_fun.par_slice_fun
@@ -223,15 +207,15 @@ class PathService(WorkerService):
 
     def _slice_snk_function(
         self,
-        snk_fun: SinkFunction,
-        sources: List[SourceFunction],
-        manual_fun: SinkFunction | None,
+        snk_fun: Function,
+        sources: List[Function],
+        manual_fun: Function | None,
         manual_fun_inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallSsa
         | bn.MediumLevelILTailcall
         | bn.MediumLevelILTailcallSsa
         | None,
-        manual_fun_all_code_xrefs: bool,
+        manual_all_callsites: bool,
         max_call_level: int,
         max_slice_depth: int | None,
         max_memory_slice_depth: int,
@@ -255,9 +239,13 @@ class PathService(WorkerService):
         # Get code cross-references
         code_refs = SymbolHelper.get_code_refs(self.bv, snk_fun.symbols)
         # Sink manually configured via UI
-        if manual_fun is not None and manual_fun_inst is not None:
+        if (
+            manual_fun is not None
+            and manual_fun.snk_enabled
+            and manual_fun_inst is not None
+        ):
             # Sink without code cross-references
-            if not manual_fun_all_code_xrefs or not code_refs:
+            if not code_refs or not manual_all_callsites:
                 code_refs = {}
                 for symbol_name in snk_fun.symbols:
                     mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
@@ -327,31 +315,12 @@ class PathService(WorkerService):
                         custom_tag,
                         f"Analyze argument 'arg#{snk_par_idx:d}:{str(snk_par_var):s}'",
                     )
-                    # Perform dataflow analysis on the parameter
-                    if snk_fun.par_dataflow_fun(snk_par_idx):
-                        # Ignore constant parameters
-                        if (
-                            snk_par_var.operation
-                            != bn.MediumLevelILOperation.MLIL_VAR_SSA
-                        ):
-                            self.log.debug(
-                                custom_tag,
-                                f"0x{snk_sym_addr:x} Ignore constant argument 'arg#{snk_par_idx:d}:{str(snk_par_var):s}'",
-                            )
-                            continue
-                        # Ignore parameters that can be determined with dataflow analysis
-                        possible_sizes = snk_par_var.possible_values
-                        if (
-                            possible_sizes.type
-                            != bn.RegisterValueType.UndeterminedValue
-                        ):
-                            self.log.debug(
-                                custom_tag,
-                                f"0x{snk_sym_addr:x} Ignore dataflow determined argument 'arg#{snk_par_idx:d}:{str(snk_par_var):s}'",
-                            )
-                            continue
                     # Peform backward slicing of the parameter
-                    if isinstance(manual_fun, SinkFunction) and manual_fun_inst:
+                    if (
+                        manual_fun is not None
+                        and manual_fun.snk_enabled
+                        and manual_fun_inst is not None
+                    ):
                         par_slice_fun = manual_fun.par_slice_fun
                     else:
                         par_slice_fun = snk_fun.par_slice_fun
@@ -400,7 +369,7 @@ class PathService(WorkerService):
                                     if self.cancelled(thread_name="find"):
                                         break
                                     # Source parameter was not sliced
-                                    if isinstance(manual_fun, SourceFunction):
+                                    if manual_fun is not None:
                                         par_slice_fun = manual_fun.par_slice_fun
                                     else:
                                         par_slice_fun = source.par_slice_fun
@@ -578,20 +547,18 @@ class PathService(WorkerService):
     def _find_paths(
         self,
         max_workers: int | None,
-        fix_func_type: bool,
         max_call_level: int,
         max_slice_depth: int,
         max_memory_slice_depth: int,
-        src_funs: List[SourceFunction],
-        snk_funs: List[SinkFunction],
-        prp_funs: List[PropagatorFunction],
-        manual_fun: SourceFunction | SinkFunction | None,
+        src_funs: List[Function],
+        snk_funs: List[Function],
+        manual_fun: Function | None,
         manual_fun_inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallSsa
         | bn.MediumLevelILTailcall
         | bn.MediumLevelILTailcallSsa
         | None,
-        manual_fun_all_code_xrefs: bool,
+        manual_all_callsites: bool,
         path_callback: Callable[[List[Path]], None] = lambda _: None,
         progress_callback: Callable[[str, str, int], None] = lambda _, __, ___: None,
     ) -> List[Path]:
@@ -603,101 +570,6 @@ class PathService(WorkerService):
         if not src_funs or not snk_funs:
             self.log.warn(tag, "No source or sink functions configured")
         else:
-            # Fix source/sink function types
-            if fix_func_type:
-                # Source function synopses
-                src_fun_synopses: Dict[str, Tuple[str, Callable[[int], bool]]] = {}
-                for src_fun in src_funs:
-                    for symbol in src_fun.symbols:
-                        src_fun_synopses[symbol] = (
-                            src_fun.synopsis,
-                            src_fun.par_cnt_fun,
-                        )
-                # Sink function synopses
-                snk_fun_synopses: Dict[str, Tuple[str, Callable[[int], bool]]] = {}
-                for snk_fun in snk_funs:
-                    for symbol in snk_fun.symbols:
-                        snk_fun_synopses[symbol] = (
-                            snk_fun.synopsis,
-                            snk_fun.par_cnt_fun,
-                        )
-                # Propagator function synopses
-                prp_fun_synopses: Dict[str, Tuple[str, Callable[[int], bool]]] = {}
-                for prp_fun in prp_funs:
-                    for symbol in prp_fun.symbols:
-                        prp_fun_synopses[symbol] = (
-                            prp_fun.synopsis,
-                            prp_fun.par_cnt_fun,
-                        )
-                # Fix function types
-                fixed = False
-                for func in self.bv.functions:
-                    # Fix source function types
-                    synopsis, par_cnt_fun = src_fun_synopses.get(
-                        func.name, (None, None)
-                    )
-                    if (
-                        synopsis is not None
-                        and par_cnt_fun is not None
-                        and not par_cnt_fun(len(func.parameter_vars))
-                    ):
-                        try:
-                            type, _ = self.bv.parse_type_string(synopsis)
-                            func.set_user_type(type)
-                            fixed = True
-                            self.log.info(
-                                tag, f"Fixed type of source function {func.name:s}"
-                            )
-                        except Exception as e:
-                            self.log.warn(
-                                tag,
-                                f"Failed to fix type of source function {func.name:s}: {str(e):s}",
-                            )
-                    # Fix sink function types
-                    synopsis, par_cnt_fun = snk_fun_synopses.get(
-                        func.name, (None, None)
-                    )
-                    if (
-                        synopsis is not None
-                        and par_cnt_fun is not None
-                        and not par_cnt_fun(len(func.parameter_vars))
-                    ):
-                        try:
-                            type, _ = self.bv.parse_type_string(synopsis)
-                            func.set_user_type(type)
-                            fixed = True
-                            self.log.info(
-                                tag, f"Fixed type of source function {func.name:s}"
-                            )
-                        except Exception as e:
-                            self.log.warn(
-                                tag,
-                                f"Failed to fix type of sink function {func.name:s}: {str(e):s}",
-                            )
-                    # Fix propagator function types
-                    synopsis, par_cnt_fun = prp_fun_synopses.get(
-                        func.name, (None, None)
-                    )
-                    if (
-                        synopsis is not None
-                        and par_cnt_fun is not None
-                        and not par_cnt_fun(len(func.parameter_vars))
-                    ):
-                        try:
-                            type, _ = self.bv.parse_type_string(synopsis)
-                            func.set_user_type(type)
-                            fixed = True
-                            self.log.info(
-                                tag,
-                                f"Fixed type of propagator function '{func.name:s}'",
-                            )
-                        except Exception as e:
-                            self.log.warn(
-                                tag,
-                                f"Failed to fix type of propagator function '{func.name:s}': {str(e):s}",
-                            )
-                if fixed:
-                    self.bv.update_analysis_and_wait()
             # Total tasks
             curr_task = 0
             total_tasks = len(src_funs) + len(snk_funs)
@@ -712,11 +584,9 @@ class PathService(WorkerService):
                         executor.submit(
                             self._slice_src_function,
                             src_fun,
-                            manual_fun
-                            if isinstance(manual_fun, SourceFunction)
-                            else None,
+                            manual_fun,
                             manual_fun_inst,
-                            manual_fun_all_code_xrefs,
+                            manual_all_callsites,
                         )
                     )
                 # Wait for tasks to complete
@@ -737,11 +607,9 @@ class PathService(WorkerService):
                             self._slice_snk_function,
                             snk_fun,
                             src_funs,
-                            manual_fun
-                            if isinstance(manual_fun, SinkFunction)
-                            else None,
+                            manual_fun,
                             manual_fun_inst,
-                            manual_fun_all_code_xrefs,
+                            manual_all_callsites,
                             max_call_level,
                             max_slice_depth,
                             max_memory_slice_depth,
@@ -765,12 +633,10 @@ class PathService(WorkerService):
     def find_paths(
         self,
         max_workers: int | None = None,
-        fix_func_type: bool | None = None,
         max_call_level: int | None = None,
         max_slice_depth: int | None = None,
         max_memory_slice_depth: int | None = None,
-        enable_all_funs: bool = False,
-        manual_fun: SourceFunction | SinkFunction | None = None,
+        manual_fun: Function | None = None,
         manual_fun_inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallUntyped
         | bn.MediumLevelILCallSsa
@@ -780,7 +646,7 @@ class PathService(WorkerService):
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntypedSsa
         | None = None,
-        manual_fun_all_code_xrefs: bool = False,
+        manual_all_callsites: bool = False,
         path_callback: Callable[[List[Path]], None] = lambda _: None,
         progress_callback: Callable[[str, str, int], None] = lambda _, __, ___: None,
     ) -> None:
@@ -795,6 +661,88 @@ class PathService(WorkerService):
         if self.is_alive():
             self.log.warn(tag, "Another thread of the path service is still runnning")
             return
+        # Setup functions
+        src_funs: List[Function] = []
+        snk_funs: List[Function] = []
+        all_funs = self.config_model.get_functions()
+        if manual_fun is not None and manual_fun not in all_funs:
+            all_funs.append(manual_fun)
+        cnt_fixed = 0
+        for fun in all_funs:
+            # Ensure a function symbol exists
+            symbol_found = False
+            for symbol in fun.symbols:
+                if self.bv.get_symbols_by_name(symbol):
+                    symbol_found = True
+                    break
+            if not symbol_found:
+                continue
+            # Determine function type
+            try:
+                fun_type, _ = self.bv.parse_type_string(fun.synopsis)
+                if not isinstance(fun_type, bn.FunctionType):
+                    raise TypeError("Parsed type is not a function type")
+            except Exception as e:
+                fun_type = None
+                self.log.warn(
+                    tag,
+                    f"Failed to parse synopsis of function {fun.name:s}: {str(e):s}",
+                )
+            # Determine `par_cnt` expression
+            if fun_type is not None:
+                # Function without variable arguments
+                if not fun_type.has_variable_arguments:
+                    fun.par_cnt = f"i == {len(fun_type.parameters):d}"
+                # Function with variable arguments
+                else:
+                    fun.par_cnt = f"i >= {len(fun_type.parameters):d}"
+            else:
+                fun.par_cnt = "False"
+            # Parse `par_cnt` expression
+            fun.par_cnt_fun = self._parser.parse(fun.par_cnt) or (lambda _: False)
+            # Parse `par_slice` expression
+            fun.par_slice_fun = self._parser.parse(fun.par_slice) or (lambda _: False)
+            # Fix function type
+            if fun_type is not None and fun.fix_enabled:
+                for symbol in fun.symbols:
+                    for f in self.bv.get_functions_by_name(symbol):
+                        # Only fix functions with an invalid number of parameters
+                        if fun.par_cnt_fun(len(f.parameter_vars)):
+                            continue
+                        try:
+                            f.set_user_type(fun_type)
+                            cnt_fixed += 1
+                            self.log.info(tag, f"Fixed type of function {symbol:s}")
+                        except Exception as e:
+                            self.log.warn(
+                                tag,
+                                f"Failed to fix type of function {symbol:s}: {str(e):s}",
+                            )
+            # Not manually configured function
+            if manual_fun is None:
+                if fun.src_enabled:
+                    src_funs.append(fun)
+                if fun.snk_enabled:
+                    snk_funs.append(fun)
+            # Manually configured function
+            else:
+                # Use manually configured function as the only source
+                if manual_fun.src_enabled:
+                    if fun == manual_fun:
+                        src_funs = [fun]
+                # Use all functions as sources except the manually configured one
+                elif fun != manual_fun and fun.src_enabled:
+                    src_funs.append(fun)
+                # Use manually configured function as the only sink
+                if manual_fun.snk_enabled:
+                    if fun == manual_fun:
+                        snk_funs.append(fun)
+                # Use all functions as sinks except the manually configured one
+                elif fun != manual_fun and fun.snk_enabled:
+                    snk_funs.append(fun)
+        # Re-analyze if any function types were fixed
+        if cnt_fixed > 0:
+            self.bv.update_analysis_and_wait()
         # Determine settings
         self.log.debug(tag, "Settings")
         if max_workers is None:
@@ -804,13 +752,6 @@ class PathService(WorkerService):
         if max_workers is not None and max_workers <= 0:
             max_workers = None
         self.log.debug(tag, f"- max_workers           : '{max_workers}'")
-        if fix_func_type is None:
-            fix_func_type = False
-            setting = self.config_model.get_setting("fix_func_type")
-            if isinstance(setting, CheckboxSetting):
-                fix_func_type = bool(setting.value)
-        fix_func_type = cast(bool, fix_func_type)
-        self.log.debug(tag, f"- fix_func_type         : '{str(fix_func_type):s}'")
         if max_call_level is None:
             max_call_level = 10
             setting = self.config_model.get_setting("max_call_level")
@@ -832,57 +773,9 @@ class PathService(WorkerService):
                 max_memory_slice_depth = int(setting.value)
         max_memory_slice_depth = cast(int, max_memory_slice_depth)
         self.log.debug(tag, f"- max_memory_slice_depth: '{max_memory_slice_depth}'")
-        # Source functions
-        src_funs = cast(
-            List[SourceFunction],
-            self.config_model.get_functions(
-                fun_type="Sources",
-                fun_enabled=(None if enable_all_funs else True),
-            ),
-        )
-        # Manually configured source function
-        if isinstance(manual_fun, SourceFunction):
-            # Use only manually configured source function
-            if not manual_fun_all_code_xrefs:
-                src_funs = [manual_fun]
-            # Use all configured source functions with the manually selected symbol
-            else:
-                src_funs = [
-                    src_fun
-                    for src_fun in src_funs
-                    if any(symbol in src_fun.symbols for symbol in manual_fun.symbols)
-                ]
-                if not src_funs:
-                    src_funs = [manual_fun]
-        self.log.debug(tag, f"- number of sources     : '{len(src_funs):d}'")
-        # Sink functions
-        snk_funs = cast(
-            List[SinkFunction],
-            self.config_model.get_functions(
-                fun_type="Sinks", fun_enabled=(None if enable_all_funs else True)
-            ),
-        )
-        # Manually configured sink function
-        if isinstance(manual_fun, SinkFunction):
-            # Use only manually configured sink function
-            if not manual_fun_all_code_xrefs:
-                snk_funs = [manual_fun]
-            # Use all configured sink functions with the manually selected symbol
-            else:
-                snk_funs = [
-                    snk_fun
-                    for snk_fun in snk_funs
-                    if any(symbol in snk_fun.symbols for symbol in manual_fun.symbols)
-                ]
-                if not snk_funs:
-                    snk_funs = [manual_fun]
-        self.log.debug(tag, f"- number of sinks       : '{len(snk_funs):d}'")
-        # Propagator functions
-        prp_funs = cast(
-            List[PropagatorFunction],
-            self.config_model.get_functions(fun_type="Propagators"),
-        )
-        self.log.debug(tag, f"- number of propagators : '{len(prp_funs):d}'")
+        self.log.debug(tag, f"- activated sources     : '{len(src_funs):d}'")
+        self.log.debug(tag, f"- activated sinks       : '{len(snk_funs):d}'")
+
         # Clear previous paths and caches
         self._paths.clear()
         FunctionHelper.cache_clear()
@@ -891,16 +784,14 @@ class PathService(WorkerService):
             thread_name="find",
             run=self._find_paths,
             max_workers=max_workers,
-            fix_func_type=fix_func_type,
             max_call_level=max_call_level,
             max_slice_depth=max_slice_depth,
             max_memory_slice_depth=max_memory_slice_depth,
             src_funs=src_funs,
             snk_funs=snk_funs,
-            prp_funs=prp_funs,
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
-            manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
+            manual_all_callsites=manual_all_callsites,
             path_callback=path_callback,
             progress_callback=progress_callback,
         )

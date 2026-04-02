@@ -1,7 +1,7 @@
 from __future__ import annotations
 from mole.common.log import Logger
 from mole.common.helper.instruction import InstructionHelper
-from mole.data.config import ComboboxSetting, SourceFunction, SinkFunction
+from mole.data.config import ComboboxSetting, Function
 from mole.data.path import Path
 from mole.models.ai import AiVulnerabilityReport
 from mole.models.path import PathTreeModel
@@ -163,7 +163,7 @@ class PathController:
 
     def find_paths(
         self,
-        manual_fun: SourceFunction | SinkFunction | None = None,
+        manual_fun: Function | None = None,
         manual_fun_inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallSsa
         | bn.MediumLevelILCallUntyped
@@ -173,7 +173,7 @@ class PathController:
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntypedSsa
         | None = None,
-        manual_fun_all_code_xrefs: bool = False,
+        manual_all_callsites: bool = False,
     ) -> None:
         """
         This method searches for paths and adds them to the model/view accordingly.
@@ -184,7 +184,7 @@ class PathController:
         self.path_service.find_paths(
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
-            manual_fun_all_code_xrefs=manual_fun_all_code_xrefs,
+            manual_all_callsites=manual_all_callsites,
             path_callback=self.add_paths,
             progress_callback=lambda tmp_text, new_text, msec: self.give_feedback(
                 "Find", tmp_text, new_text, msec
@@ -198,20 +198,23 @@ class PathController:
         | bn.MediumLevelILCallUntypedSsa
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntypedSsa,
-        fun: SourceFunction | SinkFunction | None = None,
+        manual_all_callsites: bool = True,
+        fun: Function | None = None,
         err_msg: str = "",
-        all_code_xrefs: bool = True,
     ) -> str:
         """
-        This method finds paths using the given call instruction `inst` as the single source
-        (`is_src=True`) or sink (`is_src=False`) function.
+        This method finds paths using the given call instruction `inst` as the single source or sink
+        function.
         """
         if fun is not None:
-            self.find_paths(
-                manual_fun=fun,
-                manual_fun_inst=inst,
-                manual_fun_all_code_xrefs=all_code_xrefs,
-            )
+            if fun.src_enabled or fun.snk_enabled:
+                self.find_paths(
+                    manual_fun=fun,
+                    manual_fun_inst=inst,
+                    manual_all_callsites=manual_all_callsites,
+                )
+            else:
+                err_msg = "Needs Src or Snk"
         return err_msg
 
     def load_paths(self, batch_size: int = 100) -> None:

@@ -1,0 +1,158 @@
+{
+  "taint_model": {
+    "libc": {
+      "5.4 Copying Strings and Arrays": {
+        "memcpy": {
+          "aliases": [
+            "_memcpy",
+            "__builtin_memcpy"
+          ],
+          "synopsis": "void * memcpy (void *to, const void *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        }
+      },
+      "5.6 Truncating Strings While Copying": {
+        "strncat": {
+          "aliases": [
+            "_strncat",
+            "__builtin_strncat"
+          ],
+          "synopsis": "char * strncat (char *to, const char *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        }
+      },
+      "12.14 Fomratted Input": {
+        "fscanf": {
+          "aliases": [
+            "_fscanf",
+            "__builtin_fscanf",
+            "__isoc99_fscanf",
+            "__isoc23_fscanf"
+          ],
+          "synopsis": "int fscanf (FILE *stream, const char *format, ...)",
+          "par_slice": "i >= 3",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "12.8 Character Input": {
+        "fgetc": {
+          "aliases": [
+            "_fgetc",
+            "__builtin_fgetc"
+          ],
+          "synopsis": "int fgetc (FILE *stream)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "12.9 Line-Oriented Input": {
+        "gets": {
+          "aliases": [
+            "_gets",
+            "__builtin_gets"
+          ],
+          "synopsis": "char * gets (char *s)",
+          "par_slice": "True",
+          "attributes": {
+            "source": true,
+            "sink": true,
+            "fix": false
+          }
+        }
+      },
+      "12.14 Formatted Input": {
+        "sscanf": {
+          "aliases": [
+            "_sscanf",
+            "__builtin_sscanf",
+            "__isoc99_sscanf",
+            "__isoc23_sscanf"
+          ],
+          "synopsis": "int sscanf (const char *s, const char *format, ...)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        }
+      },
+      "16.9 Using Sockets With Connections": {
+        "recv": {
+          "aliases": [
+            "_recv",
+            "__builtin_recv"
+          ],
+          "synopsis": "ssize_t recv (int socket, void *buffer, size_t size, int flags)",
+          "par_slice": "i == 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "26.4 Environment Variables": {
+        "getenv": {
+          "aliases": [
+            "_getenv",
+            "__builtin_getenv"
+          ],
+          "synopsis": "char * getenv (const char *name)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "secure_getenv": {
+          "aliases": [
+            "_secure_getenv",
+            "__builtin_secure_getenv"
+          ],
+          "synopsis": "char * secure_getenv (const char *name)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "27.1 Running a Command": {
+        "system": {
+          "aliases": [
+            "_system",
+            "__builtin_system"
+          ],
+          "synopsis": "int system (const char *command)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        }
+      }
+    }
+  }
+}

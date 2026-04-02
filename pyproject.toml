@@ -11,17 +11,17 @@ include = ["mole*"]
 
 [project]
 name = "mole"
-version = "0.6.2"
+version = "0.7.0"
 description = "A Binary Ninja plugin to identify interesting paths using static backward slicing"
 authors = [
     {name = "Damian Pfammatter"},
     {name = "Sergio Paganoni"}
 ]
+readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "lark==1.3.1",
     "networkx[default]==3.6.1",
-    "PyYAML==6.0.3",
     "termcolor==3.3.0",
     "pydantic==2.12.5",
     "openai==2.20.0"

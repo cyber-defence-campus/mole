@@ -14,34 +14,18 @@ class Configuration:
     This class is a representation of the data associated with the plugin's configuration.
     """
 
-    sources: Dict[str, Library] = field(default_factory=dict)
-    sinks: Dict[str, Library] = field(default_factory=dict)
-    propagators: Dict[str, Library] = field(default_factory=dict)
+    taint_model: Dict[str, Library] = field(default_factory=dict)
     settings: Dict[str, WidgetSetting] = field(default_factory=dict)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Configuration):
             return False
-        if len(self.sources) != len(other.sources):
+        if len(self.taint_model) != len(other.taint_model):
             return False
-        for lib_name, lib in self.sources.items():
-            if lib_name not in other.sources:
+        for lib_name, lib in self.taint_model.items():
+            if lib_name not in other.taint_model:
                 return False
-            if lib != other.sources[lib_name]:
-                return False
-        if len(self.sinks) != len(other.sinks):
-            return False
-        for lib_name, lib in self.sinks.items():
-            if lib_name not in other.sinks:
-                return False
-            if lib != other.sinks[lib_name]:
-                return False
-        if len(self.propagators) != len(other.propagators):
-            return False
-        for lib_name, lib in self.propagators.items():
-            if lib_name not in other.propagators:
-                return False
-            if lib != other.propagators[lib_name]:
+            if lib != other.taint_model[lib_name]:
                 return False
         if len(self.settings) != len(other.settings):
             return False
@@ -53,22 +37,14 @@ class Configuration:
         return True
 
     def to_dict(self) -> Dict:
-        sources = {}
-        for lib_name, lib in self.sources.items():
-            sources[lib_name] = lib.to_dict()
-        sinks = {}
-        for lib_name, lib in self.sinks.items():
-            sinks[lib_name] = lib.to_dict()
-        propagators = {}
-        for lib_name, lib in self.propagators.items():
-            propagators[lib_name] = lib.to_dict()
+        functions = {}
+        for lib_name, lib in self.taint_model.items():
+            functions[lib_name] = lib.to_dict()
         settings = {}
         for setting_name, setting in self.settings.items():
             settings[setting_name] = setting.to_dict()
         return {
-            "sources": sources,
-            "sinks": sinks,
-            "propagators": propagators,
+            "taint_model": functions,
             "settings": settings,
         }
 
@@ -97,10 +73,10 @@ class Library:
         return True
 
     def to_dict(self) -> Dict:
-        categories = {}
+        library = {}
         for cat_name, cat in self.categories.items():
-            categories[cat_name] = cat.to_dict()
-        return {"categories": categories}
+            library[cat_name] = cat.to_dict()
+        return library
 
 
 @dataclass
@@ -127,10 +103,46 @@ class Category:
         return True
 
     def to_dict(self) -> Dict:
-        functions = {}
+        category = {}
         for fun_name, fun in self.functions.items():
-            functions[fun_name] = fun.to_dict()
-        return {"functions": functions}
+            category[fun_name] = fun.to_dict()
+        return category
+
+
+@dataclass
+class Function:
+    """
+    This class is a representation of the data associated with functions.
+    """
+
+    name: str
+    symbols: List[str]
+    synopsis: str = ""
+    par_cnt: str = ""
+    par_cnt_fun: Callable[[int], bool] = lambda _: False
+    par_slice: str = ""
+    par_slice_fun: Callable[[int], bool] = lambda _: False
+    src_enabled: bool = False
+    snk_enabled: bool = False
+    fix_enabled: bool = False
+    graph_map: Dict[CallSiteKey, Dict[ParamKey, Graphs]] = field(default_factory=dict)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Function):
+            return False
+        return self.name in other.symbols and other.name in self.symbols
+
+    def to_dict(self) -> Dict:
+        return {
+            "aliases": [symbol for symbol in self.symbols if symbol != self.name],
+            "synopsis": self.synopsis,
+            "par_slice": self.par_slice,
+            "attributes": {
+                "source": self.src_enabled,
+                "sink": self.snk_enabled,
+                "fix": self.fix_enabled,
+            },
+        }
 
 
 @dataclass(frozen=True)
@@ -155,77 +167,6 @@ class ParamKey:
 class Graphs:
     inst_graph: MediumLevelILInstructionGraph
     call_graph: MediumLevelILFunctionGraph
-
-
-@dataclass
-class Function:
-    """
-    This class is a representation of the data associated with functions.
-    """
-
-    name: str
-    symbols: List[str]
-    synopsis: str = ""
-    enabled: bool = False
-    par_cnt: str = ""
-    par_cnt_fun: Callable[[int], bool] = lambda _: False
-    par_dataflow: str = ""
-    par_dataflow_fun: Callable[[int], bool] = lambda _: False
-    par_slice: str = ""
-    par_slice_fun: Callable[[int], bool] = lambda _: False
-    checkbox: qtw.QCheckBox | None = None
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Function):
-            return False
-        return self.name == other.name
-
-    def to_dict(self) -> Dict:
-        return {
-            "symbols": self.symbols,
-            "synopsis": self.synopsis,
-            "enabled": self.enabled,
-            "par_cnt": self.par_cnt,
-            "par_slice": self.par_slice,
-        }
-
-
-@dataclass
-class SourceFunction(Function):
-    """
-    This class is a representation of the data associated with source functions.
-    """
-
-    graph_map: Dict[CallSiteKey, Dict[ParamKey, Graphs]] = field(default_factory=dict)
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, SourceFunction):
-            return False
-        return super().__eq__(other)
-
-
-@dataclass
-class SinkFunction(Function):
-    """
-    This class is a representation of the data associated with sink functions.
-    """
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, SinkFunction):
-            return False
-        return super().__eq__(other)
-
-
-@dataclass
-class PropagatorFunction(Function):
-    """
-    This class is a representation of the data associated with propagator functions.
-    """
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, PropagatorFunction):
-            return False
-        return super().__eq__(other)
 
 
 @dataclass

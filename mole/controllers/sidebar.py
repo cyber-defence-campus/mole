@@ -61,12 +61,6 @@ class SidebarController:
         self.config_ctr.config_view.signal_export_config.connect(
             self.config_ctr.export_config
         )
-        self.config_ctr.config_view.signal_check_functions.connect(
-            self.config_ctr.check_functions
-        )
-        self.config_ctr.config_view.signal_clear_manual_functions.connect(
-            self.config_ctr.clear_manual_functions
-        )
         self.config_ctr.config_view.signal_change_setting.connect(
             self.config_ctr.change_setting
         )
@@ -79,35 +73,37 @@ class SidebarController:
         # Connect config dialog signals
         self.config_ctr.config_dialog.signal_find.connect(
             lambda inst,
-            is_src,
-            all_code_xrefs,
-            symbol,
+            all_callsites,
+            name,
             synopsis,
-            par_cnt,
-            par_slice: self.config_ctr.give_feedback(
+            par_slice,
+            src_enabled,
+            snk_enabled,
+            fix_enabled: self.config_ctr.give_feedback(
                 "Find",
                 self.path_ctr.find_paths_from_call_inst(
                     inst,
+                    all_callsites,
                     *self.config_ctr.create_manual_fun(
-                        is_src, symbol, synopsis, par_cnt, par_slice
+                        name, synopsis, par_slice, src_enabled, snk_enabled, fix_enabled
                     ),
-                    all_code_xrefs,
                 ),
             )
         )
         self.config_ctr.config_dialog.signal_add.connect(
-            lambda is_src,
-            symbol,
+            lambda name,
             category,
             synopsis,
-            par_cnt,
-            par_slice: self.config_ctr.give_feedback(
+            par_slice,
+            src_enabled,
+            snk_enabled,
+            fix_enabled: self.config_ctr.give_feedback(
                 "Add",
                 self.config_ctr.save_manual_fun(
-                    *self.config_ctr.create_manual_fun(
-                        is_src, symbol, synopsis, par_cnt, par_slice
-                    ),
                     category,
+                    *self.config_ctr.create_manual_fun(
+                        name, synopsis, par_slice, src_enabled, snk_enabled, fix_enabled
+                    ),
                 ),
             )
         )

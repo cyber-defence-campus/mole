@@ -2,13 +2,11 @@ from __future__ import annotations
 from mole.common.log import Logger
 from mole.data.config import (
     Category,
-    CheckboxSetting,
     ComboboxSetting,
     Configuration,
     DoubleSpinboxSetting,
+    Function,
     Library,
-    SinkFunction,
-    SourceFunction,
     SpinboxSetting,
     TextSetting,
 )
@@ -37,49 +35,41 @@ def config_service() -> ConfigService:
 def test_config() -> Configuration:
     """Provides a test Configuration object."""
     return Configuration(
-        sources={
-            "manual": Library(name="manual", categories={}),
+        taint_model={
             "libc": Library(
                 name="libc",
                 categories={
-                    "Environment Accesses": Category(
-                        name="Environment Accesses",
+                    "5.4 Copying Strings and Arrays": Category(
+                        name="5.4 Copying Strings and Arrays",
                         functions={
-                            "getenv": SourceFunction(
-                                name="getenv",
-                                symbols=["getenv", "_getenv", "__builtin_getenv"],
-                                synopsis="char * getenv(const char *name)",
-                                enabled=True,
-                                par_cnt="i == 1",
-                                par_slice="False",
-                            )
-                        },
-                    )
-                },
-            ),
-        },
-        sinks={
-            "manual": Library(name="manual", categories={}),
-            "libc": Library(
-                name="libc",
-                categories={
-                    "Memory Copy": Category(
-                        name="Memory Copy",
-                        functions={
-                            "memcpy": SinkFunction(
+                            "memcpy": Function(
                                 name="memcpy",
                                 symbols=["memcpy", "_memcpy", "__builtin_memcpy"],
                                 synopsis="void * memcpy (void *to, const void *from, size_t size)",
-                                enabled=True,
-                                par_cnt="i == 3",
                                 par_slice="True",
+                                src_enabled=False,
+                                snk_enabled=True,
+                                fix_enabled=False,
                             )
                         },
-                    )
+                    ),
+                    "26.4 Environment Variables": Category(
+                        name="26.4 Environment Variables",
+                        functions={
+                            "getenv": Function(
+                                name="getenv",
+                                symbols=["getenv", "_getenv", "__builtin_getenv"],
+                                synopsis="char * getenv(const char *name)",
+                                par_slice="False",
+                                src_enabled=True,
+                                snk_enabled=False,
+                                fix_enabled=False,
+                            )
+                        },
+                    ),
                 },
             ),
         },
-        propagators={},
         settings={
             "max_workers": SpinboxSetting(
                 name="max_workers",
@@ -178,11 +168,6 @@ def test_config() -> Configuration:
                 min_value=0.0,
                 max_value=2.0,
                 help="the sampling temperature to use",
-            ),
-            "fix_func_type": CheckboxSetting(
-                name="fix_func_type",
-                value=True,
-                help="whether to fix types of source/sink functions before slicing",
             ),
         },
     )
