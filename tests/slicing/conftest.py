@@ -1,6 +1,6 @@
 from __future__ import annotations
 from mole.common.log import Logger
-from mole.models.config import ConfigModel, TaintModelColumns
+from mole.models.config import ConfigModel
 from mole.services.config import ConfigService
 from mole.services.path import PathService
 from typing import Callable, List, Tuple
@@ -65,22 +65,15 @@ class TestSlicing:
         log = Logger()
         # Configuration model
         model = ConfigModel(ConfigService(log).import_config(self._config_file))
-        # Ensure relevant source functions are enabled
+        # Ensure relevant functions are enabled
         src_names = [src[0] for src in srcs]
-        src_funs = model.get_functions(
-            lib_names=["libc"], fun_types=[TaintModelColumns.SOURCE]
-        )
-        for src_fun in src_funs:
-            if src_fun.name in src_names:
-                src_fun.src_enabled = True
-        # Ensure relevant sink functions are enabled
         snk_names = [snk[0] for snk in snks]
-        snk_funs = model.get_functions(
-            lib_names=["libc"], fun_types=[TaintModelColumns.SINK]
-        )
-        for snk_fun in snk_funs:
-            if snk_fun.name in snk_names:
-                snk_fun.snk_enabled = True
+        funs = model.get_functions(lib_names=["libc"])
+        for fun in funs:
+            if fun.name in src_names:
+                fun.src_enabled = True
+            if fun.name in snk_names:
+                fun.snk_enabled = True
         # Iterate over all test files
         for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja

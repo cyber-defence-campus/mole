@@ -1,116 +1,7 @@
 {
   "taint_model": {
     "libc": {
-      "5.4 Copying Strings and Arrays": {
-        "memcpy": {
-          "aliases": [
-            "_memcpy",
-            "__builtin_memcpy"
-          ],
-          "synopsis": "void * memcpy (void *to, const void *from, size_t size)",
-          "par_slice": "True",
-          "attributes": {
-            "source": false,
-            "sink": true,
-            "fix": false
-          }
-        }
-      },
-      "5.6 Truncating Strings While Copying": {
-        "strncat": {
-          "aliases": [
-            "_strncat",
-            "__builtin_strncat"
-          ],
-          "synopsis": "char * strncat (char *to, const char *from, size_t size)",
-          "par_slice": "True",
-          "attributes": {
-            "source": false,
-            "sink": true,
-            "fix": false
-          }
-        }
-      },
-      "12.14 Fomratted Input": {
-        "fscanf": {
-          "aliases": [
-            "_fscanf",
-            "__builtin_fscanf",
-            "__isoc99_fscanf",
-            "__isoc23_fscanf"
-          ],
-          "synopsis": "int fscanf (FILE *stream, const char *format, ...)",
-          "par_slice": "i >= 3",
-          "attributes": {
-            "source": true,
-            "sink": false,
-            "fix": false
-          }
-        }
-      },
-      "12.8 Character Input": {
-        "fgetc": {
-          "aliases": [
-            "_fgetc",
-            "__builtin_fgetc"
-          ],
-          "synopsis": "int fgetc (FILE *stream)",
-          "par_slice": "i == 1",
-          "attributes": {
-            "source": true,
-            "sink": false,
-            "fix": false
-          }
-        }
-      },
-      "12.9 Line-Oriented Input": {
-        "gets": {
-          "aliases": [
-            "_gets",
-            "__builtin_gets"
-          ],
-          "synopsis": "char * gets (char *s)",
-          "par_slice": "True",
-          "attributes": {
-            "source": true,
-            "sink": true,
-            "fix": false
-          }
-        }
-      },
-      "12.14 Formatted Input": {
-        "sscanf": {
-          "aliases": [
-            "_sscanf",
-            "__builtin_sscanf",
-            "__isoc99_sscanf",
-            "__isoc23_sscanf"
-          ],
-          "synopsis": "int sscanf (const char *s, const char *format, ...)",
-          "par_slice": "True",
-          "attributes": {
-            "source": false,
-            "sink": true,
-            "fix": false
-          }
-        }
-      },
-      "16.9 Using Sockets With Connections": {
-        "recv": {
-          "aliases": [
-            "_recv",
-            "__builtin_recv"
-          ],
-          "synopsis": "ssize_t recv (int socket, void *buffer, size_t size, int flags)",
-          "par_slice": "i == 2",
-          "attributes": {
-            "source": true,
-            "sink": false,
-            "fix": false
-          }
-        }
-      },
-      "26.4 Environment Variables": {
+      "Environment Accesses": {
         "getenv": {
           "aliases": [
             "_getenv",
@@ -138,17 +29,1482 @@
           }
         }
       },
-      "27.1 Running a Command": {
+      "Character Inputs": {
+        "fgetc": {
+          "aliases": [
+            "_fgetc",
+            "__builtin_fgetc"
+          ],
+          "synopsis": "int fgetc (FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fgetwc": {
+          "aliases": [
+            "_fgetwc",
+            "__builtin_fgetwc"
+          ],
+          "synopsis": "wint_t fgetwc (FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fgetc_unlocked": {
+          "aliases": [
+            "_fgetc_unlocked",
+            "__builtin_fgetc_unlocked"
+          ],
+          "synopsis": "int fgetc_unlocked (FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fgetwc_unlocked": {
+          "aliases": [
+            "_fgetwc_unlocked",
+            "__builtin_fgetwc_unlocked"
+          ],
+          "synopsis": "wint_t fgetwc_unlocked (FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getc": {
+          "aliases": [
+            "_getc",
+            "__builtin_getc"
+          ],
+          "synopsis": "int getc (FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getwc": {
+          "aliases": [
+            "_getwc",
+            "__builtin_getwc"
+          ],
+          "synopsis": "wint_t getwc (FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getc_unlocked": {
+          "aliases": [
+            "_getc_unlocked",
+            "__builtin_getc_unlocked"
+          ],
+          "synopsis": "int getc_unlocked (FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getwc_unlocked": {
+          "aliases": [
+            "_getwc_unlocked",
+            "__builtin_getwc_unlocked"
+          ],
+          "synopsis": "wint_t getwc_unlocked (FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getchar": {
+          "aliases": [
+            "_getchar",
+            "__builtin_getchar"
+          ],
+          "synopsis": "int getchar (void)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getwchar": {
+          "aliases": [
+            "_getwchar",
+            "__builtin_getwchar"
+          ],
+          "synopsis": "wint_t getwchar (void)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getchar_unlocked": {
+          "aliases": [
+            "_getchar_unlocked",
+            "__builtin_getchar_unlocked"
+          ],
+          "synopsis": "int getchar_unlocked (void)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getwchar_unlocked": {
+          "aliases": [
+            "_getwchar_unlocked",
+            "__builtin_getwchar_unlocked"
+          ],
+          "synopsis": "wint_t getwchar_unlocked (void)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getw": {
+          "aliases": [
+            "_getw",
+            "__builtin_getw"
+          ],
+          "synopsis": "int getw (FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "Line-Oriented Inputs": {
+        "getline": {
+          "aliases": [
+            "_getline",
+            "__builtin_getline"
+          ],
+          "synopsis": "ssize_t getline (char **lineptr, size_t *n, FILE *stream)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "getdelim": {
+          "aliases": [
+            "_getdelim",
+            "__builtin_getdelim"
+          ],
+          "synopsis": "ssize_t getdelim (char **lineptr, size_t *n, int delimiter, FILE *stream)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fgets": {
+          "aliases": [
+            "_fgets",
+            "__builtin_fgets"
+          ],
+          "synopsis": "char * fgets (char *s, int count, FILE *stream)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fgetws": {
+          "aliases": [
+            "_fgetws",
+            "__builtin_fgetws"
+          ],
+          "synopsis": "wchar_t * fgetws (wchar_t *ws, int count, FILE *stream)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fgets_unlocked": {
+          "aliases": [
+            "_fgets_unlocked",
+            "__builtin_fgets_unlocked"
+          ],
+          "synopsis": "char * fgets_unlocked (char *s, int count, FILE *stream)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fgetws_unlocked": {
+          "aliases": [
+            "_fgetws_unlocked",
+            "__builtin_fgetws_unlocked"
+          ],
+          "synopsis": "wchar_t * fgetws_unlocked (wchar_t *ws, int count, FILE *stream)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "gets": {
+          "aliases": [
+            "_gets",
+            "__builtin_gets"
+          ],
+          "synopsis": "char * gets (char *s)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": true,
+            "fix": false
+          }
+        }
+      },
+      "Formatted Inputs": {
+        "scanf": {
+          "aliases": [
+            "_scanf",
+            "__builtin_scanf",
+            "__isoc99_scanf",
+            "__isoc23_scanf"
+          ],
+          "synopsis": "int scanf (const char *format, ...)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "wscanf": {
+          "aliases": [
+            "_wscanf",
+            "__builtin_wscanf",
+            "__isoc99_wscanf",
+            "__isoc23_wscanf"
+          ],
+          "synopsis": "int wscanf (const wchar_t *format, ...)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fscanf": {
+          "aliases": [
+            "_fscanf",
+            "__builtin_fscanf",
+            "__isoc99_fscanf",
+            "__isoc23_fscanf"
+          ],
+          "synopsis": "int fscanf (FILE *stream, const char *format, ...)",
+          "par_slice": "i >= 3",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fwscanf": {
+          "aliases": [
+            "_fwscanf",
+            "__builtin_fwscanf",
+            "__isoc99_fwscanf",
+            "__isoc23_fwscanf"
+          ],
+          "synopsis": "int fwscanf (FILE *stream, const wchar_t *format, ...)",
+          "par_slice": "i >= 3",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "Variable Argument Inputs": {
+        "vscanf": {
+          "aliases": [
+            "_vscanf",
+            "__builtin_vscanf",
+            "__isoc99_vscanf",
+            "__isoc23_vscanf"
+          ],
+          "synopsis": "int vscanf (const char *format, va_list ap)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vwscanf": {
+          "aliases": [
+            "_vwscanf",
+            "__builtin_vwscanf",
+            "__isoc99_vwscanf",
+            "__isoc23_vwscanf"
+          ],
+          "synopsis": "int vwscanf (const wchar_t *format, va_list ap)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vfscanf": {
+          "aliases": [
+            "_vfscanf",
+            "__builtin_vfscanf",
+            "__isoc99_vfscanf",
+            "__isoc23_vfscanf"
+          ],
+          "synopsis": "int vfscanf (FILE *stream, const char *format, va_list ap)",
+          "par_slice": "i >= 3",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vfwscanf": {
+          "aliases": [
+            "_vfwscanf",
+            "__builtin_vfwscanf",
+            "__isoc99_vfwscanf",
+            "__isoc23_vfwscanf"
+          ],
+          "synopsis": "int vfwscanf (FILE *stream, const wchar_t *format, va_list ap)",
+          "par_slice": "i >= 3",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "Files": {
+        "open": {
+          "aliases": [
+            "_open",
+            "__builtin_open"
+          ],
+          "synopsis": "int open (const char *filename, int flags, ...)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "open64": {
+          "aliases": [
+            "_open64",
+            "__builtin_open64"
+          ],
+          "synopsis": "int open64 (const char *filename, int flags, ...)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "openat": {
+          "aliases": [
+            "_openat",
+            "__builtin_openat"
+          ],
+          "synopsis": "int openat (int filedes, const char *filename, int flags, ...)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "openat64": {
+          "aliases": [
+            "_openat64",
+            "__builtin_openat64"
+          ],
+          "synopsis": "int openat64 (int filedes, const char *filename, int flags, ...)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "creat": {
+          "aliases": [
+            "_creat",
+            "__builtin_creat"
+          ],
+          "synopsis": "int creat (const char *filename, mode_t mode)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "creat64": {
+          "aliases": [
+            "_creat64",
+            "__builtin_creat64"
+          ],
+          "synopsis": "int creat64 (const char *filename, mode_t mode)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "Descriptors and Streams": {
+        "fopen": {
+          "aliases": [
+            "_fopen",
+            "__builtin_fopen"
+          ],
+          "synopsis": "FILE * fopen (const char *filename, const char *opentype)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fopen64": {
+          "aliases": [
+            "_fopen64",
+            "__builtin_fopen64"
+          ],
+          "synopsis": "FILE * fopen64 (const char *filename, const char *opentype)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "freopen": {
+          "aliases": [
+            "_freopen",
+            "__builtin_freopen"
+          ],
+          "synopsis": "FILE * freopen (const char *filename, const char *opentype, FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "freopen64": {
+          "aliases": [
+            "_freopen64",
+            "__builtin_freopen64"
+          ],
+          "synopsis": "FILE * freopen64 (const char *filename, const char *opentype, FILE *stream)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fdopen": {
+          "aliases": [
+            "_fdopen",
+            "__builtin_fdopen"
+          ],
+          "synopsis": "FILE * fdopen (int filedes, const char *opentype)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "read": {
+          "aliases": [
+            "_read",
+            "__builtin_read"
+          ],
+          "synopsis": "ssize_t read (int filedes, void *buffer, size_t size)",
+          "par_slice": "i == 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "pread": {
+          "aliases": [
+            "_pread",
+            "__builtin_pread"
+          ],
+          "synopsis": "ssize_t pread (int filedes, void *buffer, size_t size, off_t offset)",
+          "par_slice": "i == 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "pread64": {
+          "aliases": [
+            "_pread64",
+            "__builtin_pread64"
+          ],
+          "synopsis": "ssize_t pread64 (int filedes, void *buffer, size_t size, off64_t offset)",
+          "par_slice": "i == 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fread": {
+          "aliases": [
+            "_fread",
+            "__builtin_fread"
+          ],
+          "synopsis": "size_t fread (void *data, size_t size, size_t count, FILE *stream)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fread_unlocked": {
+          "aliases": [
+            "_fread_unlocked",
+            "__builtin_fread_unlocked"
+          ],
+          "synopsis": "size_t fread_unlocked (void *data, size_t size, size_t count, FILE *stream)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "Directories": {
+        "opendir": {
+          "aliases": [
+            "_opendir",
+            "__builtin_opendir"
+          ],
+          "synopsis": "DIR * opendir (const char *dirname)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fdopendir": {
+          "aliases": [
+            "_fdopendir",
+            "__builtin_fdopendir"
+          ],
+          "synopsis": "DIR * fdopendir (int fd)",
+          "par_slice": "False",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "Networks": {
+        "recv": {
+          "aliases": [
+            "_recv",
+            "__builtin_recv"
+          ],
+          "synopsis": "ssize_t recv (int socket, void *buffer, size_t size, int flags)",
+          "par_slice": "i == 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "recvfrom": {
+          "aliases": [
+            "_recvfrom",
+            "__builtin_recvfrom"
+          ],
+          "synopsis": "ssize_t recvfrom (int socket, void *buffer, size_t size, int flags, struct sockaddr *addr, socklen_t *addrlen)",
+          "par_slice": "i == 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "recvmsg": {
+          "aliases": [
+            "_recvmsg",
+            "__builtin_recvmsg"
+          ],
+          "synopsis": "ssize_t recvmsg (int socket, struct msghdr *message, int flags)",
+          "par_slice": "i == 2",
+          "attributes": {
+            "source": true,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "Memory Copy": {
+        "memcpy": {
+          "aliases": [
+            "_memcpy",
+            "__builtin_memcpy"
+          ],
+          "synopsis": "void * memcpy (void *to, const void *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wmemcpy": {
+          "aliases": [
+            "_wmemcpy",
+            "__builtin_wmemcpy"
+          ],
+          "synopsis": "wchar_t * wmemcpy (wchar_t *wto, const wchar_t *wfrom, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "mempcpy": {
+          "aliases": [
+            "_mempcpy",
+            "__builtin_mempcpy"
+          ],
+          "synopsis": "void * mempcpy (void *to, const void *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wmempcpy": {
+          "aliases": [
+            "_wmempcpy",
+            "__builtin_wmempcpy"
+          ],
+          "synopsis": "wchar_t * wmempcpy (wchar_t *wto, const wchar_t *wfrom, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "memmove": {
+          "aliases": [
+            "_memmove",
+            "__builtin_memmove"
+          ],
+          "synopsis": "void * memmove (void *to, const void *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wmemmove": {
+          "aliases": [
+            "_wmemmove",
+            "__builtin_wmemmove"
+          ],
+          "synopsis": "wchar_t * wmemmove (wchar_t *wto, const wchar_t *wfrom, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "memccpy": {
+          "aliases": [
+            "_memccpy",
+            "__builtin_memccpy"
+          ],
+          "synopsis": "void * memccpy (void *to, const void *from, int c, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "bcopy": {
+          "aliases": [
+            "_bcopy",
+            "__builtin_bcopy"
+          ],
+          "synopsis": "void bcopy(const void* src, void* dest, size_t n)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "memset": {
+          "aliases": [
+            "_memset",
+            "__builtin_memset"
+          ],
+          "synopsis": "void * memset (void *block, int c, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wmemset": {
+          "aliases": [
+            "_wmemset",
+            "__builtin_wmemset"
+          ],
+          "synopsis": "wchar_t * wmemset (wchar_t *block, wchar_t wc, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "bzero": {
+          "aliases": [
+            "_bzero",
+            "__builtin_bzero"
+          ],
+          "synopsis": "void bzero (void *block, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        }
+      },
+      "String Copy": {
+        "strcpy": {
+          "aliases": [
+            "_strcpy",
+            "__builtin_strcpy"
+          ],
+          "synopsis": "char * strcpy (char *to, const char *from)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wcscpy": {
+          "aliases": [
+            "_wcscpy",
+            "__builtin_wcscpy"
+          ],
+          "synopsis": "wchar_t * wcscpy (wchar_t *wto, const wchar_t *wfrom)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "strlcpy": {
+          "aliases": [
+            "_strlcpy",
+            "__builtin_strlcpy"
+          ],
+          "synopsis": "size_t strlcpy(char* dst, const char* src, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "stpcpy": {
+          "aliases": [
+            "_stpcpy",
+            "__builtin_stpcpy"
+          ],
+          "synopsis": "char * stpcpy (char *to, const char *from)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wcpcpy": {
+          "aliases": [
+            "_wcpcpy",
+            "__builtin_wcpcpy"
+          ],
+          "synopsis": "wchar_t * wcpcpy (wchar_t *wto, const wchar_t *wfrom)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "strncpy": {
+          "aliases": [
+            "_strncpy",
+            "__builtin_strncpy"
+          ],
+          "synopsis": "char * strncpy (char *to, const char *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wcsncpy": {
+          "aliases": [
+            "_wcsncpy",
+            "__builtin_wcsncpy"
+          ],
+          "synopsis": "wchar_t * wcsncpy (wchar_t *wto, const wchar_t *wfrom, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "stpncpy": {
+          "aliases": [
+            "_stpncpy",
+            "__builtin_stpncpy"
+          ],
+          "synopsis": "char * stpncpy (char *to, const char *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wcpncpy": {
+          "aliases": [
+            "_wcpncpy",
+            "__builtin_wcpncpy"
+          ],
+          "synopsis": "wchar_t * wcpncpy (wchar_t *wto, const wchar_t *wfrom, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        }
+      },
+      "String Concatenation": {
+        "strcat": {
+          "aliases": [
+            "_strcat",
+            "__builtin_strcat"
+          ],
+          "synopsis": "char * strcat (char *to, const char *from)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wcscat": {
+          "aliases": [
+            "_wcscat",
+            "__builtin_wcscat"
+          ],
+          "synopsis": "wchar_t * wcscat (wchar_t *wto, const wchar_t *wfrom)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "strlcat": {
+          "aliases": [
+            "_strlcat",
+            "__builtin_strlcat"
+          ],
+          "synopsis": "size_t strlcat (char *to, const char *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wcslcat": {
+          "aliases": [
+            "_wcslcat",
+            "__builtin_wcslcat"
+          ],
+          "synopsis": "size_t wcslcat (wchar_t *to, const wchar_t *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "strncat": {
+          "aliases": [
+            "_strncat",
+            "__builtin_strncat"
+          ],
+          "synopsis": "char * strncat (char *to, const char *from, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "wcsncat": {
+          "aliases": [
+            "_wcsncat",
+            "__builtin_wcsncat"
+          ],
+          "synopsis": "wchar_t * wcsncat (wchar_t *wto, const wchar_t *wfrom, size_t size)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        }
+      },
+      "String Format Conversion": {
+        "sscanf": {
+          "aliases": [
+            "_sscanf",
+            "__builtin_sscanf",
+            "__isoc99_sscanf",
+            "__isoc23_sscanf"
+          ],
+          "synopsis": "int sscanf (const char *s, const char *format, ...)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "swscanf": {
+          "aliases": [
+            "_swscanf",
+            "__builtin_swscanf",
+            "__isoc99_swscanf",
+            "__isoc23_swscanf"
+          ],
+          "synopsis": "int swscanf (const wchar_t *ws, const wchar_t *format, ...)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vsscanf": {
+          "aliases": [
+            "_vsscanf",
+            "__builtin_vsscanf",
+            "__isoc99_vsscanf",
+            "__isoc23_vsscanf"
+          ],
+          "synopsis": "int vsscanf (const char *s, const char *format, va_list ap)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "printf": {
+          "aliases": [
+            "_printf",
+            "__builtin_printf"
+          ],
+          "synopsis": "int printf(const char* format, ...)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "wprintf": {
+          "aliases": [
+            "_wprintf",
+            "__builtin_wprintf"
+          ],
+          "synopsis": "int wprintf (const wchar_t *format, ...)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fprintf": {
+          "aliases": [
+            "_fprintf",
+            "__builtin_fprintf"
+          ],
+          "synopsis": "int fprintf (FILE *stream, const char *format, ...)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "fwprintf": {
+          "aliases": [
+            "_fwprintf",
+            "__builtin_fwprintf"
+          ],
+          "synopsis": "int fwprintf (FILE *stream, const wchar_t *format, ...)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "sprintf": {
+          "aliases": [
+            "_sprintf",
+            "__builtin_sprintf"
+          ],
+          "synopsis": "int sprintf (char *s, const char *format, ...)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "swprintf": {
+          "aliases": [
+            "_swprintf",
+            "__builtin_swprintf"
+          ],
+          "synopsis": "int swprintf (wchar_t *ws, size_t size, const wchar_t *format, ...)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "snprintf": {
+          "aliases": [
+            "_snprintf",
+            "__builtin_snprintf"
+          ],
+          "synopsis": "int snprintf (char *s, size_t size, const char *format, ...)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "dprintf": {
+          "aliases": [
+            "_dprintf",
+            "__builtin_dprintf"
+          ],
+          "synopsis": "int dprintf (int fd, const char *format, ...)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vprintf": {
+          "aliases": [
+            "_vprintf",
+            "__builtin_vprintf"
+          ],
+          "synopsis": "int vprintf (const char *format, va_list ap)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vwprintf": {
+          "aliases": [
+            "_vwprintf",
+            "__builtin_vwprintf"
+          ],
+          "synopsis": "int vwprintf (const wchar_t *format, va_list ap)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vfprintf": {
+          "aliases": [
+            "_vfprintf",
+            "__builtin_vfprintf"
+          ],
+          "synopsis": "int vfprintf (FILE *stream, const char *format, va_list ap)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vfwprintf": {
+          "aliases": [
+            "_vfwprintf",
+            "__builtin_vfwprintf"
+          ],
+          "synopsis": "int vfwprintf (FILE *stream, const wchar_t *format, va_list ap)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vsprintf": {
+          "aliases": [
+            "_vsprintf",
+            "__builtin_vsprintf"
+          ],
+          "synopsis": "int vsprintf (char *s, const char *format, va_list ap)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vswprintf": {
+          "aliases": [
+            "_vswprintf",
+            "__builtin_vswprintf"
+          ],
+          "synopsis": "int vswprintf (wchar_t *ws, size_t size, const wchar_t *format, va_list ap)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vsnprintf": {
+          "aliases": [
+            "_vsnprintf",
+            "__builtin_vsnprintf"
+          ],
+          "synopsis": "int vsnprintf (char *s, size_t size, const char *format, va_list ap)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "vdprintf": {
+          "aliases": [
+            "_vdprintf",
+            "__builtin_vdprintf"
+          ],
+          "synopsis": "int vdprintf (int fd, const char *format, va_list ap)",
+          "par_slice": "i >= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        }
+      },
+      "Process Execution": {
+        "popen": {
+          "aliases": [
+            "_popen",
+            "__builtin_popen"
+          ],
+          "synopsis": "FILE * popen (const char *command, const char *mode)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
         "system": {
           "aliases": [
             "_system",
             "__builtin_system"
           ],
           "synopsis": "int system (const char *command)",
-          "par_slice": "i == 1",
+          "par_slice": "True",
           "attributes": {
             "source": false,
             "sink": true,
+            "fix": false
+          }
+        },
+        "execv": {
+          "aliases": [
+            "_execv",
+            "__builtin_execv"
+          ],
+          "synopsis": "int execv (const char *filename, char *const argv[])",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "execl": {
+          "aliases": [
+            "_execl",
+            "__builtin_execl"
+          ],
+          "synopsis": "int execl (const char *filename, const char *arg0, ...)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "execve": {
+          "aliases": [
+            "_execve",
+            "__builtin_execve"
+          ],
+          "synopsis": "int execve (const char *filename, char *const argv[], char *const env[])",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "fexecve": {
+          "aliases": [
+            "_fexecve",
+            "__builtin_fexecve"
+          ],
+          "synopsis": "int fexecve (int fd, char *const argv[], char *const env[])",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "execle": {
+          "aliases": [
+            "_execle",
+            "__builtin_execle"
+          ],
+          "synopsis": "int execle (const char *filename, const char *arg0, ...)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "execvp": {
+          "aliases": [
+            "_execvp",
+            "__builtin_execvp"
+          ],
+          "synopsis": "int execvp (const char *filename, char *const argv[])",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        },
+        "execlp": {
+          "aliases": [
+            "_execlp",
+            "__builtin_execlp"
+          ],
+          "synopsis": "int execlp (const char *filename, const char *arg0, ...)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": true,
+            "fix": false
+          }
+        }
+      },
+      "File System": {
+        "unlink": {
+          "aliases": [
+            "_unlink",
+            "__builtin_unlink"
+          ],
+          "synopsis": "int unlink (const char *filename)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "unlinkat": {
+          "aliases": [
+            "_unlinkat",
+            "__builtin_unlinkat"
+          ],
+          "synopsis": "int unlinkat (int filedes, const char *filename, int flags)",
+          "par_slice": "i <= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "rename": {
+          "aliases": [
+            "_rename",
+            "__builtin_rename"
+          ],
+          "synopsis": "int rename (const char *oldname, const char *newname)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "renameat": {
+          "aliases": [
+            "_renameat",
+            "__builtin_renameat"
+          ],
+          "synopsis": "int renameat (int oldfiledes, const char *oldname, int newfiledes, const char *newname)",
+          "par_slice": "True",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "mkdir": {
+          "aliases": [
+            "_mkdir",
+            "__builtin_mkdir"
+          ],
+          "synopsis": "int mkdir (const char *filename, mode_t mode)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "mkdirat": {
+          "aliases": [
+            "_mkdirat",
+            "__builtin_mkdirat"
+          ],
+          "synopsis": "int mkdirat (int filedes, const char *filename, mode_t mode)",
+          "par_slice": "i <= 2",
+          "attributes": {
+            "source": false,
+            "sink": false,
+            "fix": false
+          }
+        },
+        "rmdir": {
+          "aliases": [
+            "_rmdir",
+            "__builtin_rmdir"
+          ],
+          "synopsis": "int rmdir (const char *filename)",
+          "par_slice": "i == 1",
+          "attributes": {
+            "source": false,
+            "sink": false,
             "fix": false
           }
         }
