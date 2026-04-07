@@ -85,7 +85,7 @@ class ConfigService:
                         snk_par_slice = snk_role.get("par_slice", None)
                         if not isinstance(snk_par_slice, str):
                             snk_par_slice = ""
-                        fix_role = roles.get("fix", None)
+                        fix_role = roles.get("fixer", None)
                         if not isinstance(fix_role, dict):
                             fix_role = {}
                         fix_enabled = fix_role.get("enabled", None)

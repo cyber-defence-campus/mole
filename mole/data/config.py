@@ -147,7 +147,7 @@ class Function:
                     "enabled": self.snk_enabled,
                     "par_slice": self.snk_par_slice,
                 },
-                "fix": {"enabled": self.fix_enabled},
+                "fixer": {"enabled": self.fix_enabled},
             },
         }
 
