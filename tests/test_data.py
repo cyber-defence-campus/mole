@@ -39,30 +39,32 @@ def test_config() -> Configuration:
             "libc": Library(
                 name="libc",
                 categories={
-                    "5.4 Copying Strings and Arrays": Category(
-                        name="5.4 Copying Strings and Arrays",
+                    "Memory Copy": Category(
+                        name="Memory Copy",
                         functions={
                             "memcpy": Function(
                                 name="memcpy",
                                 symbols=["memcpy", "_memcpy", "__builtin_memcpy"],
                                 synopsis="void * memcpy (void *to, const void *from, size_t size)",
-                                par_slice="True",
                                 src_enabled=False,
+                                src_par_slice="False",
                                 snk_enabled=True,
+                                snk_par_slice="True",
                                 fix_enabled=False,
                             )
                         },
                     ),
-                    "26.4 Environment Variables": Category(
-                        name="26.4 Environment Variables",
+                    "Environment Accesses": Category(
+                        name="Environment Accesses",
                         functions={
                             "getenv": Function(
                                 name="getenv",
                                 symbols=["getenv", "_getenv", "__builtin_getenv"],
                                 synopsis="char * getenv(const char *name)",
-                                par_slice="False",
                                 src_enabled=True,
+                                src_par_slice="False",
                                 snk_enabled=False,
+                                snk_par_slice="False",
                                 fix_enabled=False,
                             )
                         },

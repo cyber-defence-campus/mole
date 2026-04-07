@@ -181,9 +181,9 @@ class PathService(WorkerService):
                         and manual_fun.src_enabled
                         and manual_fun_inst is not None
                     ):
-                        par_slice_fun = manual_fun.par_slice_fun
+                        par_slice_fun = manual_fun.src_par_slice_fun
                     else:
-                        par_slice_fun = src_fun.par_slice_fun
+                        par_slice_fun = src_fun.src_par_slice_fun
                     # Backward slice the parameter
                     if par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
@@ -321,9 +321,9 @@ class PathService(WorkerService):
                         and manual_fun.snk_enabled
                         and manual_fun_inst is not None
                     ):
-                        par_slice_fun = manual_fun.par_slice_fun
+                        par_slice_fun = manual_fun.snk_par_slice_fun
                     else:
-                        par_slice_fun = snk_fun.par_slice_fun
+                        par_slice_fun = snk_fun.snk_par_slice_fun
                     if par_slice_fun(snk_par_idx):
                         # Initialize backward slicer
                         snk_slicer = MediumLevelILBackwardSlicer(
@@ -370,9 +370,9 @@ class PathService(WorkerService):
                                         break
                                     # Source parameter was not sliced
                                     if manual_fun is not None:
-                                        par_slice_fun = manual_fun.par_slice_fun
+                                        par_slice_fun = manual_fun.src_par_slice_fun
                                     else:
-                                        par_slice_fun = source.par_slice_fun
+                                        par_slice_fun = source.src_par_slice_fun
                                     if not par_slice_fun(src_par_idx):
                                         src_par_idx = None
                                         src_par_var = None
@@ -700,8 +700,13 @@ class PathService(WorkerService):
                 fun.par_cnt = "False"
             # Parse `par_cnt` expression
             fun.par_cnt_fun = self._parser.parse(fun.par_cnt) or (lambda _: False)
-            # Parse `par_slice` expression
-            fun.par_slice_fun = self._parser.parse(fun.par_slice) or (lambda _: False)
+            # Parse `par_slice` expressions
+            fun.src_par_slice_fun = self._parser.parse(fun.src_par_slice) or (
+                lambda _: False
+            )
+            fun.snk_par_slice_fun = self._parser.parse(fun.snk_par_slice) or (
+                lambda _: False
+            )
             # Fix function type
             if fun_type is not None and fun.fix_enabled:
                 for symbol in fun.symbols:

@@ -120,10 +120,12 @@ class Function:
     synopsis: str = ""
     par_cnt: str = ""
     par_cnt_fun: Callable[[int], bool] = lambda _: False
-    par_slice: str = ""
-    par_slice_fun: Callable[[int], bool] = lambda _: False
     src_enabled: bool = False
+    src_par_slice: str = ""
+    src_par_slice_fun: Callable[[int], bool] = lambda _: False
     snk_enabled: bool = False
+    snk_par_slice: str = ""
+    snk_par_slice_fun: Callable[[int], bool] = lambda _: False
     fix_enabled: bool = False
     graph_map: Dict[CallSiteKey, Dict[ParamKey, Graphs]] = field(default_factory=dict)
 
@@ -136,11 +138,16 @@ class Function:
         return {
             "aliases": [symbol for symbol in self.symbols if symbol != self.name],
             "synopsis": self.synopsis,
-            "par_slice": self.par_slice,
-            "attributes": {
-                "source": self.src_enabled,
-                "sink": self.snk_enabled,
-                "fix": self.fix_enabled,
+            "roles": {
+                "source": {
+                    "enabled": self.src_enabled,
+                    "par_slice": self.src_par_slice,
+                },
+                "sink": {
+                    "enabled": self.snk_enabled,
+                    "par_slice": self.snk_par_slice,
+                },
+                "fix": {"enabled": self.fix_enabled},
             },
         }
 

@@ -9,7 +9,6 @@ class TaintModelColumns(IndexedLabeledEnum):
     SOURCE = (1, "Src")
     SINK = (2, "Snk")
     FIX = (3, "Fix")
-    PAR_SLICE = (4, "Par Slice")
 
 
 class ConfigModel:

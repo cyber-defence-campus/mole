@@ -122,9 +122,10 @@ class ConfigController:
         self,
         name: str,
         synopsis: str,
-        par_slice: str,
         src_enabled: bool,
+        src_par_slice: str,
         snk_enabled: bool,
+        snk_par_slice: str,
         fix_enabled: bool,
     ) -> Tuple[Function | None, str]:
         """
@@ -140,20 +141,27 @@ class ConfigController:
             return None, "Invalid Synopsis..."
         # Validate par_slice
         parser = LogicalExpressionParser(self.log)
-        par_slice_fun = parser.parse(par_slice)
-        if par_slice_fun is None:
+        src_par_slice_fun = parser.parse(src_par_slice)
+        if src_par_slice_fun is None:
             self.log.warn(
-                tag, f"Failed to parse 'par_slice' expression '{par_slice:s}'"
+                tag, f"Failed to parse 'src_par_slice' expression '{src_par_slice:s}'"
             )
-            return None, "Invalid Par Slice..."
+            return None, "Invalid Src Par Slice..."
+        snk_par_slice_fun = parser.parse(snk_par_slice)
+        if snk_par_slice_fun is None:
+            self.log.warn(
+                tag, f"Failed to parse 'snk_par_slice' expression '{snk_par_slice:s}'"
+            )
+            return None, "Invalid Snk Par Slice..."
         # Create manual function
         fun = Function(
             name=name,
             symbols=[name],
             synopsis=synopsis,
-            par_slice=par_slice,
             src_enabled=src_enabled,
+            src_par_slice=src_par_slice,
             snk_enabled=snk_enabled,
+            snk_par_slice=snk_par_slice,
             fix_enabled=fix_enabled,
         )
         return fun, ""

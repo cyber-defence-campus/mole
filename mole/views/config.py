@@ -258,19 +258,8 @@ class ConfigView(qtw.QWidget):
                 set_state(item, column, state)
                 propagate_state_down(item, column, state)
                 propagate_state_up(item, column)
-            # Update
-            elif column == TaintModelColumns.PAR_SLICE.value:
-                data = item.data(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole)  # type: ignore
-                if isinstance(data, Function):
-                    data.par_slice = item.text(column)
 
             updating = False
-            return
-
-        def handle_item_double_clicked(item: qtw.QTreeWidgetItem, column: int) -> None:
-            # Allow column edit
-            if column == TaintModelColumns.PAR_SLICE.value:
-                tree.editItem(item, column)
             return
 
         # Styling
@@ -279,23 +268,19 @@ class ConfigView(qtw.QWidget):
         color = qtui.QBrush(qtui.QColor(255, 239, 213))
         # Tree widget
         tree = qtw.QTreeWidget()
-        tree.setColumnCount(5)
+        tree.setColumnCount(4)
         tree.setHeaderLabels(
             [
                 TaintModelColumns.FUNCTION.label,
                 TaintModelColumns.SOURCE.label,
                 TaintModelColumns.SINK.label,
                 TaintModelColumns.FIX.label,
-                TaintModelColumns.PAR_SLICE.label,
             ]
         )
-        tree.setEditTriggers(qtw.QAbstractItemView.NoEditTriggers)  # type: ignore
-        tree.header().setSectionsClickable(True)
         tree.header().sectionDoubleClicked.connect(
             lambda column: handle_header_double_clicked(column)
         )
         tree.itemChanged.connect(handle_item_changed)
-        tree.itemDoubleClicked.connect(handle_item_double_clicked)
         # Tree widget items
         taint_model = self.model().get_taint_model()
         for lib_name, lib in taint_model.items():
@@ -331,9 +316,6 @@ class ConfigView(qtw.QWidget):
                         TaintModelColumns.FIX.value,
                         qtc.Qt.Checked if fun.fix_enabled else qtc.Qt.Unchecked,  # type: ignore
                     )
-                    fun_item.setText(TaintModelColumns.PAR_SLICE.value, fun.par_slice)
-                    fun_item.setToolTip(TaintModelColumns.PAR_SLICE.value, fun.synopsis)
-                    fun_item.setFlags(fun_item.flags() | qtc.Qt.ItemIsEditable)  # type: ignore
         # Resize columns
         for column in range(tree.columnCount()):
             tree.resizeColumnToContents(column)
@@ -542,9 +524,9 @@ class ConfigDialog(qtw.QDialog):
     This class implements a popup dialog that allows to configure manual functions.
     """
 
-    signal_find = qtc.Signal(object, bool, str, str, str, bool, bool, bool)
+    signal_find = qtc.Signal(object, bool, str, str, bool, str, bool, str, bool)
     signal_find_feedback = qtc.Signal(str, str, int)
-    signal_add = qtc.Signal(str, str, str, str, bool, bool, bool)
+    signal_add = qtc.Signal(str, str, str, bool, str, bool, str, bool)
     signal_add_feedback = qtc.Signal(str, str, int)
 
     def __init__(self) -> None:
@@ -564,8 +546,12 @@ class ConfigDialog(qtw.QDialog):
         # Widgets
         self.syn_wid = qtw.QLineEdit()
         self.syn_wid.setToolTip("function signature")
-        self.par_slice_wid = qtw.QLineEdit("False")
-        self.par_slice_wid.setToolTip(
+        self.src_par_slice_wid = qtw.QLineEdit("False")
+        self.src_par_slice_wid.setToolTip(
+            "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
+        )
+        self.snk_par_slice_wid = qtw.QLineEdit("False")
+        self.snk_par_slice_wid.setToolTip(
             "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
         )
         self.src_enabled_wid = qtw.QCheckBox()
@@ -579,17 +565,19 @@ class ConfigDialog(qtw.QDialog):
         # Function layout
         fun_lay = qtw.QGridLayout()
         fun_lay.addWidget(qtw.QLabel("Category:"), 0, 0)
-        fun_lay.addWidget(self.cat_wid, 0, 1)
+        fun_lay.addWidget(self.cat_wid, 0, 1, 1, 3)
         fun_lay.addWidget(qtw.QLabel("Synopsis:"), 1, 0)
-        fun_lay.addWidget(self.syn_wid, 1, 1)
-        fun_lay.addWidget(qtw.QLabel("Par Slice:"), 2, 0)
-        fun_lay.addWidget(self.par_slice_wid, 2, 1)
-        fun_lay.addWidget(qtw.QLabel("Src:"), 3, 0)
-        fun_lay.addWidget(self.src_enabled_wid, 3, 1)
-        fun_lay.addWidget(qtw.QLabel("Snk:"), 4, 0)
-        fun_lay.addWidget(self.snk_enabled_wid, 4, 1)
-        fun_lay.addWidget(qtw.QLabel("Fix:"), 5, 0)
-        fun_lay.addWidget(self.fix_enabled_wid, 5, 1)
+        fun_lay.addWidget(self.syn_wid, 1, 1, 1, 3)
+        fun_lay.addWidget(qtw.QLabel("Src Enabled:"), 2, 0)
+        fun_lay.addWidget(self.src_enabled_wid, 2, 1)
+        fun_lay.addWidget(qtw.QLabel("Src Par Slice:"), 2, 2)
+        fun_lay.addWidget(self.src_par_slice_wid, 2, 3)
+        fun_lay.addWidget(qtw.QLabel("Snk Enabled:"), 3, 0)
+        fun_lay.addWidget(self.snk_enabled_wid, 3, 1)
+        fun_lay.addWidget(qtw.QLabel("Snk Par Slice:"), 3, 2)
+        fun_lay.addWidget(self.snk_par_slice_wid, 3, 3)
+        fun_lay.addWidget(qtw.QLabel("Fix Enabled:"), 4, 0)
+        fun_lay.addWidget(self.fix_enabled_wid, 4, 1, 1, 3)
         # Function widget
         fun_wid = qtw.QGroupBox("Function:")
         fun_wid.setLayout(fun_lay)
@@ -601,9 +589,10 @@ class ConfigDialog(qtw.QDialog):
                 self.all_callsites,
                 self.name,
                 self.syn_wid.text().strip(),
-                self.par_slice_wid.text().strip(),
                 self.src_enabled_wid.isChecked(),
+                self.src_par_slice_wid.text().strip(),
                 self.snk_enabled_wid.isChecked(),
+                self.snk_par_slice_wid.text().strip(),
                 self.fix_enabled_wid.isChecked(),
             )
         )
@@ -619,9 +608,10 @@ class ConfigDialog(qtw.QDialog):
                 self.name,
                 self.cat_wid.text().strip(),
                 self.syn_wid.text().strip(),
-                self.par_slice_wid.text().strip(),
                 self.src_enabled_wid.isChecked(),
+                self.src_par_slice_wid.text().strip(),
                 self.snk_enabled_wid.isChecked(),
+                self.snk_par_slice_wid.text().strip(),
                 self.fix_enabled_wid.isChecked(),
             )
         )
@@ -669,8 +659,9 @@ class ConfigDialog(qtw.QDialog):
         self.all_callsites = all_callsites
         self.name = name
         self.syn_wid.setText(synopsis)
-        self.par_slice_wid.setText("False")
         self.src_enabled_wid.setChecked(False)
+        self.src_par_slice_wid.setText("False")
         self.snk_enabled_wid.setChecked(False)
+        self.snk_par_slice_wid.setText("False")
         self.fix_enabled_wid.setChecked(False)
         return

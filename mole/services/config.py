@@ -64,28 +64,44 @@ class ConfigService:
                         synopsis = fun_dict.get("synopsis", None)
                         if not isinstance(synopsis, str):
                             synopsis = ""
-                        par_slice = fun_dict.get("par_slice", None)
-                        if not isinstance(par_slice, str):
-                            par_slice = ""
-                        att_dict = fun_dict.get("attributes", None)
-                        if not isinstance(att_dict, dict):
-                            att_dict = {}
+                        roles = fun_dict.get("roles", None)
+                        if not isinstance(roles, dict):
+                            roles = {}
+                        src_role = roles.get("source", None)
+                        if not isinstance(src_role, dict):
+                            src_role = {}
+                        src_enabled = src_role.get("enabled", None)
+                        if not isinstance(src_enabled, bool):
+                            src_enabled = False
+                        src_par_slice = src_role.get("par_slice", None)
+                        if not isinstance(src_par_slice, str):
+                            src_par_slice = ""
+                        snk_role = roles.get("sink", None)
+                        if not isinstance(snk_role, dict):
+                            snk_role = {}
+                        snk_enabled = snk_role.get("enabled", None)
+                        if not isinstance(snk_enabled, bool):
+                            snk_enabled = False
+                        snk_par_slice = snk_role.get("par_slice", None)
+                        if not isinstance(snk_par_slice, str):
+                            snk_par_slice = ""
+                        fix_role = roles.get("fix", None)
+                        if not isinstance(fix_role, dict):
+                            fix_role = {}
+                        fix_enabled = fix_role.get("enabled", None)
+                        if not isinstance(fix_enabled, bool):
+                            fix_enabled = False
                         lib = cfg.taint_model.setdefault(lib_name, Library(lib_name))
                         cat = lib.categories.setdefault(cat_name, Category(cat_name))
                         fun = Function(
                             name=fun_name,
                             symbols=[fun_name] + aliases,
                             synopsis=synopsis,
-                            par_slice=par_slice,
-                            src_enabled=False
-                            if ignore_enabled
-                            else att_dict.get("source", False),
-                            snk_enabled=False
-                            if ignore_enabled
-                            else att_dict.get("sink", False),
-                            fix_enabled=False
-                            if ignore_enabled
-                            else att_dict.get("fix", False),
+                            src_enabled=False if ignore_enabled else src_enabled,
+                            src_par_slice=src_par_slice,
+                            snk_enabled=False if ignore_enabled else snk_enabled,
+                            snk_par_slice=snk_par_slice,
+                            fix_enabled=False if ignore_enabled else fix_enabled,
                         )
                         cat.functions[fun_name] = fun
             # Parse settings

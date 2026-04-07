@@ -76,16 +76,23 @@ class SidebarController:
             all_callsites,
             name,
             synopsis,
-            par_slice,
             src_enabled,
+            src_par_slice,
             snk_enabled,
+            snk_par_slice,
             fix_enabled: self.config_ctr.give_feedback(
                 "Find",
                 self.path_ctr.find_paths_from_call_inst(
                     inst,
                     all_callsites,
                     *self.config_ctr.create_manual_fun(
-                        name, synopsis, par_slice, src_enabled, snk_enabled, fix_enabled
+                        name,
+                        synopsis,
+                        src_enabled,
+                        src_par_slice,
+                        snk_enabled,
+                        snk_par_slice,
+                        fix_enabled,
                     ),
                 ),
             )
@@ -94,15 +101,22 @@ class SidebarController:
             lambda name,
             category,
             synopsis,
-            par_slice,
             src_enabled,
+            src_par_slice,
             snk_enabled,
+            snk_par_slice,
             fix_enabled: self.config_ctr.give_feedback(
                 "Add",
                 self.config_ctr.save_manual_fun(
                     category,
                     *self.config_ctr.create_manual_fun(
-                        name, synopsis, par_slice, src_enabled, snk_enabled, fix_enabled
+                        name,
+                        synopsis,
+                        src_enabled,
+                        src_par_slice,
+                        snk_enabled,
+                        snk_par_slice,
+                        fix_enabled,
                     ),
                 ),
             )

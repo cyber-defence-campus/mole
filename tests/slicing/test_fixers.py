@@ -36,30 +36,32 @@ def test_config() -> Configuration:
             "libc": Library(
                 name="libc",
                 categories={
-                    "26.4 Environment Variables": Category(
-                        name="26.4 Environment Variables",
+                    "Environment Accesses": Category(
+                        name="Environment Accesses",
                         functions={
                             "getenv": Function(
                                 name="getenv",
                                 symbols=["getenv", "_getenv", "__builtin_getenv"],
                                 synopsis="char * getenv(const char *name)",
-                                par_slice="False",
                                 src_enabled=True,
+                                src_par_slice="False",
                                 snk_enabled=False,
+                                snk_par_slice="False",
                                 fix_enabled=False,
                             )
                         },
                     ),
-                    "27.4 Running a Command": Category(
-                        name="27.4 Running a Command",
+                    "Process Execution": Category(
+                        name="Process Execution",
                         functions={
                             "system": Function(
                                 name="system",
                                 symbols=["system", "_system", "__builtin_system"],
                                 synopsis="int system (const char *command)",
-                                par_slice="i == 1",
                                 src_enabled=False,
+                                src_par_slice="False",
                                 snk_enabled=True,
+                                snk_par_slice="i == 1",
                                 fix_enabled=False,
                             )
                         },
@@ -98,7 +100,7 @@ class TestFixers(TestSlicing):
         config_service.export_config(test_config, temp_file.name)
         # Use temporary file as configuration file
         self._config_file = temp_file.name
-        #
+        # Assert paths
         self.assert_paths(
             srcs=[("getenv", None)],
             snks=[("system", 1)],
