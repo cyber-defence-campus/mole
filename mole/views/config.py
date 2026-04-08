@@ -649,11 +649,11 @@ class FunctionEditDialog(FunctionConfigDialog):
         lib_name = grandparent.text(0)
         # Get function properties
         synopsis = self.syn_wid.text().strip()
-        aliases = [
-            alias.strip()
-            for alias in self.ali_wid.toPlainText().splitlines()
-            if alias.strip()
-        ]
+        aliases = []
+        for line in self.ali_wid.toPlainText().splitlines():
+            line = line.strip()
+            if line:
+                aliases.append(line)
         src_enabled = self.src_enabled_wid.isChecked()
         src_par_slice = self.src_par_slice_wid.text().strip()
         snk_enabled = self.snk_enabled_wid.isChecked()
@@ -686,7 +686,9 @@ class FunctionEditDialog(FunctionConfigDialog):
             # Set dialog values
             self.syn_wid.setText(fun.synopsis)
             self.ali_wid.setPlainText(
-                "\n".join([symbol for symbol in fun.symbols if symbol != fun.name])
+                "\n".join(
+                    [symbol for symbol in fun.symbols if symbol and symbol != fun.name]
+                )
             )
             self.src_enabled_wid.setChecked(fun.src_enabled)
             self.src_par_slice_wid.setText(fun.src_par_slice)
