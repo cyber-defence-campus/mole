@@ -75,7 +75,7 @@ class ConfigService:
                             src_enabled = False
                         src_par_slice = src_role.get("par_slice", None)
                         if not isinstance(src_par_slice, str):
-                            src_par_slice = ""
+                            src_par_slice = "False"
                         snk_role = roles.get("sink", None)
                         if not isinstance(snk_role, dict):
                             snk_role = {}
@@ -84,7 +84,7 @@ class ConfigService:
                             snk_enabled = False
                         snk_par_slice = snk_role.get("par_slice", None)
                         if not isinstance(snk_par_slice, str):
-                            snk_par_slice = ""
+                            snk_par_slice = "False"
                         fix_role = roles.get("fixer", None)
                         if not isinstance(fix_role, dict):
                             fix_role = {}
@@ -250,7 +250,7 @@ class ConfigService:
             taint_model={
                 "manual": Library(
                     name="manual",
-                    categories={},
+                    categories={"Default": Category(name="Default", functions={})},
                 )
             },
             settings={},

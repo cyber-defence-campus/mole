@@ -4,7 +4,7 @@ from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.common.parse import LogicalExpressionParser
 from mole.data.config import Category, Configuration, Function, Library
-from typing import Any, Literal, Tuple, TYPE_CHECKING
+from typing import Any, List, Literal, Tuple, TYPE_CHECKING
 import binaryninja as bn
 import os
 import PySide6.QtWidgets as qtw
@@ -12,7 +12,7 @@ import PySide6.QtWidgets as qtw
 if TYPE_CHECKING:
     from mole.models.config import ConfigModel
     from mole.services.config import ConfigService
-    from mole.views.config import ConfigDialog, ConfigView
+    from mole.views.config import ConfigView
 
 
 tag = "Config"
@@ -30,7 +30,6 @@ class ConfigController:
         config_service: ConfigService,
         config_model: ConfigModel,
         config_view: ConfigView,
-        config_dialog: ConfigDialog,
     ) -> None:
         """
         This method initializes the configuration controller.
@@ -40,7 +39,6 @@ class ConfigController:
         self.config_service = config_service
         self.config_model = config_model
         self.config_view = config_view
-        self.config_dialog = config_dialog
         return
 
     def save_config(self) -> None:
@@ -118,10 +116,11 @@ class ConfigController:
         )
         return
 
-    def create_manual_fun(
+    def create_fun(
         self,
         name: str,
         synopsis: str,
+        aliases: List[str],
         src_enabled: bool,
         src_par_slice: str,
         snk_enabled: bool,
@@ -134,9 +133,14 @@ class ConfigController:
         """
         # Validate synopsis
         try:
-            fun_type, _ = self.bv.parse_type_string(synopsis)
-            if not isinstance(fun_type, bn.types.FunctionType):
+            fun_type, fun_name = self.bv.parse_type_string(synopsis)
+            if not isinstance(fun_type, bn.types.FunctionType) or not isinstance(
+                fun_name, bn.types.QualifiedName
+            ):
                 raise TypeError()
+            fun_name = str(fun_name[0])
+            if fun_name != name:
+                return None, "Invalid Fun Name..."
         except Exception:
             return None, "Invalid Synopsis..."
         # Validate par_slice
@@ -155,8 +159,8 @@ class ConfigController:
             return None, "Invalid Snk Par Slice..."
         # Create manual function
         fun = Function(
-            name=name,
-            symbols=[name],
+            name=fun_name,
+            symbols=[fun_name] + aliases,
             synopsis=synopsis,
             src_enabled=src_enabled,
             src_par_slice=src_par_slice,
@@ -166,33 +170,45 @@ class ConfigController:
         )
         return fun, ""
 
-    def save_manual_fun(
+    def save_fun(
         self,
-        category_name: str = "Default",
+        lib_name: str,
+        cat_name: str,
         fun: Function | None = None,
         err_msg: str = "",
     ) -> str:
         """
-        This method saves the given function `fun` as a manual source or sink.
+        This method updates the model with the given function `fun` belonging to the library
+        `lib_name` and category `cat_name`, and refreshes the view. It returns an error message if
+        the function could not be saved.
         """
         if fun is not None:
-            # Update configuration
-            manual_config = Configuration(
-                taint_model={
-                    "manual": Library(
-                        name="manual",
-                        categories={
-                            category_name: Category(
-                                name=category_name, functions={fun.name: fun}
+            # Update model
+            updated = False
+            for _lib_name, _lib in self.config_model.get_taint_model().items():
+                if _lib_name != lib_name:
+                    continue
+                for _cat_name, _ in _lib.categories.items():
+                    if _cat_name != cat_name:
+                        continue
+                    config = Configuration(
+                        taint_model={
+                            _lib_name: Library(
+                                name=_lib_name,
+                                categories={
+                                    _cat_name: Category(
+                                        name=_cat_name, functions={fun.name: fun}
+                                    )
+                                },
                             )
-                        },
+                        }
                     )
-                }
-            )
-            self.config_service.update_config(self.config_model.config, manual_config)
+                    self.config_service.update_config(self.config_model.config, config)
+                    updated = True
             # Update view
-            self.config_view.refresh_tabs(0)
-            self.config_view.signal_save_config_feedback.emit("Save*", "Save*", 0)
+            if updated:
+                self.config_view.refresh_tabs(0)
+                self.config_view.signal_save_config_feedback.emit("Save*", "Save*", 0)
         return err_msg
 
     # # TODO: Remove
@@ -232,7 +248,7 @@ class ConfigController:
 
     def give_feedback(
         self,
-        button_type: Literal["Find", "Add"] = "Find",
+        button_type: Literal["Find", "Add", "Edit"] = "Find",
         tmp_text: str = "",
         new_text: str = "",
         msec: int = 1000,
@@ -242,11 +258,20 @@ class ConfigController:
         """
         match button_type:
             case "Find":
-                self.config_dialog.signal_find_feedback.emit(tmp_text, new_text, msec)
+                self.config_view.fun_add_dialog.signal_find_feedback.emit(
+                    tmp_text, new_text, msec
+                )
             case "Add":
-                self.config_dialog.signal_add_feedback.emit(tmp_text, new_text, msec)
+                self.config_view.fun_add_dialog.signal_add_feedback.emit(
+                    tmp_text, new_text, msec
+                )
+            case "Edit":
+                self.config_view.fun_edit_dialog.signal_edit_feedback.emit(
+                    tmp_text, new_text, msec
+                )
         if not tmp_text:
-            self.config_dialog.accept()
+            self.config_view.fun_add_dialog.accept()
+            self.config_view.fun_edit_dialog.accept()
         return
 
     def execute_dialog_manual_inst(
@@ -292,10 +317,8 @@ class ConfigController:
         self.log.info(tag, f"Selected MLIL call instruction '{inst_info:s}'")
         # Function information
         name, synopsis = InstructionHelper.get_func_signature(inst)
-        # Set dialog fields
-        self.config_dialog.set_fields(inst, all_callsites, name, synopsis)
         # Execute dialog
-        self.config_dialog.exec()
+        self.config_view.fun_add_dialog.exec(inst, all_callsites, name, synopsis)
         return
 
     def execute_dialog_manual_func(
