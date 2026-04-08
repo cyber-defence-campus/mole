@@ -188,6 +188,8 @@ class ConfigController:
             for _lib_name, _lib in self.config_model.get_taint_model().items():
                 if _lib_name != lib_name:
                     continue
+                if cat_name not in _lib.categories:
+                    _lib.categories[cat_name] = Category(name=cat_name, functions={})
                 for _cat_name, _ in _lib.categories.items():
                     if _cat_name != cat_name:
                         continue

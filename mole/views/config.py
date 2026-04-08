@@ -802,6 +802,7 @@ class FunctionAddDialog(FunctionConfigDialog):
         self.all_callsites = all_callsites
         self.name = name
         self.syn_wid.setText(synopsis)
+        self.ali_wid.setPlainText("")
         self.src_enabled_wid.setChecked(False)
         self.src_par_slice_wid.setText("False")
         self.snk_enabled_wid.setChecked(False)
