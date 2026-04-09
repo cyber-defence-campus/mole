@@ -183,16 +183,15 @@ class ConfigController:
         the function could not be saved.
         """
         if fun is not None:
-            # Update model
-            updated = False
             for _lib_name, _lib in self.config_model.get_taint_model().items():
                 if _lib_name != lib_name:
                     continue
                 if cat_name not in _lib.categories:
                     _lib.categories[cat_name] = Category(name=cat_name, functions={})
-                for _cat_name, _ in _lib.categories.items():
+                for _cat_name, _cat in _lib.categories.items():
                     if _cat_name != cat_name:
                         continue
+                    # Update model
                     config = Configuration(
                         taint_model={
                             _lib_name: Library(
@@ -206,11 +205,11 @@ class ConfigController:
                         }
                     )
                     self.config_service.update_config(self.config_model.config, config)
-                    updated = True
-            # Update view
-            if updated:
-                self.config_view.refresh_tabs(0)
-                self.config_view.signal_save_config_feedback.emit("Save*", "Save*", 0)
+                    # Update view
+                    self.config_view.add_fun(_lib, _cat, fun)
+                    self.config_view.signal_save_config_feedback.emit(
+                        "Save*", "Save*", 0
+                    )
         return err_msg
 
     # # TODO: Remove

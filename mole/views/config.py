@@ -1,10 +1,12 @@
 from __future__ import annotations
 from mole.common.helper.ui import give_feedback
 from mole.data.config import (
+    Category,
     CheckboxSetting,
     ComboboxSetting,
     DoubleSpinboxSetting,
     Function,
+    Library,
     SpinboxSetting,
     TextSetting,
 )
@@ -49,9 +51,9 @@ class ConfigView(qtw.QWidget):
         This method initializes the config view's widgets.
         """
         # Subtabs widget
-        self.tab_wid = qtw.QTabWidget()
-        self.tab_wid.addTab(self._init_cnf_mod_tab(), "Taint Model")
-        self.tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
+        self._tab_wid = qtw.QTabWidget()
+        self._tab_wid.addTab(self._init_cnf_mod_tab(), "Taint Model")
+        self._tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
         # Script widget
         script_dir = os.path.dirname(os.path.abspath(__file__))
         script_dir = os.path.abspath(os.path.join(script_dir, "../conf/"))
@@ -109,7 +111,7 @@ class ConfigView(qtw.QWidget):
         but_wid.setLayout(but_lay)
         # Tab layout
         tab_lay = qtw.QVBoxLayout()
-        tab_lay.addWidget(self.tab_wid)
+        tab_lay.addWidget(self._tab_wid)
         tab_lay.addWidget(dir_wid)
         tab_lay.addWidget(but_wid)
         self.setLayout(tab_lay)
@@ -151,10 +153,10 @@ class ConfigView(qtw.QWidget):
             nonlocal updating
             # Collase/expand tree if clicking the function column
             if column == TaintModelColumns.FUNCTION.value:
-                if all_items_expanded(tree):
-                    tree.collapseAll()
+                if all_items_expanded(self._tree):
+                    self._tree.collapseAll()
                 else:
-                    tree.expandAll()
+                    self._tree.expandAll()
                 return
             # Toggle column state if clicking a checkable column
             if not updating and column in checkable_column_states:
@@ -166,10 +168,10 @@ class ConfigView(qtw.QWidget):
                 )
                 checkable_column_states[column] = new_state
                 # Set new state for all items in the column
-                root = tree.invisibleRootItem()
+                root = self._tree.invisibleRootItem()
                 for i in range(root.childCount()):
                     child = root.child(i)
-                    self.set_state(child, column, new_state, save_config_feedback)
+                    self._set_state(child, column, new_state, save_config_feedback)
                     propagate_state_down(child, column, new_state)
                 updating = False
             return
@@ -179,7 +181,7 @@ class ConfigView(qtw.QWidget):
         ) -> None:
             for i in range(item.childCount()):
                 child = item.child(i)
-                self.set_state(child, column, state, save_config_feedback)
+                self._set_state(child, column, state, save_config_feedback)
                 propagate_state_down(child, column, state)
             return
 
@@ -190,7 +192,7 @@ class ConfigView(qtw.QWidget):
                 # Count checks of the root's children
                 cnt_checked = 0
                 cnt_unchecked = 0
-                root = tree.invisibleRootItem()
+                root = self._tree.invisibleRootItem()
                 for i in range(root.childCount()):
                     state = root.child(i).checkState(column)
                     if state == qtc.Qt.CheckState.Checked:
@@ -238,7 +240,7 @@ class ConfigView(qtw.QWidget):
             # Update and propagate state of checkable columns
             if column in checkable_column_states:
                 state = item.checkState(column)
-                self.set_state(item, column, state)
+                self._set_state(item, column, state)
                 propagate_state_down(item, column, state)
                 propagate_state_up(item, column)
 
@@ -255,14 +257,10 @@ class ConfigView(qtw.QWidget):
             self.fun_edit_dialog.exec(item)
             return
 
-        # Styling
-        font = qtui.QFont()
-        font.setItalic(True)
-        color = qtui.QBrush(qtui.QColor(255, 239, 213))
         # Tree widget
-        tree = qtw.QTreeWidget()
-        tree.setColumnCount(4)
-        tree.setHeaderLabels(
+        self._tree = qtw.QTreeWidget()
+        self._tree.setColumnCount(4)
+        self._tree.setHeaderLabels(
             [
                 TaintModelColumns.FUNCTION.label,
                 TaintModelColumns.SOURCE.label,
@@ -270,50 +268,23 @@ class ConfigView(qtw.QWidget):
                 TaintModelColumns.FIX.label,
             ]
         )
-        tree.header().sectionDoubleClicked.connect(
+        self._tree.header().sectionDoubleClicked.connect(
             lambda column: handle_header_double_clicked(column)
         )
-        tree.itemChanged.connect(handle_item_changed)
-        tree.itemDoubleClicked.connect(handle_item_double_clicked)
+        self._tree.itemChanged.connect(handle_item_changed)
+        self._tree.itemDoubleClicked.connect(handle_item_double_clicked)
         # Tree widget items
         taint_model = self.model().get_taint_model()
-        for lib_name, lib in taint_model.items():
-            lib_item = qtw.QTreeWidgetItem(tree, [lib_name])
-            lib_item.setData(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole, lib)  # type: ignore
-            lib_item.setExpanded(True)
-            for column in range(tree.columnCount()):
-                lib_item.setFont(column, font)
-                lib_item.setForeground(column, color)
-            for cat_name, cat in lib.categories.items():
-                cat_item = qtw.QTreeWidgetItem(lib_item, [cat_name])
-                cat_item.setData(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole, cat)  # type: ignore
-                for column in range(tree.columnCount()):
-                    cat_item.setFont(column, font)
-                    cat_item.setForeground(column, color)
-                for fun_name, fun in cat.functions.items():
-                    fun_item = qtw.QTreeWidgetItem(cat_item, [fun_name])
-                    fun_item.setData(
-                        TaintModelColumns.FUNCTION.value,
-                        qtc.Qt.UserRole,  # type: ignore
-                        fun,
-                    )
-                    fun_item.setToolTip(TaintModelColumns.FUNCTION.value, fun.synopsis)
-                    fun_item.setCheckState(
-                        TaintModelColumns.SOURCE.value,
-                        qtc.Qt.Checked if fun.src_enabled else qtc.Qt.Unchecked,  # type: ignore
-                    )
-                    fun_item.setCheckState(
-                        TaintModelColumns.SINK.value,
-                        qtc.Qt.Checked if fun.snk_enabled else qtc.Qt.Unchecked,  # type: ignore
-                    )
-                    fun_item.setCheckState(
-                        TaintModelColumns.FIX.value,
-                        qtc.Qt.Checked if fun.fix_enabled else qtc.Qt.Unchecked,  # type: ignore
-                    )
+        for _, lib in taint_model.items():
+            lib_item = self._add_lib_item(lib)
+            for _, cat in lib.categories.items():
+                cat_item = self._add_cat_item(lib_item, cat)
+                for _, fun in cat.functions.items():
+                    self._add_fun_item(cat_item, fun)
         # Resize columns
-        for column in range(tree.columnCount()):
-            tree.resizeColumnToContents(column)
-        return tree
+        for column in range(self._tree.columnCount()):
+            self._tree.resizeColumnToContents(column)
+        return self._tree
 
     def _init_cnf_set_tab(self) -> qtw.QWidget:
         """
@@ -490,29 +461,7 @@ class ConfigView(qtw.QWidget):
         """
         return self._config_model
 
-    def refresh_tabs(self, index: int = -1) -> None:
-        """
-        This method reinitializes the tabs and sets the current tab to the one at `index`. If
-        `index` is less than 0, the current tab is not changed.
-        """
-
-        def _refresh_tabs() -> None:
-            if not self.tab_wid:
-                return
-            self.tab_wid.clear()
-            self.tab_wid.addTab(
-                self._init_cnf_mod_tab(save_config_feedback=False), "Taint Model"
-            )
-            self.tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
-            if 0 <= index < self.tab_wid.count():
-                self.tab_wid.setCurrentIndex(index)
-            self.tab_wid.repaint()
-            self.tab_wid.update()
-
-        bn.execute_on_main_thread(_refresh_tabs)
-        return
-
-    def set_state(
+    def _set_state(
         self,
         item: qtw.QTreeWidgetItem,
         column: int,
@@ -533,6 +482,123 @@ class ConfigView(qtw.QWidget):
         item.setCheckState(column, state)
         if save_config_feedback:
             self.signal_save_config_feedback.emit("Save*", "Save*", 0)
+        return
+
+    def _find_child_item(
+        self, item: qtw.QTreeWidgetItem, text: str
+    ) -> qtw.QTreeWidgetItem | None:
+        for i in range(item.childCount()):
+            child = item.child(i)
+            if child.text(0) == text:
+                return child
+        return None
+
+    def _add_lib_item(
+        self,
+        lib: Library,
+        font: qtui.QFont = qtui.QFont(qtui.QFont().defaultFamily(), italic=True),
+        color: qtui.QBrush = qtui.QBrush(qtui.QColor(255, 239, 213)),
+    ) -> qtw.QTreeWidgetItem:
+        """
+        This method adds a new (or updates the existing) library item to the root item.
+        """
+        # Get item (create if it does not exist)
+        root = self._tree.invisibleRootItem()
+        lib_item = self._find_child_item(root, lib.name)
+        if lib_item is None:
+            lib_item = qtw.QTreeWidgetItem(self._tree, [lib.name])
+        # Set item data
+        lib_item.setData(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole, lib)  # type: ignore
+        lib_item.setExpanded(True)
+        for column in range(self._tree.columnCount()):
+            lib_item.setFont(column, font)
+            lib_item.setForeground(column, color)
+        return lib_item
+
+    def _add_cat_item(
+        self,
+        lib_item: qtw.QTreeWidgetItem,
+        cat: Category,
+        font: qtui.QFont = qtui.QFont(qtui.QFont().defaultFamily(), italic=True),
+        color: qtui.QBrush = qtui.QBrush(qtui.QColor(255, 239, 213)),
+    ) -> qtw.QTreeWidgetItem:
+        """
+        This method adds a new (or updates the existing) category item to the library item
+        `lib_item`.
+        """
+        # Get item (create if it does not exist)
+        cat_item = self._find_child_item(lib_item, cat.name)
+        if cat_item is None:
+            cat_item = qtw.QTreeWidgetItem(lib_item, [cat.name])
+        # Set item data
+        cat_item.setData(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole, cat)  # type: ignore
+        for column in range(self._tree.columnCount()):
+            cat_item.setFont(column, font)
+            cat_item.setForeground(column, color)
+        return cat_item
+
+    def _add_fun_item(
+        self, cat_item: qtw.QTreeWidgetItem, fun: Function
+    ) -> qtw.QTreeWidgetItem:
+        """
+        This method adds a new (or updates the existing) function item to the category item
+        `cat_item`.
+        """
+        # Get item (create if it does not exist)
+        fun_item = self._find_child_item(cat_item, fun.name)
+        if fun_item is None:
+            fun_item = qtw.QTreeWidgetItem(cat_item, [fun.name])
+        # Set item data
+        fun_item.setData(
+            TaintModelColumns.FUNCTION.value,
+            qtc.Qt.UserRole,  # type: ignore
+            fun,
+        )
+        fun_item.setToolTip(TaintModelColumns.FUNCTION.value, fun.synopsis)
+        fun_item.setCheckState(
+            TaintModelColumns.SOURCE.value,
+            qtc.Qt.Checked if fun.src_enabled else qtc.Qt.Unchecked,  # type: ignore
+        )
+        fun_item.setCheckState(
+            TaintModelColumns.SINK.value,
+            qtc.Qt.Checked if fun.snk_enabled else qtc.Qt.Unchecked,  # type: ignore
+        )
+        fun_item.setCheckState(
+            TaintModelColumns.FIX.value,
+            qtc.Qt.Checked if fun.fix_enabled else qtc.Qt.Unchecked,  # type: ignore
+        )
+        return fun_item
+
+    def add_fun(self, lib: Library, cat: Category, fun: Function) -> None:
+        """
+        This method adds a new (or updates the existing) function under the specified library and
+        category.
+        """
+        lib_item = self._add_lib_item(lib)
+        cat_item = self._add_cat_item(lib_item, cat)
+        self._add_fun_item(cat_item, fun)
+        return
+
+    def refresh_tabs(self, index: int = -1) -> None:
+        """
+        This method reinitializes the tabs and sets the current tab to the one at `index`. If
+        `index` is less than 0, the current tab is not changed.
+        """
+
+        def _refresh_tabs() -> None:
+            if not self._tab_wid:
+                return
+            self._tab_wid.clear()
+            self._tab_wid.addTab(
+                self._init_cnf_mod_tab(save_config_feedback=False), "Taint Model"
+            )
+            self._tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
+            if 0 <= index < self._tab_wid.count():
+                self._tab_wid.setCurrentIndex(index)
+            self._tab_wid.repaint()
+            self._tab_wid.update()
+
+        bn.execute_on_main_thread(_refresh_tabs)
         return
 
 
