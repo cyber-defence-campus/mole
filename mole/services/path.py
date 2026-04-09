@@ -568,7 +568,7 @@ class PathService(WorkerService):
         self.log.info(tag, "Starting backward slicing")
         progress_callback("", "Cancel [0%]", 0)
         if not src_funs or not snk_funs:
-            self.log.warn(tag, "No source or sink functions configured")
+            self.log.warn(tag, "No activated source or sink functions")
         else:
             # Total tasks
             curr_task = 0

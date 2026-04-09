@@ -170,7 +170,7 @@ class ConfigController:
         )
         return fun, ""
 
-    def save_fun(
+    def add_fun(
         self,
         lib_name: str,
         cat_name: str,
@@ -183,7 +183,10 @@ class ConfigController:
         the function could not be saved.
         """
         if fun is not None:
-            for _lib_name, _lib in self.config_model.get_taint_model().items():
+            taint_model = self.config_model.get_taint_model()
+            if lib_name not in taint_model:
+                taint_model[lib_name] = Library(name=lib_name, categories={})
+            for _lib_name, _lib in taint_model.items():
                 if _lib_name != lib_name:
                     continue
                 if cat_name not in _lib.categories:
@@ -212,30 +215,25 @@ class ConfigController:
                     )
         return err_msg
 
-    # # TODO: Remove
-    # def clear_manual_functions(
-    #     self, cat_name: str, fun_type: Literal["Sources", "Sinks"]
-    # ) -> None:
-    #     """
-    #     This method clears all manual source or sink functions in the given category name
-    #     `cat_name`.
-    #     """
-    #     config = self.config_model.config
-    #     match fun_type:
-    #         case "Sources":
-    #             manual_lib = config.sources.get("manual", None)
-    #             index = 0
-    #         case "Sinks":
-    #             manual_lib = config.sinks.get("manual", None)
-    #             index = 1
-    #         case _:
-    #             manual_lib = None
-    #             index = -1
-    #     if manual_lib and cat_name in manual_lib.categories:
-    #         del manual_lib.categories[cat_name]
-    #     self.config_view.refresh_tabs(index)
-    #     self.config_view.signal_save_config_feedback.emit("Save*", "Save*", 0)
-    #     return
+    def remove_fun(self, funs: List[Function]) -> None:
+        """
+        This method removes the given functions `funs` from both the model and the view.
+        """
+        for _, lib in self.config_model.get_taint_model().items():
+            for _, cat in lib.categories.items():
+                del_fun_names = []
+                for fun_name, fun in cat.functions.items():
+                    if fun in funs:
+                        del_fun_names.append(fun_name)
+                        # TODO: Update view
+                        self.config_view.remove_fun(lib, cat, fun)
+                        self.config_view.signal_save_config_feedback.emit(
+                            "Save*", "Save*", 0
+                        )
+                # Update model
+                for del_fun_name in del_fun_names:
+                    del cat.functions[del_fun_name]
+        return
 
     def change_setting(self, name: str, value: Any) -> None:
         """

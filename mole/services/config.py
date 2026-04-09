@@ -246,15 +246,7 @@ class ConfigService:
         This method loads all custom configuration files. If `ignore_enabled` is `True`, all
         functions will be disabled.
         """
-        config = Configuration(
-            taint_model={
-                "manual": Library(
-                    name="manual",
-                    categories={"Default": Category(name="Default", functions={})},
-                )
-            },
-            settings={},
-        )
+        config = Configuration()
         config_files = sorted(os.listdir(self._config_path))
         for config_file in config_files:
             # Filter configuration files

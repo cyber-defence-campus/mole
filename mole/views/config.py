@@ -11,6 +11,7 @@ from mole.data.config import (
     TextSetting,
 )
 from mole.models.config import ConfigModel, TaintModelColumns
+from typing import Callable, List
 import binaryninja as bn
 import os
 import PySide6.QtCore as qtc
@@ -43,6 +44,7 @@ class ConfigView(qtw.QWidget):
         self._config_model = config_model
         self.fun_add_dialog = FunctionAddDialog()
         self.fun_edit_dialog = FunctionEditDialog()
+        self.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
         self._init_widgets()
         return
 
@@ -127,6 +129,16 @@ class ConfigView(qtw.QWidget):
             TaintModelColumns.SINK.value: qtc.Qt.CheckState.Unchecked,
             TaintModelColumns.FIX.value: qtc.Qt.CheckState.Unchecked,
         }
+
+        def select_fun_item() -> None:
+            for selected_item in self._tree.selectedItems():
+                fun = selected_item.data(
+                    TaintModelColumns.FUNCTION.value,
+                    qtc.Qt.UserRole,  # type: ignore
+                )
+                if not isinstance(fun, Function):
+                    selected_item.setSelected(False)
+            return
 
         def all_items_expanded(tree: qtw.QTreeWidget) -> bool:
             # Check if item and all its children are expanded
@@ -268,6 +280,10 @@ class ConfigView(qtw.QWidget):
                 TaintModelColumns.FIX.label,
             ]
         )
+        self._tree.setSelectionMode(
+            qtw.QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        self._tree.itemSelectionChanged.connect(select_fun_item)
         self._tree.header().sectionDoubleClicked.connect(
             lambda column: handle_header_double_clicked(column)
         )
@@ -455,6 +471,41 @@ class ConfigView(qtw.QWidget):
         scr_wid.setWidget(set_wid)
         return scr_wid
 
+    def setup_context_menu(
+        self, pos: qtc.QPoint, on_remove_fun: Callable[[List[Function]], None]
+    ) -> None:
+        """
+        This method sets up a context menu for the config view.
+        """
+        # Get selected items
+        selected_items = self._tree.selectedItems()
+        # Create context menu
+        menu = qtw.QMenu(self)
+        # Add actions to the context menu
+        edit_fun_action = menu.addAction("Edit")
+        if len(selected_items) == 1:
+            edit_fun_action.triggered.connect(
+                lambda: self.fun_edit_dialog.exec(selected_items[0])
+            )
+        else:
+            edit_fun_action.setEnabled(False)
+        remove_fun_action = menu.addAction("Remove")
+        if len(selected_items) > 0:
+            funs: List[Function] = []
+            for selected_item in selected_items:
+                fun = selected_item.data(
+                    TaintModelColumns.FUNCTION.value,
+                    qtc.Qt.UserRole,  # type: ignore
+                )
+                if isinstance(fun, Function):
+                    funs.append(fun)
+            remove_fun_action.triggered.connect(lambda: on_remove_fun(funs))
+        else:
+            remove_fun_action.setEnabled(False)
+        # Execute context menu
+        menu.exec(self.mapToGlobal(pos))
+        return
+
     def model(self) -> ConfigModel:
         """
         This method returns the model for the config view.
@@ -506,7 +557,11 @@ class ConfigView(qtw.QWidget):
         root = self._tree.invisibleRootItem()
         lib_item = self._find_child_item(root, lib.name)
         if lib_item is None:
-            lib_item = qtw.QTreeWidgetItem(self._tree, [lib.name])
+            lib_item = qtw.QTreeWidgetItem([lib.name])
+            if lib.name == "manual":
+                self._tree.insertTopLevelItem(0, lib_item)
+            else:
+                self._tree.addTopLevelItem(lib_item)
         # Set item data
         lib_item.setData(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole, lib)  # type: ignore
         lib_item.setExpanded(True)
@@ -577,6 +632,28 @@ class ConfigView(qtw.QWidget):
         lib_item = self._add_lib_item(lib)
         cat_item = self._add_cat_item(lib_item, cat)
         self._add_fun_item(cat_item, fun)
+        return
+
+    def remove_fun(self, lib: Library, cat: Category, fun: Function) -> None:
+        """
+        This method removes the function under the specified library and category. Empty libraries
+        and categories are also removed.
+        """
+        root = self._tree.invisibleRootItem()
+        lib_item = self._find_child_item(root, lib.name)
+        if lib_item is None:
+            return
+        cat_item = self._find_child_item(lib_item, cat.name)
+        if cat_item is None:
+            return
+        fun_item = self._find_child_item(cat_item, fun.name)
+        if fun_item is None:
+            return
+        cat_item.removeChild(fun_item)
+        if cat_item.childCount() == 0:
+            lib_item.removeChild(cat_item)
+            if lib_item.childCount() == 0:
+                root.removeChild(lib_item)
         return
 
     def refresh_tabs(self, index: int = -1) -> None:

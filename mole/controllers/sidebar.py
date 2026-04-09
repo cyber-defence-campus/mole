@@ -109,7 +109,7 @@ class SidebarController:
             snk_par_slice,
             fix_enabled: self.config_ctr.give_feedback(
                 "Add",
-                self.config_ctr.save_fun(
+                self.config_ctr.add_fun(
                     "manual",
                     cat_name,
                     *self.config_ctr.create_fun(
@@ -137,7 +137,7 @@ class SidebarController:
             snk_par_slice,
             fix_enabled: self.config_ctr.give_feedback(
                 "Edit",
-                self.config_ctr.save_fun(
+                self.config_ctr.add_fun(
                     lib_name,
                     cat_name,
                     *self.config_ctr.create_fun(
@@ -151,6 +151,11 @@ class SidebarController:
                         fix_enabled,
                     ),
                 ),
+            )
+        )
+        self.config_ctr.config_view.customContextMenuRequested.connect(
+            lambda pos: self.config_ctr.config_view.setup_context_menu(
+                pos=pos, on_remove_fun=self.config_ctr.remove_fun
             )
         )
         # Connect path model signals

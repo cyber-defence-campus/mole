@@ -132,7 +132,7 @@ class Function:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Function):
             return False
-        return self.name in other.symbols and other.name in self.symbols
+        return self.name == other.name
 
     def to_dict(self) -> Dict:
         return {
