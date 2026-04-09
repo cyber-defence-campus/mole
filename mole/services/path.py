@@ -711,9 +711,6 @@ class PathService(WorkerService):
             if fun_type is not None and fun.fix_enabled:
                 for symbol in fun.symbols:
                     for f in self.bv.get_functions_by_name(symbol):
-                        # Only fix functions with an invalid number of parameters
-                        if fun.par_cnt_fun(len(f.parameter_vars)):
-                            continue
                         try:
                             f.set_user_type(fun_type)
                             cnt_fixed += 1
