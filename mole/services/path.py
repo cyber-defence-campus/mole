@@ -686,7 +686,7 @@ class PathService(WorkerService):
                 fun_type = None
                 self.log.warn(
                     tag,
-                    f"Failed to parse synopsis of function {fun.name:s}: {str(e):s}",
+                    f"Failed to parse synopsis of function '{fun.name:s}': {str(e):s}",
                 )
             # Determine `par_cnt` expression
             if fun_type is not None:

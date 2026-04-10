@@ -171,7 +171,7 @@ def main() -> None:
     except KeyboardInterrupt:
         log.info(msg="Keyboard interrupt caught")
     except Exception as e:
-        log.error(msg=f"Exception caught: '{str(e):s}'")
+        log.error(msg=f"Exception caught: {str(e):s}")
     finally:
         # Close export file
         if export_file is not None:

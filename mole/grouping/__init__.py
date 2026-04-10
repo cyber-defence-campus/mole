@@ -81,7 +81,8 @@ class PathGrouper(ABC):
                 strategy_map[instance.get_strategy_name()] = instance
             except Exception as e:
                 print(
-                    f"Error instantiating {cls.__name__:s}: {str(e):s}", file=sys.stderr
+                    f"Error instantiating '{cls.__name__:s}': {str(e):s}",
+                    file=sys.stderr,
                 )
         return strategy_map
 

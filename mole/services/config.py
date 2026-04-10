@@ -222,7 +222,7 @@ class ConfigService:
                     name=set_name, value=value, help=help
                 )
         except Exception as e:
-            self.log.warn(tag, f"Failed to parse configuration: '{str(e):s}'")
+            self.log.warn(tag, f"Failed to parse configuration: {str(e):s}")
         return cfg
 
     def load_config(self) -> Configuration:
@@ -316,7 +316,7 @@ class ConfigService:
         except Exception as e:
             self.log.warn(
                 tag,
-                f"Failed to parse configuration file '{config_file:s}': '{str(e):s}'",
+                f"Failed to parse configuration file '{config_file:s}': {str(e):s}",
             )
         # Parse configuration file
         return Configuration()
