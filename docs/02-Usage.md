@@ -16,7 +16,7 @@ The **taint model** defines a set of functions, each of which can be assigned on
 | Sink   | Function exposing tainted data                                           |
 | Fixer  | Modifies a function's type signature to ensure correct taint propagation |
 
-**Fixers** can be used for functions whose type signatures are incorrectly inferred by Binary Ninja, such as cases where the number or types of arguments are wrong. When enabled, a function's type signature is corrected by parsing its `synopsis`. Accurate type signatures are essential, as they ensure that taint is correctly propagated through these functions.
+**Fixers** can be used for functions whose type signatures are incorrectly inferred by Binary Ninja, such as cases where the number or types of arguments are wrong. When enabled, a function's type signature is corrected by parsing its `synopsis` prior to slicing. Accurate type signatures are essential, as they ensure that taint is correctly propagated through these functions.
 
 The taint model, and the corresponding functions, is backed by **JSON files** located in the [`conf/`](../mole/conf/) directory. The table below lists the purpose of each file:
 
@@ -69,7 +69,7 @@ In addition to defining functions via JSON files, *Mole* allows users to define 
   <img src="https://i.postimg.cc/RVBf3SJS/manual-01.png" alt="Mole Manual Function Selection"/>
 </p>
 
-For call instructions, users can choose to target either a specific call site or all detected call sites. This distinction is only relevant when performing manual slicing without explicitly adding the function to the taint model (using the *Find* button in the dialog below).
+For call instructions, users can choose to target either a specific **call site** or all detected call sites. This distinction is only relevant when performing manual slicing without explicitly adding the function to the taint model (using the *Find* button in the dialog below).
 
 <p align="center">
   <img src="https://i.postimg.cc/L5nH5Zk0/manual-02.png" alt="Mole Manual Function Configuration"/>
@@ -77,17 +77,17 @@ For call instructions, users can choose to target either a specific call site or
 
 The configuration options are identical to those described above for the JSON files.
 
-Clicking the *Find* button starts the slicing process without modifying the taint model. If the configured function is marked as a source, *Mole* treats it as the sole source and searches for paths to any sinks enabled in the taint model. Conversely, if the function is marked as a sink, *Mole* performs a backward slice from that sink toward all sources defined in the taint model.
+Clicking the **_Find_** button starts the slicing process without modifying the taint model. If the configured function is marked as a source, *Mole* treats it as the sole source and searches for paths to any sinks enabled in the taint model. Conversely, if the function is marked as a sink, *Mole* performs a backward slice from that sink toward all sources defined in the taint model.
 
-Clicking the *Add* button registers the configured function in the taint model under a dedicated library named **_manual_**.
+Clicking the **_Add_** button registers the configured function in the taint model under a dedicated library named **_manual_**.
 
 <p align="center">
   <img src="https://i.postimg.cc/rmpjPSLs/manual-03.png" alt="Mole Manual Function"/>
 </p>
 
-A function can later be edited by double-clicking its name or by right-clicking it and selecting *Edit* from the appearing **context menu**. The context menu also provides an option to *Remove* selected functions.
+A function can later be edited by double-clicking its name or by right-clicking it and selecting **_Edit_** from the appearing **context menu**. The context menu also provides an option to **_Remove_** selected functions.
 
-Clicking the *Save* button stores the current configuration and writes it to the file `conf/000-mole.json` (see the table above). The saved settings are also used when *Mole* runs in [headless mode](02-Usage.md#headless-mode), unless a different configuration file is specified with the `--config_file` command-line argument. The *Reset* button restores all configuration options to their default values. The *Export* and *Import* buttons allow you to export or import the current configuration. For example, you may export a specific configuration as a backup or reuse it when running *Mole* in headless mode.
+Clicking the **_Save_** button stores the current configuration and writes it to the file `conf/000-mole.json` (see the table above). The saved settings are also used when *Mole* runs in [headless mode](02-Usage.md#headless-mode), unless a different configuration file is specified with the `--config_file` command-line argument. The **_Reset_** button restores all configuration options to their default values. The **_Export_** and **_Import_** buttons allow you to export or import the current configuration. For example, you may export a specific configuration as a backup or reuse it when running *Mole* in headless mode.
 ### Settings
 This section provides an overview of the settings available in *Mole*.
 #### General
@@ -114,7 +114,7 @@ To enable AI-based analysis, you must first configure an OpenAI-compatible endpo
 | max_completion_tokens | Maximum number of tokens in a completion                                           |
 | temperature           | Sampling temperature (lower values make the output more focused and deterministic) |
 
-Based on our initial testing, OpenAI's `o4-mini` model offers a good balance between output quality and cost efficiency. However, you are free to use any model or provider that supports tool calling and structured output, depending on your preferences and requirements.
+Based on our initial testing, OpenAI's `o4-mini` model offers a good balance between output quality and cost efficiency. However, you are free to use any model or provider that supports **tool calling** and **structured output**, depending on your preferences and requirements.
 
 > **Cost Disclaimer:** The AI analysis feature may incur charges from your LLM provider, depending on their API pricing. Costs can vary based on the selected model, the complexity and length of each analysis, and the number of paths analyzed. Be sure to review your provider's pricing structure before running bulk analyses.
 
