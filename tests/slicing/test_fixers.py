@@ -71,8 +71,8 @@ def test_config() -> Configuration:
             "unit-test": Library(
                 name="unit-test",
                 categories={
-                    "Propagators": Category(
-                        name="Propagators",
+                    "Fixers": Category(
+                        name="Fixers",
                         functions={
                             "my_exec": Function(
                                 name="my_exec",
