@@ -230,17 +230,26 @@ class ConfigView(qtw.QWidget):
                     cnt_checked += 1
                 elif state == qtc.Qt.CheckState.Unchecked:
                     cnt_unchecked += 1
+            # Parent state change flag
+            parent_changed = False
             # Check the parent if all chlidren are checked
             if cnt_checked == parent.childCount():
-                parent.setCheckState(column, qtc.Qt.CheckState.Checked)
+                if parent.checkState(column) != qtc.Qt.CheckState.Checked:
+                    parent.setCheckState(column, qtc.Qt.CheckState.Checked)
+                    parent_changed = True
             # Uncheck the parent if all children are unchecked
             elif cnt_unchecked == parent.childCount():
-                parent.setCheckState(column, qtc.Qt.CheckState.Unchecked)
+                if parent.checkState(column) != qtc.Qt.CheckState.Unchecked:
+                    parent.setCheckState(column, qtc.Qt.CheckState.Unchecked)
+                    parent_changed = True
             # Partially check the parent otherwise
             else:
-                parent.setCheckState(column, qtc.Qt.CheckState.PartiallyChecked)
+                if parent.checkState(column) != qtc.Qt.CheckState.PartiallyChecked:
+                    parent.setCheckState(column, qtc.Qt.CheckState.PartiallyChecked)
+                    parent_changed = True
             # Propagate upwards
-            propagate_state_up(parent, column)
+            if parent_changed:
+                propagate_state_up(parent, column)
             return
 
         def handle_item_changed(item: qtw.QTreeWidgetItem, column: int) -> None:
@@ -283,12 +292,6 @@ class ConfigView(qtw.QWidget):
         self._tree.setSelectionMode(
             qtw.QAbstractItemView.SelectionMode.ExtendedSelection
         )
-        self._tree.itemSelectionChanged.connect(select_fun_item)
-        self._tree.header().sectionDoubleClicked.connect(
-            lambda column: handle_header_double_clicked(column)
-        )
-        self._tree.itemChanged.connect(handle_item_changed)
-        self._tree.itemDoubleClicked.connect(handle_item_double_clicked)
         # Tree widget items
         taint_model = self.model().get_taint_model()
         for _, lib in taint_model.items():
@@ -297,9 +300,27 @@ class ConfigView(qtw.QWidget):
                 cat_item = self._add_cat_item(lib_item, cat)
                 for _, fun in cat.functions.items():
                     self._add_fun_item(cat_item, fun)
+        # Propagate states upwards
+        root = self._tree.invisibleRootItem()
+        for i in range(root.childCount()):
+            lib_item = root.child(i)
+            for j in range(lib_item.childCount()):
+                cat_item = lib_item.child(j)
+                if cat_item.childCount() > 0:
+                    fun_item = cat_item.child(0)
+                    propagate_state_up(fun_item, TaintModelColumns.SOURCE.value)
+                    propagate_state_up(fun_item, TaintModelColumns.SINK.value)
+                    propagate_state_up(fun_item, TaintModelColumns.FIX.value)
         # Resize columns
         for column in range(self._tree.columnCount()):
             self._tree.resizeColumnToContents(column)
+        # Connect signals
+        self._tree.itemSelectionChanged.connect(select_fun_item)
+        self._tree.header().sectionDoubleClicked.connect(
+            lambda column: handle_header_double_clicked(column)
+        )
+        self._tree.itemChanged.connect(handle_item_changed)
+        self._tree.itemDoubleClicked.connect(handle_item_double_clicked)
         return self._tree
 
     def _init_cnf_set_tab(self) -> qtw.QWidget:
@@ -558,6 +579,9 @@ class ConfigView(qtw.QWidget):
         lib_item = self._find_child_item(root, lib.name)
         if lib_item is None:
             lib_item = qtw.QTreeWidgetItem([lib.name])
+            lib_item.setCheckState(TaintModelColumns.SOURCE.value, qtc.Qt.Unchecked)  # type: ignore
+            lib_item.setCheckState(TaintModelColumns.SINK.value, qtc.Qt.Unchecked)  # type: ignore
+            lib_item.setCheckState(TaintModelColumns.FIX.value, qtc.Qt.Unchecked)  # type: ignore
             if lib.name == "manual":
                 self._tree.insertTopLevelItem(0, lib_item)
             else:
@@ -585,6 +609,9 @@ class ConfigView(qtw.QWidget):
         cat_item = self._find_child_item(lib_item, cat.name)
         if cat_item is None:
             cat_item = qtw.QTreeWidgetItem(lib_item, [cat.name])
+            cat_item.setCheckState(TaintModelColumns.SOURCE.value, qtc.Qt.Unchecked)  # type: ignore
+            cat_item.setCheckState(TaintModelColumns.SINK.value, qtc.Qt.Unchecked)  # type: ignore
+            cat_item.setCheckState(TaintModelColumns.FIX.value, qtc.Qt.Unchecked)  # type: ignore
         # Set item data
         cat_item.setData(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole, cat)  # type: ignore
         for column in range(self._tree.columnCount()):
