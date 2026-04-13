@@ -659,7 +659,7 @@ class PathService(WorkerService):
             return
         # Ensure no other thread is running
         if self.is_alive():
-            self.log.warn(tag, "Another thread of the path service is still runnning")
+            self.log.warn(tag, "Another thread of the path service is still running")
             return
         # Setup functions
         src_funs: List[Function] = []
@@ -669,6 +669,9 @@ class PathService(WorkerService):
             all_funs.append(manual_fun)
         cnt_fixed = 0
         for fun in all_funs:
+            # Ensure function has at least one role enabled
+            if not fun.src_enabled and not fun.snk_enabled and not fun.fix_enabled:
+                continue
             # Ensure a function symbol exists
             symbol_found = False
             for symbol in fun.symbols:

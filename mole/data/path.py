@@ -4,7 +4,7 @@ from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.core.graph import MediumLevelILFunctionGraph
 from mole.models.ai import AiVulnerabilityReport
-from typing import cast, Dict, List, Tuple, Type
+from typing import cast, Dict, List, Set, Tuple, Type
 import binaryninja as bn
 
 
@@ -29,6 +29,7 @@ class Path:
     insts: List[bn.MediumLevelILInstruction]
     comment: str = ""
     sha1_hash: str = ""
+    deserialization_error: bool = False
     phiis: List[bn.MediumLevelILInstruction] = field(default_factory=list)
     bdeps: Dict[int, bn.ILBranchDependence] = field(default_factory=dict)
     calls: List[Tuple[bn.MediumLevelILFunction, int]] = field(default_factory=list)
@@ -49,6 +50,7 @@ class Path:
         insts: List[bn.MediumLevelILInstruction],
         comment: str = "",
         sha1_hash: str = "",
+        deserialization_error: bool = False,
         ai_report: AiVulnerabilityReport | None = None,
     ) -> None:
         self.src_sym_addr = src_sym_addr
@@ -63,6 +65,7 @@ class Path:
         self.insts = insts
         self.comment = comment
         self.sha1_hash = sha1_hash
+        self.deserialization_error = deserialization_error
         self.phiis = []
         self.bdeps = {}
         self.calls = []
@@ -203,6 +206,7 @@ class Path:
         for inst in self.insts:
             inst_dict = {
                 "fun_addr": hex(inst.function.source_function.start),
+                "inst_addr": hex(inst.address),
                 "expr_idx": hex(inst.expr_index),
                 "inst": InstructionHelper.get_inst_info(inst, True),
             }
@@ -218,6 +222,7 @@ class Path:
             "insts": insts,
             "call_graph": self.call_graph.to_dict(),
             "comment": self.comment,
+            "deserialization_error": self.deserialization_error,
             "sha1_hash": self.sha1_hash,
             "ai_report": self.ai_report.to_dict() if self.ai_report else None,
         }
@@ -228,32 +233,78 @@ class Path:
         try:
             # Deserialize instructions
             insts: List[bn.MediumLevelILInstruction] = []
+            func_map: Dict[
+                bn.Function, Dict[int, Set[bn.MediumLevelILInstruction]]
+            ] = {}
+            deserialization_error = d["deserialization_error"]
             for inst_dict in d["insts"]:
+                # Deserialize instruction information
                 inst_dict = inst_dict  # type: Dict[str, str]
                 fun_addr = int(inst_dict["fun_addr"], 0)
+                inst_addr = int(inst_dict["inst_addr"], 0)
                 expr_idx = bn.mediumlevelil.ExpressionIndex(
                     int(inst_dict["expr_idx"], 0)
                 )
+                # Try to get function
                 func = bv.get_function_at(fun_addr)
                 if func is None or func.mlil is None or func.mlil.ssa_form is None:
+                    deserialization_error = True
                     log.error(
                         tag,
                         f"No valid MLIL SSA function found at address 0x{fun_addr:x}",
                     )
                     continue
+                # Try to get instruction with expression index (primary)
                 inst = func.mlil.ssa_form.get_expr(expr_idx)
-                if inst is None:
+                if inst is not None:
+                    inst_info = InstructionHelper.get_inst_info(inst, True)
+                    if inst_info == inst_dict["inst"]:
+                        insts.append(inst)
+                        continue
+                # Try to get instruction(s) with instruction address (fallback)
+                inst_set = func_map.setdefault(func, {}).setdefault(inst_addr, set())
+                if not inst_set:
+                    for inst in func.mlil.ssa_form.instructions:
+                        if inst.address == inst_addr:
+                            inst_set.add(inst)
+                # No instruction(s) at instruction address
+                if len(inst_set) <= 0:
+                    deserialization_error = True
                     log.error(
                         tag,
-                        f"No valid MLIL SSA instruction found at expression index {expr_idx:d}",
+                        f"Failed to deserialize instruction '{inst_dict['inst']:s}': Function at address 0x{fun_addr:x} does not contain any instruction at address 0x{inst_addr:x}",
                     )
                     continue
-                inst_info = InstructionHelper.get_inst_info(inst, True)
-                if inst_info != inst_dict["inst"]:
-                    log.warn(tag, "Instruction mismatch:")
-                    log.warn(tag, f"- Expected: {inst_dict['inst']:s}")
-                    log.warn(tag, f"- Found   : {inst_info:s}")
-                insts.append(inst)
+                # Single instruction at instruction address
+                elif len(inst_set) == 1:
+                    inst = next(iter(inst_set))
+                    inst_info = InstructionHelper.get_inst_info(inst, True)
+                    if inst_info == inst_dict["inst"]:
+                        insts.append(inst)
+                        continue
+                # Multiple instructions at instruction address
+                else:
+                    found = False
+                    for inst in inst_set:
+                        inst_info = InstructionHelper.get_inst_info(inst, True)
+                        if inst_info == inst_dict["inst"]:
+                            found = True
+                            insts.append(inst)
+                            break
+                    if found:
+                        continue
+                # Add all instructions at instruction address (best effort)
+                insts.extend(inst_set)
+                deserialization_error = True
+                log_msg = (
+                    f"{len(inst_set):d} instructions"
+                    if len(inst_set) > 1
+                    else "1 instruction"
+                )
+                log.warn(
+                    tag,
+                    f"Failed to deserialize instruction '{inst_dict['inst']:s}': Added {log_msg:s} with address 0x{inst_addr:x} of function 0x{fun_addr:x} to path",
+                )
             # Deserialize parameter variables
             src_par_idx = d["src_par_idx"]
             if src_par_idx is not None and src_par_idx > 0:
@@ -287,6 +338,7 @@ class Path:
                 insts=insts,
                 comment=d["comment"],
                 sha1_hash=d["sha1_hash"],
+                deserialization_error=deserialization_error,
                 ai_report=AiVulnerabilityReport(**d["ai_report"])
                 if d["ai_report"]
                 else None,
