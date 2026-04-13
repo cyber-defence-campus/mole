@@ -546,6 +546,7 @@ class PathService(WorkerService):
 
     def _find_paths(
         self,
+        cnt_fixed: int,
         max_workers: int | None,
         max_call_level: int,
         max_slice_depth: int,
@@ -565,6 +566,13 @@ class PathService(WorkerService):
         """
         This method searches for paths using static backward slicing.
         """
+        if cnt_fixed > 0:
+            self.log.info(
+                tag,
+                f"Starting re-analysis after fixing {cnt_fixed:d} function type signatures",
+            )
+            self.bv.update_analysis_and_wait()
+            self.log.info(tag, "Re-analysis completed")
         self.log.info(tag, "Starting backward slicing")
         progress_callback("", "Cancel [0%]", 0)
         if not src_funs or not snk_funs:
@@ -745,9 +753,6 @@ class PathService(WorkerService):
                 # Use all functions as sinks except the manually configured one
                 elif fun != manual_fun and fun.snk_enabled:
                     snk_funs.append(fun)
-        # Re-analyze if any function types were fixed
-        if cnt_fixed > 0:
-            self.bv.update_analysis()
         # Determine settings
         self.log.debug(tag, "Settings")
         if max_workers is None:
@@ -788,6 +793,7 @@ class PathService(WorkerService):
         self.start(
             thread_name="find",
             run=self._find_paths,
+            cnt_fixed=cnt_fixed,
             max_workers=max_workers,
             max_call_level=max_call_level,
             max_slice_depth=max_slice_depth,
