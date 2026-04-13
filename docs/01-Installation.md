@@ -1,10 +1,13 @@
 # Installation
+## Plugin Manager
+*Mole* is available through the *Binary Ninja* [Plugin Manager](https://docs.binary.ninja/guide/plugins.html#plugin-manager), which is the easiest way to install it. However, to use *Mole* in headless mode, you will need to follow the manual installation steps described in the next section.
+## Manual Installation
 In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your *Binary Ninja*'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respectively. Use the following steps to install *Mole*:
 
 - Clone the plugin into your *Binary Ninja* user plugins directory:
   ```shell
   cd $BINJA_USR/plugins/
-  git clone https://github.com/pdamian/mole.git mole-plugin && cd mole-plugin/
+  git clone https://github.com/cyber-defence-campus/mole.git mole-plugin && cd mole-plugin/
   ```
   **WARNING**: Do not name the target directory `mole`.
 - Create and activate a new Python virtual environment for *Mole* (optional, but recommended):

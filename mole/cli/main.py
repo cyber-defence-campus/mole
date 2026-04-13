@@ -41,11 +41,6 @@ def main() -> None:
         help="maximum number of worker threads that backward slicing uses",
     )
     parser.add_argument(
-        "--fix_func_type",
-        action="store_true",
-        help="whether to fix function types during analysis",
-    )
-    parser.add_argument(
         "--max_call_level",
         type=int,
         default=None,
@@ -119,7 +114,6 @@ def main() -> None:
         path_service = PathService(bv, log, config_model)
         path_service.find_paths(
             max_workers=args["max_workers"],
-            fix_func_type=args["fix_func_type"],
             max_call_level=args["max_call_level"],
             max_slice_depth=args["max_slice_depth"],
             max_memory_slice_depth=args["max_memory_slice_depth"],
@@ -146,25 +140,17 @@ def main() -> None:
                 + 1
             )
         sources: Dict[str, List[str]] = {}
-        for lib_name in config_model.get_libraries("Sources").keys():
-            src_funcs = [
-                func.name
-                for func in config_model.get_functions(
-                    lib_name=lib_name, fun_type="Sources", fun_enabled=True
-                )
-            ]
-            if src_funcs:
-                sources.setdefault(lib_name, []).extend(src_funcs)
         sinks: Dict[str, List[str]] = {}
-        for lib_name in config_model.get_libraries("Sinks").keys():
-            snk_funcs = [
-                func.name
-                for func in config_model.get_functions(
-                    lib_name=lib_name, fun_type="Sinks", fun_enabled=True
-                )
-            ]
-            if snk_funcs:
-                sinks.setdefault(lib_name, []).extend(snk_funcs)
+        fixers: Dict[str, List[str]] = {}
+        for lib_name, lib in config_model.get_taint_model().items():
+            for _, cat in lib.categories.items():
+                for fun_name, fun in cat.functions.items():
+                    if fun.src_enabled:
+                        sources.setdefault(lib_name, []).append(fun_name)
+                    if fun.snk_enabled:
+                        sinks.setdefault(lib_name, []).append(fun_name)
+                    if fun.fix_enabled:
+                        fixers.setdefault(lib_name, []).append(fun_name)
         # Output summary of results in machine-readable format
         print(
             json.dumps(
@@ -175,6 +161,7 @@ def main() -> None:
                     "paths_stats": paths_stats,
                     "sources": sources,
                     "sinks": sinks,
+                    "fixers": fixers,
                 },
                 indent=2,
             )
@@ -184,7 +171,7 @@ def main() -> None:
     except KeyboardInterrupt:
         log.info(msg="Keyboard interrupt caught")
     except Exception as e:
-        log.error(msg=f"Exception caught: '{str(e):s}'")
+        log.error(msg=f"Exception caught: {str(e):s}")
     finally:
         # Close export file
         if export_file is not None:

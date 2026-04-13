@@ -1,75 +1,109 @@
 # Usage
 This section provides some guidance on how to use *Mole*.
 ## Configuration
-*Mole* is implemented as a *Binary Ninja* sidebar, with a dedicated **_Configure_** tab that contains all plugin settings. Within this tab, the *Sources* and *Sinks* sub-tabs allow you to enable or disable available source and sink functions, respectively. General settings can be configured in the *Settings* sub-tab.
+*Mole* is implemented as a *Binary Ninja* sidebar plugin and provides a dedicated **_Config_** tab that centralizes all configuration options. Within this tab, the **_Taint Model_** sub-tab allows users to manage taint-propagating functions, while general plugin settings can be configured in the **_Settings_** sub-tab.
 
 <p align="center">
-  <img src="https://i.postimg.cc/SsDV6vX7/configure-tab.png" alt="Mole Configure Tab"/>
+  <img src="https://i.postimg.cc/Nj7LWmd7/config-tab.png" alt="Mole Config Tab"/>
 </p>
 
-Clicking the *Save* button stores the current configuration and writes it to the file `conf/000-mole.yml` (see the table below). These saved values are also applied when *Mole* is run in [headless mode](02-Usage.md#headless-mode), unless they are overwritten by command-line arguments. The *Reset* button restores all configuration options to their default values.
+### Taint Model
+The **taint model** defines a set of functions, each of which can be assigned one or more **roles** describing how it interacts with tainted data. The following roles are currently supported:
 
-All configuration files are located in the [`conf/`](../mole/conf/) directory. The table below lists the purpose of each file:
+| Role   | Description                                                              |
+|--------|--------------------------------------------------------------------------|
+| Source | Function introducing tainted data                                        |
+| Sink   | Function exposing tainted data                                           |
+| Fixer  | Modifies a function's type signature to ensure correct taint propagation |
 
-| File                    | Description / Purpose                                               |
-|-------------------------|---------------------------------------------------------------------|
-| `conf/000-mole.yml`     | File storing the effective configuration of *Mole*                  |
-| `conf/001-settings.yml` | Default values for general *Mole* settings                          |
-| `conf/002-manual.yml`   | Default values for *Mole*'s manually added functions                |
-| `conf/003-libc.yml`     | Example configuration file for common `libc` source/sink functions  |
-| `conf/004-yourlib.yml`  | Custom configuration file(s) for user-defined source/sink functions |
+**Fixers** can be used for functions whose type signatures are incorrectly inferred by Binary Ninja, such as cases where the number or types of arguments are wrong. When enabled, a function's type signature is corrected by parsing its `synopsis` prior to slicing. Accurate type signatures are essential, as they ensure that taint is correctly propagated through these functions.
 
-You can add your own source and sink functions either by creating a custom YAML file (e.g., `conf/004-yourlib.yml`) or by adding them manually through Binary Ninja's UI. For more details on how to do this and the expected format, refer to the next subsection.
+The taint model, and the corresponding functions, is backed by **JSON files** located in the [`conf/`](../mole/conf/) directory. The table below lists the purpose of each file:
 
-### Source and Sink Functions
-#### Via YAML Files
-To define your own source or sink functions - such as those belonging to a custom third-party library - you can use [`conf/003-libc.yml`](../mole/conf/003-libc.yml) as a starting point. Duplicate this file and rename it, for example, to `conf/004-yourlib.yml`. The expected format is described below:
-```YAML
-sources:                                             # Collection of function sources (or sinks)
-  libc:                                              # Library identifier
-    categories:                                      # Collection of function categories
-      Environment Accesses:                          # Category identifier
-        functions:                                   # Collection of functions
-          getenv:                                    # Function identifier
-            symbols: [getenv, __builtin_getenv]      # List of symbols to match the function
-            synopsis: char* getenv(const char* name) # Human-readable function signature for reference
-            enabled: true                            # Whether the function is enabled by default
-            par_cnt: i == 1                          # Expression to validate the correct number of parameters
-            par_slice: 'False'                       # Expression specifying which parameter should be sliced
+| File                     | Description / Purpose                                 |
+|--------------------------|-------------------------------------------------------|
+| `conf/000-mole.json`     | File storing the effective configuration of *Mole*    |
+| `conf/001-settings.json` | Default values for general *Mole* settings            |
+| `conf/002-manual.json`   | Default values for *Mole*'s manually added functions  |
+| `conf/003-libc.json`     | Configuration file for common `libc` functions        |
+| `conf/004-yourlib.json`  | Example configuration file for user-defined functions |
+
+You can add your own functions either by creating a custom JSON file (e.g., `conf/004-yourlib.json`) or by adding them manually through Binary Ninja's UI. For more details on how to do this and the expected format, refer to the next subsections.
+#### Configure Functions via JSON Files
+To define your own functions - such as those belonging to a custom third-party library - you can use [`conf/003-libc.json`](../mole/conf/003-libc.json) as a template. First, duplicate and rename this file (e.g., to `conf/004-yourlib.json`), then add your custom function definitions to it. The expected format is described below:
+
+```JSON
+{
+  "taint_model": {                                        // Taint model
+    "libc": {                                             // Library
+      "Process Execution": {                              // Category
+        "system": {                                       // Function
+          "aliases": ["_system", "__builtin_system"],     // Function aliases
+          "synopsis": "int system (const char *command)", // Function type signature
+          "roles": {                                      // Function roles
+            "source": {                                   // Source role
+              "enabled": false,                           // Role status
+              "par_slice": "False"                        // Expression stating which function parameter(s) to slice
+            },
+            "sink": {                                     // Sink role
+              "enabled": true,                            // Role status
+              "par_slice": "i == 1"                       // Expression stating which function parameter(s) to slice
+            },
+            "fixer": {                                    // Fixer role
+              "enabled": false                            // Role status
+            }
+          }
+        }
+      }
+    }
+  }
+}
 ```
-**Note**: The grammar and syntax for expressions such as `par_cnt` and `par_slice` is defined [here](../mole/common/parse.py#L14).
 
-The `par_slice` expression specifies which function parameters should be included in the backward slice. The selection of parameters depends on your specific use case and analysis goals. For example, when trying to identify potential vulnerabilities, you should slice parameters of source functions that introduce untrusted input, as well as parameters of sink functions that could result in dangerous behavior. It is relevant to slice source function parameters because the backward slice from a sink might not always reach the source's call site directly - it may instead trace back to where the parameter is defined or used.
+The `par_slice` expression (see [grammar](../mole/common/parse.py#L14)) specifies which function parameters should be included in the backward slice. The selection of parameters depends on your specific use case and analysis goals. For example, when trying to identify potential vulnerabilities, you should slice parameters of source functions that introduce **untrusted input**, as well as parameters of sink functions that could result in **dangerous behavior**. It is relevant to slice source function parameters because the backward slice from a sink might not always reach the source's call site directly - it may instead trace back to where the parameter is defined.
 
-#### Via Binary Ninja UI
-In addition to defining source and sink functions in YAML files, *Mole* also lets you right-click a call instruction (or function) in Binary Ninja's UI to mark it as a source or sink for slicing:
-
-<p align="center">
-  <img src="https://i.postimg.cc/kgMwMchG/manual-01.png" alt="Mole Manual Source / Sink"/>
-</p>
-
-If the selected instruction corresponds to a valid **MLIL call instruction** (or **MLIL Function**), a configuration dialog like the one below will appear:
+#### Configure Functions via Binary Ninja UI
+In addition to defining functions via JSON files, *Mole* allows users to define them directly from Binary Ninja's UI. By right-clicking a **call instruction** (or **function**) and selecting the appropriate option from the context menu, users can configure the function interactively.
 
 <p align="center">
-  <img src="https://i.postimg.cc/66ZGfb62/manual-02.png" alt="Mole Manual Source / Sink"/>
+  <img src="https://i.postimg.cc/RVBf3SJS/manual-01.png" alt="Mole Manual Function Selection"/>
 </p>
 
-The settings are identical to those described above for the YAML files, with one additional option: the `all_code_xrefs` checkbox. When enabled, *Mole* will treat not only the selected call instruction as a source or sink, but also all code references to the same symbol (e.g., all calls to `getenv`).
-
-Clicking the *Find* button starts the slicing process. If the selected instruction is a source, *Mole* uses it as the sole source and attempts to find paths to any sinks defined in the YAML files. Conversely, if the selected instruction is a sink, *Mole* performs backward slicing from that sink to all sources specified in the YAML configuration files.
-
-Clicking the *Add* button adds the configured function to a special sub-tab named **_manual_**, where you can enable or disable it for future analyses.
+For call instructions, users can choose to target either a specific **call site** or all detected call sites. This distinction is only relevant when performing manual slicing without explicitly adding the function to the taint model (using the *Find* button in the dialog below).
 
 <p align="center">
-  <img src="https://i.postimg.cc/Th88sTbL/manual-03.png" alt="Mole Manual Source / Sink"/>
+  <img src="https://i.postimg.cc/L5nH5Zk0/manual-02.png" alt="Mole Manual Function Configuration"/>
 </p>
 
-Saving your configuration allows source and sink functions added through the UI to be persisted. These functions are stored in the previously mentioned YAML format in the file `conf/002-manual.yml` (as described above).
+The configuration options are identical to those described above for the JSON files.
 
-### OpenAI API Endpoint
+Clicking the **_Find_** button starts the slicing process without modifying the taint model. If the configured function is marked as a source, *Mole* treats it as the sole source and searches for paths to any sinks enabled in the taint model. Conversely, if the function is marked as a sink, *Mole* performs a backward slice from that sink toward all sources defined in the taint model.
+
+Clicking the **_Add_** button registers the configured function in the taint model under a dedicated library named **_manual_**.
+
+<p align="center">
+  <img src="https://i.postimg.cc/rmpjPSLs/manual-03.png" alt="Mole Manual Function"/>
+</p>
+
+A function can later be edited by double-clicking its name or by right-clicking it and selecting **_Edit_** from the appearing **context menu**. The context menu also provides an option to **_Remove_** selected functions.
+
+Clicking the **_Save_** button stores the current configuration and writes it to the file `conf/000-mole.json` (see the table above). The saved settings are also used when *Mole* runs in [headless mode](02-Usage.md#headless-mode), unless a different configuration file is specified with the `--config_file` command-line argument. The **_Reset_** button restores all configuration options to their default values. The **_Export_** and **_Import_** buttons allow you to export or import the current configuration. For example, you may export a specific configuration as a backup or reuse it when running *Mole* in headless mode.
+### Settings
+This section provides an overview of the settings available in *Mole*.
+#### General
+| Setting                | Description                                                                       |
+|------------------------|-----------------------------------------------------------------------------------|
+| max_workers            | Maximum number of worker threads that backward slicing uses                       |
+| max_call_level         | Backward slicing visits called functions up to the given level                    |
+| max_slice_depth        | Maximum slice depth to stop the search                                            |
+| max_memory_slice_depth | Maximum memory slice depth to stop the search                                     |
+| src_highlight_color    | Color used to highlight instructions originating from slicing a source function   |
+| snk_highlight_color    | Color used to highlight instructions originating from slicing a sink function     |
+| path_grouping          | Strategy used to group paths                                                      |
+#### OpenAI API Endpoint
 *Mole* includes an AI-assisted analysis mode designed to provide deeper insights into identified paths. This feature leverages *Large Language Models* (*LLMs*) to examine potential vulnerabilities, evaluate their severity, and suggest inputs that could trigger the corresponding code paths.
 
-To enable AI-based analysis, you must first configure an OpenAI-compatible endpoint in the *Configure / Settings* sub-tab. The following settings are available:
+To enable AI-based analysis, you must first configure an OpenAI-compatible endpoint in the *Config / Settings* sub-tab. The following settings are available:
 
 | Setting               | Description                                                                        |
 |-----------------------|------------------------------------------------------------------------------------|
@@ -80,11 +114,11 @@ To enable AI-based analysis, you must first configure an OpenAI-compatible endpo
 | max_completion_tokens | Maximum number of tokens in a completion                                           |
 | temperature           | Sampling temperature (lower values make the output more focused and deterministic) |
 
-Based on our initial testing, OpenAI’s `o4-mini` model offers a good balance between output quality and cost efficiency. However, you are free to use any model or provider that supports tool calling and structured output, depending on your preferences and requirements.
+Based on our initial testing, OpenAI's `o4-mini` model offers a good balance between output quality and cost efficiency. However, you are free to use any model or provider that supports **tool calling** and **structured output**, depending on your preferences and requirements.
 
-> **Cost Disclaimer:** The AI analysis feature may incur charges from your LLM provider, depending on their API pricing. Costs can vary based on the selected model, the complexity and length of each analysis, and the number of paths analyzed. Be sure to review your provider’s pricing structure before running bulk analyses.
+> **Cost Disclaimer:** The AI analysis feature may incur charges from your LLM provider, depending on their API pricing. Costs can vary based on the selected model, the complexity and length of each analysis, and the number of paths analyzed. Be sure to review your provider's pricing structure before running bulk analyses.
 
-> **Privacy Disclaimer**: When using the AI analysis feature, information from the current binary - such as code, symbols, strings, comments, and other contextual data - may be sent to the configured OpenAI-compatible endpoint for processing. **Do not use this feature on binaries containing sensitive, proprietary, or confidential information**, as the data may be transmitted to a third party. Use this functionality at your own discretion and in accordance with your organization’s security policies.
+> **Privacy Disclaimer**: When using the AI analysis feature, information from the current binary - such as code, symbols, strings, comments, and other contextual data - may be sent to the configured OpenAI-compatible endpoint for processing. **Do not use this feature on binaries containing sensitive, proprietary, or confidential information**, as the data may be transmitted to a third party. Use this functionality at your own discretion and in accordance with your organization's security policies.
 
 ## Headless Mode
 Use *Mole* with the `-h` flag to display detailed usage information. The example below demonstrates how to run *Mole* on one of the unit tests (make sure to build them first by running `cd tests/data/ && make`):
@@ -94,7 +128,7 @@ mole bin/memcpy-01 > ./memcpy-01.log 2>&1
 
 ## Example
 ### Inspecting Paths
-Below is an example log output as given by *Mole*. The listed path is identified on unit test [memcpy-01.c](../test/src/memcpy-01.c), when compiled for `linux-armv7`. At log level *INFO*, the following output is given:
+Below is an example log output as given by *Mole*. The listed path is identified on unit test [memcpy-01.c](../test/src/memcpy-01.c), when compiled for `linux-x86_64`. At log level *INFO*, the following output is given:
 ```
 [...]
 Interesting path: 0x401145 memcpy(arg#3:rdx#1) <-- 0x401119 getenv [L:12,P:0,B:1]!
@@ -164,7 +198,7 @@ The graph above for instance illustrates the following:
 In summary, the graph shows that a JSON object received over TCP may eventually be passed as a command string to `popen` within the `set_language` functionality. The graph therefore provides a rapid and effective way to pinpoint the nature of the potential underlying vulnerability.
 
 ### Analyzing Paths With AI
-Once [configured](02-Usage.md#openai-api-endpoint), you can initiate AI analysis by right-clicking on any path (or a group of selected paths) in the *Paths* tab and choosing *Run AI analysis* from the context menu.
+Once [configured](02-Usage.md#openai-api-endpoint), you can initiate AI analysis by right-clicking on any path (or a group of selected paths) in the *Paths* tab and choosing *Start AI analysis* from the context menu.
 
 The analysis may take some time, depending on the complexity of the paths and the model in use. Once complete, an AI-generated severity level will appear in the path tree view.
 

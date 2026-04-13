@@ -5,9 +5,8 @@ from mole.data.config import (
     ComboboxSetting,
     Configuration,
     DoubleSpinboxSetting,
+    Function,
     Library,
-    SinkFunction,
-    SourceFunction,
     SpinboxSetting,
     TextSetting,
 )
@@ -36,73 +35,68 @@ def config_service() -> ConfigService:
 def test_config() -> Configuration:
     """Provides a test Configuration object."""
     return Configuration(
-        sources={
-            "manual": Library(name="manual", categories={}),
-            "libc": Library(
-                name="libc",
-                categories={
-                    "Environment Accesses": Category(
-                        name="Environment Accesses",
-                        functions={
-                            "getenv": SourceFunction(
-                                name="getenv",
-                                symbols=["getenv", "__builtin_getenv"],
-                                synopsis="char* getenv(const char* name)",
-                                enabled=True,
-                                par_cnt="i == 1",
-                                par_slice="False",
-                            )
-                        },
-                    )
-                },
-            ),
-        },
-        sinks={
-            "manual": Library(name="manual", categories={}),
+        taint_model={
             "libc": Library(
                 name="libc",
                 categories={
                     "Memory Copy": Category(
                         name="Memory Copy",
                         functions={
-                            "memcpy": SinkFunction(
+                            "memcpy": Function(
                                 name="memcpy",
-                                symbols=["memcpy", "__builtin_memcpy"],
-                                synopsis="void* memcpy(void* dest, const void* src, size_t n)",
-                                enabled=True,
-                                par_cnt="i == 3",
-                                par_slice="True",
+                                symbols=["memcpy", "_memcpy", "__builtin_memcpy"],
+                                synopsis="void * memcpy (void *to, const void *from, size_t size)",
+                                src_enabled=False,
+                                src_par_slice="False",
+                                snk_enabled=True,
+                                snk_par_slice="True",
+                                fix_enabled=False,
                             )
                         },
-                    )
+                    ),
+                    "Environment Accesses": Category(
+                        name="Environment Accesses",
+                        functions={
+                            "getenv": Function(
+                                name="getenv",
+                                symbols=["getenv", "_getenv", "__builtin_getenv"],
+                                synopsis="char * getenv(const char *name)",
+                                src_enabled=True,
+                                src_par_slice="False",
+                                snk_enabled=False,
+                                snk_par_slice="False",
+                                fix_enabled=False,
+                            )
+                        },
+                    ),
                 },
             ),
         },
         settings={
             "max_workers": SpinboxSetting(
                 name="max_workers",
-                value=-1,
+                value=1,
                 min_value=-1,
                 max_value=256,
                 help="maximum number of worker thread that backward slicing uses",
             ),
             "max_call_level": SpinboxSetting(
                 name="max_call_level",
-                value=5,
+                value=10,
                 min_value=-1,
                 max_value=99,
                 help="backward slicing visits called functions up to the given level",
             ),
             "max_slice_depth": SpinboxSetting(
                 name="max_slice_depth",
-                value=-1,
+                value=1000,
                 min_value=-1,
                 max_value=9999,
                 help="maximum slice depth to stop the search",
             ),
             "max_memory_slice_depth": SpinboxSetting(
                 name="max_memory_slice_depth",
-                value=-1,
+                value=10,
                 min_value=-1,
                 max_value=9999,
                 help="maximum memory slice depth to stop the search",
@@ -159,14 +153,14 @@ def test_config() -> Configuration:
             "max_turns": SpinboxSetting(
                 name="max_turns",
                 value=10,
-                min_value=2,
+                min_value=1,
                 max_value=256,
                 help="maximum number of turns in a conversation with the AI",
             ),
             "max_completion_tokens": SpinboxSetting(
                 name="max_completion_tokens",
                 value=4096,
-                min_value=-1,
+                min_value=0,
                 max_value=100000,
                 help="maximum number of tokens in a completion",
             ),

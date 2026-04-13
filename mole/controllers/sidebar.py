@@ -61,12 +61,6 @@ class SidebarController:
         self.config_ctr.config_view.signal_export_config.connect(
             self.config_ctr.export_config
         )
-        self.config_ctr.config_view.signal_check_functions.connect(
-            self.config_ctr.check_functions
-        )
-        self.config_ctr.config_view.signal_clear_manual_functions.connect(
-            self.config_ctr.clear_manual_functions
-        )
         self.config_ctr.config_view.signal_change_setting.connect(
             self.config_ctr.change_setting
         )
@@ -76,39 +70,92 @@ class SidebarController:
         self.config_ctr.config_view.signal_change_path_grouping.connect(
             self.path_ctr.regroup_paths
         )
-        # Connect config dialog signals
-        self.config_ctr.config_dialog.signal_find.connect(
+        self.config_ctr.config_view.fun_add_dialog.signal_find.connect(
             lambda inst,
-            is_src,
-            all_code_xrefs,
-            symbol,
+            all_callsites,
+            name,
             synopsis,
-            par_cnt,
-            par_slice: self.config_ctr.give_feedback(
+            aliases,
+            src_enabled,
+            src_par_slice,
+            snk_enabled,
+            snk_par_slice,
+            fix_enabled: self.config_ctr.give_feedback(
                 "Find",
                 self.path_ctr.find_paths_from_call_inst(
                     inst,
-                    *self.config_ctr.create_manual_fun(
-                        is_src, symbol, synopsis, par_cnt, par_slice
+                    all_callsites,
+                    *self.config_ctr.create_fun(
+                        name,
+                        synopsis,
+                        aliases,
+                        src_enabled,
+                        src_par_slice,
+                        snk_enabled,
+                        snk_par_slice,
+                        fix_enabled,
                     ),
-                    all_code_xrefs,
                 ),
             )
         )
-        self.config_ctr.config_dialog.signal_add.connect(
-            lambda is_src,
-            symbol,
-            category,
+        self.config_ctr.config_view.fun_add_dialog.signal_add.connect(
+            lambda cat_name,
+            name,
             synopsis,
-            par_cnt,
-            par_slice: self.config_ctr.give_feedback(
+            aliases,
+            src_enabled,
+            src_par_slice,
+            snk_enabled,
+            snk_par_slice,
+            fix_enabled: self.config_ctr.give_feedback(
                 "Add",
-                self.config_ctr.save_manual_fun(
-                    *self.config_ctr.create_manual_fun(
-                        is_src, symbol, synopsis, par_cnt, par_slice
+                self.config_ctr.add_fun(
+                    "manual",
+                    cat_name,
+                    *self.config_ctr.create_fun(
+                        name,
+                        synopsis,
+                        aliases,
+                        src_enabled,
+                        src_par_slice,
+                        snk_enabled,
+                        snk_par_slice,
+                        fix_enabled,
                     ),
-                    category,
                 ),
+            )
+        )
+        self.config_ctr.config_view.fun_edit_dialog.signal_edit.connect(
+            lambda lib_name,
+            cat_name,
+            name,
+            synopsis,
+            aliases,
+            src_enabled,
+            src_par_slice,
+            snk_enabled,
+            snk_par_slice,
+            fix_enabled: self.config_ctr.give_feedback(
+                "Edit",
+                self.config_ctr.add_fun(
+                    lib_name,
+                    cat_name,
+                    *self.config_ctr.create_fun(
+                        name,
+                        synopsis,
+                        aliases,
+                        src_enabled,
+                        src_par_slice,
+                        snk_enabled,
+                        snk_par_slice,
+                        fix_enabled,
+                    ),
+                ),
+            )
+        )
+        self.config_ctr.config_view.customContextMenuRequested.connect(
+            lambda pos: self.config_ctr.config_view.setup_context_menu(
+                pos=pos, on_remove_fun=self.config_ctr.remove_fun
             )
         )
         # Connect path model signals
