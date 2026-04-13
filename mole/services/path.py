@@ -747,7 +747,7 @@ class PathService(WorkerService):
                     snk_funs.append(fun)
         # Re-analyze if any function types were fixed
         if cnt_fixed > 0:
-            self.bv.update_analysis_and_wait()
+            self.bv.update_analysis()
         # Determine settings
         self.log.debug(tag, "Settings")
         if max_workers is None:
