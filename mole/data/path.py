@@ -270,7 +270,7 @@ class Path:
                 # No instruction(s) at instruction address
                 if len(inst_set) <= 0:
                     deserialization_error = True
-                    log.error(
+                    log.debug(
                         tag,
                         f"Failed to deserialize instruction '{inst_dict['inst']:s}': Function at address 0x{fun_addr:x} does not contain any instruction at address 0x{inst_addr:x}",
                     )
@@ -301,7 +301,7 @@ class Path:
                     if len(inst_set) > 1
                     else "1 instruction"
                 )
-                log.warn(
+                log.debug(
                     tag,
                     f"Failed to deserialize instruction '{inst_dict['inst']:s}': Added {log_msg:s} with address 0x{inst_addr:x} of function 0x{fun_addr:x} to path",
                 )
@@ -344,6 +344,11 @@ class Path:
                 else None,
             )
             path.init(MediumLevelILFunctionGraph.from_dict(bv, d["call_graph"]))
+            if deserialization_error:
+                log.warn(
+                    tag,
+                    f"One or more instructions in path '{str(path):s}' failed to deserialize",
+                )
             return path
         except Exception as e:
             src_sym_addr_str = str(d.get("src_sym_addr", "unknown"))
