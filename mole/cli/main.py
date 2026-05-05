@@ -1,16 +1,19 @@
 from __future__ import annotations
 from mole.common.log import Logger
 from mole.models.config import ConfigModel
-from mole.models.path import Path
 from mole.services.config import ConfigService
 from mole.services.path import PathService
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
 import argparse as ap
 import binaryninja as bn
 import json
 import math
 import os
 import time
+
+
+if TYPE_CHECKING:
+    from mole.models.path import Path
 
 
 def main() -> None:
