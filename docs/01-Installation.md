@@ -1,37 +1,70 @@
 # Installation
+
 ## Plugin Manager
-*Mole* is available through the *Binary Ninja* [Plugin Manager](https://docs.binary.ninja/guide/plugins.html#plugin-manager), which is the easiest way to install it. However, to use *Mole* in headless mode, you will need to follow the manual installation steps described in the next section.
+*Mole* is available through the *Binary Ninja* [Plugin Manager](https://docs.binary.ninja/guide/plugins.html#plugin-manager):
+- Open Binary Ninja
+- Navigate to `Plugins` / `Manage Plugins`
+- Search for `Mole`
+- Click `Install`
+
+For most users, this is the simplest available installation method.
+
+If you also want to use *Mole* in **headless mode** or contribute to development, follow the manual installation instructions below.
+
 ## Manual Installation
-In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your *Binary Ninja*'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respectively. Use the following steps to install *Mole*:
+In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your *Binary Ninja*'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respectively.
 
-- Clone the plugin into your *Binary Ninja* user plugins directory:
-  ```shell
-  cd $BINJA_USR/plugins/
-  git clone https://github.com/cyber-defence-campus/mole.git mole-plugin && cd mole-plugin/
-  ```
-  **WARNING**: Do not name the target directory `mole`.
-- Create and activate a new Python virtual environment for *Mole* (optional, but recommended):
-  ```shell
-  python3 -m venv venv/mole
-  source venv/mole/bin/activate
-  ```
-- Install *Binary Ninja*'s Python [API](https://docs.binary.ninja/dev/batch.html#install-the-api):
-  ```shell
-  (mole)$ python $BINJA_BIN/scripts/install_api.py
-  ```
-- Install *Mole* either in standard or development mode:
-  ```shell
-  # Standard
-  (mole)$ pip install .
+Use the following steps to install *Mole* manually:
 
-  # Development
-  #   WARNING:
-  #   When installed using the -e (editable) flag with pip, Binary Ninja must be launched from
-  #   within the activated virtual environment (mole)
-  (mole)$ pip install -e .[develop]
-  (mole)$ pre-commit install
-  (mole)$ $BINJA_BIN/binaryninja &
-  ```
-- If you are using a virtual environment, consider configuring the corresponding `site-packages` directory in *Binary Ninja*'s settings.
+1. Clone the repository into the *Binary Ninja* user plugins directory:
+    ```shell
+    cd $BINJA_USR/plugins/
+    git clone https://github.com/cyber-defence-campus/mole.git mole-dev && cd mole-dev/
+    ```
+    **Warning:** Avoid naming the target directory `mole`. Using `mole` may conflict with installations managed by the Plugin Manager.
+
+2. Install *Mole* using one of the following options:
+    
+    **Option 1**: Using `uv`:
+    ```shell
+    # Option 1.A: Standard installation
+    uv run python $BINJA_BIN/scripts/install_api.py
+    # Option 1.B: Development installation
+    uv run --extra dev python $BINJA_BIN/scripts/install_api.py
+    uv run pre-commit install
+    # Run Mole headless
+    uv run mole -h
+    ```
+    **Option 2**: Using `python-pip`:
+    ```shell
+    # Create and activate a Python virtual environment (optional, but recommended)
+    python3 -m venv .venv
+    source .venv/bin/activate
+    # Install the Binary Ninja Python API
+    python $BINJA_BIN/scripts/install_api.py
+    # Option 2.A: Standard installation
+    pip install .
+    # Option 2.B: Development installation
+    pip install -e .[dev]
+    pre-commit install
+    # Run Mole headless
+    mole -h
+    ```
+
+3. Depending on your setup, you may need to configure *Binary Ninja* to use the same **Python interpreter** and **virtual environment** as *Mole*.
+
+    Relevant settings:
+    - `python.interpreter`
+    - `python.virtualenv`
+
+    Example values:
+
+    `python.interpreter` (or):
+    - `~/.local/share/uv/python/cpython-3.11-linux-x86_64-gnu/lib/libpython3.11.so`
+    - `/usr/lib/x86_64-linux-gnu/libpython3.11.so.1.0`
+
+    `python.virtualenv`:
+    - `$BINJA_USR/plugins/mole-dev/.venv/lib/python3.11/site-packages`
+
 ----------------------------------------------------------------------------------------------------
 [Back-To-README](../README.md#documentation)

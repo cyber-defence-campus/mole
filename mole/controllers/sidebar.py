@@ -80,22 +80,24 @@ class SidebarController:
             src_par_slice,
             snk_enabled,
             snk_par_slice,
-            fix_enabled: self.config_ctr.give_feedback(
-                "Find",
-                self.path_ctr.find_paths_from_call_inst(
-                    inst,
-                    all_callsites,
-                    *self.config_ctr.create_fun(
-                        name,
-                        synopsis,
-                        aliases,
-                        src_enabled,
-                        src_par_slice,
-                        snk_enabled,
-                        snk_par_slice,
-                        fix_enabled,
+            fix_enabled: (
+                self.config_ctr.give_feedback(
+                    "Find",
+                    self.path_ctr.find_paths_from_call_inst(
+                        inst,
+                        all_callsites,
+                        *self.config_ctr.create_fun(
+                            name,
+                            synopsis,
+                            aliases,
+                            src_enabled,
+                            src_par_slice,
+                            snk_enabled,
+                            snk_par_slice,
+                            fix_enabled,
+                        ),
                     ),
-                ),
+                )
             )
         )
         self.config_ctr.config_view.fun_add_dialog.signal_add.connect(
@@ -107,22 +109,24 @@ class SidebarController:
             src_par_slice,
             snk_enabled,
             snk_par_slice,
-            fix_enabled: self.config_ctr.give_feedback(
-                "Add",
-                self.config_ctr.add_fun(
-                    "manual",
-                    cat_name,
-                    *self.config_ctr.create_fun(
-                        name,
-                        synopsis,
-                        aliases,
-                        src_enabled,
-                        src_par_slice,
-                        snk_enabled,
-                        snk_par_slice,
-                        fix_enabled,
+            fix_enabled: (
+                self.config_ctr.give_feedback(
+                    "Add",
+                    self.config_ctr.add_fun(
+                        "manual",
+                        cat_name,
+                        *self.config_ctr.create_fun(
+                            name,
+                            synopsis,
+                            aliases,
+                            src_enabled,
+                            src_par_slice,
+                            snk_enabled,
+                            snk_par_slice,
+                            fix_enabled,
+                        ),
                     ),
-                ),
+                )
             )
         )
         self.config_ctr.config_view.fun_edit_dialog.signal_edit.connect(
@@ -135,22 +139,24 @@ class SidebarController:
             src_par_slice,
             snk_enabled,
             snk_par_slice,
-            fix_enabled: self.config_ctr.give_feedback(
-                "Edit",
-                self.config_ctr.add_fun(
-                    lib_name,
-                    cat_name,
-                    *self.config_ctr.create_fun(
-                        name,
-                        synopsis,
-                        aliases,
-                        src_enabled,
-                        src_par_slice,
-                        snk_enabled,
-                        snk_par_slice,
-                        fix_enabled,
+            fix_enabled: (
+                self.config_ctr.give_feedback(
+                    "Edit",
+                    self.config_ctr.add_fun(
+                        lib_name,
+                        cat_name,
+                        *self.config_ctr.create_fun(
+                            name,
+                            synopsis,
+                            aliases,
+                            src_enabled,
+                            src_par_slice,
+                            snk_enabled,
+                            snk_par_slice,
+                            fix_enabled,
+                        ),
                     ),
-                ),
+                )
             )
         )
         self.config_ctr.config_view.customContextMenuRequested.connect(

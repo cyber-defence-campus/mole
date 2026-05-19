@@ -370,9 +370,11 @@ class PathTreeModel(qtui.QStandardItemModel):
                         return
 
                     bn.execute_on_main_thread_and_wait(
-                        lambda: _add_group_item(group_item)
-                        if group_item is not None
-                        else None
+                        lambda: (
+                            _add_group_item(group_item)
+                            if group_item is not None
+                            else None
+                        )
                     )
                 # Update the path's group name
                 group_name = internal_name
