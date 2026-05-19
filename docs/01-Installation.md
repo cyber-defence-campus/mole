@@ -7,9 +7,7 @@
 - Search for `Mole`
 - Click `Install`
 
-For most users, this is the simplest available installation method.
-
-If you also want to use *Mole* in **headless mode** or contribute to development, follow the manual installation instructions below.
+This is the simplest available installation method. However, if you also want to use *Mole* in **headless mode** or contribute to development, follow the manual installation instructions below.
 
 ## Manual Installation
 In the following, we assume that the variables `$BINJA_BIN` and `$BINJA_USR` point to your *Binary Ninja*'s [binary path](https://docs.binary.ninja/guide/index.html#binary-path) and [user folder](https://docs.binary.ninja/guide/index.html#user-folder), respectively.
