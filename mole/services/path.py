@@ -546,13 +546,10 @@ class PathService(WorkerService):
 
     def _find_paths(
         self,
-        cnt_fixed: int,
         max_workers: int | None,
         max_call_level: int,
         max_slice_depth: int,
         max_memory_slice_depth: int,
-        src_funs: List[Function],
-        snk_funs: List[Function],
         manual_fun: Function | None,
         manual_fun_inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallSsa
@@ -566,6 +563,91 @@ class PathService(WorkerService):
         """
         This method searches for paths using static backward slicing.
         """
+        # Setup functions
+        src_funs: List[Function] = []
+        snk_funs: List[Function] = []
+        all_funs = self.config_model.get_functions()
+        if manual_fun is not None and manual_fun not in all_funs:
+            all_funs.append(manual_fun)
+        cnt_fixed = 0
+        for fun in all_funs:
+            # Ensure function has at least one role enabled
+            if not fun.src_enabled and not fun.snk_enabled and not fun.fix_enabled:
+                continue
+            # Ensure a function symbol exists
+            symbol_found = False
+            for symbol in fun.symbols:
+                if self.bv.get_symbols_by_name(symbol):
+                    symbol_found = True
+                    break
+            if not symbol_found:
+                continue
+            # Determine function type
+            try:
+                fun_type, _ = self.bv.parse_type_string(fun.synopsis)
+                if not isinstance(fun_type, bn.FunctionType):
+                    raise TypeError("Parsed type is not a function type")
+            except Exception as e:
+                fun_type = None
+                self.log.warn(
+                    tag,
+                    f"Failed to parse synopsis of function '{fun.name:s}': {str(e):s}",
+                )
+            # Determine `par_cnt` expression
+            if fun_type is not None:
+                # Function without variable arguments
+                if not fun_type.has_variable_arguments:
+                    fun.par_cnt = f"i == {len(fun_type.parameters):d}"
+                # Function with variable arguments
+                else:
+                    fun.par_cnt = f"i >= {len(fun_type.parameters):d}"
+            else:
+                fun.par_cnt = "False"
+            # Parse `par_cnt` expression
+            fun.par_cnt_fun = self._parser.parse(fun.par_cnt) or (lambda _: False)
+            # Parse `par_slice` expressions
+            fun.src_par_slice_fun = self._parser.parse(fun.src_par_slice) or (
+                lambda _: False
+            )
+            fun.snk_par_slice_fun = self._parser.parse(fun.snk_par_slice) or (
+                lambda _: False
+            )
+            # Fix function type
+            if fun_type is not None and fun.fix_enabled:
+                for symbol in fun.symbols:
+                    for f in self.bv.get_functions_by_name(symbol):
+                        try:
+                            f.set_user_type(fun_type)
+                            cnt_fixed += 1
+                            self.log.info(tag, f"Fixed type of function {symbol:s}")
+                        except Exception as e:
+                            self.log.warn(
+                                tag,
+                                f"Failed to fix type of function {symbol:s}: {str(e):s}",
+                            )
+            # Not manually configured function
+            if manual_fun is None:
+                if fun.src_enabled:
+                    src_funs.append(fun)
+                if fun.snk_enabled:
+                    snk_funs.append(fun)
+            # Manually configured function
+            else:
+                # Use manually configured function as the only source
+                if manual_fun.src_enabled:
+                    if fun == manual_fun:
+                        src_funs = [fun]
+                # Use all functions as sources except the manually configured one
+                elif fun != manual_fun and fun.src_enabled:
+                    src_funs.append(fun)
+                # Use manually configured function as the only sink
+                if manual_fun.snk_enabled:
+                    if fun == manual_fun:
+                        snk_funs.append(fun)
+                # Use all functions as sinks except the manually configured one
+                elif fun != manual_fun and fun.snk_enabled:
+                    snk_funs.append(fun)
+        # Re-analyse binary when function type signatures were fixed
         if cnt_fixed > 0:
             self.log.info(
                 tag,
@@ -573,6 +655,39 @@ class PathService(WorkerService):
             )
             self.bv.update_analysis_and_wait()
             self.log.info(tag, "Re-analysis completed")
+        # Determine settings
+        self.log.debug(tag, "Settings")
+        if max_workers is None:
+            setting = self.config_model.get_setting("max_workers")
+            if isinstance(setting, SpinboxSetting):
+                max_workers = int(setting.value)
+        if max_workers is not None and max_workers <= 0:
+            max_workers = None
+        self.log.debug(tag, f"- max_workers           : '{max_workers}'")
+        if max_call_level is None:
+            max_call_level = 10
+            setting = self.config_model.get_setting("max_call_level")
+            if isinstance(setting, SpinboxSetting):
+                max_call_level = int(setting.value)
+        max_call_level = cast(int, max_call_level)
+        self.log.debug(tag, f"- max_call_level        : '{max_call_level}'")
+        if max_slice_depth is None:
+            max_slice_depth = 1000
+            setting = self.config_model.get_setting("max_slice_depth")
+            if isinstance(setting, SpinboxSetting):
+                max_slice_depth = int(setting.value)
+        max_slice_depth = cast(int, max_slice_depth)
+        self.log.debug(tag, f"- max_slice_depth       : '{max_slice_depth}'")
+        if max_memory_slice_depth is None:
+            max_memory_slice_depth = 10
+            setting = self.config_model.get_setting("max_memory_slice_depth")
+            if isinstance(setting, SpinboxSetting):
+                max_memory_slice_depth = int(setting.value)
+        max_memory_slice_depth = cast(int, max_memory_slice_depth)
+        self.log.debug(tag, f"- max_memory_slice_depth: '{max_memory_slice_depth}'")
+        self.log.debug(tag, f"- activated sources     : '{len(src_funs):d}'")
+        self.log.debug(tag, f"- activated sinks       : '{len(snk_funs):d}'")
+        # Backward slicing
         self.log.info(tag, "Starting backward slicing")
         progress_callback("", "Cancel [0%]", 0)
         if not src_funs or not snk_funs:
@@ -669,123 +784,6 @@ class PathService(WorkerService):
         if self.is_alive():
             self.log.warn(tag, "Another thread of the path service is still running")
             return
-        # Setup functions
-        src_funs: List[Function] = []
-        snk_funs: List[Function] = []
-        all_funs = self.config_model.get_functions()
-        if manual_fun is not None and manual_fun not in all_funs:
-            all_funs.append(manual_fun)
-        cnt_fixed = 0
-        for fun in all_funs:
-            # Ensure function has at least one role enabled
-            if not fun.src_enabled and not fun.snk_enabled and not fun.fix_enabled:
-                continue
-            # Ensure a function symbol exists
-            symbol_found = False
-            for symbol in fun.symbols:
-                if self.bv.get_symbols_by_name(symbol):
-                    symbol_found = True
-                    break
-            if not symbol_found:
-                continue
-            # Determine function type
-            try:
-                fun_type, _ = self.bv.parse_type_string(fun.synopsis)
-                if not isinstance(fun_type, bn.FunctionType):
-                    raise TypeError("Parsed type is not a function type")
-            except Exception as e:
-                fun_type = None
-                self.log.warn(
-                    tag,
-                    f"Failed to parse synopsis of function '{fun.name:s}': {str(e):s}",
-                )
-            # Determine `par_cnt` expression
-            if fun_type is not None:
-                # Function without variable arguments
-                if not fun_type.has_variable_arguments:
-                    fun.par_cnt = f"i == {len(fun_type.parameters):d}"
-                # Function with variable arguments
-                else:
-                    fun.par_cnt = f"i >= {len(fun_type.parameters):d}"
-            else:
-                fun.par_cnt = "False"
-            # Parse `par_cnt` expression
-            fun.par_cnt_fun = self._parser.parse(fun.par_cnt) or (lambda _: False)
-            # Parse `par_slice` expressions
-            fun.src_par_slice_fun = self._parser.parse(fun.src_par_slice) or (
-                lambda _: False
-            )
-            fun.snk_par_slice_fun = self._parser.parse(fun.snk_par_slice) or (
-                lambda _: False
-            )
-            # Fix function type
-            if fun_type is not None and fun.fix_enabled:
-                for symbol in fun.symbols:
-                    for f in self.bv.get_functions_by_name(symbol):
-                        try:
-                            f.set_user_type(fun_type)
-                            cnt_fixed += 1
-                            self.log.info(tag, f"Fixed type of function {symbol:s}")
-                        except Exception as e:
-                            self.log.warn(
-                                tag,
-                                f"Failed to fix type of function {symbol:s}: {str(e):s}",
-                            )
-            # Not manually configured function
-            if manual_fun is None:
-                if fun.src_enabled:
-                    src_funs.append(fun)
-                if fun.snk_enabled:
-                    snk_funs.append(fun)
-            # Manually configured function
-            else:
-                # Use manually configured function as the only source
-                if manual_fun.src_enabled:
-                    if fun == manual_fun:
-                        src_funs = [fun]
-                # Use all functions as sources except the manually configured one
-                elif fun != manual_fun and fun.src_enabled:
-                    src_funs.append(fun)
-                # Use manually configured function as the only sink
-                if manual_fun.snk_enabled:
-                    if fun == manual_fun:
-                        snk_funs.append(fun)
-                # Use all functions as sinks except the manually configured one
-                elif fun != manual_fun and fun.snk_enabled:
-                    snk_funs.append(fun)
-        # Determine settings
-        self.log.debug(tag, "Settings")
-        if max_workers is None:
-            setting = self.config_model.get_setting("max_workers")
-            if isinstance(setting, SpinboxSetting):
-                max_workers = int(setting.value)
-        if max_workers is not None and max_workers <= 0:
-            max_workers = None
-        self.log.debug(tag, f"- max_workers           : '{max_workers}'")
-        if max_call_level is None:
-            max_call_level = 10
-            setting = self.config_model.get_setting("max_call_level")
-            if isinstance(setting, SpinboxSetting):
-                max_call_level = int(setting.value)
-        max_call_level = cast(int, max_call_level)
-        self.log.debug(tag, f"- max_call_level        : '{max_call_level}'")
-        if max_slice_depth is None:
-            max_slice_depth = 1000
-            setting = self.config_model.get_setting("max_slice_depth")
-            if isinstance(setting, SpinboxSetting):
-                max_slice_depth = int(setting.value)
-        max_slice_depth = cast(int, max_slice_depth)
-        self.log.debug(tag, f"- max_slice_depth       : '{max_slice_depth}'")
-        if max_memory_slice_depth is None:
-            max_memory_slice_depth = 10
-            setting = self.config_model.get_setting("max_memory_slice_depth")
-            if isinstance(setting, SpinboxSetting):
-                max_memory_slice_depth = int(setting.value)
-        max_memory_slice_depth = cast(int, max_memory_slice_depth)
-        self.log.debug(tag, f"- max_memory_slice_depth: '{max_memory_slice_depth}'")
-        self.log.debug(tag, f"- activated sources     : '{len(src_funs):d}'")
-        self.log.debug(tag, f"- activated sinks       : '{len(snk_funs):d}'")
-
         # Clear previous paths and caches
         self._paths.clear()
         FunctionHelper.cache_clear()
@@ -793,13 +791,10 @@ class PathService(WorkerService):
         self.start(
             thread_name="find",
             run=self._find_paths,
-            cnt_fixed=cnt_fixed,
             max_workers=max_workers,
             max_call_level=max_call_level,
             max_slice_depth=max_slice_depth,
             max_memory_slice_depth=max_memory_slice_depth,
-            src_funs=src_funs,
-            snk_funs=snk_funs,
             manual_fun=manual_fun,
             manual_fun_inst=manual_fun_inst,
             manual_all_callsites=manual_all_callsites,
