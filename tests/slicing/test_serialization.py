@@ -25,11 +25,9 @@ class TestSerialization(TestSlicing):
             path_service = PathService(bv, log, model)
             path_service.find_paths(
                 max_workers=1,
-                fix_func_type=False,
                 max_call_level=5,
                 max_slice_depth=-1,
                 max_memory_slice_depth=-1,
-                enable_all_funs=False,
             )
             paths = path_service.get_paths()
             # Assert results

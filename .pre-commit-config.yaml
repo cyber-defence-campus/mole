@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: check
         name: Check Code Issues
-        entry: ruff check
+        entry: sh -c "source .venv/bin/activate &&ruff check"
         args: [ -q ]
         language: python
         files: .*\.py$
@@ -11,6 +11,6 @@ repos:
     hooks:
       - id: format
         name: Format Code
-        entry: ruff format
+        entry: sh -c "source .venv/bin/activate && ruff format"
         language: python
         files: .*\.py$

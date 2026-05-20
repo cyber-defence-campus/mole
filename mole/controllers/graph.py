@@ -186,8 +186,8 @@ class GraphController:
             lambda bv=self.bv,
             path_id=self._path_id,
             flow_graph=flow_graph,
-            show_tab=show_tab: self.graph_view.set_flow_graph(
-                bv, path_id, flow_graph, show_tab
+            show_tab=show_tab: (
+                self.graph_view.set_flow_graph(bv, path_id, flow_graph, show_tab)
             )
         )
         # Update legend

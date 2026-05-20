@@ -1,23 +1,20 @@
 from __future__ import annotations
 from mole.common.log import Logger
-from mole.common.parse import LogicalExpressionParser
 from mole.data.config import (
     Category,
-    CheckboxSetting,
     ComboboxSetting,
     Configuration,
     DoubleSpinboxSetting,
+    Function,
     Library,
-    SinkFunction,
-    SourceFunction,
     SpinboxSetting,
     TextSetting,
 )
 from mole.grouping import get_all_grouping_strategies
 from typing import Dict
 import fnmatch as fn
-import os as os
-import yaml as yaml
+import json
+import os
 
 
 tag = "Config"
@@ -37,53 +34,81 @@ class ConfigService:
         self._config_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "../conf/"
         )
-        self._parser = LogicalExpressionParser(self.log)
         return
 
     def _parse_config(
         self, config: Dict, ignore_enabled: bool = False
     ) -> Configuration:
         """
-        This method parses the plain configuration `conf` into a `Configuration` instance. If
+        This method parses the plain configuration `config` into a `Configuration` instance. If
         `ignore_enabled` is `True`, all functions will be disabled.
         """
-        parsed_config = {"sources": {}, "sinks": {}, "settings": {}}
-        if not config:
-            return Configuration(**parsed_config)
+        cfg = Configuration()
         try:
-            # Parse sources and sinks
-            for type in ["sources", "sinks"]:
-                libs: Dict[str, Dict] = config.get(type, {})
-                for lib_name, lib in libs.items():
-                    lib_categories = {}
-                    categories: Dict[str, Dict] = lib.get("categories", {})
-                    for cat_name, cat in categories.items():
-                        cat_functions = {}
-                        functions: Dict[str, Dict] = cat.get("functions", {})
-                        for fun_name, fun in functions.items():
-                            match type:
-                                case "sources":
-                                    fun = SourceFunction(name=fun_name, **fun)
-                                case "sinks":
-                                    fun = SinkFunction(name=fun_name, **fun)
-                                case _:
-                                    continue
-                            fun.par_cnt_fun = self._parser.parse(fun.par_cnt) or (
-                                lambda _: False
-                            )
-                            fun.par_dataflow_fun = self._parser.parse(
-                                fun.par_dataflow
-                            ) or (lambda _: False)
-                            fun.par_slice_fun = self._parser.parse(fun.par_slice) or (
-                                lambda _: False
-                            )
-                            fun.enabled = fun.enabled if not ignore_enabled else False
-                            cat_functions[fun_name] = fun
-                        lib_categories[cat_name] = Category(cat_name, cat_functions)
-                    parsed_config[type][lib_name] = Library(lib_name, lib_categories)
+            # Parse taint model
+            taint_model_dict = config.get("taint_model", None)
+            if not isinstance(taint_model_dict, dict):
+                taint_model_dict = {}
+            for lib_name, lib_dict in taint_model_dict.items():
+                if not lib_name or not isinstance(lib_dict, dict):
+                    continue
+                for cat_name, cat_dict in lib_dict.items():
+                    if not cat_name or not isinstance(cat_dict, dict):
+                        continue
+                    for fun_name, fun_dict in cat_dict.items():
+                        if not fun_name or not isinstance(fun_dict, dict):
+                            continue
+                        aliases = fun_dict.get("aliases", None)
+                        if not isinstance(aliases, list):
+                            aliases = []
+                        synopsis = fun_dict.get("synopsis", None)
+                        if not isinstance(synopsis, str):
+                            synopsis = ""
+                        roles = fun_dict.get("roles", None)
+                        if not isinstance(roles, dict):
+                            roles = {}
+                        src_role = roles.get("source", None)
+                        if not isinstance(src_role, dict):
+                            src_role = {}
+                        src_enabled = src_role.get("enabled", None)
+                        if not isinstance(src_enabled, bool):
+                            src_enabled = False
+                        src_par_slice = src_role.get("par_slice", None)
+                        if not isinstance(src_par_slice, str):
+                            src_par_slice = "False"
+                        snk_role = roles.get("sink", None)
+                        if not isinstance(snk_role, dict):
+                            snk_role = {}
+                        snk_enabled = snk_role.get("enabled", None)
+                        if not isinstance(snk_enabled, bool):
+                            snk_enabled = False
+                        snk_par_slice = snk_role.get("par_slice", None)
+                        if not isinstance(snk_par_slice, str):
+                            snk_par_slice = "False"
+                        fix_role = roles.get("fixer", None)
+                        if not isinstance(fix_role, dict):
+                            fix_role = {}
+                        fix_enabled = fix_role.get("enabled", None)
+                        if not isinstance(fix_enabled, bool):
+                            fix_enabled = False
+                        lib = cfg.taint_model.setdefault(lib_name, Library(lib_name))
+                        cat = lib.categories.setdefault(cat_name, Category(cat_name))
+                        fun = Function(
+                            name=fun_name,
+                            symbols=[fun_name] + aliases,
+                            synopsis=synopsis,
+                            src_enabled=False if ignore_enabled else src_enabled,
+                            src_par_slice=src_par_slice,
+                            snk_enabled=False if ignore_enabled else snk_enabled,
+                            snk_par_slice=snk_par_slice,
+                            fix_enabled=False if ignore_enabled else fix_enabled,
+                        )
+                        cat.functions[fun_name] = fun
             # Parse settings
-            settings: Dict[str, Dict] = config.get("settings", {})
-            for name in [
+            sets_dict = config.get("settings", None)
+            if not isinstance(sets_dict, dict):
+                sets_dict = {}
+            for set_name in [
                 "max_workers",
                 "max_call_level",
                 "max_slice_depth",
@@ -91,147 +116,114 @@ class ConfigService:
                 "max_turns",
                 "max_completion_tokens",
             ]:
-                setting: Dict = settings.get(name, {})
-                if not setting:
+                set_dict = sets_dict.get(set_name, None)
+                if not isinstance(set_dict, dict):
                     continue
                 try:
-                    min_value = int(setting["min_value"])
-                    max_value = int(setting["max_value"])
-                    value = min(max(setting["value"], min_value), max_value)
-                    help = setting["help"]
+                    min_value = int(set_dict["min_value"])
+                    max_value = int(set_dict["max_value"])
+                    value = min(max(set_dict["value"], min_value), max_value)
+                    help = set_dict["help"]
                 except KeyError as e:
                     self.log.warn(
                         tag,
-                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
+                        f"Failed to parse setting '{set_name:s}' due to a missing key: {str(e):s}",
                     )
                     continue
                 except Exception as e:
                     self.log.warn(
-                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
+                        tag, f"Failed to parse setting '{set_name:s}': {str(e):s}"
                     )
                     continue
-                parsed_config["settings"].update(
-                    {
-                        name: SpinboxSetting(
-                            name=name,
-                            value=value,
-                            help=help,
-                            min_value=min_value,
-                            max_value=max_value,
-                        )
-                    }
+                cfg.settings[set_name] = SpinboxSetting(
+                    name=set_name,
+                    value=value,
+                    help=help,
+                    min_value=min_value,
+                    max_value=max_value,
                 )
-            for name in ["fix_func_type"]:
-                setting: Dict = settings.get(name, {})
-                if not setting:
+            for set_name in ["temperature"]:
+                set_dict = sets_dict.get(set_name, None)
+                if not isinstance(set_dict, dict):
                     continue
                 try:
-                    value = setting["value"]
-                    help = setting["help"]
+                    min_value = float(set_dict["min_value"])
+                    max_value = float(set_dict["max_value"])
+                    value = min(max(set_dict["value"], min_value), max_value)
+                    help = set_dict["help"]
                 except KeyError as e:
                     self.log.warn(
                         tag,
-                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
+                        f"Failed to parse setting '{set_name:s}' due to a missing key: {str(e):s}",
                     )
                     continue
                 except Exception as e:
                     self.log.warn(
-                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
+                        tag, f"Failed to parse setting '{set_name:s}': {str(e):s}"
                     )
                     continue
-                parsed_config["settings"].update(
-                    {
-                        name: CheckboxSetting(
-                            name=name,
-                            value=value,
-                            help=help,
-                        )
-                    }
+                cfg.settings[set_name] = DoubleSpinboxSetting(
+                    name=set_name,
+                    value=value,
+                    help=help,
+                    min_value=min_value,
+                    max_value=max_value,
                 )
-            for name in ["temperature"]:
-                setting: Dict = settings.get(name, {})
-                if not setting:
+            for set_name in [
+                "src_highlight_color",
+                "snk_highlight_color",
+                "path_grouping",
+            ]:
+                set_dict = sets_dict.get(set_name, None)
+                if not isinstance(set_dict, dict):
                     continue
                 try:
-                    min_value = float(setting["min_value"])
-                    max_value = float(setting["max_value"])
-                    value = min(max(setting["value"], min_value), max_value)
-                    help = setting["help"]
+                    value = set_dict["value"]
+                    help = set_dict["help"]
                 except KeyError as e:
                     self.log.warn(
                         tag,
-                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
+                        f"Failed to parse setting '{set_name:s}' due to a missing key: {str(e):s}",
                     )
                     continue
                 except Exception as e:
                     self.log.warn(
-                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
+                        tag, f"Failed to parse setting '{set_name:s}': {str(e):s}"
                     )
                     continue
-                parsed_config["settings"].update(
-                    {
-                        name: DoubleSpinboxSetting(
-                            name=name,
-                            value=value,
-                            help=help,
-                            min_value=min_value,
-                            max_value=max_value,
-                        )
-                    }
-                )
-            for name in ["src_highlight_color", "snk_highlight_color", "path_grouping"]:
-                setting = settings.get(name, {})
-                if not setting:
-                    continue
-                try:
-                    value = setting["value"]
-                    help = setting["help"]
-                except KeyError as e:
-                    self.log.warn(
-                        tag,
-                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
-                    )
-                    continue
-                except Exception as e:
-                    self.log.warn(
-                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
-                    )
-                    continue
-                if name == "path_grouping":
+                if set_name == "path_grouping":
                     items = get_all_grouping_strategies()
                 else:
-                    items = setting.get("items", [])
-                parsed_config["settings"].update(
-                    {
-                        name: ComboboxSetting(
-                            name=name, value=value, help=help, items=items
-                        )
-                    }
+                    items = set_dict.get("items", [])
+                    if not isinstance(items, list):
+                        items = []
+                cfg.settings[set_name] = ComboboxSetting(
+                    name=set_name, value=value, help=help, items=items
                 )
-            for name in ["base_url", "api_key", "model"]:
-                setting = settings.get(name, {})
-                if not setting:
+            for set_name in ["base_url", "api_key", "model"]:
+                set_dict = sets_dict.get(set_name, None)
+                if not isinstance(set_dict, dict):
                     continue
                 try:
-                    value = setting["value"]
-                    help = setting["help"]
+                    value = set_dict["value"]
+                    help = set_dict["help"]
                 except KeyError as e:
                     self.log.warn(
                         tag,
-                        f"Failed to parse setting '{name:s}' due to a missing key: {str(e):s}",
+                        f"Failed to parse setting '{set_name:s}' due to a missing key: {str(e):s}",
                     )
                     continue
                 except Exception as e:
                     self.log.warn(
-                        tag, f"Failed to parse setting '{name:s}': {str(e):s}"
+                        tag, f"Failed to parse setting '{set_name:s}': {str(e):s}"
                     )
                     continue
-                parsed_config["settings"].update(
-                    {name: TextSetting(name=name, value=value, help=help)}
+                cfg.settings[set_name] = TextSetting(
+                    name=set_name, value=value, help=help
                 )
         except Exception as e:
-            self.log.warn(tag, f"Failed to parse configuration: '{str(e):s}'")
-        return Configuration(**parsed_config)
+            self.log.warn(tag, f"Failed to parse configuration: {str(e):s}")
+        return cfg
 
     def load_config(self) -> Configuration:
         """
@@ -258,13 +250,7 @@ class ConfigService:
         config_files = sorted(os.listdir(self._config_path))
         for config_file in config_files:
             # Filter configuration files
-            if (
-                not (
-                    fn.fnmatch(config_file, "*.yml")
-                    or fn.fnmatch(config_file, "*.yaml")
-                )
-                or config_file == "000-mole.yml"
-            ):
+            if not fn.fnmatch(config_file, "*.json") or config_file == "000-mole.json":
                 continue
             # Load configuration file
             custom_config = self.import_config(
@@ -279,7 +265,7 @@ class ConfigService:
         This method loads the main configuration file.
         """
         config = Configuration()
-        config_files = [os.path.join(self._config_path, "000-mole.yml")]
+        config_files = [os.path.join(self._config_path, "000-mole.json")]
         if self._config_file:
             config_files.append(self._config_file)
         for config_file in config_files:
@@ -296,32 +282,19 @@ class ConfigService:
         # Serialize configuration to dictionary
         config_dict = config.to_dict()
         # Write configuration to file
-        config_file = os.path.join(self._config_path, "000-mole.yml")
+        config_file = os.path.join(self._config_path, "000-mole.json")
         with open(config_file, "w") as f:
-            yaml.safe_dump(
-                config_dict,
-                f,
-                sort_keys=False,
-                default_style=None,
-                default_flow_style=False,
-                encoding="utf-8",
-            )
+            json.dump(config_dict, f, indent=2)
         # Write manual functions to file
-        manual_file = os.path.join(self._config_path, "002-manual.yml")
+        manual_file = os.path.join(self._config_path, "002-manual.json")
         with open(manual_file, "w") as f:
-            sources: Dict[str, Dict] = config_dict.get("sources", {})
-            sinks: Dict[str, Dict] = config_dict.get("sinks", {})
-            yaml.safe_dump(
-                {
-                    "sources": {"manual": sources.get("manual", {})},
-                    "sinks": {"manual": sinks.get("manual", {})},
-                },
-                f,
-                sort_keys=False,
-                default_style=None,
-                default_flow_style=False,
-                encoding="utf-8",
-            )
+            taint_model_dict = config_dict.get("taint_model", None)
+            if not isinstance(taint_model_dict, dict):
+                taint_model_dict = {}
+            lib_dict = taint_model_dict.get("manual", None)
+            if not isinstance(lib_dict, dict):
+                lib_dict = {}
+            json.dump({"taint_model": {"manual": lib_dict}}, f, indent=2)
         return
 
     def import_config(
@@ -334,7 +307,7 @@ class ConfigService:
         try:
             # Open configuration file
             with open(config_file) as f:
-                config_dict = yaml.safe_load(f)
+                config_dict = json.load(f)
             # Parse configuration file
             config = self._parse_config(config_dict, ignore_enabled)
             return config
@@ -343,7 +316,7 @@ class ConfigService:
         except Exception as e:
             self.log.warn(
                 tag,
-                f"Failed to parse configuration file '{config_file:s}': '{str(e):s}'",
+                f"Failed to parse configuration file '{config_file:s}': {str(e):s}",
             )
         # Parse configuration file
         return Configuration()
@@ -356,48 +329,38 @@ class ConfigService:
         config_dict = config.to_dict()
         # Write configuration to file
         with open(config_file, "w") as f:
-            yaml.safe_dump(
-                config_dict,
-                f,
-                sort_keys=False,
-                default_style=None,
-                default_flow_style=False,
-                encoding="utf-8",
-            )
+            json.dump(config_dict, f, indent=2)
         return
 
     def update_config(self, target: Configuration, source: Configuration) -> None:
         """
         This method updates the `target` `Configuration` with data from `source` `Configuration`.
         """
-        if not source:
-            return
-        # Update sources and sinks
-        for type in ["sources", "sinks"]:
-            match type:
-                case "sources":
-                    new_libs = source.sources
-                    old_libs = target.sources
-                case "sinks":
-                    new_libs = source.sinks
-                    old_libs = target.sinks
-                case _:
+        # Update taint model
+        for new_lib_name, new_lib in source.taint_model.items():
+            if new_lib_name not in target.taint_model:
+                target.taint_model[new_lib_name] = new_lib
+                continue
+            old_lib = target.taint_model[new_lib_name]
+            for new_cat_name, new_cat in new_lib.categories.items():
+                if new_cat_name not in old_lib.categories:
+                    old_lib.categories[new_cat_name] = new_cat
                     continue
-            for new_lib_name, new_lib in new_libs.items():
-                if new_lib_name not in old_libs:
-                    old_libs[new_lib_name] = new_lib
-                    continue
-                old_lib = old_libs[new_lib_name]
-                for new_cat_name, new_cat in new_lib.categories.items():
-                    if new_cat_name not in old_lib.categories:
-                        old_lib.categories[new_cat_name] = new_cat
-                        continue
-                    old_cat = old_lib.categories[new_cat_name]
-                    for new_fun_name, new_fun in new_cat.functions.items():
-                        old_cat.functions[new_fun_name] = new_fun
+                old_cat = old_lib.categories[new_cat_name]
+                for new_fun_name, new_fun in new_cat.functions.items():
+                    old_cat.functions[new_fun_name] = new_fun
         # Update settings
         new_settings = source.settings
         old_settings = target.settings
         for new_setting_name, new_setting in new_settings.items():
             old_settings[new_setting_name] = new_setting
+        return
+
+    def clear_main_config_file(self) -> None:
+        """
+        This method clears the main configuration file.
+        """
+        config_file = os.path.join(self._config_path, "000-mole.json")
+        with open(config_file, "w") as f:
+            json.dump({}, f, indent=2)
         return

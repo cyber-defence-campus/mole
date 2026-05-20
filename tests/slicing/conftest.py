@@ -32,7 +32,7 @@ class TestSlicing:
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
         self._config_file = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "../../mole/conf/003-libc.yml"
+            os.path.dirname(os.path.abspath(__file__)), "../../mole/conf/003-libc.json"
         )
         self._ext = os.environ.get("EXT", None)
         return
@@ -65,18 +65,15 @@ class TestSlicing:
         log = Logger()
         # Configuration model
         model = ConfigModel(ConfigService(log).import_config(self._config_file))
-        # Ensure relevant source functions are enabled
+        # Ensure relevant functions are enabled
         src_names = [src[0] for src in srcs]
-        src_funs = model.get_functions("libc", fun_type="Sources")
-        for src_fun in src_funs:
-            if src_fun.name in src_names:
-                src_fun.enabled = True
-        # Ensure relevant sink functions are enabled
         snk_names = [snk[0] for snk in snks]
-        snk_funs = model.get_functions("libc", fun_type="Sinks")
-        for snk_fun in snk_funs:
-            if snk_fun.name in snk_names:
-                snk_fun.enabled = True
+        funs = model.get_functions(lib_names=["libc"])
+        for fun in funs:
+            if fun.name in src_names:
+                fun.src_enabled = True
+            if fun.name in snk_names:
+                fun.snk_enabled = True
         # Iterate over all test files
         for file in self.load_files(filenames):
             # Load and analyze test binary with Binary Ninja
@@ -87,11 +84,9 @@ class TestSlicing:
             path_service = PathService(bv, log, model)
             path_service.find_paths(
                 max_workers=1,
-                fix_func_type=False,
                 max_call_level=5,
                 max_slice_depth=-1,
                 max_memory_slice_depth=-1,
-                enable_all_funs=False,
             )
             paths = path_service.get_paths()
             # Determine call chains

@@ -1,17 +1,21 @@
 from __future__ import annotations
 from mole.common.helper.ui import give_feedback
 from mole.data.config import (
+    Category,
     CheckboxSetting,
     ComboboxSetting,
     DoubleSpinboxSetting,
+    Function,
+    Library,
     SpinboxSetting,
     TextSetting,
 )
-from mole.models.config import ConfigModel
-from typing import Literal
+from mole.models.config import ConfigModel, TaintModelColumns
+from typing import Callable, List
 import binaryninja as bn
 import os
 import PySide6.QtCore as qtc
+import PySide6.QtGui as qtui
 import PySide6.QtWidgets as qtw
 
 
@@ -28,8 +32,6 @@ class ConfigView(qtw.QWidget):
     signal_import_config_feedback = qtc.Signal(str, str, int)
     signal_export_config = qtc.Signal()
     signal_export_config_feedback = qtc.Signal(str, str, int)
-    signal_check_functions = qtc.Signal(object, object, object, object, object)
-    signal_clear_manual_functions = qtc.Signal(str, str)
     signal_change_setting = qtc.Signal(str, object)
     signal_change_highlight_color = qtc.Signal()
     signal_change_path_grouping = qtc.Signal()
@@ -40,6 +42,9 @@ class ConfigView(qtw.QWidget):
         """
         super().__init__()
         self._config_model = config_model
+        self.fun_add_dialog = FunctionAddDialog()
+        self.fun_edit_dialog = FunctionEditDialog()
+        self.setContextMenuPolicy(qtc.Qt.ContextMenuPolicy.CustomContextMenu)
         self._init_widgets()
         return
 
@@ -48,10 +53,9 @@ class ConfigView(qtw.QWidget):
         This method initializes the config view's widgets.
         """
         # Subtabs widget
-        self.tab_wid = qtw.QTabWidget()
-        self.tab_wid.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
-        self.tab_wid.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
-        self.tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
+        self._tab_wid = qtw.QTabWidget()
+        self._tab_wid.addTab(self._init_cnf_mod_tab(), "Taint Model")
+        self._tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
         # Script widget
         script_dir = os.path.dirname(os.path.abspath(__file__))
         script_dir = os.path.abspath(os.path.join(script_dir, "../conf/"))
@@ -109,92 +113,215 @@ class ConfigView(qtw.QWidget):
         but_wid.setLayout(but_lay)
         # Tab layout
         tab_lay = qtw.QVBoxLayout()
-        tab_lay.addWidget(self.tab_wid)
+        tab_lay.addWidget(self._tab_wid)
         tab_lay.addWidget(dir_wid)
         tab_lay.addWidget(but_wid)
         self.setLayout(tab_lay)
         pass
 
-    def _init_cnf_fun_tab(self, tab_name: Literal["Sources", "Sinks"]) -> qtw.QWidget:
+    def _init_cnf_mod_tab(self, save_config_feedback: bool = True) -> qtw.QWidget:
         """
-        This method initializes the tabs `Sources` and `Sinks`.
+        This method initializes the tab `Taint Model`.
         """
-        tab_wid = qtw.QTabWidget()
-        for lib_name, lib in self.model().get_libraries(tab_name).items():
-            lib_lay = qtw.QVBoxLayout()
-            lib_wid = qtw.QWidget()
-            lib_wid.setLayout(lib_lay)
-            for cat in lib.categories.values():
-                # Function widget
-                fun_lay = qtw.QFormLayout()
-                for fun in cat.functions.values():
-                    fun.checkbox = qtw.QCheckBox(fun.name)
-                    fun.checkbox.setChecked(fun.enabled)
-                    fun.checkbox.setToolTip(fun.synopsis)
-                    fun.checkbox.clicked.connect(
-                        lambda checked,
-                        lib_name=lib.name,
-                        cat_name=cat.name,
-                        fun_name=fun.name,
-                        fun_type=tab_name: self.signal_check_functions.emit(
-                            lib_name, cat_name, fun_name, fun_type, checked
-                        )
-                    )
-                    fun_lay.addRow(fun.checkbox)
-                fun_wid = qtw.QWidget()
-                fun_wid.setLayout(fun_lay)
-                # Button widget
-                sel_but = qtw.QPushButton("Select All")
-                sel_but.clicked.connect(
-                    lambda _,
-                    lib_name=lib.name,
-                    cat_name=cat.name,
-                    fun_name=None,
-                    fun_type=tab_name: self.signal_check_functions.emit(
-                        lib_name, cat_name, fun_name, fun_type, True
-                    )
+        updating = False
+        checkable_column_states = {
+            TaintModelColumns.SOURCE.value: qtc.Qt.CheckState.Unchecked,
+            TaintModelColumns.SINK.value: qtc.Qt.CheckState.Unchecked,
+            TaintModelColumns.FIX.value: qtc.Qt.CheckState.Unchecked,
+        }
+
+        def select_fun_item() -> None:
+            for selected_item in self._tree.selectedItems():
+                fun = selected_item.data(
+                    TaintModelColumns.FUNCTION.value,
+                    qtc.Qt.UserRole,  # type: ignore
                 )
-                dsl_but = qtw.QPushButton("Deselect All")
-                dsl_but.clicked.connect(
-                    lambda _,
-                    lib_name=lib.name,
-                    cat_name=cat.name,
-                    fun_name=None,
-                    fun_type=tab_name: self.signal_check_functions.emit(
-                        lib_name, cat_name, fun_name, fun_type, False
-                    )
+                if not isinstance(fun, Function):
+                    selected_item.setSelected(False)
+            return
+
+        def all_items_expanded(tree: qtw.QTreeWidget) -> bool:
+            # Check if item and all its children are expanded
+            def is_expanded(item: qtw.QTreeWidgetItem) -> bool:
+                # Check if item is expanded
+                if not item.isExpanded():
+                    return False
+                # Check if all item's children are expanded
+                for i in range(item.childCount()):
+                    child = item.child(i)
+                    if not is_expanded(child):
+                        return False
+                return True
+
+            # Check if root's children are expanded
+            root = tree.invisibleRootItem()
+            for i in range(root.childCount()):
+                child = root.child(i)
+                if not is_expanded(child):
+                    return False
+            return True
+
+        def handle_header_double_clicked(column: int) -> None:
+            nonlocal updating
+            # Collase/expand tree if clicking the function column
+            if column == TaintModelColumns.FUNCTION.value:
+                if all_items_expanded(self._tree):
+                    self._tree.collapseAll()
+                else:
+                    self._tree.expandAll()
+                return
+            # Toggle column state if clicking a checkable column
+            if not updating and column in checkable_column_states:
+                updating = True
+                new_state = (
+                    qtc.Qt.CheckState.Checked
+                    if checkable_column_states[column] == qtc.Qt.CheckState.Unchecked
+                    else qtc.Qt.CheckState.Unchecked
                 )
-                clr_but = qtw.QPushButton("Clear All")
-                clr_but.clicked.connect(
-                    lambda _,
-                    cat_name=cat.name,
-                    fun_type=tab_name: self.signal_clear_manual_functions.emit(
-                        cat_name, fun_type
-                    )
-                )
-                but_lay = qtw.QHBoxLayout()
-                but_lay.addWidget(sel_but)
-                but_lay.addWidget(dsl_but)
-                if lib_name == "manual":
-                    but_lay.addWidget(clr_but)
-                but_wid = qtw.QWidget()
-                but_wid.setLayout(but_lay)
-                # Box widget
-                box_lay = qtw.QVBoxLayout()
-                box_lay.addWidget(fun_wid)
-                box_lay.addWidget(but_wid)
-                box_wid = qtw.QGroupBox(f"{cat.name:s}:")
-                box_wid.setLayout(box_lay)
-                lib_lay.addWidget(box_wid)
-            scr_wid = qtw.QScrollArea()
-            scr_wid.setWidgetResizable(True)
-            scr_wid.setWidget(lib_wid)
-            tab_wid.addTab(scr_wid, lib.name)
-        lay = qtw.QVBoxLayout()
-        lay.addWidget(tab_wid)
-        wid = qtw.QWidget()
-        wid.setLayout(lay)
-        return wid
+                checkable_column_states[column] = new_state
+                # Set new state for all items in the column
+                root = self._tree.invisibleRootItem()
+                for i in range(root.childCount()):
+                    child = root.child(i)
+                    self._set_state(child, column, new_state, save_config_feedback)
+                    propagate_state_down(child, column, new_state)
+                updating = False
+            return
+
+        def propagate_state_down(
+            item: qtw.QTreeWidgetItem, column: int, state: qtc.Qt.CheckState
+        ) -> None:
+            for i in range(item.childCount()):
+                child = item.child(i)
+                self._set_state(child, column, state, save_config_feedback)
+                propagate_state_down(child, column, state)
+            return
+
+        def propagate_state_up(item: qtw.QTreeWidgetItem, column: int) -> None:
+            # Get parent
+            parent = item.parent()
+            if not parent:
+                # Count checks of the root's children
+                cnt_checked = 0
+                cnt_unchecked = 0
+                root = self._tree.invisibleRootItem()
+                for i in range(root.childCount()):
+                    state = root.child(i).checkState(column)
+                    if state == qtc.Qt.CheckState.Checked:
+                        cnt_checked += 1
+                    elif state == qtc.Qt.CheckState.Unchecked:
+                        cnt_unchecked += 1
+                # Check the root if all chlidren are checked
+                if cnt_checked == root.childCount():
+                    checkable_column_states[column] = qtc.Qt.CheckState.Checked
+                # Uncheck the root if all children are unchecked
+                elif cnt_unchecked == root.childCount():
+                    checkable_column_states[column] = qtc.Qt.CheckState.Unchecked
+                # Partially check the root otherwise
+                else:
+                    checkable_column_states[column] = qtc.Qt.CheckState.PartiallyChecked
+                return
+            # Count checks of the parent's children
+            cnt_checked = 0
+            cnt_unchecked = 0
+            for i in range(parent.childCount()):
+                state = parent.child(i).checkState(column)
+                if state == qtc.Qt.CheckState.Checked:
+                    cnt_checked += 1
+                elif state == qtc.Qt.CheckState.Unchecked:
+                    cnt_unchecked += 1
+            # Parent state change flag
+            parent_changed = False
+            # Check the parent if all chlidren are checked
+            if cnt_checked == parent.childCount():
+                if parent.checkState(column) != qtc.Qt.CheckState.Checked:
+                    parent.setCheckState(column, qtc.Qt.CheckState.Checked)
+                    parent_changed = True
+            # Uncheck the parent if all children are unchecked
+            elif cnt_unchecked == parent.childCount():
+                if parent.checkState(column) != qtc.Qt.CheckState.Unchecked:
+                    parent.setCheckState(column, qtc.Qt.CheckState.Unchecked)
+                    parent_changed = True
+            # Partially check the parent otherwise
+            else:
+                if parent.checkState(column) != qtc.Qt.CheckState.PartiallyChecked:
+                    parent.setCheckState(column, qtc.Qt.CheckState.PartiallyChecked)
+                    parent_changed = True
+            # Propagate upwards
+            if parent_changed:
+                propagate_state_up(parent, column)
+            return
+
+        def handle_item_changed(item: qtw.QTreeWidgetItem, column: int) -> None:
+            nonlocal updating
+            if updating:
+                return
+            updating = True
+
+            # Update and propagate state of checkable columns
+            if column in checkable_column_states:
+                state = item.checkState(column)
+                self._set_state(item, column, state)
+                propagate_state_down(item, column, state)
+                propagate_state_up(item, column)
+
+            updating = False
+            return
+
+        def handle_item_double_clicked(item: qtw.QTreeWidgetItem, column: int) -> None:
+            # Get function associated with the item
+            fun = item.data(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole)  # type: ignore
+            # Ignore double clicks on non-function items and on checkable columns
+            if column in checkable_column_states or not isinstance(fun, Function):
+                return
+            # Execute dialog
+            self.fun_edit_dialog.exec(item)
+            return
+
+        # Tree widget
+        self._tree = qtw.QTreeWidget()
+        self._tree.setColumnCount(4)
+        self._tree.setHeaderLabels(
+            [
+                TaintModelColumns.FUNCTION.label,
+                TaintModelColumns.SOURCE.label,
+                TaintModelColumns.SINK.label,
+                TaintModelColumns.FIX.label,
+            ]
+        )
+        self._tree.setSelectionMode(
+            qtw.QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        # Tree widget items
+        taint_model = self.model().get_taint_model()
+        for _, lib in taint_model.items():
+            lib_item = self._add_lib_item(lib)
+            for _, cat in lib.categories.items():
+                cat_item = self._add_cat_item(lib_item, cat)
+                for _, fun in cat.functions.items():
+                    self._add_fun_item(cat_item, fun)
+        # Propagate states upwards
+        root = self._tree.invisibleRootItem()
+        for i in range(root.childCount()):
+            lib_item = root.child(i)
+            for j in range(lib_item.childCount()):
+                cat_item = lib_item.child(j)
+                if cat_item.childCount() > 0:
+                    fun_item = cat_item.child(0)
+                    propagate_state_up(fun_item, TaintModelColumns.SOURCE.value)
+                    propagate_state_up(fun_item, TaintModelColumns.SINK.value)
+                    propagate_state_up(fun_item, TaintModelColumns.FIX.value)
+        # Resize columns
+        for column in range(self._tree.columnCount()):
+            self._tree.resizeColumnToContents(column)
+        # Connect signals
+        self._tree.itemSelectionChanged.connect(select_fun_item)
+        self._tree.header().sectionDoubleClicked.connect(
+            lambda column: handle_header_double_clicked(column)
+        )
+        self._tree.itemChanged.connect(handle_item_changed)
+        self._tree.itemDoubleClicked.connect(handle_item_double_clicked)
+        return self._tree
 
     def _init_cnf_set_tab(self) -> qtw.QWidget:
         """
@@ -365,11 +492,196 @@ class ConfigView(qtw.QWidget):
         scr_wid.setWidget(set_wid)
         return scr_wid
 
+    def setup_context_menu(
+        self, pos: qtc.QPoint, on_remove_fun: Callable[[List[Function]], None]
+    ) -> None:
+        """
+        This method sets up a context menu for the config view.
+        """
+        # Get selected items
+        selected_items = self._tree.selectedItems()
+        # Create context menu
+        menu = qtw.QMenu(self)
+        # Add actions to the context menu
+        edit_fun_action = menu.addAction("Edit")
+        if len(selected_items) == 1:
+            edit_fun_action.triggered.connect(
+                lambda: self.fun_edit_dialog.exec(selected_items[0])
+            )
+        else:
+            edit_fun_action.setEnabled(False)
+        remove_fun_action = menu.addAction("Remove")
+        if len(selected_items) > 0:
+            funs: List[Function] = []
+            for selected_item in selected_items:
+                fun = selected_item.data(
+                    TaintModelColumns.FUNCTION.value,
+                    qtc.Qt.UserRole,  # type: ignore
+                )
+                if isinstance(fun, Function):
+                    funs.append(fun)
+            remove_fun_action.triggered.connect(lambda: on_remove_fun(funs))
+        else:
+            remove_fun_action.setEnabled(False)
+        # Execute context menu
+        menu.exec(self.mapToGlobal(pos))
+        return
+
     def model(self) -> ConfigModel:
         """
         This method returns the model for the config view.
         """
         return self._config_model
+
+    def _set_state(
+        self,
+        item: qtw.QTreeWidgetItem,
+        column: int,
+        state: qtc.Qt.CheckState,
+        save_config_feedback: bool = True,
+    ) -> None:
+        # Update model
+        fun = item.data(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole)  # type: ignore
+        if isinstance(fun, Function):
+            match column:
+                case TaintModelColumns.SOURCE.value:
+                    fun.src_enabled = state == qtc.Qt.CheckState.Checked
+                case TaintModelColumns.SINK.value:
+                    fun.snk_enabled = state == qtc.Qt.CheckState.Checked
+                case TaintModelColumns.FIX.value:
+                    fun.fix_enabled = state == qtc.Qt.CheckState.Checked
+        # Update view
+        item.setCheckState(column, state)
+        if save_config_feedback:
+            self.signal_save_config_feedback.emit("Save*", "Save*", 0)
+        return
+
+    def _find_child_item(
+        self, item: qtw.QTreeWidgetItem, text: str
+    ) -> qtw.QTreeWidgetItem | None:
+        for i in range(item.childCount()):
+            child = item.child(i)
+            if child.text(0) == text:
+                return child
+        return None
+
+    def _add_lib_item(
+        self,
+        lib: Library,
+        font: qtui.QFont = qtui.QFont(qtui.QFont().defaultFamily(), italic=True),
+        color: qtui.QBrush = qtui.QBrush(qtui.QColor(255, 239, 213)),
+    ) -> qtw.QTreeWidgetItem:
+        """
+        This method adds a new (or updates the existing) library item to the root item.
+        """
+        # Get item (create if it does not exist)
+        root = self._tree.invisibleRootItem()
+        lib_item = self._find_child_item(root, lib.name)
+        if lib_item is None:
+            lib_item = qtw.QTreeWidgetItem([lib.name])
+            lib_item.setCheckState(TaintModelColumns.SOURCE.value, qtc.Qt.Unchecked)  # type: ignore
+            lib_item.setCheckState(TaintModelColumns.SINK.value, qtc.Qt.Unchecked)  # type: ignore
+            lib_item.setCheckState(TaintModelColumns.FIX.value, qtc.Qt.Unchecked)  # type: ignore
+            if lib.name == "manual":
+                self._tree.insertTopLevelItem(0, lib_item)
+            else:
+                self._tree.addTopLevelItem(lib_item)
+        # Set item data
+        lib_item.setData(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole, lib)  # type: ignore
+        lib_item.setExpanded(True)
+        for column in range(self._tree.columnCount()):
+            lib_item.setFont(column, font)
+            lib_item.setForeground(column, color)
+        return lib_item
+
+    def _add_cat_item(
+        self,
+        lib_item: qtw.QTreeWidgetItem,
+        cat: Category,
+        font: qtui.QFont = qtui.QFont(qtui.QFont().defaultFamily(), italic=True),
+        color: qtui.QBrush = qtui.QBrush(qtui.QColor(255, 239, 213)),
+    ) -> qtw.QTreeWidgetItem:
+        """
+        This method adds a new (or updates the existing) category item to the library item
+        `lib_item`.
+        """
+        # Get item (create if it does not exist)
+        cat_item = self._find_child_item(lib_item, cat.name)
+        if cat_item is None:
+            cat_item = qtw.QTreeWidgetItem(lib_item, [cat.name])
+            cat_item.setCheckState(TaintModelColumns.SOURCE.value, qtc.Qt.Unchecked)  # type: ignore
+            cat_item.setCheckState(TaintModelColumns.SINK.value, qtc.Qt.Unchecked)  # type: ignore
+            cat_item.setCheckState(TaintModelColumns.FIX.value, qtc.Qt.Unchecked)  # type: ignore
+        # Set item data
+        cat_item.setData(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole, cat)  # type: ignore
+        for column in range(self._tree.columnCount()):
+            cat_item.setFont(column, font)
+            cat_item.setForeground(column, color)
+        return cat_item
+
+    def _add_fun_item(
+        self, cat_item: qtw.QTreeWidgetItem, fun: Function
+    ) -> qtw.QTreeWidgetItem:
+        """
+        This method adds a new (or updates the existing) function item to the category item
+        `cat_item`.
+        """
+        # Get item (create if it does not exist)
+        fun_item = self._find_child_item(cat_item, fun.name)
+        if fun_item is None:
+            fun_item = qtw.QTreeWidgetItem(cat_item, [fun.name])
+        # Set item data
+        fun_item.setData(
+            TaintModelColumns.FUNCTION.value,
+            qtc.Qt.UserRole,  # type: ignore
+            fun,
+        )
+        fun_item.setToolTip(TaintModelColumns.FUNCTION.value, fun.synopsis)
+        fun_item.setCheckState(
+            TaintModelColumns.SOURCE.value,
+            qtc.Qt.Checked if fun.src_enabled else qtc.Qt.Unchecked,  # type: ignore
+        )
+        fun_item.setCheckState(
+            TaintModelColumns.SINK.value,
+            qtc.Qt.Checked if fun.snk_enabled else qtc.Qt.Unchecked,  # type: ignore
+        )
+        fun_item.setCheckState(
+            TaintModelColumns.FIX.value,
+            qtc.Qt.Checked if fun.fix_enabled else qtc.Qt.Unchecked,  # type: ignore
+        )
+        return fun_item
+
+    def add_fun(self, lib: Library, cat: Category, fun: Function) -> None:
+        """
+        This method adds a new (or updates the existing) function under the specified library and
+        category.
+        """
+        lib_item = self._add_lib_item(lib)
+        cat_item = self._add_cat_item(lib_item, cat)
+        self._add_fun_item(cat_item, fun)
+        return
+
+    def remove_fun(self, lib: Library, cat: Category, fun: Function) -> None:
+        """
+        This method removes the function under the specified library and category. Empty libraries
+        and categories are also removed.
+        """
+        root = self._tree.invisibleRootItem()
+        lib_item = self._find_child_item(root, lib.name)
+        if lib_item is None:
+            return
+        cat_item = self._find_child_item(lib_item, cat.name)
+        if cat_item is None:
+            return
+        fun_item = self._find_child_item(cat_item, fun.name)
+        if fun_item is None:
+            return
+        cat_item.removeChild(fun_item)
+        if cat_item.childCount() == 0:
+            lib_item.removeChild(cat_item)
+            if lib_item.childCount() == 0:
+                root.removeChild(lib_item)
+        return
 
     def refresh_tabs(self, index: int = -1) -> None:
         """
@@ -378,96 +690,230 @@ class ConfigView(qtw.QWidget):
         """
 
         def _refresh_tabs() -> None:
-            if not self.tab_wid:
+            if not self._tab_wid:
                 return
-            self.tab_wid.clear()
-            self.tab_wid.addTab(self._init_cnf_fun_tab("Sources"), "Sources")
-            self.tab_wid.addTab(self._init_cnf_fun_tab("Sinks"), "Sinks")
-            self.tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
-            if 0 <= index < self.tab_wid.count():
-                self.tab_wid.setCurrentIndex(index)
-            self.tab_wid.repaint()
-            self.tab_wid.update()
+            self._tab_wid.clear()
+            self._tab_wid.addTab(
+                self._init_cnf_mod_tab(save_config_feedback=False), "Taint Model"
+            )
+            self._tab_wid.addTab(self._init_cnf_set_tab(), "Settings")
+            if 0 <= index < self._tab_wid.count():
+                self._tab_wid.setCurrentIndex(index)
+            self._tab_wid.repaint()
+            self._tab_wid.update()
 
         bn.execute_on_main_thread(_refresh_tabs)
         return
 
 
-class ConfigDialog(qtw.QDialog):
+class FunctionConfigDialog(qtw.QDialog):
     """
-    This class implements a popup dialog that allows to configure manual sources / sinks.
+    This class implements a popup dialog that allows to configure functions.
     """
 
-    signal_find = qtc.Signal(object, bool, bool, str, str, str, str)
+    def __init__(self) -> None:
+        """
+        This method initializes the dialog.
+        """
+        super().__init__()
+        self.setWindowTitle("Taint Model")
+        self.setMinimumWidth(450)
+        # Function
+        self.syn_wid = qtw.QLineEdit()
+        self.syn_wid.setToolTip("function signature")
+        self.ali_wid = qtw.QPlainTextEdit()
+        fun_lay = qtw.QGridLayout()
+        fun_lay.addWidget(qtw.QLabel("Synopsis:"), 0, 0)
+        fun_lay.addWidget(self.syn_wid, 0, 1)
+        fun_lay.addWidget(qtw.QLabel("Aliases:"), 1, 0)
+        fun_lay.addWidget(self.ali_wid, 1, 1)
+        fun_wid = qtw.QGroupBox("Function:")
+        fun_wid.setLayout(fun_lay)
+        # Role
+        self.src_enabled_wid = qtw.QCheckBox()
+        self.src_enabled_wid.setToolTip("use as source function")
+        self.src_par_slice_wid = qtw.QLineEdit("False")
+        self.src_par_slice_wid.setToolTip(
+            "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
+        )
+        self.snk_enabled_wid = qtw.QCheckBox()
+        self.snk_enabled_wid.setToolTip("use as sink function")
+        self.snk_par_slice_wid = qtw.QLineEdit("False")
+        self.snk_par_slice_wid.setToolTip(
+            "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
+        )
+        self.fix_enabled_wid = qtw.QCheckBox()
+        self.fix_enabled_wid.setToolTip("fix function's type signature")
+        rol_lay = qtw.QGridLayout()
+        rol_lay.addWidget(qtw.QLabel("Src Enabled:"), 0, 0)
+        rol_lay.addWidget(self.src_enabled_wid, 0, 1)
+        rol_lay.addWidget(qtw.QLabel("Src Par Slice:"), 0, 2)
+        rol_lay.addWidget(self.src_par_slice_wid, 0, 3)
+        rol_lay.addWidget(qtw.QLabel("Snk Enabled:"), 1, 0)
+        rol_lay.addWidget(self.snk_enabled_wid, 1, 1)
+        rol_lay.addWidget(qtw.QLabel("Snk Par Slice:"), 1, 2)
+        rol_lay.addWidget(self.snk_par_slice_wid, 1, 3)
+        rol_lay.addWidget(qtw.QLabel("Fix Enabled:"), 2, 0)
+        rol_lay.addWidget(self.fix_enabled_wid, 2, 1, 1, 3)
+        rol_wid = qtw.QGroupBox("Role:")
+        rol_wid.setLayout(rol_lay)
+        # Main
+        main_lay = qtw.QVBoxLayout()
+        main_lay.addWidget(fun_wid)
+        main_lay.addWidget(rol_wid)
+        self.setLayout(main_lay)
+        return
+
+
+class FunctionEditDialog(FunctionConfigDialog):
+    """
+    This class implements a popup dialog that allows to edit functions.
+    """
+
+    signal_edit = qtc.Signal(str, str, str, str, list, bool, str, bool, str, bool)
+    signal_edit_feedback = qtc.Signal(str, str, int)
+
+    def __init__(self) -> None:
+        """
+        This method initializes the dialog.
+        """
+        super().__init__()
+        self.item: qtw.QTreeWidgetItem | None = None
+        # Get layout
+        main_lay = self.layout()
+        if not isinstance(main_lay, qtw.QVBoxLayout):
+            return
+        # Add button widget
+        edit_but = qtw.QPushButton("OK")
+        edit_but.clicked.connect(self._update)
+        self.signal_edit_feedback.connect(
+            lambda tmp_text, new_text, msec: give_feedback(
+                edit_but, tmp_text, new_text, msec
+            )
+        )
+        cancel_but = qtw.QPushButton("Cancel")
+        cancel_but.clicked.connect(self.reject)
+        but_lay = qtw.QHBoxLayout()
+        but_lay.addWidget(edit_but)
+        but_lay.addWidget(cancel_but)
+        but_wid = qtw.QWidget()
+        but_wid.setLayout(but_lay)
+        main_lay.addWidget(but_wid)
+        return
+
+    def _update(self) -> None:
+        """
+        This method emits a signal to update the function associated with the dialog's item.
+        """
+        # Get library and category names
+        if self.item is None:
+            return
+        fun_name = self.item.text(0)
+        parent = self.item.parent()
+        if not parent:
+            return
+        cat_name = parent.text(0)
+        grandparent = parent.parent()
+        if not grandparent:
+            return
+        lib_name = grandparent.text(0)
+        # Get function properties
+        synopsis = self.syn_wid.text().strip()
+        aliases = []
+        for line in self.ali_wid.toPlainText().splitlines():
+            line = line.strip()
+            if line:
+                aliases.append(line)
+        src_enabled = self.src_enabled_wid.isChecked()
+        src_par_slice = self.src_par_slice_wid.text().strip()
+        snk_enabled = self.snk_enabled_wid.isChecked()
+        snk_par_slice = self.snk_par_slice_wid.text().strip()
+        fix_enabled = self.fix_enabled_wid.isChecked()
+        # Emit signal
+        self.signal_edit.emit(
+            lib_name,
+            cat_name,
+            fun_name,
+            synopsis,
+            aliases,
+            src_enabled,
+            src_par_slice,
+            snk_enabled,
+            snk_par_slice,
+            fix_enabled,
+        )
+        return
+
+    def exec(self, item: qtw.QTreeWidgetItem) -> int:
+        """
+        This method executes the dialog and dynamically sets its values according to the given item.
+        """
+        # Store item
+        self.item = item
+        # Get function associated with the item
+        fun = self.item.data(TaintModelColumns.FUNCTION.value, qtc.Qt.UserRole)  # type: ignore
+        if isinstance(fun, Function):
+            # Set dialog values
+            self.syn_wid.setText(fun.synopsis)
+            self.ali_wid.setPlainText(
+                "\n".join(
+                    [symbol for symbol in fun.symbols if symbol and symbol != fun.name]
+                )
+            )
+            self.src_enabled_wid.setChecked(fun.src_enabled)
+            self.src_par_slice_wid.setText(fun.src_par_slice)
+            self.snk_enabled_wid.setChecked(fun.snk_enabled)
+            self.snk_par_slice_wid.setText(fun.snk_par_slice)
+            self.fix_enabled_wid.setChecked(fun.fix_enabled)
+            return super().exec()
+        return qtw.QDialog.Rejected  # type: ignore
+
+
+class FunctionAddDialog(FunctionConfigDialog):
+    """
+    This class implements a popup dialog that allows to manually add functions.
+    """
+
+    signal_find = qtc.Signal(object, bool, str, str, list, bool, str, bool, str, bool)
     signal_find_feedback = qtc.Signal(str, str, int)
-    signal_add = qtc.Signal(bool, str, str, str, str, str)
+    signal_add = qtc.Signal(str, str, str, list, bool, str, bool, str, bool)
     signal_add_feedback = qtc.Signal(str, str, int)
 
     def __init__(self) -> None:
         """
-        This method initializes the manual config dialog.
+        This method initializes the dialog.
         """
         super().__init__()
-        self.setWindowTitle("Manual Source/Sink")
-        self.setMinimumWidth(450)
-        self._init_widgets()
-        return
-
-    def _init_widgets(self) -> None:
-        """
-        This method initializes the widgets for the manual config dialog.
-        """
-        # Metadata widgets
-        self.syn_wid = qtw.QLineEdit()
-        self.syn_wid.setToolTip(
-            "human-readable function signature (for reference only)"
-        )
+        self.inst: bn.MediumLevelILInstruction | None = None
+        self.all_callsites: bool = False
+        self.name: str = ""
+        # Get layout
+        main_lay = self.layout()
+        if not isinstance(main_lay, qtw.QVBoxLayout):
+            return
+        # Add metadata widget
         self.cat_wid = qtw.QLineEdit("Default")
-        self.cat_wid.setToolTip("category of the function (for reference only)")
-        # Metadata group layout
+        self.cat_wid.setToolTip("category of the function (for UI grouping only)")
         met_lay = qtw.QGridLayout()
-        met_lay.addWidget(qtw.QLabel("synopsis:"), 0, 0)
-        met_lay.addWidget(self.syn_wid, 0, 1)
-        met_lay.addWidget(qtw.QLabel("category:"), 1, 0)
-        met_lay.addWidget(self.cat_wid, 1, 1)
-        # Metadata group widget
+        met_lay.addWidget(qtw.QLabel("Category:"), 0, 0)
+        met_lay.addWidget(self.cat_wid, 0, 1)
         met_wid = qtw.QGroupBox("Metadata:")
         met_wid.setLayout(met_lay)
-        # Parameter widgets
-        self.par_cnt_wid = qtw.QLineEdit()
-        self.par_cnt_wid.setToolTip(
-            "expression specifying the number of parameters (e.g. 'i >= 1')"
-        )
-        self.par_slice_wid = qtw.QLineEdit("False")
-        self.par_slice_wid.setToolTip(
-            "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
-        )
-        self.all_code_xrefs_wid = qtw.QCheckBox()
-        self.all_code_xrefs_wid.setToolTip("include all symbol's code cross-references")
-        # Configuration layout
-        cnf_lay = qtw.QGridLayout()
-        cnf_lay.addWidget(qtw.QLabel("par_cnt:"), 0, 0)
-        cnf_lay.addWidget(self.par_cnt_wid, 0, 1)
-        cnf_lay.addWidget(qtw.QLabel("par_slice:"), 1, 0)
-        cnf_lay.addWidget(self.par_slice_wid, 1, 1)
-        cnf_lay.addWidget(qtw.QLabel("all_code_xrefs:"), 2, 0)
-        cnf_lay.addWidget(self.all_code_xrefs_wid, 2, 1)
-        # Configuration widget
-        cnf_wid = qtw.QGroupBox("Configuration:")
-        cnf_wid.setLayout(cnf_lay)
-        # Find button widget
+        main_lay.insertWidget(0, met_wid)
+        # Add button widget
         find_but = qtw.QPushButton("Find")
         find_but.clicked.connect(
             lambda: self.signal_find.emit(
                 self.inst,
-                self.is_src,
-                self.all_code_xrefs_wid.isChecked()
-                if self.all_code_xrefs_wid
-                else True,
-                self.symbol,
+                self.all_callsites,
+                self.name,
                 self.syn_wid.text().strip(),
-                self.par_cnt_wid.text().strip(),
-                self.par_slice_wid.text().strip() if self.par_slice_wid else "False",
+                self.ali_wid.toPlainText().splitlines(),
+                self.src_enabled_wid.isChecked(),
+                self.src_par_slice_wid.text().strip(),
+                self.snk_enabled_wid.isChecked(),
+                self.snk_par_slice_wid.text().strip(),
+                self.fix_enabled_wid.isChecked(),
             )
         )
         self.signal_find_feedback.connect(
@@ -475,16 +921,18 @@ class ConfigDialog(qtw.QDialog):
                 find_but, tmp_text, new_text, msec
             )
         )
-        # Add button widget
         add_but = qtw.QPushButton("Add")
         add_but.clicked.connect(
             lambda: self.signal_add.emit(
-                self.is_src,
-                self.symbol,
                 self.cat_wid.text().strip(),
+                self.name,
                 self.syn_wid.text().strip(),
-                self.par_cnt_wid.text().strip(),
-                self.par_slice_wid.text().strip() if self.par_slice_wid else "False",
+                self.ali_wid.toPlainText().splitlines(),
+                self.src_enabled_wid.isChecked(),
+                self.src_par_slice_wid.text().strip(),
+                self.snk_enabled_wid.isChecked(),
+                self.snk_par_slice_wid.text().strip(),
+                self.fix_enabled_wid.isChecked(),
             )
         )
         self.signal_add_feedback.connect(
@@ -492,26 +940,18 @@ class ConfigDialog(qtw.QDialog):
                 add_but, tmp_text, new_text, msec
             )
         )
-        # Cancel button widget
         cancel_but = qtw.QPushButton("Cancel")
         cancel_but.clicked.connect(self.reject)
-        # Button layout
         but_lay = qtw.QHBoxLayout()
         but_lay.addWidget(find_but)
         but_lay.addWidget(add_but)
         but_lay.addWidget(cancel_but)
-        # Button widget
         but_wid = qtw.QWidget()
         but_wid.setLayout(but_lay)
-        # Dialog layout
-        dialog_lay = qtw.QVBoxLayout()
-        dialog_lay.addWidget(met_wid)
-        dialog_lay.addWidget(cnf_wid)
-        dialog_lay.addWidget(but_wid)
-        self.setLayout(dialog_lay)
+        main_lay.addWidget(but_wid)
         return
 
-    def set_fields(
+    def exec(
         self,
         inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallSsa
@@ -521,22 +961,21 @@ class ConfigDialog(qtw.QDialog):
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntyped
         | bn.MediumLevelILTailcallUntypedSsa,
-        is_src: bool,
-        symbol: str,
+        all_callsites: bool,
+        name: str,
         synopsis: str,
-        par_cnt: str,
-        par_slice: str,
-        all_code_xrefs: bool,
-    ) -> None:
+    ) -> int:
         """
-        This method sets the dialog's fields according to the given parameters.
+        This method executes the dialog and dynamically sets its values.
         """
-        self.setWindowTitle(f"Manual {'Source' if is_src else 'Sink'}")
         self.inst = inst
-        self.is_src = is_src
-        self.symbol = symbol
+        self.all_callsites = all_callsites
+        self.name = name
         self.syn_wid.setText(synopsis)
-        self.par_cnt_wid.setText(par_cnt)
-        self.par_slice_wid.setText(par_slice)
-        self.all_code_xrefs_wid.setChecked(all_code_xrefs)
-        return
+        self.ali_wid.setPlainText("")
+        self.src_enabled_wid.setChecked(False)
+        self.src_par_slice_wid.setText("False")
+        self.snk_enabled_wid.setChecked(False)
+        self.snk_par_slice_wid.setText("False")
+        self.fix_enabled_wid.setChecked(False)
+        return super().exec()

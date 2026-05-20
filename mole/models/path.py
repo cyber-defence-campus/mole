@@ -225,7 +225,9 @@ class PathTreeModel(qtui.QStandardItemModel):
         This method creates a list of items for the given path.
         """
         # Create path items
-        id_item = qtui.QStandardItem(f"{path_id:d}")
+        id_item = qtui.QStandardItem(
+            f"{path_id:d}" if not path.deserialization_error else f"{path_id:d}*"
+        )
         id_item.setData(path_id, PathRole.ID.index)
         id_item.setData(path_id, PathRole.SORT.index)
 
@@ -368,9 +370,11 @@ class PathTreeModel(qtui.QStandardItemModel):
                         return
 
                     bn.execute_on_main_thread_and_wait(
-                        lambda: _add_group_item(group_item)
-                        if group_item is not None
-                        else None
+                        lambda: (
+                            _add_group_item(group_item)
+                            if group_item is not None
+                            else None
+                        )
                     )
                 # Update the path's group name
                 group_name = internal_name

@@ -1,0 +1,88 @@
+{
+  "settings": {
+    "max_workers": {
+      "help": "maximum number of worker threads that backward slicing uses",
+      "value": 1,
+      "min_value": -1,
+      "max_value": 256
+    },
+    "max_call_level": {
+      "help": "backward slicing visits called functions up to the given level",
+      "value": 10,
+      "min_value": -1,
+      "max_value": 99
+    },
+    "max_slice_depth": {
+      "help": "maximum slice depth to stop the search",
+      "value": 1000,
+      "min_value": -1,
+      "max_value": 9999
+    },
+    "max_memory_slice_depth": {
+      "help": "maximum memory slice depth to stop the search",
+      "value": 10,
+      "min_value": -1,
+      "max_value": 9999
+    },
+    "src_highlight_color": {
+      "help": "color used to highlight instructions originating from slicing a source function",
+      "value": "Orange",
+      "items": [
+        "Blue",
+        "Green",
+        "Cyan",
+        "Red",
+        "Magenta",
+        "Yellow",
+        "Orange"
+      ]
+    },
+    "snk_highlight_color": {
+      "help": "color used to highlight instructions originating from slicing a sink function",
+      "value": "Red",
+      "items": [
+        "Blue",
+        "Green",
+        "Cyan",
+        "Red",
+        "Magenta",
+        "Yellow",
+        "Orange"
+      ]
+    },
+    "path_grouping": {
+      "help": "strategy used to group paths",
+      "value": "Call Graph"
+    },
+    "base_url": {
+      "help": "OpenAI-compatible API endpoint",
+      "value": "https://api.openai.com/v1"
+    },
+    "api_key": {
+      "help": "OpenAI API key",
+      "value": ""
+    },
+    "model": {
+      "help": "Model",
+      "value": "o4-mini"
+    },
+    "max_turns": {
+      "help": "maximum number of turns in a conversation with the AI",
+      "value": 10,
+      "min_value": 1,
+      "max_value": 256
+    },
+    "max_completion_tokens": {
+      "help": "maximum number of tokens in a completion",
+      "value": 4096,
+      "min_value": 0,
+      "max_value": 100000
+    },
+    "temperature": {
+      "help": "the sampling temperature to use",
+      "value": 1.0,
+      "min_value": 0.0,
+      "max_value": 2.0
+    }
+  }
+}

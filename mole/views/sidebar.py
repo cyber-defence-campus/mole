@@ -12,7 +12,7 @@ from mole.services.config import ConfigService
 from mole.services.graph import GraphService
 from mole.services.path import PathService
 from mole.views.ai import AiView
-from mole.views.config import ConfigDialog, ConfigView
+from mole.views.config import ConfigView
 from mole.views.graph import GraphView
 from mole.views.path import PathTreeView, PathView
 from typing import Dict
@@ -129,9 +129,8 @@ class SidebarViewType(bnui.SidebarWidgetType):  # type: ignore
         config_service = ConfigService(log)
         config_model = ConfigModel(config_service.load_config())
         config_view = ConfigView(config_model)
-        config_dialog = ConfigDialog()
         config_ctr = ConfigController(
-            bv, log, config_service, config_model, config_view, config_dialog
+            bv, log, config_service, config_model, config_view
         )
         # Path components
         path_service = PathService(bv, log, config_model)

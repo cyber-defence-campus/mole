@@ -23,7 +23,8 @@ class Logger:
         This method initializes a logger that can be used to write messages of a given level (and
         above) to Binary Ninja's log and to stdout/stderr.
         """
-        self._logger = bn.Logger(0, "Plugin: Mole")
+        self._session_id = bv.file.session_id if bv is not None else 0
+        self._logger = bn.Logger(self._session_id, "Plugin: Mole")
         self._level = self._levels.index(level)
         self._runs_debugger = False
         self._runs_headless = False

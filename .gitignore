@@ -1,13 +1,13 @@
-# Byte-Compiled / Optimized
+# Python-generated files
 __pycache__/
-
-# Distribution / Packaging
+*.py[oc]
 build/
 dist/
-*.egg-info/
+wheels/
+*.egg-info
 .gradle
 
-# Environments
+# Virtual Environments
 .venv/
 venv/
 
@@ -17,11 +17,15 @@ venv/
 # Visual Studio Code
 .vscode
 
-# Custom YML Files
+# Custom Config Files
 mole/conf/*.yml
 mole/conf/*.yml.bak
 !mole/conf/001-settings.yml
 !mole/conf/003-libc.yml
+mole/conf/*.json
+mole/conf/*.json.bak
+!mole/conf/001-settings.json
+!mole/conf/003-libc.json
 
 # Test assets
 tests/data/bin/

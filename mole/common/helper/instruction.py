@@ -255,6 +255,48 @@ class InstructionHelper:
         return func_name, func_sign
 
     @staticmethod
+    def is_call_inst(
+        inst: bn.HighLevelILInstruction
+        | bn.MediumLevelILInstruction
+        | bn.LowLevelILInstruction,
+    ) -> bool:
+        """
+        This method checks whether the given instruction `inst` is a call instruction.
+        """
+
+        def _is_call_inst(
+            inst: bn.HighLevelILInstruction
+            | bn.MediumLevelILInstruction
+            | bn.LowLevelILInstruction,
+            *args,
+            **kwargs,
+        ) -> bool:
+            if isinstance(
+                inst,
+                (
+                    bn.HighLevelILCall,
+                    bn.HighLevelILCallSsa,
+                    bn.HighLevelILTailcall,
+                    bn.MediumLevelILCall,
+                    bn.MediumLevelILCallSsa,
+                    bn.MediumLevelILCallUntyped,
+                    bn.MediumLevelILCallUntypedSsa,
+                    bn.MediumLevelILTailcall,
+                    bn.MediumLevelILTailcallSsa,
+                    bn.MediumLevelILTailcallUntyped,
+                    bn.MediumLevelILTailcallUntypedSsa,
+                    bn.LowLevelILCall,
+                    bn.LowLevelILCallSsa,
+                    bn.LowLevelILTailcall,
+                    bn.LowLevelILTailcallSsa,
+                ),
+            ):
+                return True
+            return False
+
+        return any(inst.traverse(_is_call_inst))
+
+    @staticmethod
     def get_mlil_call_insts(
         inst: bn.HighLevelILInstruction
         | bn.MediumLevelILInstruction
