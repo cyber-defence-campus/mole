@@ -911,7 +911,7 @@ class MediumLevelILBackwardSlicer:
                                     # reached parameters
                                     self.__pop_func_and_slice_reached_params(inst)
                     # Indirect function calls
-                    case bn.MediumLevelILVarSsa():
+                    case bn.MediumLevelILVarSsa() | bn.MediumLevelILLoadSsa():
                         for param in inst.params:
                             self._slice_backwards(param)
                     # Unhandled function calls
