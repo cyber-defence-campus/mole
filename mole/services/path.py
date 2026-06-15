@@ -567,8 +567,15 @@ class PathService(WorkerService):
         src_funs: List[Function] = []
         snk_funs: List[Function] = []
         all_funs = self.config_model.get_functions()
-        if manual_fun is not None and manual_fun not in all_funs:
-            all_funs.append(manual_fun)
+        # Add manually configured function to the list of all function
+        if manual_fun is not None:
+            try:
+                # Update if already in the list
+                index = all_funs.index(manual_fun)
+                all_funs[index] = manual_fun
+            except ValueError:
+                # Append if not yet in the list
+                all_funs.append(manual_fun)
         cnt_fixed = 0
         for fun in all_funs:
             # Ensure function has at least one role enabled
