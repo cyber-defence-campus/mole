@@ -263,27 +263,36 @@ class MediumLevelILBackwardSlicer:
                 continue
             # Follow the parameter to all possible callers if we go up the call graph
             if not self._call_tracker.is_going_downwards():
-                for call_inst in direct_call_insts | indirect_call_insts:
-                    from_inst = call_inst
-                    to_inst = call_inst.params[param_idx - 1]
-                    recursion = self._call_tracker.push_func(
-                        to_inst=to_inst,
-                        downwards=False,
-                        param_idx=param_idx,
-                    )
-                    from_inst_info = InstructionHelper.get_inst_info(from_inst, False)
-                    if not recursion:
-                        self.log.debug(
-                            self._tag,
-                            f"Follow parameter {param_idx:d} '{var_info:s}' to possible caller '{from_inst_info:s}'",
+                # Follow to the first instruction using the parameter
+                param_insts = FunctionHelper.get_mlil_param_insts(inst.function)
+                param_inst = param_insts[param_idx - 1]
+                if param_inst is not None and param_inst != inst:
+                    self._slice_backwards(param_inst)
+                # Follow the parameter to all possible callers
+                else:
+                    for call_inst in direct_call_insts | indirect_call_insts:
+                        from_inst = call_inst
+                        to_inst = call_inst.params[param_idx - 1]
+                        recursion = self._call_tracker.push_func(
+                            to_inst=to_inst,
+                            downwards=False,
+                            param_idx=param_idx,
                         )
-                        self._slice_backwards(to_inst)
-                    else:
-                        self.log.debug(
-                            self._tag,
-                            f"Do not follow parameter {param_idx:d} '{var_info:s}' to possible caller '{from_inst_info:s}' since recursion detected",
+                        from_inst_info = InstructionHelper.get_inst_info(
+                            from_inst, False
                         )
-                    self._call_tracker.pop_func()
+                        if not recursion:
+                            self.log.debug(
+                                self._tag,
+                                f"Follow parameter {param_idx:d} '{var_info:s}' to possible caller '{from_inst_info:s}'",
+                            )
+                            self._slice_backwards(to_inst)
+                        else:
+                            self.log.debug(
+                                self._tag,
+                                f"Do not follow parameter {param_idx:d} '{var_info:s}' to possible caller '{from_inst_info:s}' since recursion detected",
+                            )
+                        self._call_tracker.pop_func()
             # Follow the parameter in specific caller later
             else:
                 self.log.debug(

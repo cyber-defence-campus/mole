@@ -85,6 +85,16 @@ class PathService(WorkerService):
         src_fun.graph_map.clear()
         # Get code cross-references
         code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
+        # TODO: Add a synthetic call site
+        for symbol_name in src_fun.symbols:
+            for symbol in self.bv.get_symbols_by_name(symbol_name):
+                func = self.bv.get_function_at(symbol.address)
+                if func is None or func.mlil is None:
+                    continue
+                call_inst = FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
+                if call_inst is None:
+                    continue
+                code_refs.setdefault(symbol_name, set()).add(call_inst)
         # Source manually configured via UI
         if (
             manual_fun is not None
