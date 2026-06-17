@@ -123,7 +123,11 @@ class Path:
         prv_inst = None
         for inst in self.insts:
             # Mark instruction's function being in the path
-            func = inst.function
+            func = (
+                inst.function.ssa_form
+                if inst.function.ssa_form is not None
+                else inst.function
+            )
             self.call_graph.nodes[func]["in_path"] = True
             # Path goes upwards
             if self.call_graph.has_edge(func, old_func):
@@ -147,14 +151,22 @@ class Path:
                 old_func = func
             prv_inst = inst
         # Add `src` node attribute
-        src_func = self.insts[-1].function
+        src_func = (
+            self.insts[-1].function.ssa_form
+            if self.insts[-1].function.ssa_form is not None
+            else self.insts[-1].function
+        )
         if src_func in self.call_graph:
             src_info = f"src: {self.src_sym_name:s}"
             if self.src_par_var:
                 src_info = f"{src_info:s} | {str(self.src_par_var):s}"
             self.call_graph.nodes[src_func]["src"] = src_info
         # Add `snk` node attribute
-        snk_func = self.insts[0].function
+        snk_func = (
+            self.insts[0].function.ssa_form
+            if self.insts[0].function.ssa_form is not None
+            else self.insts[0].function
+        )
         if snk_func in self.call_graph:
             snk_info = f"snk: {self.snk_sym_name:s} | {str(self.snk_par_var):s}"
             self.call_graph.nodes[snk_func]["snk"] = snk_info
