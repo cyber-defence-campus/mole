@@ -83,53 +83,37 @@ class PathService(WorkerService):
         custom_tag = f"{tag:s}] [Src:{src_fun.name:s}"
         # Clear function's graph map
         src_fun.graph_map.clear()
-        # Get code cross-references
-        code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
-        # TODO: Add a synthetic call site
-        for symbol_name in src_fun.symbols:
-            for symbol in self.bv.get_symbols_by_name(symbol_name):
-                func = self.bv.get_function_at(symbol.address)
-                if func is None or func.mlil is None:
-                    continue
-                call_inst = FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
-                if call_inst is None:
-                    continue
-                code_refs.setdefault(symbol_name, set()).add(call_inst)
         # Source manually configured via UI
         if (
             manual_fun is not None
             and manual_fun.src_enabled
             and manual_fun_inst is not None
         ):
-            # Source without code cross-references
-            if not code_refs or not manual_all_callsites:
+            # Use all call sites (real ones)
+            if manual_all_callsites:
+                code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
+            # Use specific call site (real or synthetic one)
+            else:
                 code_refs = {}
                 for symbol_name in src_fun.symbols:
-                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                        symbol_name, set()
-                    )
-                    mlil_insts.add(manual_fun_inst)
-                    code_refs[symbol_name] = mlil_insts
+                    code_refs.setdefault(symbol_name, set()).add(manual_fun_inst)
         # Source configured via configuration files
         else:
-            # Source without code cross-references
-            if not code_refs:
-                for symbol_name in src_fun.symbols:
-                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                        symbol_name, set()
-                    )
-                    for symbol in self.bv.get_symbols_by_name(symbol_name):
-                        func = self.bv.get_function_at(symbol.address)
-                        if func is None or func.mlil is None:
-                            continue
-                        # Build a synthetic call instruction
-                        call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
-                            func.mlil
-                        )
-                        if call_inst is None:
-                            continue
-                        mlil_insts.add(call_inst)
-                    code_refs[symbol_name] = mlil_insts
+            # Use all call sites (real ones)
+            code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
+            # Use specific call site (synthetic one)
+            for symbol_name in src_fun.symbols:
+                for symbol in self.bv.get_symbols_by_name(symbol_name):
+                    # Ensure that a function exists at the corresponding symbol address
+                    func = self.bv.get_function_at(symbol.address)
+                    if func is None or func.mlil is None:
+                        continue
+                    # Create a synthetic call site to that function
+                    call_inst = FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
+                    if call_inst is None:
+                        continue
+                    # Add the synthetic call site to the code cross-references
+                    code_refs.setdefault(symbol_name, set()).add(call_inst)
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
             if self.cancelled(thread_name="find"):
