@@ -98,7 +98,10 @@ class TestSlicing:
                 # Assert source
                 assert isinstance(
                     path.insts[-1],
-                    bn.MediumLevelILCallSsa | bn.MediumLevelILTailcallSsa,
+                    bn.MediumLevelILCall
+                    | bn.MediumLevelILCallSsa
+                    | bn.MediumLevelILTailcall
+                    | bn.MediumLevelILTailcallSsa,
                 ), "invalid source instruction type"
                 assert (
                     path.src_sym_name,
