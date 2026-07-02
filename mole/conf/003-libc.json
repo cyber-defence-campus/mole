@@ -292,7 +292,8 @@
             },
             "sink": {
               "enabled": true,
-              "par_slice": "i == 1"}
+              "par_slice": "i == 1"
+            }
           }
         }
       },
@@ -683,7 +684,7 @@
           "roles": {
             "source": {
               "enabled": true,
-              "par_slice": "i == 2"
+              "par_slice": "i == 2 or i == 5"
             }
           }
         },
@@ -1056,8 +1057,8 @@
           "synopsis": "int sscanf (const char *s, const char *format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "True"
+              "enabled": true,
+              "par_slice": "i == 2"
             }
           }
         },
@@ -1071,8 +1072,8 @@
           "synopsis": "int swscanf (const wchar_t *ws, const wchar_t *format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "True"
+              "enabled": true,
+              "par_slice": "i == 2"
             }
           }
         },
@@ -1086,8 +1087,8 @@
           "synopsis": "int vsscanf (const char *s, const char *format, va_list ap)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "True"
+              "enabled": true,
+              "par_slice": "i == 2"
             }
           }
         },
@@ -1099,8 +1100,8 @@
           "synopsis": "int printf(const char* format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "True"
+              "enabled": true,
+              "par_slice": "i == 1"
             }
           }
         },
@@ -1112,8 +1113,8 @@
           "synopsis": "int wprintf (const wchar_t *format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "True"
+              "enabled": true,
+              "par_slice": "i == 1"
             }
           }
         },
@@ -1125,8 +1126,8 @@
           "synopsis": "int fprintf (FILE *stream, const char *format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 2"
             }
           }
         },
@@ -1138,8 +1139,8 @@
           "synopsis": "int fwprintf (FILE *stream, const wchar_t *format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 2"
             }
           }
         },
@@ -1151,7 +1152,7 @@
           "synopsis": "int sprintf (char *s, const char *format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
+              "enabled": true,
               "par_slice": "i >= 2"
             }
           }
@@ -1164,8 +1165,8 @@
           "synopsis": "int swprintf (wchar_t *ws, size_t size, const wchar_t *format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 3"
             }
           }
         },
@@ -1177,8 +1178,8 @@
           "synopsis": "int snprintf (char *s, size_t size, const char *format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 3"
             }
           }
         },
@@ -1190,8 +1191,8 @@
           "synopsis": "int dprintf (int fd, const char *format, ...)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 2"
             }
           }
         },
@@ -1203,8 +1204,8 @@
           "synopsis": "int vprintf (const char *format, va_list ap)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "True"
+              "enabled": true,
+              "par_slice": "i == 1"
             }
           }
         },
@@ -1216,8 +1217,8 @@
           "synopsis": "int vwprintf (const wchar_t *format, va_list ap)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "True"
+              "enabled": true,
+              "par_slice": "i == 1"
             }
           }
         },
@@ -1229,8 +1230,8 @@
           "synopsis": "int vfprintf (FILE *stream, const char *format, va_list ap)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 2"
             }
           }
         },
@@ -1242,8 +1243,8 @@
           "synopsis": "int vfwprintf (FILE *stream, const wchar_t *format, va_list ap)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 2"
             }
           }
         },
@@ -1255,7 +1256,7 @@
           "synopsis": "int vsprintf (char *s, const char *format, va_list ap)",
           "roles": {
             "sink": {
-              "enabled": false,
+              "enabled": true,
               "par_slice": "i >= 2"
             }
           }
@@ -1268,8 +1269,8 @@
           "synopsis": "int vswprintf (wchar_t *ws, size_t size, const wchar_t *format, va_list ap)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 3"
             }
           }
         },
@@ -1281,8 +1282,8 @@
           "synopsis": "int vsnprintf (char *s, size_t size, const char *format, va_list ap)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 3"
             }
           }
         },
@@ -1294,8 +1295,8 @@
           "synopsis": "int vdprintf (int fd, const char *format, va_list ap)",
           "roles": {
             "sink": {
-              "enabled": false,
-              "par_slice": "i >= 2"
+              "enabled": true,
+              "par_slice": "i == 2"
             }
           }
         }
