@@ -1,7 +1,7 @@
 # Compilation settings (cross-compile with `CC=arm-linux-gcc CXX=arm-linux-g++ EXT=.linux-armv7 make`)
 CC      	?= gcc
 CXX			?= g++
-CFLAGS  	?= -Wall -O3 -g -fno-builtin -U_FORTIFY_SOURCE
+CFLAGS  	?= -Wall -O3 -g -fno-builtin -U_FORTIFY_SOURCE -std=gnu11
 CXXFLAGS	?= -Wall -O3 -g -fno-builtin -U_FORTIFY_SOURCE
 EXT     	?=
 

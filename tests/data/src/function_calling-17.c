@@ -5,12 +5,12 @@ Testcase Description:
 - indirect call via function pointer
 */
 
-__attribute__ ((noinline))
+__attribute__ ((noinline, optimize("O0")))
 void _getenv(char* cmd) {
     system(cmd);
 }
 
-__attribute__ ((noinline))
+__attribute__ ((noinline, optimize("O0")))
 void triggerEvent(void (*handler)(char *), char* arg) {
     if(handler != NULL) {
         return handler(arg);

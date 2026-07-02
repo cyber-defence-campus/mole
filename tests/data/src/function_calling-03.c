@@ -38,6 +38,7 @@ int system_2(char *cmd) {
     return res;
 }
 
+__attribute__ ((noinline))
 int system_1a(char *cmd) {
     int res = system_2(cmd);
     fprintf(stdout, "system_1a: '%d'\n", res);
