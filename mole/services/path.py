@@ -575,13 +575,13 @@ class PathService(WorkerService):
             # Ensure function has at least one role enabled
             if not fun.src_enabled and not fun.snk_enabled and not fun.fix_enabled:
                 continue
-            # Ensure a function symbol exists
-            symbol_found = False
+            # Ensure function exists
+            func_found = False
             for symbol in fun.symbols:
-                if self.bv.get_symbols_by_name(symbol):
-                    symbol_found = True
+                if len(self.bv.get_functions_by_name(symbol)) > 0:
+                    func_found = True
                     break
-            if not symbol_found:
+            if not func_found:
                 continue
             # Determine function type
             try:
@@ -654,36 +654,21 @@ class PathService(WorkerService):
                 tag,
                 f"Starting re-analysis after fixing {cnt_fixed:d} function type signatures",
             )
-            # Store `manual_fun_inst`'s function address and instruction index before re-analysis
+            # Store `manual_fun_inst`'s function address before re-analysis
             if manual_fun_inst is not None:
                 func_addr = manual_fun_inst.function.source_function.start
-                inst_idx = manual_fun_inst.instr_index
             # Perform re-analysis and wait for completion
             self.bv.update_analysis_and_wait()
-            # Restore `manual_fun_inst` using function address and instruction index after re-analysis
+            # Create new synthetic call instruction after re-analysis
             if manual_fun_inst is not None:
-                restored_manual_fun_inst = None
+                restored = False
                 func = self.bv.get_function_at(func_addr)
-                if (
-                    func is not None
-                    and func.mlil is not None
-                    and func.mlil.ssa_form is not None
-                ):
-                    try:
-                        restored_manual_fun_inst = func.mlil.ssa_form[inst_idx]
-                    except IndexError:
-                        restored_manual_fun_inst = None
-                    if isinstance(
-                        restored_manual_fun_inst,
-                        (
-                            bn.MediumLevelILCall,
-                            bn.MediumLevelILCallSsa,
-                            bn.MediumLevelILTailcall,
-                            bn.MediumLevelILTailcallSsa,
-                        ),
-                    ):
-                        manual_fun_inst = restored_manual_fun_inst
-                if restored_manual_fun_inst is None:
+                if func is not None and func.mlil is not None:
+                    call_inst = FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
+                    if call_inst is not None:
+                        manual_fun_inst = call_inst
+                        restored = True
+                if not restored:
                     self.log.warn(
                         tag,
                         "Failed to restore manually configured call instruction after re-analysis",
