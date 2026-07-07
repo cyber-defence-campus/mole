@@ -305,6 +305,7 @@ class PathService(WorkerService):
                 ):
                     if self.cancelled(thread_name="find"):
                         break
+                    snk_par_var = snk_par_var.ssa_form
                     self.log.debug(
                         custom_tag,
                         f"Analyze argument 'arg#{snk_par_idx:d}:{str(snk_par_var):s}'",
@@ -654,20 +655,48 @@ class PathService(WorkerService):
                 tag,
                 f"Starting re-analysis after fixing {cnt_fixed:d} function type signatures",
             )
-            # Store `manual_fun_inst`'s function address before re-analysis
+            # Store information about `manual_fun_inst` before re-analysis
             if manual_fun_inst is not None:
                 func_addr = manual_fun_inst.function.source_function.start
+                inst_indx = manual_fun_inst.instr_index
             # Perform re-analysis and wait for completion
             self.bv.update_analysis_and_wait()
-            # Create new synthetic call instruction after re-analysis
+            # Restore `manual_fun_inst` after re-analysis
             if manual_fun_inst is not None:
                 restored = False
+                # Ensure function exists
                 func = self.bv.get_function_at(func_addr)
-                if func is not None and func.mlil is not None:
-                    call_inst = FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
-                    if call_inst is not None:
-                        manual_fun_inst = call_inst
+                if (
+                    func is not None
+                    and func.mlil is not None
+                    and func.mlil.ssa_form is not None
+                ):
+                    # Try to restore using function address and instruction index
+                    try:
+                        restored_manual_fun_inst = func.mlil.ssa_form[inst_indx]
+                    except IndexError:
+                        restored_manual_fun_inst = None
+                    # Ensure that the restored instruction is a call instruction
+                    if isinstance(
+                        restored_manual_fun_inst,
+                        (
+                            bn.MediumLevelILCall,
+                            bn.MediumLevelILCallSsa,
+                            bn.MediumLevelILTailcall,
+                            bn.MediumLevelILTailcallSsa,
+                        ),
+                    ):
+                        manual_fun_inst = restored_manual_fun_inst
                         restored = True
+                    # Otherwise create a new synthetic call instruction
+                    else:
+                        restored_manual_fun_inst = (
+                            FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
+                        )
+                        if restored_manual_fun_inst is not None:
+                            manual_fun_inst = restored_manual_fun_inst
+                            restored = True
+                # Log a warning if the manually configured call instruction could not be restored
                 if not restored:
                     self.log.warn(
                         tag,
