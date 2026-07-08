@@ -107,3 +107,12 @@ class TestVarious(TestSlicing):
     def test_memcpy_11(self, filenames: List[str] = ["memcpy-11"]) -> None:
         self.test_memcpy_06(filenames)
         return
+
+    def test_mem_phi_01(self, filenames: List[str] = ["mem_phi-01"]) -> None:
+        self.assert_paths(
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
+            call_chains=[["main"]],
+            filenames=filenames,
+        )
+        return
