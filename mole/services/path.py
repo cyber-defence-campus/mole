@@ -83,43 +83,37 @@ class PathService(WorkerService):
         custom_tag = f"{tag:s}] [Src:{src_fun.name:s}"
         # Clear function's graph map
         src_fun.graph_map.clear()
-        # Get code cross-references
-        code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
         # Source manually configured via UI
         if (
             manual_fun is not None
             and manual_fun.src_enabled
             and manual_fun_inst is not None
         ):
-            # Source without code cross-references
-            if not code_refs or not manual_all_callsites:
+            # Use all call sites (real ones)
+            if manual_all_callsites:
+                code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
+            # Use specific call site (real or synthetic one)
+            else:
                 code_refs = {}
                 for symbol_name in src_fun.symbols:
-                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                        symbol_name, set()
-                    )
-                    mlil_insts.add(manual_fun_inst)
-                    code_refs[symbol_name] = mlil_insts
+                    code_refs.setdefault(symbol_name, set()).add(manual_fun_inst)
         # Source configured via configuration files
         else:
-            # Source without code cross-references
-            if not code_refs:
-                for symbol_name in src_fun.symbols:
-                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                        symbol_name, set()
-                    )
-                    for symbol in self.bv.get_symbols_by_name(symbol_name):
-                        func = self.bv.get_function_at(symbol.address)
-                        if func is None or func.mlil is None:
-                            continue
-                        # Build a synthetic call instruction
-                        call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
-                            func.mlil
-                        )
-                        if call_inst is None:
-                            continue
-                        mlil_insts.add(call_inst)
-                    code_refs[symbol_name] = mlil_insts
+            # Use all call sites (real ones)
+            code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
+            # Use specific call site (synthetic one)
+            for symbol_name in src_fun.symbols:
+                for symbol in self.bv.get_symbols_by_name(symbol_name):
+                    # Ensure that a function exists at the corresponding symbol address
+                    func = self.bv.get_function_at(symbol.address)
+                    if func is None or func.mlil is None:
+                        continue
+                    # Create a synthetic call site to that function
+                    call_inst = FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
+                    if call_inst is None:
+                        continue
+                    # Add the synthetic call site to the code cross-references
+                    code_refs.setdefault(symbol_name, set()).add(call_inst)
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
             if self.cancelled(thread_name="find"):
@@ -311,6 +305,7 @@ class PathService(WorkerService):
                 ):
                     if self.cancelled(thread_name="find"):
                         break
+                    snk_par_var = snk_par_var.ssa_form
                     self.log.debug(
                         custom_tag,
                         f"Analyze argument 'arg#{snk_par_idx:d}:{str(snk_par_var):s}'",
@@ -567,20 +562,27 @@ class PathService(WorkerService):
         src_funs: List[Function] = []
         snk_funs: List[Function] = []
         all_funs = self.config_model.get_functions()
-        if manual_fun is not None and manual_fun not in all_funs:
-            all_funs.append(manual_fun)
+        # Add manually configured function to the list of all function
+        if manual_fun is not None:
+            try:
+                # Update if already in the list
+                index = all_funs.index(manual_fun)
+                all_funs[index] = manual_fun
+            except ValueError:
+                # Append if not yet in the list
+                all_funs.append(manual_fun)
         cnt_fixed = 0
         for fun in all_funs:
             # Ensure function has at least one role enabled
             if not fun.src_enabled and not fun.snk_enabled and not fun.fix_enabled:
                 continue
-            # Ensure a function symbol exists
-            symbol_found = False
+            # Ensure function exists
+            func_found = False
             for symbol in fun.symbols:
-                if self.bv.get_symbols_by_name(symbol):
-                    symbol_found = True
+                if len(self.bv.get_functions_by_name(symbol)) > 0:
+                    func_found = True
                     break
-            if not symbol_found:
+            if not func_found:
                 continue
             # Determine function type
             try:
@@ -653,7 +655,53 @@ class PathService(WorkerService):
                 tag,
                 f"Starting re-analysis after fixing {cnt_fixed:d} function type signatures",
             )
+            # Store information about `manual_fun_inst` before re-analysis
+            if manual_fun_inst is not None:
+                func_addr = manual_fun_inst.function.source_function.start
+                inst_indx = manual_fun_inst.instr_index
+            # Perform re-analysis and wait for completion
             self.bv.update_analysis_and_wait()
+            # Restore `manual_fun_inst` after re-analysis
+            if manual_fun_inst is not None:
+                restored = False
+                # Ensure function exists
+                func = self.bv.get_function_at(func_addr)
+                if (
+                    func is not None
+                    and func.mlil is not None
+                    and func.mlil.ssa_form is not None
+                ):
+                    # Try to restore using function address and instruction index
+                    try:
+                        restored_manual_fun_inst = func.mlil.ssa_form[inst_indx]
+                    except IndexError:
+                        restored_manual_fun_inst = None
+                    # Ensure that the restored instruction is a call instruction
+                    if isinstance(
+                        restored_manual_fun_inst,
+                        (
+                            bn.MediumLevelILCall,
+                            bn.MediumLevelILCallSsa,
+                            bn.MediumLevelILTailcall,
+                            bn.MediumLevelILTailcallSsa,
+                        ),
+                    ):
+                        manual_fun_inst = restored_manual_fun_inst
+                        restored = True
+                    # Otherwise create a new synthetic call instruction
+                    else:
+                        restored_manual_fun_inst = (
+                            FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
+                        )
+                        if restored_manual_fun_inst is not None:
+                            manual_fun_inst = restored_manual_fun_inst
+                            restored = True
+                # Log a warning if the manually configured call instruction could not be restored
+                if not restored:
+                    self.log.warn(
+                        tag,
+                        "Failed to restore manually configured call instruction after re-analysis",
+                    )
             self.log.info(tag, "Re-analysis completed")
         # Determine settings
         self.log.debug(tag, "Settings")

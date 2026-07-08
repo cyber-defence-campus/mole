@@ -534,22 +534,25 @@ class FunctionHelper:
         """
         This method builds a synthetic call instruction for the function `func` in SSA form.
         """
-        func_addr = func.source_function.start
-        call_dest = func.const_pointer(func.view.address_size, func_addr)
+        dest = func.const_pointer(
+            size=func.view.address_size,
+            value=func.source_function.start,
+            loc=bn.ILSourceLocation(0, 0),
+        )
         param_insts = FunctionHelper.get_mlil_param_insts(func)
-        call_params = [
+        params = [
             param_inst.expr_index
             if param_inst is not None
             else bn.mediumlevelil.ExpressionIndex(-1)
             for param_inst in param_insts
         ]
-        expr_idx = func.call(
+        call = func.call(
             output=[],
-            dest=call_dest,
-            params=call_params,
-            loc=bn.ILSourceLocation(func_addr, 0),
+            dest=dest,
+            params=params,
+            loc=bn.ILSourceLocation(func.source_function.start, 0),
         )
-        call_inst = func.get_expr(expr_idx)
+        call_inst = func.get_expr(call)
         if isinstance(call_inst, bn.MediumLevelILCall):
             return call_inst
         return None

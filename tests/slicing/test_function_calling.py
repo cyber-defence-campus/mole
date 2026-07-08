@@ -154,3 +154,25 @@ class TestFunctionCalling(TestSlicing):
             filenames=filenames,
         )
         return
+
+    def test_function_calling_16(
+        self, filenames: List[str] = ["function_calling-16"]
+    ) -> None:
+        self.assert_paths(
+            srcs=[("_getenv", None)],
+            snks=[("system", 1)],
+            call_chains=[["_getenv"]],
+            filenames=filenames,
+        )
+        return
+
+    def test_function_calling_17(
+        self, filenames: List[str] = ["function_calling-17"]
+    ) -> None:
+        self.assert_paths(
+            srcs=[("_getenv", None)],
+            snks=[("system", 1)],
+            call_chains=[["_getenv"]],
+            filenames=filenames,
+        )
+        return

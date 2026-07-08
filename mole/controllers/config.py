@@ -225,7 +225,7 @@ class ConfigController:
                 for fun_name, fun in cat.functions.items():
                     if fun in funs:
                         del_fun_names.append(fun_name)
-                        # TODO: Update view
+                        # Update view
                         self.config_view.remove_fun(lib, cat, fun)
                         self.config_view.signal_save_config_feedback.emit(
                             "Save*", "Save*", 0

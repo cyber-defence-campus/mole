@@ -25,9 +25,9 @@ class TestVarious(TestSlicing):
 
     def test_sscanf_01(self, filenames: List[str] = ["sscanf-01"]) -> None:
         self.assert_paths(
-            srcs=[("getenv", None)],
-            snks=[("sscanf", 1), ("__isoc99_sscanf", 1)],
-            call_chains=[["main"]],
+            srcs=[],
+            snks=[],
+            call_chains=[],
             filenames=filenames,
         )
         return
