@@ -220,10 +220,40 @@ class MediumLevelILBackwardSlicer:
             inst.function, inst.ssa_memory_version, self._max_memory_slice_depth
         )
         # Iterate memory defining instructions
-        for mem_def_inst in mem_def_insts:
-            followed = self._slice_ssa_var_mem_definition(ssa_var, inst, mem_def_inst)
-            if followed:
-                break
+        i = 0
+        while i < len(mem_def_insts):
+            mem_def_inst = mem_def_insts[i]
+            match mem_def_inst:
+                # If the memory can be defined by multiple instructions (mem phi-node), try to following all of them
+                case bn.MediumLevelILMemPhi(src_memory=src_memory_versions):
+                    processed_cnt = 0
+                    for j, src_memory_version in enumerate(
+                        src_memory_versions, start=1
+                    ):
+                        if i + j >= len(mem_def_insts):
+                            break
+                        if (
+                            mem_def_insts[i + j].ssa_memory_version_after
+                            != src_memory_version
+                        ):
+                            break
+                        if self._slice_ssa_var_mem_definition(
+                            ssa_var, inst, mem_def_insts[i + j]
+                        ):
+                            followed = True
+                        processed_cnt += 1
+                    if followed:
+                        break
+                    else:
+                        i += processed_cnt
+                # Try to follow the memory defining instruction
+                case _:
+                    followed = self._slice_ssa_var_mem_definition(
+                        ssa_var, inst, mem_def_inst
+                    )
+                    if followed:
+                        break
+            i += 1
         return followed
 
     def _slice_ssa_var_definition(
