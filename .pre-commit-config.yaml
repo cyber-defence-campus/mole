@@ -14,3 +14,9 @@ repos:
         entry: sh -c "source .venv/bin/activate && ruff format"
         language: python
         files: .*\.py$
+  - repo: local
+    hooks:
+      - id: audit
+        name: Audit Dependencies
+        entry: sh -c "source .venv/bin/activate && pip-audit"
+        language: python
