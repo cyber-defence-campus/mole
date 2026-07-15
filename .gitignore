@@ -20,11 +20,11 @@ venv/
 # Custom Config Files
 mole/conf/*.yml
 mole/conf/*.yml.bak
-!mole/conf/taint-model-schema.json
 !mole/conf/001-settings.yml
 !mole/conf/003-libc.yml
 mole/conf/*.json
 mole/conf/*.json.bak
+!mole/conf/taint_model_schema.json
 !mole/conf/001-settings.json
 !mole/conf/003-libc.json
 
