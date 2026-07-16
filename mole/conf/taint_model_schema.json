@@ -5,28 +5,27 @@
   "description": "JSON schema for Mole static-taint-analysis models",
   "type": "object",
   "required": ["taint_model"],
-  "additionalProperties": false,
   "properties": {
-    "_comment": {
-      "$ref": "#/$defs/_comment"
-    },
     "taint_model": {
       "$ref": "#/$defs/taint_model"
     }
   },
-  "$defs": {
-    "_comment": {
-      "description": "Optional comment",
+  "patternProperties": {
+    "^_comment": {
       "type": "string",
       "minLength": 1
-    },
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
     "taint_model" : {
       "description": "Taint model",
       "type": "object",
       "minProperties": 0,
-      "properties": {
-        "_comment": {
-          "$ref": "#/$defs/_comment"
+      "patternProperties": {
+        "^_comment": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": {
@@ -37,9 +36,10 @@
       "description": "Library (e.g. \"libc\") (grouping level 1)",
       "type": "object",
       "minProperties": 0,
-      "properties": {
-        "_comment": {
-          "$ref": "#/$defs/_comment"
+      "patternProperties": {
+        "^_comment": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": {
@@ -50,9 +50,10 @@
       "description": "Category (e.g. \"Memory Copy\") (grouping level 2)",
       "type": "object",
       "minProperties": 0,
-      "properties": {
-        "_comment": {
-          "$ref": "#/$defs/_comment"
+      "patternProperties": {
+        "^_comment": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": {
@@ -64,9 +65,6 @@
       "type": "object",
       "required": ["aliases", "synopsis", "roles"],
       "properties": {
-        "_comment": {
-          "$ref": "#/$defs/_comment"
-        },
         "aliases": {
           "description": "Alternative function names (e.g. [\"_memcpy\", \"__builtin_memcpy\"])",
           "type": "array",
@@ -97,7 +95,19 @@
               "$ref": "#/$defs/role"
             }
           },
+          "patternProperties": {
+            "^_comment": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "additionalProperties": false
+        }
+      },
+      "patternProperties": {
+        "^_comment": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false
@@ -112,6 +122,12 @@
         },
         "par_slice": {
           "description": "Expression stating which function parameter(s) should propagate taint (e.g. \"i == 1 or i == 3\")",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "patternProperties": {
+        "^_comment": {
           "type": "string",
           "minLength": 1
         }
