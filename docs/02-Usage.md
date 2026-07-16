@@ -30,7 +30,7 @@ The taint model, and the corresponding functions, is backed by **JSON files** lo
 
 You can add your own functions either by creating a custom JSON file (e.g., `conf/004-yourlib.json`) or by adding them manually through Binary Ninja's UI. For more details on how to do this and the expected format, refer to the next subsections.
 #### Configure Functions via JSON Files
-To define your own functions - such as those belonging to a custom third-party library - you can use [`conf/003-libc.json`](../mole/conf/003-libc.json) as a template. First, duplicate and rename this file (e.g., to `conf/004-yourlib.json`), then add your custom function definitions to it. The expected format is described below:
+To define your own functions - such as those belonging to a custom third-party library - you can use [`conf/003-libc.json`](../mole/conf/003-libc.json) as a template. First, duplicate and rename this file (e.g., to `conf/004-yourlib.json`), then add your custom function definitions to it. The expected format is described below and can be validated using the JSON schema at [`conf/taint_model_schema.json`](../mole/conf/taint_model_schema.json):
 
 ```JSON
 {
