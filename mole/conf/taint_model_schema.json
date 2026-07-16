@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/cyber-defence-campus/mole/refs/heads/main/mole/conf/taint-model-schema.json",
+  "$id": "https://raw.githubusercontent.com/cyber-defence-campus/mole/refs/heads/main/mole/conf/taint_model_schema.json",
   "title": "Mole Taint Model",
   "description": "JSON schema for Mole static-taint-analysis models",
   "type": "object",
