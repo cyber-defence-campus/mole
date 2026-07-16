@@ -250,7 +250,11 @@ class ConfigService:
         config_files = sorted(os.listdir(self._config_path))
         for config_file in config_files:
             # Filter configuration files
-            if not fn.fnmatch(config_file, "*.json") or config_file == "000-mole.json":
+            if (
+                not fn.fnmatch(config_file, "*.json")
+                or config_file == "000-mole.json"
+                or config_file == "taint_model_schema.json"
+            ):
                 continue
             # Load configuration file
             custom_config = self.import_config(
