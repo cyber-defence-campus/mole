@@ -572,6 +572,7 @@ class PathService(WorkerService):
                 # Append if not yet in the list
                 all_funs.append(manual_fun)
         cnt_fixed = 0
+        self.bv.set_analysis_hold(True)
         for fun in all_funs:
             # Ensure function has at least one role enabled
             if not fun.src_enabled and not fun.snk_enabled and not fun.fix_enabled:
@@ -621,11 +622,13 @@ class PathService(WorkerService):
                         try:
                             f.set_user_type(fun_type)
                             cnt_fixed += 1
-                            self.log.info(tag, f"Fixed type of function {symbol:s}")
+                            self.log.info(
+                                tag, f"Fixed type of function 0x{f.start:x} {symbol:s}"
+                            )
                         except Exception as e:
                             self.log.warn(
                                 tag,
-                                f"Failed to fix type of function {symbol:s}: {str(e):s}",
+                                f"Failed to fix type of function 0x{f.start:x} {symbol:s}: {str(e):s}",
                             )
             # Not manually configured function
             if manual_fun is None:
@@ -649,6 +652,7 @@ class PathService(WorkerService):
                 # Use all functions as sinks except the manually configured one
                 elif fun != manual_fun and fun.snk_enabled:
                     snk_funs.append(fun)
+        self.bv.set_analysis_hold(False)
         # Re-analyse binary when function type signatures were fixed
         if cnt_fixed > 0:
             self.log.info(
