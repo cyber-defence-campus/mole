@@ -573,6 +573,7 @@ class PathService(WorkerService):
                 all_funs.append(manual_fun)
         cnt_fixed = 0
         self.bv.set_analysis_hold(True)
+        state = self.bv.begin_undo_actions()
         for fun in all_funs:
             # Ensure function has at least one role enabled
             if not fun.src_enabled and not fun.snk_enabled and not fun.fix_enabled:
@@ -652,6 +653,7 @@ class PathService(WorkerService):
                 # Use all functions as sinks except the manually configured one
                 elif fun != manual_fun and fun.snk_enabled:
                     snk_funs.append(fun)
+        self.bv.commit_undo_actions(state)
         self.bv.set_analysis_hold(False)
         # Re-analyse binary when function type signatures were fixed
         if cnt_fixed > 0:
