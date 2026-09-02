@@ -571,10 +571,9 @@ class PathService(WorkerService):
             except ValueError:
                 # Append if not yet in the list
                 all_funs.append(manual_fun)
-        cnt_fixed = 0
-        self.bv.set_analysis_hold(True)
-        state = self.bv.begin_undo_actions()
-        for fun in all_funs:
+        # Prepare functions
+        fun_types: List[Tuple[int, bn.FunctionType]] = []
+        for idx, fun in enumerate(all_funs):
             # Ensure function has at least one role enabled
             if not fun.src_enabled and not fun.snk_enabled and not fun.fix_enabled:
                 continue
@@ -591,6 +590,8 @@ class PathService(WorkerService):
                 fun_type, _ = self.bv.parse_type_string(fun.synopsis)
                 if not isinstance(fun_type, bn.FunctionType):
                     raise TypeError("Parsed type is not a function type")
+                if fun.fix_enabled:
+                    fun_types.append((idx, fun_type))
             except Exception as e:
                 fun_type = None
                 self.log.warn(
@@ -616,21 +617,6 @@ class PathService(WorkerService):
             fun.snk_par_slice_fun = self._parser.parse(fun.snk_par_slice) or (
                 lambda _: False
             )
-            # Fix function type
-            if fun_type is not None and fun.fix_enabled:
-                for symbol in fun.symbols:
-                    for f in self.bv.get_functions_by_name(symbol):
-                        try:
-                            f.set_user_type(fun_type)
-                            cnt_fixed += 1
-                            self.log.info(
-                                tag, f"Fixed type of function 0x{f.start:x} {symbol:s}"
-                            )
-                        except Exception as e:
-                            self.log.warn(
-                                tag,
-                                f"Failed to fix type of function 0x{f.start:x} {symbol:s}: {str(e):s}",
-                            )
             # Not manually configured function
             if manual_fun is None:
                 if fun.src_enabled:
@@ -653,18 +639,56 @@ class PathService(WorkerService):
                 # Use all functions as sinks except the manually configured one
                 elif fun != manual_fun and fun.snk_enabled:
                     snk_funs.append(fun)
-        self.bv.commit_undo_actions(state)
-        self.bv.set_analysis_hold(False)
-        # Re-analyse binary when function type signatures were fixed
+
+        # Fix function types and re-analyze if necessary
+        cnt_fixed = 0
+        func_addr = 0
+        inst_indx = 0
+
+        def _fix_function_types() -> None:
+            nonlocal manual_fun_inst
+            nonlocal cnt_fixed, func_addr, inst_indx
+            if len(fun_types) <= 0:
+                self.log.info(tag, "No function types to fix")
+                return
+            self.log.info(tag, "Starting to fix function types")
+            # Hold analysis and record undo actions
+            self.bv.set_analysis_hold(True)
+            state = self.bv.begin_undo_actions()
+            # Fix function types
+            for idx, fun_type in fun_types:
+                fun = all_funs[idx]
+                for symbol in fun.symbols:
+                    for f in self.bv.get_functions_by_name(symbol):
+                        try:
+                            f.set_user_type(fun_type)
+                            cnt_fixed += 1
+                            self.log.debug(
+                                tag, f"Fixed type of function 0x{f.start:x} {symbol:s}"
+                            )
+                        except Exception as e:
+                            self.log.warn(
+                                tag,
+                                f"Failed to fix type of function 0x{f.start:x} {symbol:s}: {str(e):s}",
+                            )
+            # Store information about `manual_fun_inst`
+            if cnt_fixed > 0 and manual_fun_inst is not None:
+                func_addr = manual_fun_inst.function.source_function.start
+                inst_indx = manual_fun_inst.instr_index
+            # Commit undo actions and release analysis hold
+            self.bv.commit_undo_actions(state)
+            self.bv.set_analysis_hold(False)
+            self.log.info(tag, "Fixing function types completed")
+
+        # Execute on main thread and wait for completion
+        bn.execute_on_main_thread_and_wait(_fix_function_types)
+
+        # Re-analyze the binary if any function types were fixed
         if cnt_fixed > 0:
             self.log.info(
                 tag,
                 f"Starting re-analysis after fixing {cnt_fixed:d} function type signatures",
             )
-            # Store information about `manual_fun_inst` before re-analysis
-            if manual_fun_inst is not None:
-                func_addr = manual_fun_inst.function.source_function.start
-                inst_indx = manual_fun_inst.instr_index
             # Perform re-analysis and wait for completion
             self.bv.update_analysis_and_wait()
             # Restore `manual_fun_inst` after re-analysis
