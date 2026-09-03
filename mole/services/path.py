@@ -660,16 +660,21 @@ class PathService(WorkerService):
                 fun = all_funs[idx]
                 for symbol in fun.symbols:
                     for f in self.bv.get_functions_by_name(symbol):
+                        # Skip if same return and parameter types
+                        if f.type.children == fun_type.children:
+                            continue
+                        # Attempt to fix function type
                         try:
                             f.set_user_type(fun_type)
                             cnt_fixed += 1
                             self.log.debug(
-                                tag, f"Fixed type of function 0x{f.start:x} {symbol:s}"
+                                tag,
+                                f"Fixed type of function '0x{f.start:x} {symbol:s}'",
                             )
                         except Exception as e:
                             self.log.warn(
                                 tag,
-                                f"Failed to fix type of function 0x{f.start:x} {symbol:s}: {str(e):s}",
+                                f"Failed to fix type of function '0x{f.start:x} {symbol:s}': {str(e):s}",
                             )
             # Store information about `manual_fun_inst`
             if cnt_fixed > 0 and manual_fun_inst is not None:
@@ -678,17 +683,14 @@ class PathService(WorkerService):
             # Commit undo actions and release analysis hold
             self.bv.commit_undo_actions(state)
             self.bv.set_analysis_hold(False)
-            self.log.info(tag, "Fixing function types completed")
+            self.log.info(tag, f"Fixing {cnt_fixed:d} function types completed")
 
         # Execute on main thread and wait for completion
         bn.execute_on_main_thread_and_wait(_fix_function_types)
 
         # Re-analyze the binary if any function types were fixed
         if cnt_fixed > 0:
-            self.log.info(
-                tag,
-                f"Starting re-analysis after fixing {cnt_fixed:d} function type signatures",
-            )
+            self.log.info(tag, "Starting re-analysis")
             # Perform re-analysis and wait for completion
             self.bv.update_analysis_and_wait()
             # Restore `manual_fun_inst` after re-analysis
