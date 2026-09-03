@@ -652,38 +652,44 @@ class PathService(WorkerService):
                 self.log.info(tag, "No function types to fix")
                 return
             self.log.info(tag, "Starting to fix function types")
-            # Hold analysis and record undo actions
+            # Hold analysis
             self.bv.set_analysis_hold(True)
-            state = self.bv.begin_undo_actions()
-            # Fix function types
-            for idx, fun_type in fun_types:
-                fun = all_funs[idx]
-                for symbol in fun.symbols:
-                    for f in self.bv.get_functions_by_name(symbol):
-                        # Skip if same return and parameter types
-                        if f.type.children == fun_type.children:
-                            continue
-                        # Attempt to fix function type
-                        try:
-                            f.set_user_type(fun_type)
-                            cnt_fixed += 1
-                            self.log.debug(
-                                tag,
-                                f"Fixed type of function '0x{f.start:x} {symbol:s}'",
-                            )
-                        except Exception as e:
-                            self.log.warn(
-                                tag,
-                                f"Failed to fix type of function '0x{f.start:x} {symbol:s}': {str(e):s}",
-                            )
-            # Store information about `manual_fun_inst`
-            if cnt_fixed > 0 and manual_fun_inst is not None:
-                func_addr = manual_fun_inst.function.source_function.start
-                inst_indx = manual_fun_inst.instr_index
-            # Commit undo actions and release analysis hold
-            self.bv.commit_undo_actions(state)
-            self.bv.set_analysis_hold(False)
-            self.log.info(tag, f"Fixing {cnt_fixed:d} function types completed")
+            try:
+                # Record undo actions
+                state = self.bv.begin_undo_actions()
+                try:
+                    # Fix function types
+                    for idx, fun_type in fun_types:
+                        fun = all_funs[idx]
+                        for symbol in fun.symbols:
+                            for f in self.bv.get_functions_by_name(symbol):
+                                # Skip if same return and parameter types
+                                if f.type.children == fun_type.children:
+                                    continue
+                                # Attempt to fix function type
+                                try:
+                                    f.set_user_type(fun_type)
+                                    cnt_fixed += 1
+                                    self.log.debug(
+                                        tag,
+                                        f"Fixed type of function '0x{f.start:x} {symbol:s}'",
+                                    )
+                                except Exception as e:
+                                    self.log.warn(
+                                        tag,
+                                        f"Failed to fix type of function '0x{f.start:x} {symbol:s}': {str(e):s}",
+                                    )
+                    # Store information about `manual_fun_inst`
+                    if cnt_fixed > 0 and manual_fun_inst is not None:
+                        func_addr = manual_fun_inst.function.source_function.start
+                        inst_indx = manual_fun_inst.instr_index
+                finally:
+                    # Commit undo actions
+                    self.bv.commit_undo_actions(state)
+            finally:
+                # Release analysis hold
+                self.bv.set_analysis_hold(False)
+                self.log.info(tag, f"Fixing {cnt_fixed:d} function types completed")
 
         # Execute on main thread and wait for completion
         bn.execute_on_main_thread_and_wait(_fix_function_types)
