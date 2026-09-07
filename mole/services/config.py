@@ -11,7 +11,7 @@ from mole.data.config import (
     TextSetting,
 )
 from mole.grouping import get_all_grouping_strategies
-from typing import Dict
+from typing import Dict, Set
 import fnmatch as fn
 import json
 import os
@@ -76,6 +76,23 @@ class ConfigService:
                         src_par_slice = src_role.get("par_slice", None)
                         if not isinstance(src_par_slice, str):
                             src_par_slice = "False"
+                        src_callsites: Set[int] = set()
+                        src_callsites_lst = src_role.get("callsites", None)
+                        if not isinstance(src_callsites_lst, list):
+                            src_callsites_lst = []
+                        for i, src_callsite in enumerate(src_callsites_lst, start=1):
+                            try:
+                                if isinstance(src_callsite, int):
+                                    src_callsites.add(src_callsite)
+                                elif isinstance(src_callsite, str):
+                                    src_callsites.add(int(src_callsite, 0))
+                                else:
+                                    raise TypeError("Invalid type")
+                            except Exception as e:
+                                self.log.warn(
+                                    tag,
+                                    f"Failed to parse source callsite '{i:d}' of function '{fun_name:s}': {str(e):s}",
+                                )
                         snk_role = roles.get("sink", None)
                         if not isinstance(snk_role, dict):
                             snk_role = {}
@@ -85,6 +102,23 @@ class ConfigService:
                         snk_par_slice = snk_role.get("par_slice", None)
                         if not isinstance(snk_par_slice, str):
                             snk_par_slice = "False"
+                        snk_callsites: Set[int] = set()
+                        snk_callsites_lst = snk_role.get("callsites", None)
+                        if not isinstance(snk_callsites_lst, list):
+                            snk_callsites_lst = []
+                        for i, snk_callsite in enumerate(snk_callsites_lst, start=1):
+                            try:
+                                if isinstance(snk_callsite, int):
+                                    snk_callsites.add(snk_callsite)
+                                elif isinstance(snk_callsite, str):
+                                    snk_callsites.add(int(snk_callsite, 0))
+                                else:
+                                    raise TypeError("Invalid type")
+                            except Exception as e:
+                                self.log.warn(
+                                    tag,
+                                    f"Failed to parse sink callsite '{i:d}' of function '{fun_name:s}': {str(e):s}",
+                                )
                         fix_role = roles.get("fixer", None)
                         if not isinstance(fix_role, dict):
                             fix_role = {}
@@ -99,8 +133,10 @@ class ConfigService:
                             synopsis=synopsis,
                             src_enabled=False if ignore_enabled else src_enabled,
                             src_par_slice=src_par_slice,
+                            src_callsites=src_callsites,
                             snk_enabled=False if ignore_enabled else snk_enabled,
                             snk_par_slice=snk_par_slice,
+                            snk_callsites=snk_callsites,
                             fix_enabled=False if ignore_enabled else fix_enabled,
                         )
                         cat.functions[fun_name] = fun

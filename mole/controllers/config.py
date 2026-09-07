@@ -4,7 +4,7 @@ from mole.common.helper.instruction import InstructionHelper
 from mole.common.log import Logger
 from mole.common.parse import LogicalExpressionParser
 from mole.data.config import Category, Configuration, Function, Library
-from typing import Any, List, Literal, Tuple, TYPE_CHECKING
+from typing import Any, List, Literal, Set, Tuple, TYPE_CHECKING
 import binaryninja as bn
 import os
 import PySide6.QtWidgets as qtw
@@ -123,8 +123,10 @@ class ConfigController:
         aliases: List[str],
         src_enabled: bool,
         src_par_slice: str,
+        src_callsites_lst: List[str],
         snk_enabled: bool,
         snk_par_slice: str,
+        snk_callsites_lst: List[str],
         fix_enabled: bool,
     ) -> Tuple[Function | None, str]:
         """
@@ -157,6 +159,19 @@ class ConfigController:
                 tag, f"Failed to parse 'snk_par_slice' expression '{snk_par_slice:s}'"
             )
             return None, "Invalid Snk Par Slice..."
+        # Validate callistes
+        src_callsites: Set[int] = set()
+        for src_callsite in src_callsites_lst:
+            try:
+                src_callsites.add(int(src_callsite, 0))
+            except Exception:
+                return None, "Invalid Src Callsite..."
+        snk_callsites: Set[int] = set()
+        for snk_callsite in snk_callsites_lst:
+            try:
+                snk_callsites.add(int(snk_callsite, 0))
+            except Exception:
+                return None, "Invalid Snk Callsite..."
         # Create manual function
         fun = Function(
             name=fun_name,
@@ -164,8 +179,10 @@ class ConfigController:
             synopsis=synopsis,
             src_enabled=src_enabled,
             src_par_slice=src_par_slice,
+            src_callsites=src_callsites,
             snk_enabled=snk_enabled,
             snk_par_slice=snk_par_slice,
+            snk_callsites=snk_callsites,
             fix_enabled=fix_enabled,
         )
         return fun, ""

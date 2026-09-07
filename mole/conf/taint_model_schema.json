@@ -124,6 +124,23 @@
           "description": "Expression stating which function parameter(s) should propagate taint (e.g. \"i == 1 or i == 3\")",
           "type": "string",
           "minLength": 1
+        },
+        "callsites": {
+          "description": "Explicit callsites (addresses) of the function to enable",
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "minItems": 0,
+          "uniqueItems": true
         }
       },
       "patternProperties": {

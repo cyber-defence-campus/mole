@@ -133,6 +133,12 @@ class PathService(WorkerService):
                     ),
                 ):
                     continue
+                # Ignore everything but configured call sites
+                if (
+                    len(src_fun.src_callsites) > 0
+                    and src_inst.address not in src_fun.src_callsites
+                ):
+                    continue
                 src_sym_addr = src_inst.address
                 self.log.info(
                     custom_tag,
@@ -284,6 +290,12 @@ class PathService(WorkerService):
                         bn.MediumLevelILTailcall,
                         bn.MediumLevelILTailcallSsa,
                     ),
+                ):
+                    continue
+                # Ignore everything but configured call sites
+                if (
+                    len(snk_fun.snk_callsites) > 0
+                    and snk_inst.address not in snk_fun.snk_callsites
                 ):
                     continue
                 snk_sym_addr = snk_inst.address
