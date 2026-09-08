@@ -232,24 +232,24 @@ class ConfigController:
                     )
         return err_msg
 
-    def remove_fun(self, funs: List[Function]) -> None:
+    def remove_funs(self, funs: List[Tuple[str, str, str]]) -> None:
         """
-        This method removes the given functions `funs` from both the model and the view.
+        This method removes the given list of functions from both the model and the view. Each
+        function is represented as a tuple of library name, category name and function name.
         """
-        for _, lib in self.config_model.get_taint_model().items():
-            for _, cat in lib.categories.items():
-                del_fun_names = []
-                for fun_name, fun in cat.functions.items():
-                    if fun in funs:
-                        del_fun_names.append(fun_name)
-                        # Update view
-                        self.config_view.remove_fun(lib, cat, fun)
-                        self.config_view.signal_save_config_feedback.emit(
-                            "Save*", "Save*", 0
-                        )
-                # Update model
-                for del_fun_name in del_fun_names:
-                    del cat.functions[del_fun_name]
+        taint_model = self.config_model.get_taint_model()
+        for lib_name, cat_name, fun_name in funs:
+            try:
+                lib = taint_model[lib_name]
+                cat = lib.categories[cat_name]
+                fun = cat.functions[fun_name]
+            except Exception:
+                continue
+            # Update view
+            self.config_view.remove_fun(lib, cat, fun)
+            self.config_view.signal_save_config_feedback.emit("Save*", "Save*", 0)
+            # Update model
+            del cat.functions[fun_name]
         return
 
     def change_setting(self, name: str, value: Any) -> None:

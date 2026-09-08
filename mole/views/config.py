@@ -11,7 +11,7 @@ from mole.data.config import (
     TextSetting,
 )
 from mole.models.config import ConfigModel, TaintModelColumns
-from typing import Callable, List
+from typing import Callable, List, Tuple
 import binaryninja as bn
 import os
 import PySide6.QtCore as qtc
@@ -493,7 +493,9 @@ class ConfigView(qtw.QWidget):
         return scr_wid
 
     def setup_context_menu(
-        self, pos: qtc.QPoint, on_remove_fun: Callable[[List[Function]], None]
+        self,
+        pos: qtc.QPoint,
+        on_remove_funs: Callable[[List[Tuple[str, str, str]]], None],
     ) -> None:
         """
         This method sets up a context menu for the config view.
@@ -512,15 +514,33 @@ class ConfigView(qtw.QWidget):
             edit_fun_action.setEnabled(False)
         remove_fun_action = menu.addAction("Remove")
         if len(selected_items) > 0:
-            funs: List[Function] = []
+            funs: List[Tuple[str, str, str]] = []
             for selected_item in selected_items:
+                # Function
                 fun = selected_item.data(
                     TaintModelColumns.FUNCTION.value,
                     qtc.Qt.UserRole,  # type: ignore
                 )
-                if isinstance(fun, Function):
-                    funs.append(fun)
-            remove_fun_action.triggered.connect(lambda: on_remove_fun(funs))
+                if not isinstance(fun, Function):
+                    continue
+                # Category
+                parent_item = selected_item.parent()
+                cat = parent_item.data(
+                    TaintModelColumns.FUNCTION.value,
+                    qtc.Qt.UserRole,  # type: ignore
+                )
+                if not isinstance(cat, Category):
+                    continue
+                # Library
+                grandparent_item = parent_item.parent()
+                lib = grandparent_item.data(
+                    TaintModelColumns.FUNCTION.value,
+                    qtc.Qt.UserRole,  # type: ignore
+                )
+                if not isinstance(lib, Library):
+                    continue
+                funs.append((lib.name, cat.name, fun.name))
+            remove_fun_action.triggered.connect(lambda: on_remove_funs(funs))
         else:
             remove_fun_action.setEnabled(False)
         # Execute context menu
@@ -922,7 +942,7 @@ class FunctionAddDialog(FunctionConfigDialog):
     """
 
     signal_find = qtc.Signal(
-        object, bool, str, str, list, bool, str, list, bool, str, list, bool
+        object, str, str, list, bool, str, list, bool, str, list, bool
     )
     signal_find_feedback = qtc.Signal(str, str, int)
     signal_add = qtc.Signal(str, str, str, list, bool, str, list, bool, str, list, bool)
@@ -933,8 +953,17 @@ class FunctionAddDialog(FunctionConfigDialog):
         This method initializes the dialog.
         """
         super().__init__()
-        self.inst: bn.MediumLevelILInstruction | None = None
-        self.all_callsites: bool = False
+        self.inst: (
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntyped
+            | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcall
+            | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntyped
+            | bn.MediumLevelILTailcallUntypedSsa
+            | None
+        ) = None
         self.name: str = ""
         # Get layout
         main_lay = self.layout()
@@ -954,7 +983,6 @@ class FunctionAddDialog(FunctionConfigDialog):
         find_but.clicked.connect(
             lambda: self.signal_find.emit(
                 self.inst,
-                self.all_callsites,
                 self.name,
                 self.syn_wid.text().strip(),
                 self.ali_wid.toPlainText().splitlines(),
@@ -1022,7 +1050,6 @@ class FunctionAddDialog(FunctionConfigDialog):
         This method executes the dialog and dynamically sets its values.
         """
         self.inst = inst
-        self.all_callsites = all_callsites
         self.name = name
         self.syn_wid.setText(synopsis)
         self.ali_wid.setPlainText("")
@@ -1030,5 +1057,11 @@ class FunctionAddDialog(FunctionConfigDialog):
         self.src_par_slice_wid.setText("False")
         self.snk_enabled_wid.setChecked(False)
         self.snk_par_slice_wid.setText("False")
+        if not all_callsites:
+            self.src_callsites_wid.setPlainText(f"0x{inst.address:x}")
+            self.snk_callsites_wid.setPlainText(f"0x{inst.address:x}")
+        else:
+            self.src_callsites_wid.setPlainText("")
+            self.snk_callsites_wid.setPlainText("")
         self.fix_enabled_wid.setChecked(False)
         return super().exec()

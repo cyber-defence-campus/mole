@@ -72,7 +72,6 @@ class SidebarController:
         )
         self.config_ctr.config_view.fun_add_dialog.signal_find.connect(
             lambda inst,
-            all_callsites,
             name,
             synopsis,
             aliases,
@@ -87,7 +86,6 @@ class SidebarController:
                     "Find",
                     self.path_ctr.find_paths_from_call_inst(
                         inst,
-                        all_callsites,
                         *self.config_ctr.create_fun(
                             name,
                             synopsis,
@@ -173,7 +171,7 @@ class SidebarController:
         )
         self.config_ctr.config_view.customContextMenuRequested.connect(
             lambda pos: self.config_ctr.config_view.setup_context_menu(
-                pos=pos, on_remove_fun=self.config_ctr.remove_fun
+                pos=pos, on_remove_funs=self.config_ctr.remove_funs
             )
         )
         # Connect path model signals
