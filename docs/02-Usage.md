@@ -67,21 +67,19 @@ The `par_slice` expression (see [grammar](../mole/common/parse.py#L14)) specifie
 Source and sink functions can also specify `callsites` to restrict analysis to a list of **callsite addresses** of the corresponding function; all other callsites are disabled. If `callsites` is not specified, all callsites of the function are enabled.
 
 #### Configure Functions via Binary Ninja UI
-In addition to defining functions via JSON files, *Mole* allows users to define them directly from Binary Ninja's UI. By right-clicking a **call instruction** (or **function**) and selecting the appropriate option from the context menu, users can configure the function interactively.
+In addition to defining functions via JSON files, *Mole* allows users to define them directly from Binary Ninja's UI. By right-clicking a **call instruction** (or **function**) and selecting the appropriate option from the context menu, users can configure the function interactively. For call instructions, users can choose to target either a **specific** or **all** call sites.
 
 <p align="center">
   <img src="https://i.postimg.cc/RVBf3SJS/manual-01.png" alt="Mole Manual Function Selection"/>
 </p>
 
-For call instructions, users can choose to target either a specific **call site** or all detected call sites. This distinction is only relevant when performing manual slicing without explicitly adding the function to the taint model (using the *Find* button in the dialog below).
-
 <p align="center">
-  <img src="https://i.postimg.cc/L5nH5Zk0/manual-02.png" alt="Mole Manual Function Configuration"/>
+  <img src="https://i.postimg.cc/nLchTQPs/manual-02.png" alt="Mole Manual Function Configuration"/>
 </p>
 
 The configuration options are identical to those described above for the JSON files.
 
-Clicking the **_Find_** button starts the slicing process without modifying the taint model. If the configured function is marked as a source, *Mole* treats it as the sole source and searches for paths to any sinks enabled in the taint model. Conversely, if the function is marked as a sink, *Mole* performs a backward slice from that sink toward all sources defined in the taint model.
+Clicking the **_Find_** button starts the slicing process without modifying the taint model. If the configured function is marked as a source, *Mole* treats it as the sole source and searches for paths to any sinks enabled in the taint model. Conversely, if the function is marked as a sink, *Mole* performs a backward slice from that sink toward all sources defined in the taint model. The configured source or sink can further be restricted to specific callsites.
 
 Clicking the **_Add_** button registers the configured function in the taint model under a dedicated library named **_manual_**.
 
