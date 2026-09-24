@@ -695,11 +695,58 @@ class MediumLevelILBackwardSlicer:
                         f"Follow load struct source instruction '{load_src_inst_info:s}' since no specific struct store instruction was found",
                     )
                     self._slice_backwards(load_src_inst)
-            case (
-                bn.MediumLevelILVarAliased(src=ssa_var)
-                | bn.MediumLevelILVarAliasedField(src=ssa_var)
-            ):
+            case bn.MediumLevelILVarAliased(src=ssa_var):
                 self._slice_ssa_var_definition(ssa_var, inst)
+            case bn.MediumLevelILVarAliasedField(offset=src_offset):
+                # Get instructions defining the memory version of `inst`
+                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
+                    inst.function,
+                    inst.ssa_memory_version,
+                    self._max_memory_slice_depth,
+                )
+                # Iterate memory defining instructions
+                for mem_def_inst in mem_def_insts:
+                    mem_def_inst_info = InstructionHelper.get_inst_info(
+                        mem_def_inst, False
+                    )
+                    # Check if memory defining instruction was followed before
+                    if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
+                        self.log.debug(
+                            self._tag,
+                            f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                        )
+                        continue
+                    match mem_def_inst:
+                        case bn.MediumLevelILSetVarAliasedField(offset=dest_offset):
+                            # Match HLIL instructions
+                            if inst.hlil is None or mem_def_inst.hlil is None:
+                                continue
+                            hlil_src_inst = inst.hlil.ssa_form
+                            hlil_dest_inst = mem_def_inst.hlil.ssa_form
+                            match (hlil_src_inst, hlil_dest_inst):
+                                # Struct field assignment
+                                case (
+                                    bn.HighLevelILStructField(
+                                        src=bn.HighLevelILVar(var=src_var),
+                                        offset=src_offset,
+                                    ),
+                                    bn.HighLevelILAssignMemSsa(
+                                        dest=bn.HighLevelILStructField(
+                                            src=bn.HighLevelILVar(var=dest_var),
+                                            offset=dest_offset,
+                                        )
+                                    ),
+                                ):
+                                    # Ensure same struct field
+                                    if src_var != dest_var or src_offset != dest_offset:
+                                        continue
+                                    self.log.debug(
+                                        self._tag,
+                                        f"Follow instruction '{mem_def_inst_info:s}' since it writes the same field as in '{inst_info:s}'",
+                                    )
+                                    self._call_tracker.push_mem_def_inst(mem_def_inst)
+                                    self._slice_backwards(mem_def_inst)
+                                    break
             case (
                 bn.MediumLevelILAddressOf(src=var)
                 | bn.MediumLevelILAddressOfField(src=var)

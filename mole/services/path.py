@@ -64,17 +64,7 @@ class PathService(WorkerService):
         paths = cast(List[Path], self.results(thread_name="find"))
         return paths if paths is not None else []
 
-    def _slice_src_function(
-        self,
-        src_fun: Function,
-        manual_fun: Function | None,
-        manual_fun_inst: bn.MediumLevelILCall
-        | bn.MediumLevelILCallSsa
-        | bn.MediumLevelILTailcall
-        | bn.MediumLevelILTailcallSsa
-        | None,
-        manual_all_callsites: bool,
-    ) -> None:
+    def _slice_src_function(self, src_fun: Function) -> None:
         """
         This method performs backward slicing on the given source function `src_fun`. It stores the
         resulting instruction and call graphs in the source function's `graph_map`.
@@ -83,36 +73,39 @@ class PathService(WorkerService):
         custom_tag = f"{tag:s}] [Src:{src_fun.name:s}"
         # Clear function's graph map
         src_fun.graph_map.clear()
-        # Source manually configured via UI
-        if (
-            manual_fun is not None
-            and manual_fun.src_enabled
-            and manual_fun_inst is not None
-        ):
-            # Use all call sites (real ones)
-            if manual_all_callsites:
-                code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
-            # Use specific call site (real or synthetic one)
-            else:
-                code_refs = {}
-                for symbol_name in src_fun.symbols:
-                    code_refs.setdefault(symbol_name, set()).add(manual_fun_inst)
-        # Source configured via configuration files
-        else:
-            # Use all call sites (real ones)
-            code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
-            # Use specific call site (synthetic one)
-            for symbol_name in src_fun.symbols:
+        # Get code cross-references
+        code_refs = SymbolHelper.get_code_refs(self.bv, src_fun.symbols)
+        # Add synthetic call sites if there are no real ones
+        synthetic_callsites: Set[bn.MediumLevelILInstruction] = set()
+        for symbol_name in src_fun.symbols:
+            # Determine if there is a real call site for the current symbol name
+            has_callsite = False
+            code_ref_insts = code_refs.get(symbol_name, set())
+            for code_ref_inst in code_ref_insts:
+                if isinstance(
+                    code_ref_inst,
+                    (
+                        bn.MediumLevelILCall,
+                        bn.MediumLevelILCallSsa,
+                        bn.MediumLevelILTailcall,
+                        bn.MediumLevelILTailcallSsa,
+                    ),
+                ):
+                    has_callsite = True
+                    break
+            # Create synthetic call site if there is no real one for the current symbol name
+            if not has_callsite:
                 for symbol in self.bv.get_symbols_by_name(symbol_name):
-                    # Ensure that a function exists at the corresponding symbol address
+                    # Ensure function exists at the symbol's address
                     func = self.bv.get_function_at(symbol.address)
                     if func is None or func.mlil is None:
                         continue
-                    # Create a synthetic call site to that function
+                    # Create synthetic call site for that function
                     call_inst = FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
                     if call_inst is None:
                         continue
-                    # Add the synthetic call site to the code cross-references
+                    # Store synthetic call site
+                    synthetic_callsites.add(call_inst)
                     code_refs.setdefault(symbol_name, set()).add(call_inst)
         # Iterate code references
         for src_sym_name, src_insts in code_refs.items():
@@ -131,6 +124,12 @@ class PathService(WorkerService):
                         bn.MediumLevelILTailcall,
                         bn.MediumLevelILTailcallSsa,
                     ),
+                ):
+                    continue
+                # Ignore everything but configured call sites
+                if (
+                    len(src_fun.src_callsites) > 0
+                    and src_inst.address not in src_fun.src_callsites
                 ):
                     continue
                 src_sym_addr = src_inst.address
@@ -165,21 +164,12 @@ class PathService(WorkerService):
                         self.bv,
                         self.log,
                         custom_tag,
-                        0,
+                        1 if src_inst in synthetic_callsites else 0,
                         0,
                         lambda: self.cancelled(thread_name="find"),
                     )
-                    # Initialize the function that decides which parameters to slice
-                    if (
-                        manual_fun is not None
-                        and manual_fun.src_enabled
-                        and manual_fun_inst is not None
-                    ):
-                        par_slice_fun = manual_fun.src_par_slice_fun
-                    else:
-                        par_slice_fun = src_fun.src_par_slice_fun
                     # Backward slice the parameter
-                    if par_slice_fun(src_par_idx):
+                    if src_fun.src_par_slice_fun(src_par_idx):
                         src_slicer.slice_backwards(src_par_var)
                     # Add edge to instruction graph
                     src_inst_graph = MediumLevelILInstructionGraph()
@@ -203,13 +193,6 @@ class PathService(WorkerService):
         self,
         snk_fun: Function,
         sources: List[Function],
-        manual_fun: Function | None,
-        manual_fun_inst: bn.MediumLevelILCall
-        | bn.MediumLevelILCallSsa
-        | bn.MediumLevelILTailcall
-        | bn.MediumLevelILTailcallSsa
-        | None,
-        manual_all_callsites: bool,
         max_call_level: int,
         max_slice_depth: int | None,
         max_memory_slice_depth: int,
@@ -232,41 +215,6 @@ class PathService(WorkerService):
             sha1_hash = ""
         # Get code cross-references
         code_refs = SymbolHelper.get_code_refs(self.bv, snk_fun.symbols)
-        # Sink manually configured via UI
-        if (
-            manual_fun is not None
-            and manual_fun.snk_enabled
-            and manual_fun_inst is not None
-        ):
-            # Sink without code cross-references
-            if not code_refs or not manual_all_callsites:
-                code_refs = {}
-                for symbol_name in snk_fun.symbols:
-                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                        symbol_name, set()
-                    )
-                    mlil_insts.add(manual_fun_inst)
-                    code_refs[symbol_name] = mlil_insts
-        # Sink configured via configuration files
-        else:
-            # Sink without code cross-references
-            if not code_refs:
-                for symbol_name in snk_fun.symbols:
-                    mlil_insts: Set[bn.MediumLevelILInstruction] = code_refs.get(
-                        symbol_name, set()
-                    )
-                    for symbol in self.bv.get_symbols_by_name(symbol_name):
-                        caller_func = self.bv.get_function_at(symbol.address)
-                        if caller_func is None or caller_func.mlil is None:
-                            continue
-                        # Build a synthetic call instruction
-                        call_inst = FunctionHelper.get_mlil_synthetic_call_inst(
-                            caller_func.mlil
-                        )
-                        if call_inst is None:
-                            continue
-                        mlil_insts.add(call_inst)
-                    code_refs[symbol_name] = mlil_insts
         # Iterate code references
         for snk_sym_name, snk_insts in code_refs.items():
             if self.cancelled(thread_name="find"):
@@ -284,6 +232,12 @@ class PathService(WorkerService):
                         bn.MediumLevelILTailcall,
                         bn.MediumLevelILTailcallSsa,
                     ),
+                ):
+                    continue
+                # Ignore everything but configured call sites
+                if (
+                    len(snk_fun.snk_callsites) > 0
+                    and snk_inst.address not in snk_fun.snk_callsites
                 ):
                     continue
                 snk_sym_addr = snk_inst.address
@@ -311,15 +265,7 @@ class PathService(WorkerService):
                         f"Analyze argument 'arg#{snk_par_idx:d}:{str(snk_par_var):s}'",
                     )
                     # Peform backward slicing of the parameter
-                    if (
-                        manual_fun is not None
-                        and manual_fun.snk_enabled
-                        and manual_fun_inst is not None
-                    ):
-                        par_slice_fun = manual_fun.snk_par_slice_fun
-                    else:
-                        par_slice_fun = snk_fun.snk_par_slice_fun
-                    if par_slice_fun(snk_par_idx):
+                    if snk_fun.snk_par_slice_fun(snk_par_idx):
                         # Initialize backward slicer
                         snk_slicer = MediumLevelILBackwardSlicer(
                             self.bv,
@@ -364,11 +310,7 @@ class PathService(WorkerService):
                                     if self.cancelled(thread_name="find"):
                                         break
                                     # Source parameter was not sliced
-                                    if manual_fun is not None:
-                                        par_slice_fun = manual_fun.src_par_slice_fun
-                                    else:
-                                        par_slice_fun = source.src_par_slice_fun
-                                    if not par_slice_fun(src_par_idx):
+                                    if not source.src_par_slice_fun(src_par_idx):
                                         src_par_idx = None
                                         src_par_var = None
                                     # Iterate source instructions (order of backward slicing)
@@ -546,12 +488,15 @@ class PathService(WorkerService):
         max_slice_depth: int,
         max_memory_slice_depth: int,
         manual_fun: Function | None,
-        manual_fun_inst: bn.MediumLevelILCall
+        manual_inst: bn.MediumLevelILCall
+        | bn.MediumLevelILCallUntyped
         | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
         | bn.MediumLevelILTailcall
+        | bn.MediumLevelILTailcallUntyped
         | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa
         | None,
-        manual_all_callsites: bool,
         path_callback: Callable[[List[Path]], None] = lambda _: None,
         progress_callback: Callable[[str, str, int], None] = lambda _, __, ___: None,
     ) -> List[Path]:
@@ -571,8 +516,9 @@ class PathService(WorkerService):
             except ValueError:
                 # Append if not yet in the list
                 all_funs.append(manual_fun)
-        cnt_fixed = 0
-        for fun in all_funs:
+        # Prepare functions
+        fun_types: List[Tuple[int, bn.FunctionType]] = []
+        for idx, fun in enumerate(all_funs):
             # Ensure function has at least one role enabled
             if not fun.src_enabled and not fun.snk_enabled and not fun.fix_enabled:
                 continue
@@ -589,6 +535,8 @@ class PathService(WorkerService):
                 fun_type, _ = self.bv.parse_type_string(fun.synopsis)
                 if not isinstance(fun_type, bn.FunctionType):
                     raise TypeError("Parsed type is not a function type")
+                if fun.fix_enabled:
+                    fun_types.append((idx, fun_type))
             except Exception as e:
                 fun_type = None
                 self.log.warn(
@@ -614,19 +562,6 @@ class PathService(WorkerService):
             fun.snk_par_slice_fun = self._parser.parse(fun.snk_par_slice) or (
                 lambda _: False
             )
-            # Fix function type
-            if fun_type is not None and fun.fix_enabled:
-                for symbol in fun.symbols:
-                    for f in self.bv.get_functions_by_name(symbol):
-                        try:
-                            f.set_user_type(fun_type)
-                            cnt_fixed += 1
-                            self.log.info(tag, f"Fixed type of function {symbol:s}")
-                        except Exception as e:
-                            self.log.warn(
-                                tag,
-                                f"Failed to fix type of function {symbol:s}: {str(e):s}",
-                            )
             # Not manually configured function
             if manual_fun is None:
                 if fun.src_enabled:
@@ -645,24 +580,72 @@ class PathService(WorkerService):
                 # Use manually configured function as the only sink
                 if manual_fun.snk_enabled:
                     if fun == manual_fun:
-                        snk_funs.append(fun)
+                        snk_funs = [fun]
                 # Use all functions as sinks except the manually configured one
                 elif fun != manual_fun and fun.snk_enabled:
                     snk_funs.append(fun)
-        # Re-analyse binary when function type signatures were fixed
+
+        # Fix function types and re-analyze if necessary
+        cnt_fixed = 0
+        func_addr = 0
+        inst_indx = 0
+
+        def _fix_function_types() -> None:
+            nonlocal manual_inst
+            nonlocal cnt_fixed, func_addr, inst_indx
+            if len(fun_types) <= 0:
+                self.log.info(tag, "No function types to fix")
+                return
+            self.log.info(tag, "Starting to fix function types")
+            # Hold analysis
+            self.bv.set_analysis_hold(True)
+            try:
+                # Record undo actions
+                state = self.bv.begin_undo_actions()
+                try:
+                    # Fix function types
+                    for idx, fun_type in fun_types:
+                        fun = all_funs[idx]
+                        for symbol in fun.symbols:
+                            for f in self.bv.get_functions_by_name(symbol):
+                                # Skip if same return and parameter types
+                                if f.type.children == fun_type.children:
+                                    continue
+                                # Attempt to fix function type
+                                try:
+                                    f.set_user_type(fun_type)
+                                    cnt_fixed += 1
+                                    self.log.debug(
+                                        tag,
+                                        f"Fixed type of function '0x{f.start:x} {symbol:s}'",
+                                    )
+                                except Exception as e:
+                                    self.log.warn(
+                                        tag,
+                                        f"Failed to fix type of function '0x{f.start:x} {symbol:s}': {str(e):s}",
+                                    )
+                    # Store information about `manual_inst`
+                    if cnt_fixed > 0 and manual_inst is not None:
+                        func_addr = manual_inst.function.source_function.start
+                        inst_indx = manual_inst.instr_index
+                finally:
+                    # Commit undo actions
+                    self.bv.commit_undo_actions(state)
+            finally:
+                # Release analysis hold
+                self.bv.set_analysis_hold(False)
+                self.log.info(tag, f"Fixing {cnt_fixed:d} function types completed")
+
+        # Execute on main thread and wait for completion
+        bn.execute_on_main_thread_and_wait(_fix_function_types)
+
+        # Re-analyze the binary if any function types were fixed
         if cnt_fixed > 0:
-            self.log.info(
-                tag,
-                f"Starting re-analysis after fixing {cnt_fixed:d} function type signatures",
-            )
-            # Store information about `manual_fun_inst` before re-analysis
-            if manual_fun_inst is not None:
-                func_addr = manual_fun_inst.function.source_function.start
-                inst_indx = manual_fun_inst.instr_index
+            self.log.info(tag, "Starting re-analysis")
             # Perform re-analysis and wait for completion
             self.bv.update_analysis_and_wait()
-            # Restore `manual_fun_inst` after re-analysis
-            if manual_fun_inst is not None:
+            # Restore `manual_inst` after re-analysis
+            if manual_inst is not None:
                 restored = False
                 # Ensure function exists
                 func = self.bv.get_function_at(func_addr)
@@ -673,12 +656,12 @@ class PathService(WorkerService):
                 ):
                     # Try to restore using function address and instruction index
                     try:
-                        restored_manual_fun_inst = func.mlil.ssa_form[inst_indx]
+                        restored_manual_inst = func.mlil.ssa_form[inst_indx]
                     except IndexError:
-                        restored_manual_fun_inst = None
+                        restored_manual_inst = None
                     # Ensure that the restored instruction is a call instruction
                     if isinstance(
-                        restored_manual_fun_inst,
+                        restored_manual_inst,
                         (
                             bn.MediumLevelILCall,
                             bn.MediumLevelILCallSsa,
@@ -686,15 +669,15 @@ class PathService(WorkerService):
                             bn.MediumLevelILTailcallSsa,
                         ),
                     ):
-                        manual_fun_inst = restored_manual_fun_inst
+                        manual_inst = restored_manual_inst
                         restored = True
                     # Otherwise create a new synthetic call instruction
                     else:
-                        restored_manual_fun_inst = (
+                        restored_manual_inst = (
                             FunctionHelper.get_mlil_synthetic_call_inst(func.mlil)
                         )
-                        if restored_manual_fun_inst is not None:
-                            manual_fun_inst = restored_manual_fun_inst
+                        if restored_manual_inst is not None:
+                            manual_inst = restored_manual_inst
                             restored = True
                 # Log a warning if the manually configured call instruction could not be restored
                 if not restored:
@@ -751,15 +734,7 @@ class PathService(WorkerService):
                 for src_fun in src_funs:
                     if self.cancelled(thread_name="find"):
                         break
-                    tasks.append(
-                        executor.submit(
-                            self._slice_src_function,
-                            src_fun,
-                            manual_fun,
-                            manual_fun_inst,
-                            manual_all_callsites,
-                        )
-                    )
+                    tasks.append(executor.submit(self._slice_src_function, src_fun))
                 # Wait for tasks to complete
                 for _ in futures.as_completed(tasks):
                     if self.cancelled(thread_name="find"):
@@ -778,14 +753,11 @@ class PathService(WorkerService):
                             self._slice_snk_function,
                             snk_fun,
                             src_funs,
-                            manual_fun,
-                            manual_fun_inst,
-                            manual_all_callsites,
                             max_call_level,
                             max_slice_depth,
                             max_memory_slice_depth,
                             path_callback,
-                        ),
+                        )
                     )
                 # Wait for tasks to complete and collect paths
                 for task in futures.as_completed(tasks):
@@ -808,7 +780,7 @@ class PathService(WorkerService):
         max_slice_depth: int | None = None,
         max_memory_slice_depth: int | None = None,
         manual_fun: Function | None = None,
-        manual_fun_inst: bn.MediumLevelILCall
+        manual_inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallUntyped
         | bn.MediumLevelILCallSsa
         | bn.MediumLevelILCallUntypedSsa
@@ -817,7 +789,6 @@ class PathService(WorkerService):
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntypedSsa
         | None = None,
-        manual_all_callsites: bool = False,
         path_callback: Callable[[List[Path]], None] = lambda _: None,
         progress_callback: Callable[[str, str, int], None] = lambda _, __, ___: None,
     ) -> None:
@@ -844,8 +815,7 @@ class PathService(WorkerService):
             max_slice_depth=max_slice_depth,
             max_memory_slice_depth=max_memory_slice_depth,
             manual_fun=manual_fun,
-            manual_fun_inst=manual_fun_inst,
-            manual_all_callsites=manual_all_callsites,
+            manual_inst=manual_inst,
             path_callback=path_callback,
             progress_callback=progress_callback,
         )

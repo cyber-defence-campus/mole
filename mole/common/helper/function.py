@@ -81,12 +81,8 @@ class FunctionHelper:
             if caller_func is None:
                 continue
             # Ensure caller function has a valid MLIL SSA representation
-            if (
-                caller_func.mlil is None or caller_func.mlil.ssa_form is None
-            ) and caller_func.analysis_skipped:
-                caller_func.analysis_skipped = False
-                if caller_func.mlil is None or caller_func.mlil.ssa_form is None:
-                    continue
+            if caller_func.mlil is None or caller_func.mlil.ssa_form is None:
+                continue
             # Iterate all call sites of (instructions calling) the caller function
             for call_site in caller_func.call_sites:
                 if call_site != caller_site:

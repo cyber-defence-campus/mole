@@ -72,28 +72,30 @@ class SidebarController:
         )
         self.config_ctr.config_view.fun_add_dialog.signal_find.connect(
             lambda inst,
-            all_callsites,
             name,
             synopsis,
             aliases,
             src_enabled,
             src_par_slice,
+            src_callsites,
             snk_enabled,
             snk_par_slice,
+            snk_callsites,
             fix_enabled: (
                 self.config_ctr.give_feedback(
                     "Find",
                     self.path_ctr.find_paths_from_call_inst(
                         inst,
-                        all_callsites,
                         *self.config_ctr.create_fun(
                             name,
                             synopsis,
                             aliases,
                             src_enabled,
                             src_par_slice,
+                            src_callsites,
                             snk_enabled,
                             snk_par_slice,
+                            snk_callsites,
                             fix_enabled,
                         ),
                     ),
@@ -107,8 +109,10 @@ class SidebarController:
             aliases,
             src_enabled,
             src_par_slice,
+            src_callsites,
             snk_enabled,
             snk_par_slice,
+            snk_callsites,
             fix_enabled: (
                 self.config_ctr.give_feedback(
                     "Add",
@@ -121,8 +125,10 @@ class SidebarController:
                             aliases,
                             src_enabled,
                             src_par_slice,
+                            src_callsites,
                             snk_enabled,
                             snk_par_slice,
+                            snk_callsites,
                             fix_enabled,
                         ),
                     ),
@@ -137,8 +143,10 @@ class SidebarController:
             aliases,
             src_enabled,
             src_par_slice,
+            src_callsites,
             snk_enabled,
             snk_par_slice,
+            snk_callsites,
             fix_enabled: (
                 self.config_ctr.give_feedback(
                     "Edit",
@@ -151,8 +159,10 @@ class SidebarController:
                             aliases,
                             src_enabled,
                             src_par_slice,
+                            src_callsites,
                             snk_enabled,
                             snk_par_slice,
+                            snk_callsites,
                             fix_enabled,
                         ),
                     ),
@@ -161,7 +171,7 @@ class SidebarController:
         )
         self.config_ctr.config_view.customContextMenuRequested.connect(
             lambda pos: self.config_ctr.config_view.setup_context_menu(
-                pos=pos, on_remove_fun=self.config_ctr.remove_fun
+                pos=pos, on_remove_funs=self.config_ctr.remove_funs
             )
         )
         # Connect path model signals

@@ -142,16 +142,24 @@ def main() -> None:
                 )
                 + 1
             )
-        sources: Dict[str, List[str]] = {}
-        sinks: Dict[str, List[str]] = {}
+        sources: Dict[str, Dict[str, Dict[str, List[str]]]] = {}
+        sinks: Dict[str, Dict[str, Dict[str, List[str]]]] = {}
         fixers: Dict[str, List[str]] = {}
         for lib_name, lib in config_model.get_taint_model().items():
             for _, cat in lib.categories.items():
                 for fun_name, fun in cat.functions.items():
                     if fun.src_enabled:
-                        sources.setdefault(lib_name, []).append(fun_name)
+                        _lib = sources.setdefault(lib_name, {})
+                        _fun = _lib.setdefault(fun_name, {})
+                        _fun.setdefault("callsites", []).extend(
+                            [f"0x{callsite:x}" for callsite in fun.src_callsites]
+                        )
                     if fun.snk_enabled:
-                        sinks.setdefault(lib_name, []).append(fun_name)
+                        _lib = sinks.setdefault(lib_name, {})
+                        _fun = _lib.setdefault(fun_name, {})
+                        _fun.setdefault("callsites", []).extend(
+                            [f"0x{callsite:x}" for callsite in fun.snk_callsites]
+                        )
                     if fun.fix_enabled:
                         fixers.setdefault(lib_name, []).append(fun_name)
         # Output summary of results in machine-readable format

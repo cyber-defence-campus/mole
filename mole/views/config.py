@@ -11,7 +11,7 @@ from mole.data.config import (
     TextSetting,
 )
 from mole.models.config import ConfigModel, TaintModelColumns
-from typing import Callable, List
+from typing import Callable, List, Tuple
 import binaryninja as bn
 import os
 import PySide6.QtCore as qtc
@@ -493,7 +493,9 @@ class ConfigView(qtw.QWidget):
         return scr_wid
 
     def setup_context_menu(
-        self, pos: qtc.QPoint, on_remove_fun: Callable[[List[Function]], None]
+        self,
+        pos: qtc.QPoint,
+        on_remove_funs: Callable[[List[Tuple[str, str, str]]], None],
     ) -> None:
         """
         This method sets up a context menu for the config view.
@@ -512,15 +514,33 @@ class ConfigView(qtw.QWidget):
             edit_fun_action.setEnabled(False)
         remove_fun_action = menu.addAction("Remove")
         if len(selected_items) > 0:
-            funs: List[Function] = []
+            funs: List[Tuple[str, str, str]] = []
             for selected_item in selected_items:
+                # Function
                 fun = selected_item.data(
                     TaintModelColumns.FUNCTION.value,
                     qtc.Qt.UserRole,  # type: ignore
                 )
-                if isinstance(fun, Function):
-                    funs.append(fun)
-            remove_fun_action.triggered.connect(lambda: on_remove_fun(funs))
+                if not isinstance(fun, Function):
+                    continue
+                # Category
+                parent_item = selected_item.parent()
+                cat = parent_item.data(
+                    TaintModelColumns.FUNCTION.value,
+                    qtc.Qt.UserRole,  # type: ignore
+                )
+                if not isinstance(cat, Category):
+                    continue
+                # Library
+                grandparent_item = parent_item.parent()
+                lib = grandparent_item.data(
+                    TaintModelColumns.FUNCTION.value,
+                    qtc.Qt.UserRole,  # type: ignore
+                )
+                if not isinstance(lib, Library):
+                    continue
+                funs.append((lib.name, cat.name, fun.name))
+            remove_fun_action.triggered.connect(lambda: on_remove_funs(funs))
         else:
             remove_fun_action.setEnabled(False)
         # Execute context menu
@@ -722,6 +742,7 @@ class FunctionConfigDialog(qtw.QDialog):
         self.syn_wid = qtw.QLineEdit()
         self.syn_wid.setToolTip("function signature")
         self.ali_wid = qtw.QPlainTextEdit()
+        self.ali_wid.setToolTip("function aliases")
         fun_lay = qtw.QGridLayout()
         fun_lay.addWidget(qtw.QLabel("Synopsis:"), 0, 0)
         fun_lay.addWidget(self.syn_wid, 0, 1)
@@ -736,25 +757,51 @@ class FunctionConfigDialog(qtw.QDialog):
         self.src_par_slice_wid.setToolTip(
             "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
         )
+        self.src_callsites_wid = qtw.QPlainTextEdit()
+        self.src_callsites_wid.setToolTip("explicit callsite addresses to include")
         self.snk_enabled_wid = qtw.QCheckBox()
         self.snk_enabled_wid.setToolTip("use as sink function")
         self.snk_par_slice_wid = qtw.QLineEdit("False")
         self.snk_par_slice_wid.setToolTip(
             "expression specifying which parameter 'i' to slice (e.g. 'i >= 1')"
         )
+        self.snk_callsites_wid = qtw.QPlainTextEdit()
+        self.snk_callsites_wid.setToolTip("explicit callsite addresses to include")
         self.fix_enabled_wid = qtw.QCheckBox()
         self.fix_enabled_wid.setToolTip("fix function's type signature")
-        rol_lay = qtw.QGridLayout()
-        rol_lay.addWidget(qtw.QLabel("Src Enabled:"), 0, 0)
-        rol_lay.addWidget(self.src_enabled_wid, 0, 1)
-        rol_lay.addWidget(qtw.QLabel("Src Par Slice:"), 0, 2)
-        rol_lay.addWidget(self.src_par_slice_wid, 0, 3)
-        rol_lay.addWidget(qtw.QLabel("Snk Enabled:"), 1, 0)
-        rol_lay.addWidget(self.snk_enabled_wid, 1, 1)
-        rol_lay.addWidget(qtw.QLabel("Snk Par Slice:"), 1, 2)
-        rol_lay.addWidget(self.snk_par_slice_wid, 1, 3)
-        rol_lay.addWidget(qtw.QLabel("Fix Enabled:"), 2, 0)
-        rol_lay.addWidget(self.fix_enabled_wid, 2, 1, 1, 3)
+        rol_lay = qtw.QVBoxLayout()
+        for title, rows in [
+            (
+                "Source:",
+                [
+                    ("Enabled:", self.src_enabled_wid),
+                    ("Par Slice:", self.src_par_slice_wid),
+                    ("Callsites:", self.src_callsites_wid),
+                ],
+            ),
+            (
+                "Sink:",
+                [
+                    ("Enabled:", self.snk_enabled_wid),
+                    ("Par Slice:", self.snk_par_slice_wid),
+                    ("Callsites:", self.snk_callsites_wid),
+                ],
+            ),
+            (
+                "Fix:",
+                [
+                    ("Enabled:", self.fix_enabled_wid),
+                ],
+            ),
+        ]:
+            sec_lay = qtw.QGridLayout()
+            sec_lay.setColumnStretch(1, 1)
+            for row, (label, widget) in enumerate(rows):
+                sec_lay.addWidget(qtw.QLabel(label), row, 0)
+                sec_lay.addWidget(widget, row, 1)
+            sec_wid = qtw.QGroupBox(title)
+            sec_wid.setLayout(sec_lay)
+            rol_lay.addWidget(sec_wid)
         rol_wid = qtw.QGroupBox("Role:")
         rol_wid.setLayout(rol_lay)
         # Main
@@ -770,7 +817,9 @@ class FunctionEditDialog(FunctionConfigDialog):
     This class implements a popup dialog that allows to edit functions.
     """
 
-    signal_edit = qtc.Signal(str, str, str, str, list, bool, str, bool, str, bool)
+    signal_edit = qtc.Signal(
+        str, str, str, str, list, bool, str, list, bool, str, list, bool
+    )
     signal_edit_feedback = qtc.Signal(str, str, int)
 
     def __init__(self) -> None:
@@ -826,8 +875,18 @@ class FunctionEditDialog(FunctionConfigDialog):
                 aliases.append(line)
         src_enabled = self.src_enabled_wid.isChecked()
         src_par_slice = self.src_par_slice_wid.text().strip()
+        src_callsites = []
+        for line in self.src_callsites_wid.toPlainText().splitlines():
+            line = line.strip()
+            if line:
+                src_callsites.append(line)
         snk_enabled = self.snk_enabled_wid.isChecked()
         snk_par_slice = self.snk_par_slice_wid.text().strip()
+        snk_callsites = []
+        for line in self.snk_callsites_wid.toPlainText().splitlines():
+            line = line.strip()
+            if line:
+                snk_callsites.append(line)
         fix_enabled = self.fix_enabled_wid.isChecked()
         # Emit signal
         self.signal_edit.emit(
@@ -838,8 +897,10 @@ class FunctionEditDialog(FunctionConfigDialog):
             aliases,
             src_enabled,
             src_par_slice,
+            src_callsites,
             snk_enabled,
             snk_par_slice,
+            snk_callsites,
             fix_enabled,
         )
         return
@@ -862,8 +923,14 @@ class FunctionEditDialog(FunctionConfigDialog):
             )
             self.src_enabled_wid.setChecked(fun.src_enabled)
             self.src_par_slice_wid.setText(fun.src_par_slice)
+            self.src_callsites_wid.setPlainText(
+                "\n".join([hex(callsite) for callsite in fun.src_callsites])
+            )
             self.snk_enabled_wid.setChecked(fun.snk_enabled)
             self.snk_par_slice_wid.setText(fun.snk_par_slice)
+            self.snk_callsites_wid.setPlainText(
+                "\n".join([hex(callsite) for callsite in fun.snk_callsites])
+            )
             self.fix_enabled_wid.setChecked(fun.fix_enabled)
             return super().exec()
         return qtw.QDialog.Rejected  # type: ignore
@@ -874,9 +941,11 @@ class FunctionAddDialog(FunctionConfigDialog):
     This class implements a popup dialog that allows to manually add functions.
     """
 
-    signal_find = qtc.Signal(object, bool, str, str, list, bool, str, bool, str, bool)
+    signal_find = qtc.Signal(
+        object, str, str, list, bool, str, list, bool, str, list, bool
+    )
     signal_find_feedback = qtc.Signal(str, str, int)
-    signal_add = qtc.Signal(str, str, str, list, bool, str, bool, str, bool)
+    signal_add = qtc.Signal(str, str, str, list, bool, str, list, bool, str, list, bool)
     signal_add_feedback = qtc.Signal(str, str, int)
 
     def __init__(self) -> None:
@@ -884,8 +953,17 @@ class FunctionAddDialog(FunctionConfigDialog):
         This method initializes the dialog.
         """
         super().__init__()
-        self.inst: bn.MediumLevelILInstruction | None = None
-        self.all_callsites: bool = False
+        self.inst: (
+            bn.MediumLevelILCall
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntyped
+            | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcall
+            | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntyped
+            | bn.MediumLevelILTailcallUntypedSsa
+            | None
+        ) = None
         self.name: str = ""
         # Get layout
         main_lay = self.layout()
@@ -905,14 +983,15 @@ class FunctionAddDialog(FunctionConfigDialog):
         find_but.clicked.connect(
             lambda: self.signal_find.emit(
                 self.inst,
-                self.all_callsites,
                 self.name,
                 self.syn_wid.text().strip(),
                 self.ali_wid.toPlainText().splitlines(),
                 self.src_enabled_wid.isChecked(),
                 self.src_par_slice_wid.text().strip(),
+                self.src_callsites_wid.toPlainText().splitlines(),
                 self.snk_enabled_wid.isChecked(),
                 self.snk_par_slice_wid.text().strip(),
+                self.snk_callsites_wid.toPlainText().splitlines(),
                 self.fix_enabled_wid.isChecked(),
             )
         )
@@ -930,8 +1009,10 @@ class FunctionAddDialog(FunctionConfigDialog):
                 self.ali_wid.toPlainText().splitlines(),
                 self.src_enabled_wid.isChecked(),
                 self.src_par_slice_wid.text().strip(),
+                self.src_callsites_wid.toPlainText().splitlines(),
                 self.snk_enabled_wid.isChecked(),
                 self.snk_par_slice_wid.text().strip(),
+                self.snk_callsites_wid.toPlainText().splitlines(),
                 self.fix_enabled_wid.isChecked(),
             )
         )
@@ -969,7 +1050,6 @@ class FunctionAddDialog(FunctionConfigDialog):
         This method executes the dialog and dynamically sets its values.
         """
         self.inst = inst
-        self.all_callsites = all_callsites
         self.name = name
         self.syn_wid.setText(synopsis)
         self.ali_wid.setPlainText("")
@@ -977,5 +1057,11 @@ class FunctionAddDialog(FunctionConfigDialog):
         self.src_par_slice_wid.setText("False")
         self.snk_enabled_wid.setChecked(False)
         self.snk_par_slice_wid.setText("False")
+        if not all_callsites:
+            self.src_callsites_wid.setPlainText(f"0x{inst.address:x}")
+            self.snk_callsites_wid.setPlainText(f"0x{inst.address:x}")
+        else:
+            self.src_callsites_wid.setPlainText("")
+            self.snk_callsites_wid.setPlainText("")
         self.fix_enabled_wid.setChecked(False)
         return super().exec()

@@ -164,7 +164,7 @@ class PathController:
     def find_paths(
         self,
         manual_fun: Function | None = None,
-        manual_fun_inst: bn.MediumLevelILCall
+        manual_inst: bn.MediumLevelILCall
         | bn.MediumLevelILCallSsa
         | bn.MediumLevelILCallUntyped
         | bn.MediumLevelILCallUntypedSsa
@@ -173,7 +173,6 @@ class PathController:
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntypedSsa
         | None = None,
-        manual_all_callsites: bool = False,
     ) -> None:
         """
         This method searches for paths and adds them to the model/view accordingly.
@@ -183,8 +182,7 @@ class PathController:
         # Find paths in background thread
         self.path_service.find_paths(
             manual_fun=manual_fun,
-            manual_fun_inst=manual_fun_inst,
-            manual_all_callsites=manual_all_callsites,
+            manual_inst=manual_inst,
             path_callback=self.add_paths,
             progress_callback=lambda tmp_text, new_text, msec: self.give_feedback(
                 "Find", tmp_text, new_text, msec
@@ -194,25 +192,25 @@ class PathController:
 
     def find_paths_from_call_inst(
         self,
-        inst: bn.MediumLevelILCallSsa
+        inst: bn.MediumLevelILCall
+        | bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntyped
         | bn.MediumLevelILCallUntypedSsa
+        | bn.MediumLevelILTailcall
         | bn.MediumLevelILTailcallSsa
-        | bn.MediumLevelILTailcallUntypedSsa,
-        manual_all_callsites: bool = True,
+        | bn.MediumLevelILTailcallUntyped
+        | bn.MediumLevelILTailcallUntypedSsa
+        | None,
         fun: Function | None = None,
         err_msg: str = "",
     ) -> str:
         """
-        This method finds paths using the given call instruction `inst` as the single source or sink
-        function.
+        This method finds paths using the given (synthetic) call instruction `inst` as source or
+        sink function.
         """
         if fun is not None:
             if fun.src_enabled or fun.snk_enabled:
-                self.find_paths(
-                    manual_fun=fun,
-                    manual_fun_inst=inst,
-                    manual_all_callsites=manual_all_callsites,
-                )
+                self.find_paths(manual_fun=fun, manual_inst=inst)
             else:
                 err_msg = "Needs Src or Snk"
         return err_msg

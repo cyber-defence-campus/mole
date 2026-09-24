@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Any, Callable, Dict, List, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Set, TYPE_CHECKING
 import binaryninja as bn
 
 if TYPE_CHECKING:
@@ -123,9 +123,11 @@ class Function:
     src_enabled: bool = False
     src_par_slice: str = ""
     src_par_slice_fun: Callable[[int], bool] = lambda _: False
+    src_callsites: Set[int] = field(default_factory=set)
     snk_enabled: bool = False
     snk_par_slice: str = ""
     snk_par_slice_fun: Callable[[int], bool] = lambda _: False
+    snk_callsites: Set[int] = field(default_factory=set)
     fix_enabled: bool = False
     graph_map: Dict[CallSiteKey, Dict[ParamKey, Graphs]] = field(default_factory=dict)
 
@@ -142,10 +144,12 @@ class Function:
                 "source": {
                     "enabled": self.src_enabled,
                     "par_slice": self.src_par_slice,
+                    "callsites": [callsite for callsite in self.src_callsites],
                 },
                 "sink": {
                     "enabled": self.snk_enabled,
                     "par_slice": self.snk_par_slice,
+                    "callsites": [callsite for callsite in self.snk_callsites],
                 },
                 "fixer": {"enabled": self.fix_enabled},
             },
