@@ -17,7 +17,8 @@ dependencies = [
     "networkx>=3.4.2",
     "termcolor==3.3.0",
     "pydantic==2.12.5",
-    "openai==2.43.0"
+    "openai==2.43.0",
+    "anyio>=4.14.2",
 ]
 
 [project.optional-dependencies]
