@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mole"
-version = "0.8.0"
+version = "0.8.1"
 description = "A Binary Ninja plugin to identify interesting paths using static backward slicing"
 authors = [
     {name = "Damian Pfammatter"},
@@ -19,6 +19,7 @@ dependencies = [
     "pydantic==2.12.5",
     "openai==2.43.0",
     "anyio>=4.14.2",
+    "certifi>=2026.10.19",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +32,8 @@ dev = [
     "pytest-cov==7.0.0",
     "ruff==0.14.14",
     "tomli==2.4.0",
+    "urllib3>=2.8.0",
+    "virtualenv>=21.7.13",
 ]
 
 [project.scripts]
