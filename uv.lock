@@ -570,6 +570,7 @@ version = "0.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "anyio" },
+    { name = "certifi" },
     { name = "lark" },
     { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -588,11 +589,14 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "tomli" },
+    { name = "urllib3" },
+    { name = "virtualenv" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = ">=4.14.2" },
+    { name = "certifi", specifier = ">=2026.10.19" },
     { name = "debugpy", marker = "extra == 'dev'", specifier = "==1.8.1" },
     { name = "lark", specifier = "==1.3.1" },
     { name = "networkx", specifier = ">=3.4.2" },
@@ -606,6 +610,8 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.14.14" },
     { name = "termcolor", specifier = "==3.3.0" },
     { name = "tomli", marker = "extra == 'dev'", specifier = "==2.4.0" },
+    { name = "urllib3", marker = "extra == 'dev'", specifier = ">=2.8.0" },
+    { name = "virtualenv", marker = "extra == 'dev'", specifier = ">=21.7.13" },
 ]
 provides-extras = ["dev"]
 
