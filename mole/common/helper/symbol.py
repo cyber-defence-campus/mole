@@ -70,6 +70,12 @@ class SymbolHelper:
                         for inst in func.instructions:
                             if inst.address == code_ref.address:
                                 mlil_insts.add(inst)
+                    # NOTE: Should we rather do it like this?
+                    # mlil_insts.update(
+                    #     mlil.ssa_form
+                    #     for mlil in code_ref.mlils
+                    #     # if code_ref.address == mlil.ssa_form.address
+                    # )
                 if mlil_insts:
                     mlil_ssa_code_refs[symbol_name] = mlil_insts
         return mlil_ssa_code_refs
