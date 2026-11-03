@@ -441,6 +441,33 @@ class MediumLevelILBackwardSlicer:
                     inst.ssa_memory_version,
                     self._max_memory_slice_depth,
                 )
+                # Loads from a constant global address may be defined outside the current function's
+                # SSA memory chain; add every instruction referencing that address as a candidate
+                # memory definition
+                if (
+                    self._max_memory_slice_depth < 0
+                    or len(mem_def_insts) < self._max_memory_slice_depth
+                ):
+                    match load_src_inst:
+                        case bn.MediumLevelILConstPtr(constant=load_src_addr):
+                            # Ensure rw- segment
+                            segment = self.bv.get_segment_at(load_src_addr)
+                            if (
+                                segment
+                                and segment.readable
+                                and segment.writable
+                                and not segment.executable
+                            ):
+                                # Determine code x-refs updating the memory version
+                                code_ref_insts = (
+                                    mlil.ssa_form
+                                    for code_ref in self.bv.get_code_refs(load_src_addr)
+                                    for mlil in code_ref.mlils
+                                    if mlil.ssa_form.ssa_memory_version
+                                    < mlil.ssa_form.ssa_memory_version_after
+                                )
+                                # Add code x-refs to candidate memory definitions
+                                mem_def_insts.extend(code_ref_insts)
                 # Iterate memory defining instructions
                 for mem_def_inst in mem_def_insts:
                     mem_def_inst_info = InstructionHelper.get_inst_info(

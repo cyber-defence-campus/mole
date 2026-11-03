@@ -49,7 +49,6 @@ class TestNameMangling(TestSlicing):
         )
         return
 
-    @pytest.mark.xfail
     def test_name_mangling_05(
         self, filenames: List[str] = ["name_mangling-05"]
     ) -> None:
