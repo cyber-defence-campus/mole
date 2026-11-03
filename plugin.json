@@ -24,7 +24,7 @@
     "Linux": "",
     "Windows": ""
   },
-  "version": "0.8.1",
+  "version": "0.8.2",
   "author": "Damian Pfammatter and Sergio Paganoni",
-  "minimumbinaryninjaversion": 7290
+  "minimumbinaryninjaversion": 10601
 }
