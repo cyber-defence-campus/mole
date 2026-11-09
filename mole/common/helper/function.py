@@ -47,6 +47,8 @@ class FunctionHelper:
     ) -> List[bn.MediumLevelILInstruction]:
         """
         This method returns a list of return instructions of function `func`.
+
+        Note: The result is cached and must not be mutated.
         """
         ret_insts: List[bn.MediumLevelILInstruction] = []
         for inst in func.instructions:
@@ -67,6 +69,8 @@ class FunctionHelper:
     ]:
         """
         This method returns a set of MLIL call instructions that directly call the function `func`.
+
+        Note: The result is cached and must not be mutated.
         """
         call_insts: Set[
             bn.MediumLevelILCallSsa
@@ -180,13 +184,15 @@ class FunctionHelper:
         This method returns a list of `MediumLevelILVarSsa` instructions that correspond to the
         parameters of function `func`. The order of the returned instructions corresponds to the one
         of the parameters in the function signature.
+
+        Note: The result is cached and must not be mutated.
         """
+        if func is None or func.ssa_form is None:
+            return []
+        func = func.ssa_form
+
         param_vars = list(func.source_function.parameter_vars)
         param_insts: List[bn.MediumLevelILVarSsa | None] = [None] * len(param_vars)
-
-        if func is None or func.ssa_form is None:
-            return param_insts
-        func = func.ssa_form
 
         # Find instructions corresponding to the function parameters
         def find_mlil_param_inst(
@@ -220,6 +226,8 @@ class FunctionHelper:
         This method returns a dictionary that maps a MLIL SSA variable to a set of equal MLIL SSA
         variables. Two MLIL SSA variables are considered equal if they are assigned to each other
         directly or indirectly (transitive closure).
+
+        Note: The result is cached and must not be mutated.
         """
 
         # Find MLIL variable assignments
@@ -472,6 +480,8 @@ class FunctionHelper:
         Function parameters known to be pointers can be specified in `param_idxs` (set of parameter
         indices). A dictionary is returned, where keys are MLIL SSA variables corresponding to
         pointers. The values are the corresponding HLIL_VAR/HLIL_ADDRESS_OF together with an offset.
+
+        Note: The result is cached and must not be mutated.
         """
         # Get the function in SSA form
         if func is None or func.ssa_form is None:
@@ -493,6 +503,8 @@ class FunctionHelper:
         This method returns a list of all instructions within `func` that define the memory with
         version `memory_version` (using breadth-first search). A memory defining instruction is an
         instruction that creates a new memory version.
+
+        Note: The result is cached and must not be mutated.
         """
         if func is None:
             return []

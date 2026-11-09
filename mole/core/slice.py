@@ -436,10 +436,12 @@ class MediumLevelILBackwardSlicer:
             case bn.MediumLevelILLoadSsa(src=load_src_inst, size=load_src_size):
                 followed = False
                 # Get instructions defining the memory version of `inst`
-                mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
-                    inst.function,
-                    inst.ssa_memory_version,
-                    self._max_memory_slice_depth,
+                mem_def_insts = list(
+                    FunctionHelper.get_ssa_memory_definitions(
+                        inst.function,
+                        inst.ssa_memory_version,
+                        self._max_memory_slice_depth,
+                    )
                 )
                 # Loads from a constant global address may be defined outside the current function's
                 # SSA memory chain; add every instruction referencing that address as a candidate
