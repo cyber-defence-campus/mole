@@ -490,7 +490,7 @@ class MediumLevelILBackwardSlicer:
                             hlil_load_inst = inst.hlil.ssa_form
                             hlil_store_inst = mem_def_inst.hlil.ssa_form
                             match (hlil_load_inst, hlil_store_inst):
-                                # Constant pointer dereferencing
+                                # Pointer dereferencing
                                 case (
                                     bn.HighLevelILDerefSsa(
                                         src=bn.HighLevelILConstPtr(
@@ -510,6 +510,41 @@ class MediumLevelILBackwardSlicer:
                                         load_src_addr < store_dest_addr
                                         or load_src_addr + load_src_size
                                         > store_dest_addr + store_dest_size
+                                    ):
+                                        continue
+                                    self.log.debug(
+                                        self._tag,
+                                        f"Follow store instruction '{mem_def_inst_info:s}' since it overwrites the memory loaded by '{inst_info:s}'",
+                                    )
+                                    self._call_tracker.push_mem_def_inst(mem_def_inst)
+                                    self._slice_backwards(mem_def_inst)
+                                    followed = True
+                                    break
+                                # Field dereferencing
+                                case (
+                                    bn.HighLevelILDerefFieldSsa(
+                                        src=bn.HighLevelILConstPtr(
+                                            constant=load_src_addr
+                                        ),
+                                        offset=load_offset,
+                                    ),
+                                    bn.HighLevelILAssignMemSsa(
+                                        dest=bn.HighLevelILDerefFieldSsa(
+                                            src=bn.HighLevelILConstPtr(
+                                                constant=store_dest_addr
+                                            ),
+                                            offset=store_offset,
+                                        )
+                                    ),
+                                ):
+                                    # Ensure store overlaps the load
+                                    if (
+                                        load_src_addr + load_offset
+                                        < store_dest_addr + store_offset
+                                        or load_src_addr + load_offset + load_src_size
+                                        > store_dest_addr
+                                        + store_offset
+                                        + store_dest_size
                                     ):
                                         continue
                                     self.log.debug(
