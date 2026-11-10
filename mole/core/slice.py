@@ -451,9 +451,9 @@ class MediumLevelILBackwardSlicer:
                     or len(mem_def_insts) < self._max_memory_slice_depth
                 ):
                     match load_src_inst:
-                        case bn.MediumLevelILConstPtr(constant=load_src_addr):
+                        case bn.MediumLevelILConstPtr(constant=load_addr):
                             # Ensure rw- segment
-                            segment = self.bv.get_segment_at(load_src_addr)
+                            segment = self.bv.get_segment_at(load_addr)
                             if (
                                 segment
                                 and segment.readable
@@ -461,12 +461,17 @@ class MediumLevelILBackwardSlicer:
                                 and not segment.executable
                             ):
                                 # Determine code x-refs updating the memory version
-                                code_ref_insts = (
-                                    mlil.ssa_form
-                                    for code_ref in self.bv.get_code_refs(load_src_addr)
-                                    for mlil in code_ref.mlils
-                                    if mlil.ssa_form.ssa_memory_version
-                                    < mlil.ssa_form.ssa_memory_version_after
+                                # (sorted by descending memory version order)
+                                code_ref_insts = sorted(
+                                    (
+                                        mlil.ssa_form
+                                        for code_ref in self.bv.get_code_refs(load_addr)
+                                        for mlil in code_ref.mlils
+                                        if mlil.ssa_form.ssa_memory_version
+                                        < mlil.ssa_form.ssa_memory_version_after
+                                    ),
+                                    key=lambda i: i.ssa_memory_version_after,
+                                    reverse=True,
                                 )
                                 # Add code x-refs to candidate memory definitions
                                 mem_def_insts.extend(code_ref_insts)
@@ -493,23 +498,21 @@ class MediumLevelILBackwardSlicer:
                                 # Pointer dereferencing
                                 case (
                                     bn.HighLevelILDerefSsa(
-                                        src=bn.HighLevelILConstPtr(
-                                            constant=load_src_addr
-                                        )
+                                        src=bn.HighLevelILConstPtr(constant=load_addr)
                                     ),
                                     bn.HighLevelILAssignMemSsa(
                                         dest=bn.HighLevelILDerefSsa(
                                             src=bn.HighLevelILConstPtr(
-                                                constant=store_dest_addr
+                                                constant=dest_addr
                                             )
                                         )
                                     ),
                                 ):
                                     # Ensure store overlaps the load
                                     if (
-                                        load_src_addr < store_dest_addr
-                                        or load_src_addr + load_src_size
-                                        > store_dest_addr + store_dest_size
+                                        load_addr < dest_addr
+                                        or load_addr + load_src_size
+                                        > dest_addr + store_dest_size
                                     ):
                                         continue
                                     self.log.debug(
@@ -520,18 +523,16 @@ class MediumLevelILBackwardSlicer:
                                     self._slice_backwards(mem_def_inst)
                                     followed = True
                                     break
-                                # Field dereferencing
+                                # Field dereferencing (struct or union members)
                                 case (
                                     bn.HighLevelILDerefFieldSsa(
-                                        src=bn.HighLevelILConstPtr(
-                                            constant=load_src_addr
-                                        ),
+                                        src=bn.HighLevelILConstPtr(constant=load_addr),
                                         offset=load_offset,
                                     ),
                                     bn.HighLevelILAssignMemSsa(
                                         dest=bn.HighLevelILDerefFieldSsa(
                                             src=bn.HighLevelILConstPtr(
-                                                constant=store_dest_addr
+                                                constant=dest_addr
                                             ),
                                             offset=store_offset,
                                         )
@@ -539,12 +540,10 @@ class MediumLevelILBackwardSlicer:
                                 ):
                                     # Ensure store overlaps the load
                                     if (
-                                        load_src_addr + load_offset
-                                        < store_dest_addr + store_offset
-                                        or load_src_addr + load_offset + load_src_size
-                                        > store_dest_addr
-                                        + store_offset
-                                        + store_dest_size
+                                        load_addr + load_offset
+                                        < dest_addr + store_offset
+                                        or load_addr + load_offset + load_src_size
+                                        > dest_addr + store_offset + store_dest_size
                                     ):
                                         continue
                                     self.log.debug(
