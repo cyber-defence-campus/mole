@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Set, Tuple
+from typing import List, Optional, Set, Tuple
 import binaryninja as bn
 
 
@@ -369,50 +369,165 @@ class InstructionHelper:
 
     @staticmethod
     def is_ptr_equivalent(
-        left_inst: bn.HighLevelILInstruction,
-        right_inst: bn.HighLevelILInstruction,
+        inst_a: bn.HighLevelILInstruction,
+        inst_b: bn.HighLevelILInstruction,
     ) -> bool:
         """
-        This method checks whether the two HLIL instructions `left_inst` and `right_inst` correspond
+        This method checks whether the two HLIL instructions `inst_a` and `inst_b` correspond
         to equivalent pointers.
         """
-        match (left_inst, right_inst):
-            # `left_constant == right_constant`
+        match (inst_a, inst_b):
+            # `constant_a == constant_b`
             case (
-                bn.HighLevelILConst(constant=left_constant),
-                bn.HighLevelILConst(constant=right_constant),
+                bn.HighLevelILConst(constant=constant_a)
+                | bn.HighLevelILConstPtr(constant=constant_a),
+                bn.HighLevelILConst(constant=constant_b)
+                | bn.HighLevelILConstPtr(constant=constant_b),
             ):
-                return left_constant == right_constant
-            # `left_var == right_var`
+                return constant_a == constant_b
+            # `var_a == var_b`
             case (
-                bn.HighLevelILVar(var=left_var),
-                bn.HighLevelILVar(var=right_var),
+                bn.HighLevelILVar(var=var_a) | bn.HighLevelILVarSsa(var=var_a),
+                bn.HighLevelILVar(var=var_b) | bn.HighLevelILVarSsa(var=var_b),
             ):
-                return left_var == right_var
-            # `left_inst[left_index] == right_inst[right_index]`
+                return var_a == var_b
+            # `inst_a[index_a] == inst_b[index_b]`
             case (
-                bn.HighLevelILArrayIndex(
-                    src=left_inst,
-                    index=left_index,
-                ),
-                bn.HighLevelILArrayIndex(
-                    src=right_inst,
-                    index=right_index,
-                ),
+                bn.HighLevelILArrayIndex(src=src_inst_a, index=index_a)
+                | bn.HighLevelILArrayIndexSsa(src=src_inst_a, index=index_a),
+                bn.HighLevelILArrayIndex(src=src_inst_b, index=index_b)
+                | bn.HighLevelILArrayIndexSsa(src=src_inst_b, index=index_b),
             ):
                 return InstructionHelper.is_ptr_equivalent(
-                    left_inst, right_inst
-                ) and InstructionHelper.is_ptr_equivalent(left_index, right_index)
-            # `&left_inst == &right_inst`
+                    src_inst_a, src_inst_b
+                ) and InstructionHelper.is_ptr_equivalent(index_a, index_b)
+            # `&inst_a == &inst_b`
             case (
-                bn.HighLevelILAddressOf(src=left_inst),
-                bn.HighLevelILAddressOf(src=right_inst),
+                bn.HighLevelILAddressOf(src=src_inst_a),
+                bn.HighLevelILAddressOf(src=src_inst_b),
             ):
-                return InstructionHelper.is_ptr_equivalent(left_inst, right_inst)
-            # `left_var == &right_inst`
+                return InstructionHelper.is_ptr_equivalent(src_inst_a, src_inst_b)
+            # `var_a == &inst_b`
             case (
-                bn.HighLevelILVar(),
-                bn.HighLevelILAddressOf(src=right_inst),
+                bn.HighLevelILVar() | bn.HighLevelILVarSsa(),
+                bn.HighLevelILAddressOf(src=inst_b),
             ):
-                return InstructionHelper.is_ptr_equivalent(left_inst, right_inst)
+                return InstructionHelper.is_ptr_equivalent(inst_a, inst_b)
         return False
+
+    @staticmethod
+    def _get_ptr_value_addr(
+        ptr_inst: bn.HighLevelILInstruction,
+    ) -> Optional[Tuple[Optional[bn.HighLevelILInstruction], int]]:
+        """
+        This method splits the address held by the HLIL pointer instruction `ptr_inst` into a
+        symbolic base (`None` for absolute addresses) and a constant byte offset. Returns `None`
+        if the address cannot be determined.
+
+        `ptr_inst` must be an rvalue whose value is an address (e.g. `p`, `p + 8`, `&p->f`): the
+        method does not access memory, it only evaluates the address the pointer holds. An
+        address-of (`&`) is resolved via `_get_mem_access_addr` on its lvalue operand.
+
+        Example: `_get_ptr_value_addr(&p->f)` --> `(p, 8)` (with `f` at offset 8)
+        """
+        match ptr_inst:
+            case (
+                bn.HighLevelILConstPtr(constant=addr)
+                | bn.HighLevelILConst(constant=addr)
+            ):
+                return (None, addr)
+            case (
+                bn.HighLevelILAdd(
+                    left=base_ptr_inst, right=bn.HighLevelILConst(constant=offset)
+                )
+                | bn.HighLevelILAdd(
+                    left=bn.HighLevelILConst(constant=offset), right=base_ptr_inst
+                )
+            ):
+                inner_addr = InstructionHelper._get_ptr_value_addr(base_ptr_inst)
+            case bn.HighLevelILSub(
+                left=base_ptr_inst, right=bn.HighLevelILConst(constant=offset)
+            ):
+                inner_addr = InstructionHelper._get_ptr_value_addr(base_ptr_inst)
+                offset = -offset
+            case bn.HighLevelILAddressOf(src=mem_inst):
+                return InstructionHelper._get_mem_access_addr(mem_inst)
+            case _:
+                # Anything else is an opaque base
+                return (ptr_inst, 0)
+        if inner_addr is None:
+            return None
+        base, inner_offset = inner_addr
+        return (base, inner_offset + offset)
+
+    @staticmethod
+    def _get_mem_access_addr(
+        mem_inst: bn.HighLevelILInstruction,
+    ) -> Optional[Tuple[Optional[bn.HighLevelILInstruction], int]]:
+        """
+        This method returns the address of the memory accessed by the HLIL lvalue instruction
+        `mem_inst`, split into a symbolic base (`None` for absolute addresses) and a constant byte
+        offset. Returns `None` if the address cannot be determined.
+
+        `mem_inst` must be an lvalue, i.e. the memory location itself (e.g. `*p`, `p->f`, `s.f`,
+        `arr[2]`): the method returns where that memory is, not the value stored in it. The
+        address is derived from the lvalue's operand, i.e. via `_get_ptr_value_addr` for pointer
+        operands (`*p`, `p->f`, `arr[2]`) or recursively for lvalue operands (`s.f`).
+
+        Example: `_get_mem_access_addr(p->f)` --> `(p, 8)` (with `f` at offset 8)
+        """
+        match mem_inst:
+            case bn.HighLevelILDerefSsa(src=ptr_inst):
+                return InstructionHelper._get_ptr_value_addr(ptr_inst)
+            case bn.HighLevelILDerefFieldSsa(src=ptr_inst, offset=offset):
+                inner_addr = InstructionHelper._get_ptr_value_addr(ptr_inst)
+            case bn.HighLevelILStructField(src=struct_mem_inst, offset=offset):
+                inner_addr = InstructionHelper._get_mem_access_addr(struct_mem_inst)
+            case bn.HighLevelILArrayIndexSsa(
+                src=ptr_inst, index=bn.HighLevelILConst(constant=index)
+            ):
+                inner_addr = InstructionHelper._get_ptr_value_addr(ptr_inst)
+                offset = index * mem_inst.size
+            case bn.HighLevelILArrayIndexSsa():
+                # Opaque base in case of a non-constant index
+                return (mem_inst, 0)
+            case bn.HighLevelILVar():
+                # Aliased variable (e.g. local struct `s`) is not in SSA form and lives in memory
+                return (mem_inst, 0)
+            case _:
+                return None
+        if inner_addr is None:
+            return None
+        base, inner_offset = inner_addr
+        return (base, inner_offset + offset)
+
+    @staticmethod
+    def is_mem_access_overlapping(
+        mem_inst_a: bn.HighLevelILInstruction,
+        mem_inst_b: bn.HighLevelILInstruction,
+    ) -> bool:
+        """
+        This method checks whether the memory accessed by the two HLIL lvalue instructions
+        `mem_inst_a` and `mem_inst_b` (e.g. `*p`, `p->f`, `s.f`, `arr[2]`) is guaranteed to
+        overlap (in at least one byte). The check is symmetric. Returns `False` if this cannot be
+        determined.
+
+        Example: `is_mem_access_overlapping(p->f, *(p + 8))` --> `True` (with `f` at offset 8)
+        """
+        # Resolve both accesses to `(base, offset)`
+        addr_a = InstructionHelper._get_mem_access_addr(mem_inst_a)
+        addr_b = InstructionHelper._get_mem_access_addr(mem_inst_b)
+        if addr_a is None or addr_b is None:
+            return False
+        (base_a, offset_a), (base_b, offset_b) = addr_a, addr_b
+        # Ensure same base (`None` denotes an absolute address)
+        if base_a is None or base_b is None:
+            if base_a is not base_b:
+                return False
+        elif not InstructionHelper.is_ptr_equivalent(base_a, base_b):
+            return False
+        # Ensure byte ranges `[offset, offset + size)` intersect
+        return (
+            offset_a < offset_b + mem_inst_b.size
+            and offset_b < offset_a + mem_inst_a.size
+        )

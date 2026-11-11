@@ -51,3 +51,7 @@ class TestPointerDeref(TestSlicing):
     def test_load_07(self, filenames: List[str] = ["load-07"]) -> None:
         self.test_load_06(filenames=filenames)
         return
+
+    # TODO: test_load_08
+    # TODO: test_load_09
+    # TODO: test_load_10

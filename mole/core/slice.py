@@ -495,7 +495,7 @@ class MediumLevelILBackwardSlicer:
                             hlil_load_inst = inst.hlil.ssa_form
                             hlil_store_inst = mem_def_inst.hlil.ssa_form
                             match (hlil_load_inst, hlil_store_inst):
-                                # Pointer dereferencing
+                                # Deref. pointer
                                 case (
                                     bn.HighLevelILDerefSsa(
                                         src=bn.HighLevelILConstPtr(constant=load_addr)
@@ -523,7 +523,27 @@ class MediumLevelILBackwardSlicer:
                                     self._slice_backwards(mem_def_inst)
                                     followed = True
                                     break
-                                # Field dereferencing (struct or union members)
+                                # TODO
+                                case (
+                                    bn.HighLevelILStructField(
+                                        src=bn.HighLevelILArrayIndexSsa(
+                                            src=bn.HighLevelILVarSsa(var=load_var),
+                                            index=load_index,
+                                        ),
+                                        offset=load_offset,
+                                    ),
+                                    bn.HighLevelILAssignMemSsa(
+                                        dest=bn.HighLevelILStructField(
+                                            src=bn.HighLevelILArrayIndexSsa(
+                                                src=bn.HighLevelILVarSsa(var=store_var),
+                                                index=store_index,
+                                            ),
+                                            offset=store_offset,
+                                        )
+                                    ),
+                                ):
+                                    pass
+                                # Deref. field (struct or union) member pointer
                                 case (
                                     bn.HighLevelILDerefFieldSsa(
                                         src=bn.HighLevelILConstPtr(constant=load_addr),
@@ -554,7 +574,7 @@ class MediumLevelILBackwardSlicer:
                                     self._slice_backwards(mem_def_inst)
                                     followed = True
                                     break
-                                # Variable dereferencing
+                                # Deref. variable
                                 case (
                                     bn.HighLevelILDerefSsa(
                                         src=bn.HighLevelILVarSsa(var=load_var)
@@ -576,7 +596,8 @@ class MediumLevelILBackwardSlicer:
                                     self._slice_backwards(mem_def_inst)
                                     followed = True
                                     break
-                                # Variable with offset dereferencing
+                                # TODO: Implement reverse order
+                                # Deref. variable with offset
                                 case (
                                     bn.HighLevelILDerefSsa(
                                         src=bn.HighLevelILAdd(
@@ -613,6 +634,7 @@ class MediumLevelILBackwardSlicer:
                                     self._slice_backwards(mem_def_inst)
                                     followed = True
                                     break
+                                # TODO: Deref. field (struct or union) member variable with offset
                                 # Array indexing
                                 case (
                                     bn.HighLevelILArrayIndexSsa(
