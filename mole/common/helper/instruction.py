@@ -456,7 +456,7 @@ class InstructionHelper:
                     left_a, left_b
                 ) and InstructionHelper.is_value_equivalent(right_a, right_b):
                     return True
-                # `(left_a op right_a) == (right_b op left_b)` (communative operations)
+                # `(left_a op right_a) == (right_b op left_b)` (commutative operations)
                 if isinstance(
                     inst_a,
                     (
@@ -471,17 +471,19 @@ class InstructionHelper:
                         left_a, right_b
                     ) and InstructionHelper.is_value_equivalent(right_a, left_b)
                 return False
-            # `inst_a == &src_b`
+            # `arr_a == &src_b` (array decaying to its address)
             case (
-                bn.HighLevelILVar() | bn.HighLevelILVarSsa(),
+                bn.HighLevelILVar(var=var_a)
+                | bn.HighLevelILVarSsa(var=bn.SSAVariable(var=var_a)),
                 bn.HighLevelILAddressOf(src=src_b),
-            ):
+            ) if isinstance(var_a.type, bn.ArrayType):
                 return InstructionHelper.is_value_equivalent(inst_a, src_b)
-            # `&src_a == inst_b`
+            # `&src_a == arr_b` (array decaying to its address)
             case (
                 bn.HighLevelILAddressOf(src=src_a),
-                bn.HighLevelILVar() | bn.HighLevelILVarSsa(),
-            ):
+                bn.HighLevelILVar(var=var_b)
+                | bn.HighLevelILVarSsa(var=bn.SSAVariable(var=var_b)),
+            ) if isinstance(var_b.type, bn.ArrayType):
                 return InstructionHelper.is_value_equivalent(src_a, inst_b)
         return False
 
@@ -575,19 +577,17 @@ class InstructionHelper:
     def is_mem_access_overlapping(
         mem_inst_a: bn.HighLevelILInstruction,
         mem_inst_b: bn.HighLevelILInstruction,
-        size_a: int | None = None,
-        size_b: int | None = None,
+        size_a: int,
+        size_b: int,
     ) -> bool:
         """
         This method checks whether the memory accessed by the two HLIL lvalue instructions
         `mem_inst_a` and `mem_inst_b` (e.g. `*p`, `p->f`, `s.f`, `arr[2]`) is guaranteed to
         overlap (in at least one byte). The check is symmetric. Returns `False` if this cannot be
-        determined.
+        determined. `size_a` and `size_b` are the access widths in bytes (e.g. from the
+        corresponding MLIL load/store).
 
-        `size_a` and `size_b` are the access widths in bytes (e.g. from the corresponding MLIL
-        load/store). They default to the size of the HLIL instructions, which might be 0 (unknown).
-
-        Example: `is_mem_access_overlapping(p->f, *(p + 8))` --> `True` (with `f` at offset 8)
+        Example: `is_mem_access_overlapping(p->f, *(p + 8), 4, 4)` --> `True` (with `f` at offset 8)
         """
         # Resolve both accesses to `(base, offset)`
         addr_a = InstructionHelper._get_mem_access_addr(mem_inst_a)
@@ -601,8 +601,5 @@ class InstructionHelper:
                 return False
         elif not InstructionHelper.is_value_equivalent(base_a, base_b):
             return False
-        # Determine access widths
-        size_a = mem_inst_a.size if size_a is None else size_a
-        size_b = mem_inst_b.size if size_b is None else size_b
         # Ensure byte ranges `[offset, offset + size)` intersect
         return offset_a < offset_b + size_b and offset_b < offset_a + size_a

@@ -163,9 +163,22 @@ class MediumLevelILBackwardSlicer:
                                 or ptr_offset_ssa_var != ptr_offset_param_ssa_var
                             ):
                                 continue
-                            # Follow parameter if pointer instructions are equivalent
+                            # Follow parameter if pointer instructions refer to the same object
+                            # (pointer map entries are either `var_x` or `&var_x`)
+                            ref_inst_ssa_var = (
+                                ptr_inst_ssa_var.src
+                                if isinstance(ptr_inst_ssa_var, bn.HighLevelILAddressOf)
+                                else ptr_inst_ssa_var
+                            )
+                            ref_inst_param_ssa_var = (
+                                ptr_inst_param_ssa_var.src
+                                if isinstance(
+                                    ptr_inst_param_ssa_var, bn.HighLevelILAddressOf
+                                )
+                                else ptr_inst_param_ssa_var
+                            )
                             if InstructionHelper.is_value_equivalent(
-                                ptr_inst_ssa_var, ptr_inst_param_ssa_var
+                                ref_inst_ssa_var, ref_inst_param_ssa_var
                             ):
                                 if param_idx not in call_params:
                                     call_params.add(param_idx)
