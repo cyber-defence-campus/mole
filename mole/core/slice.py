@@ -164,7 +164,7 @@ class MediumLevelILBackwardSlicer:
                             ):
                                 continue
                             # Follow parameter if pointer instructions are equivalent
-                            if InstructionHelper.is_ptr_equivalent(
+                            if InstructionHelper.is_value_equivalent(
                                 ptr_inst_ssa_var, ptr_inst_param_ssa_var
                             ):
                                 if param_idx not in call_params:
@@ -489,178 +489,24 @@ class MediumLevelILBackwardSlicer:
                         continue
                     match mem_def_inst:
                         case bn.MediumLevelILStoreSsa(size=store_dest_size):
-                            # Match HLIL instructions
+                            # Ensure HLIL exists
                             if inst.hlil is None or mem_def_inst.hlil is None:
                                 continue
                             hlil_load_inst = inst.hlil.ssa_form
-                            hlil_store_inst = mem_def_inst.hlil.ssa_form
-                            match (hlil_load_inst, hlil_store_inst):
-                                # Deref. pointer
-                                case (
-                                    bn.HighLevelILDerefSsa(
-                                        src=bn.HighLevelILConstPtr(constant=load_addr)
-                                    ),
-                                    bn.HighLevelILAssignMemSsa(
-                                        dest=bn.HighLevelILDerefSsa(
-                                            src=bn.HighLevelILConstPtr(
-                                                constant=dest_addr
-                                            )
-                                        )
-                                    ),
-                                ):
-                                    # Ensure store overlaps the load
-                                    if (
-                                        load_addr < dest_addr
-                                        or load_addr + load_src_size
-                                        > dest_addr + store_dest_size
+                            match mem_def_inst.hlil.ssa_form:
+                                case bn.HighLevelILAssignMemSsa(dest=hlil_store_inst):
+                                    # Ensure store overlaps load
+                                    if not InstructionHelper.is_mem_access_overlapping(
+                                        hlil_load_inst,
+                                        hlil_store_inst,
+                                        load_src_size,
+                                        store_dest_size,
                                     ):
                                         continue
+                                    # Follow store
                                     self.log.debug(
                                         self._tag,
-                                        f"Follow store instruction '{mem_def_inst_info:s}' since it overwrites the memory loaded by '{inst_info:s}'",
-                                    )
-                                    self._call_tracker.push_mem_def_inst(mem_def_inst)
-                                    self._slice_backwards(mem_def_inst)
-                                    followed = True
-                                    break
-                                # TODO
-                                case (
-                                    bn.HighLevelILStructField(
-                                        src=bn.HighLevelILArrayIndexSsa(
-                                            src=bn.HighLevelILVarSsa(var=load_var),
-                                            index=load_index,
-                                        ),
-                                        offset=load_offset,
-                                    ),
-                                    bn.HighLevelILAssignMemSsa(
-                                        dest=bn.HighLevelILStructField(
-                                            src=bn.HighLevelILArrayIndexSsa(
-                                                src=bn.HighLevelILVarSsa(var=store_var),
-                                                index=store_index,
-                                            ),
-                                            offset=store_offset,
-                                        )
-                                    ),
-                                ):
-                                    pass
-                                # Deref. field (struct or union) member pointer
-                                case (
-                                    bn.HighLevelILDerefFieldSsa(
-                                        src=bn.HighLevelILConstPtr(constant=load_addr),
-                                        offset=load_offset,
-                                    ),
-                                    bn.HighLevelILAssignMemSsa(
-                                        dest=bn.HighLevelILDerefFieldSsa(
-                                            src=bn.HighLevelILConstPtr(
-                                                constant=dest_addr
-                                            ),
-                                            offset=store_offset,
-                                        )
-                                    ),
-                                ):
-                                    # Ensure store overlaps the load
-                                    if (
-                                        load_addr + load_offset
-                                        < dest_addr + store_offset
-                                        or load_addr + load_offset + load_src_size
-                                        > dest_addr + store_offset + store_dest_size
-                                    ):
-                                        continue
-                                    self.log.debug(
-                                        self._tag,
-                                        f"Follow store instruction '{mem_def_inst_info:s}' since it overwrites the memory loaded by '{inst_info:s}'",
-                                    )
-                                    self._call_tracker.push_mem_def_inst(mem_def_inst)
-                                    self._slice_backwards(mem_def_inst)
-                                    followed = True
-                                    break
-                                # Deref. variable
-                                case (
-                                    bn.HighLevelILDerefSsa(
-                                        src=bn.HighLevelILVarSsa(var=load_var)
-                                    ),
-                                    bn.HighLevelILAssignMemSsa(
-                                        dest=bn.HighLevelILDerefSsa(
-                                            src=bn.HighLevelILVarSsa(var=store_var)
-                                        )
-                                    ),
-                                ):
-                                    # Ensure load from and store to the same variable
-                                    if load_var != store_var:
-                                        continue
-                                    self.log.debug(
-                                        self._tag,
-                                        f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same variable ('{str(hlil_load_inst):s}') as load instruction '{inst_info:s}'",
-                                    )
-                                    self._call_tracker.push_mem_def_inst(mem_def_inst)
-                                    self._slice_backwards(mem_def_inst)
-                                    followed = True
-                                    break
-                                # TODO: Implement reverse order
-                                # Deref. variable with offset
-                                case (
-                                    bn.HighLevelILDerefSsa(
-                                        src=bn.HighLevelILAdd(
-                                            left=bn.HighLevelILVarSsa(var=load_var),
-                                            right=bn.HighLevelILConst(
-                                                constant=load_offset
-                                            ),
-                                        )
-                                    ),
-                                    bn.HighLevelILAssignMemSsa(
-                                        dest=bn.HighLevelILDerefSsa(
-                                            src=bn.HighLevelILAdd(
-                                                left=bn.HighLevelILVarSsa(
-                                                    var=store_var
-                                                ),
-                                                right=bn.HighLevelILConst(
-                                                    constant=store_offset
-                                                ),
-                                            )
-                                        )
-                                    ),
-                                ):
-                                    # Ensure load from and store to the same variable and offset
-                                    if (
-                                        load_var != store_var
-                                        or load_offset != store_offset
-                                    ):
-                                        continue
-                                    self.log.debug(
-                                        self._tag,
-                                        f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same variable ('{str(hlil_load_inst):s}') as load instruction '{inst_info:s}'",
-                                    )
-                                    self._call_tracker.push_mem_def_inst(mem_def_inst)
-                                    self._slice_backwards(mem_def_inst)
-                                    followed = True
-                                    break
-                                # TODO: Deref. field (struct or union) member variable with offset
-                                # Array indexing
-                                case (
-                                    bn.HighLevelILArrayIndexSsa(
-                                        src=bn.HighLevelILVarSsa(
-                                            var=load_var,
-                                        ),
-                                        index=bn.HighLevelILConst(constant=load_index),
-                                    ),
-                                    bn.HighLevelILAssignMemSsa(
-                                        dest=bn.HighLevelILArrayIndexSsa(
-                                            src=bn.HighLevelILVarSsa(var=store_var),
-                                            index=bn.HighLevelILConst(
-                                                constant=store_index
-                                            ),
-                                        )
-                                    ),
-                                ):
-                                    # Ensure load from and store to the same array element
-                                    if (
-                                        load_var != store_var
-                                        or load_index != store_index
-                                    ):
-                                        continue
-                                    self.log.debug(
-                                        self._tag,
-                                        f"Follow store instruction '{mem_def_inst_info:s}' since it writes the same array element ('{str(hlil_load_inst):s}') as load instruction '{inst_info:s}'",
+                                        f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the memory loaded by '{inst_info:s}'",
                                     )
                                     self._call_tracker.push_mem_def_inst(mem_def_inst)
                                     self._slice_backwards(mem_def_inst)

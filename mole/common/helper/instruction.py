@@ -368,13 +368,23 @@ class InstructionHelper:
         return [i for i in inst.traverse(find_mlil_call_inst) if i is not None]
 
     @staticmethod
-    def is_ptr_equivalent(
+    def is_value_equivalent(
         inst_a: bn.HighLevelILInstruction,
         inst_b: bn.HighLevelILInstruction,
     ) -> bool:
         """
-        This method checks whether the two HLIL instructions `inst_a` and `inst_b` correspond
-        to equivalent pointers.
+        This method checks whether the two HLIL instructions `inst_a` and `inst_b` evaluate to
+        the same value, e.g. equivalent pointers, array indices or arithmetic operands. The
+        comparison is structural: constants and variables are compared directly, and pure
+        operations (casts, integer arithmetic, array indexing, address-of) are compared
+        recursively on their operands. An array variable is considered equivalent to its address
+        (`arr == &arr`).
+
+        The check is conservative: `True` means the values are equal, `False` means equality
+        could not be established. Variables are compared by identity, so the result is only
+        sound for SSA instructions or for instructions at the same program point.
+
+        Example: `is_value_equivalent(arr#1[sx.q(i#0) + 1], arr#1[1 + sx.q(i#0)])` --> `True`
         """
         match (inst_a, inst_b):
             # `constant_a == constant_b`
@@ -391,28 +401,88 @@ class InstructionHelper:
                 bn.HighLevelILVar(var=var_b) | bn.HighLevelILVarSsa(var=var_b),
             ):
                 return var_a == var_b
-            # `inst_a[index_a] == inst_b[index_b]`
+            # `src_a[index_a] == src_b[index_b]`
             case (
-                bn.HighLevelILArrayIndex(src=src_inst_a, index=index_a)
-                | bn.HighLevelILArrayIndexSsa(src=src_inst_a, index=index_a),
-                bn.HighLevelILArrayIndex(src=src_inst_b, index=index_b)
-                | bn.HighLevelILArrayIndexSsa(src=src_inst_b, index=index_b),
+                bn.HighLevelILArrayIndex(src=src_a, index=index_a)
+                | bn.HighLevelILArrayIndexSsa(src=src_a, index=index_a),
+                bn.HighLevelILArrayIndex(src=src_b, index=index_b)
+                | bn.HighLevelILArrayIndexSsa(src=src_b, index=index_b),
             ):
-                return InstructionHelper.is_ptr_equivalent(
-                    src_inst_a, src_inst_b
-                ) and InstructionHelper.is_ptr_equivalent(index_a, index_b)
-            # `&inst_a == &inst_b`
+                return InstructionHelper.is_value_equivalent(
+                    src_a, src_b
+                ) and InstructionHelper.is_value_equivalent(index_a, index_b)
+            # `&src_a == &src_b`
             case (
-                bn.HighLevelILAddressOf(src=src_inst_a),
-                bn.HighLevelILAddressOf(src=src_inst_b),
+                bn.HighLevelILAddressOf(src=src_a),
+                bn.HighLevelILAddressOf(src=src_b),
             ):
-                return InstructionHelper.is_ptr_equivalent(src_inst_a, src_inst_b)
-            # `var_a == &inst_b`
+                return InstructionHelper.is_value_equivalent(src_a, src_b)
+            # `op(src_a) == op(src_b)`
+            case (
+                bn.HighLevelILSx(src=src_a)
+                | bn.HighLevelILZx(src=src_a)
+                | bn.HighLevelILLowPart(src=src_a)
+                | bn.HighLevelILNeg(src=src_a)
+                | bn.HighLevelILNot(src=src_a),
+                bn.HighLevelILSx(src=src_b)
+                | bn.HighLevelILZx(src=src_b)
+                | bn.HighLevelILLowPart(src=src_b)
+                | bn.HighLevelILNeg(src=src_b)
+                | bn.HighLevelILNot(src=src_b),
+            ) if inst_a.operation == inst_b.operation and inst_a.size == inst_b.size:
+                return InstructionHelper.is_value_equivalent(src_a, src_b)
+            # `(left_a op right_a) == (left_b op right_b)`
+            case (
+                bn.HighLevelILAdd(left=left_a, right=right_a)
+                | bn.HighLevelILSub(left=left_a, right=right_a)
+                | bn.HighLevelILMul(left=left_a, right=right_a)
+                | bn.HighLevelILLsl(left=left_a, right=right_a)
+                | bn.HighLevelILLsr(left=left_a, right=right_a)
+                | bn.HighLevelILAsr(left=left_a, right=right_a)
+                | bn.HighLevelILAnd(left=left_a, right=right_a)
+                | bn.HighLevelILOr(left=left_a, right=right_a)
+                | bn.HighLevelILXor(left=left_a, right=right_a),
+                bn.HighLevelILAdd(left=left_b, right=right_b)
+                | bn.HighLevelILSub(left=left_b, right=right_b)
+                | bn.HighLevelILMul(left=left_b, right=right_b)
+                | bn.HighLevelILLsl(left=left_b, right=right_b)
+                | bn.HighLevelILLsr(left=left_b, right=right_b)
+                | bn.HighLevelILAsr(left=left_b, right=right_b)
+                | bn.HighLevelILAnd(left=left_b, right=right_b)
+                | bn.HighLevelILOr(left=left_b, right=right_b)
+                | bn.HighLevelILXor(left=left_b, right=right_b),
+            ) if inst_a.operation == inst_b.operation and inst_a.size == inst_b.size:
+                if InstructionHelper.is_value_equivalent(
+                    left_a, left_b
+                ) and InstructionHelper.is_value_equivalent(right_a, right_b):
+                    return True
+                # `(left_a op right_a) == (right_b op left_b)` (communative operations)
+                if isinstance(
+                    inst_a,
+                    (
+                        bn.HighLevelILAdd,
+                        bn.HighLevelILMul,
+                        bn.HighLevelILAnd,
+                        bn.HighLevelILOr,
+                        bn.HighLevelILXor,
+                    ),
+                ):
+                    return InstructionHelper.is_value_equivalent(
+                        left_a, right_b
+                    ) and InstructionHelper.is_value_equivalent(right_a, left_b)
+                return False
+            # `inst_a == &src_b`
             case (
                 bn.HighLevelILVar() | bn.HighLevelILVarSsa(),
-                bn.HighLevelILAddressOf(src=inst_b),
+                bn.HighLevelILAddressOf(src=src_b),
             ):
-                return InstructionHelper.is_ptr_equivalent(inst_a, inst_b)
+                return InstructionHelper.is_value_equivalent(inst_a, src_b)
+            # `&src_a == inst_b`
+            case (
+                bn.HighLevelILAddressOf(src=src_a),
+                bn.HighLevelILVar() | bn.HighLevelILVarSsa(),
+            ):
+                return InstructionHelper.is_value_equivalent(src_a, inst_b)
         return False
 
     @staticmethod
@@ -505,12 +575,17 @@ class InstructionHelper:
     def is_mem_access_overlapping(
         mem_inst_a: bn.HighLevelILInstruction,
         mem_inst_b: bn.HighLevelILInstruction,
+        size_a: int | None = None,
+        size_b: int | None = None,
     ) -> bool:
         """
         This method checks whether the memory accessed by the two HLIL lvalue instructions
         `mem_inst_a` and `mem_inst_b` (e.g. `*p`, `p->f`, `s.f`, `arr[2]`) is guaranteed to
         overlap (in at least one byte). The check is symmetric. Returns `False` if this cannot be
         determined.
+
+        `size_a` and `size_b` are the access widths in bytes (e.g. from the corresponding MLIL
+        load/store). They default to the size of the HLIL instructions, which might be 0 (unknown).
 
         Example: `is_mem_access_overlapping(p->f, *(p + 8))` --> `True` (with `f` at offset 8)
         """
@@ -524,10 +599,10 @@ class InstructionHelper:
         if base_a is None or base_b is None:
             if base_a is not base_b:
                 return False
-        elif not InstructionHelper.is_ptr_equivalent(base_a, base_b):
+        elif not InstructionHelper.is_value_equivalent(base_a, base_b):
             return False
+        # Determine access widths
+        size_a = mem_inst_a.size if size_a is None else size_a
+        size_b = mem_inst_b.size if size_b is None else size_b
         # Ensure byte ranges `[offset, offset + size)` intersect
-        return (
-            offset_a < offset_b + mem_inst_b.size
-            and offset_b < offset_a + mem_inst_a.size
-        )
+        return offset_a < offset_b + size_b and offset_b < offset_a + size_a
