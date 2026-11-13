@@ -158,3 +158,9 @@ class TestPointerAnalysis(TestSlicing):
             filenames=filenames,
         )
         return
+
+    def test_pointer_analysis_18(
+        self, filenames: List[str] = ["pointer_analysis-18"]
+    ) -> None:
+        self.test_pointer_analysis_01(filenames)
+        return

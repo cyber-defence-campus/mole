@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import Logger
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Callable, Set
+from typing import Callable, Set, Tuple
 import binaryninja as bn
 import os
 
@@ -63,6 +63,25 @@ class MediumLevelILBackwardSlicer:
                 self._slice_backwards(inst.params[param_idx - 1])
         return
 
+    @staticmethod
+    def _get_read_range(
+        ssa_var: bn.SSAVariable, inst: bn.MediumLevelILInstruction
+    ) -> Tuple[int, int]:
+        """
+        This method returns the byte range `(offset, size)` of `ssa_var` read by instruction `inst`.
+        The offset is 0 if `inst` has no offset. The size falls back to the width of `ssa_var` if
+        `inst` has no size, and to a single byte if `ssa_var` has no type either (i.e. only the
+        byte at the offset is considered read).
+        """
+        offset = getattr(inst, "offset", 0)
+        if inst.size > 0:
+            size = inst.size
+        elif ssa_var.var.type is not None and ssa_var.var.type.width > 0:
+            size = ssa_var.var.type.width
+        else:
+            size = 1
+        return offset, size
+
     def _slice_ssa_var_mem_definition(
         self,
         ssa_var: bn.SSAVariable,
@@ -76,7 +95,7 @@ class MediumLevelILBackwardSlicer:
         - If `mem_def_inst` is an assignment to the aliased variable underlying `ssa_var`, slice its
           source
         - If `mem_def_inst` is an assignment to a field of the aliased variable underlying
-          `ssa_var` at the offset read by `inst` (0 if `inst` has no offset), slice its source
+          `ssa_var` that overlaps the bytes read by `inst`, slice its source
         - If `mem_def_inst` is a call having a parameter that possibly writes `ssa_var`, slice the
           call. This is the case if `ssa_var` is aliased and the parameter points to it (e.g.
           `&ssa_var`), or if `ssa_var` is a pointer and the parameter holds the same pointer value
@@ -120,18 +139,26 @@ class MediumLevelILBackwardSlicer:
                 prev=prev_ssa_var,
                 dest=dest_ssa_var,
                 offset=dest_offset,
+                size=dest_size,
                 src=src_inst,
             ):
+                # Byte range of `ssa_var` read by `inst`
+                read_offset, read_size = self._get_read_range(ssa_var, inst)
                 if (
                     prev_ssa_var.var == dest_ssa_var.var == ssa_var.var
                     and prev_ssa_var.version + 1
                     == dest_ssa_var.version
                     <= ssa_var.version
-                    and dest_offset == getattr(inst, "offset", 0)
+                    # Ensure byte ranges `[offset, offset + size)` intersect
+                    and dest_offset < read_offset + read_size
+                    and read_offset < dest_offset + dest_size
                 ):
                     self.log.debug(
                         self._tag,
-                        f"Follow source of instruction '{mem_def_inst_info:s}' since it writes aliased variable '{ssa_var_info:s}:{dest_offset:d}'",
+                        f"Follow source of instruction '{mem_def_inst_info:s}' since it writes "
+                        f"bytes [{dest_offset:d}, {dest_offset + dest_size:d}) of aliased variable "
+                        f"'{ssa_var_info:s}' overlapping [{read_offset:d}, "
+                        f"{read_offset + read_size:d})",
                     )
                     self._call_tracker.push_mem_def_inst(mem_def_inst)
                     self._slice_backwards(src_inst)
@@ -235,23 +262,29 @@ class MediumLevelILBackwardSlicer:
         """
         This method determines all instructions in the function `inst.function` that define the
         memory version `inst.ssa_memory_version`. It then iterates these instructions by decreasing
-        memory version order and slices the first one that uses `ssa_var`. Calls only possibly
-        write `ssa_var` (through pointer parameters), so slicing continues past followed calls.
+        memory version order and slices them until the bytes read by `inst` are fully defined.
+        Calls only possibly write `ssa_var` (through pointer parameters) and field assignments may
+        only partially write the bytes read by `inst`, so slicing continues past them.
         """
+        # Bytes of `ssa_var` read by `inst` that must be defined before slicing stops
+        read_offset, read_size = self._get_read_range(ssa_var, inst)
+        read_bytes = set(range(read_offset, read_offset + read_size))
 
-        def is_must_def(mem_def_inst: bn.MediumLevelILInstruction) -> bool:
-            return not isinstance(
-                mem_def_inst,
-                (
-                    bn.MediumLevelILCallSsa,
-                    bn.MediumLevelILCallUntypedSsa,
-                    bn.MediumLevelILTailcallSsa,
-                    bn.MediumLevelILTailcallUntypedSsa,
-                ),
-            )
+        # Bytes in `read_bytes` that `mem_def_inst` must define (calls define none)
+        def get_def_bytes(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
+            match mem_def_inst:
+                case bn.MediumLevelILSetVarAliased():
+                    return read_bytes
+                case bn.MediumLevelILSetVarAliasedField(offset=offset, size=size):
+                    return read_bytes & set(range(offset, offset + size))
+            return set()
 
+        # Whether any memory defining instruction was sliced
         followed = False
-        must_followed = False
+        # Whether a mem phi-node branch fully defined the read bytes
+        phi_fully_defined = False
+        # Read bytes defined so far by sliced (non-phi) instructions
+        def_bytes: Set[int] = set()
         # Get instructions defining the memory version of `inst`
         mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
             inst.function, inst.ssa_memory_version, self._max_memory_slice_depth
@@ -279,10 +312,11 @@ class MediumLevelILBackwardSlicer:
                             ssa_var, inst, mem_def_insts[i + j]
                         ):
                             followed = True
-                            if is_must_def(mem_def_insts[i + j]):
-                                must_followed = True
+                            # Only a branch fully defining the read bytes on its own ends slicing
+                            if get_def_bytes(mem_def_insts[i + j]) >= read_bytes:
+                                phi_fully_defined = True
                         processed_cnt += 1
-                    if must_followed:
+                    if phi_fully_defined:
                         break
                     else:
                         i += processed_cnt
@@ -290,7 +324,8 @@ class MediumLevelILBackwardSlicer:
                 case _:
                     if self._slice_ssa_var_mem_definition(ssa_var, inst, mem_def_inst):
                         followed = True
-                        if is_must_def(mem_def_inst):
+                        def_bytes |= get_def_bytes(mem_def_inst)
+                        if def_bytes >= read_bytes:
                             break
             i += 1
         return followed
@@ -307,9 +342,12 @@ class MediumLevelILBackwardSlicer:
         """
         followed = False
         var_info = VariableHelper.get_var_info(ssa_var.var)
-        # Slice SSA variable defining instruction if there is one
+        # Slice SSA variable defining instruction if there is one (aliased writes are left to the
+        # memory definitions below, since they may not define the bytes read by `inst`)
         inst_def = inst.function.get_ssa_var_definition(ssa_var)
-        if inst_def:
+        if inst_def and not isinstance(
+            inst_def, bn.MediumLevelILSetVarAliased | bn.MediumLevelILSetVarAliasedField
+        ):
             self._slice_backwards(inst_def)
             followed = True
         # Slice memory defining instruction if it uses the SSA variable
