@@ -488,7 +488,7 @@ class InstructionHelper:
         return False
 
     @staticmethod
-    def _get_ptr_value_addr(
+    def get_ptr_value_addr(
         ptr_inst: bn.HighLevelILInstruction,
     ) -> Optional[Tuple[Optional[bn.HighLevelILInstruction], int]]:
         """
@@ -500,7 +500,7 @@ class InstructionHelper:
         method does not access memory, it only evaluates the address the pointer holds. An
         address-of (`&`) is resolved via `_get_mem_access_addr` on its lvalue operand.
 
-        Example: `_get_ptr_value_addr(&p->f)` --> `(p, 8)` (with `f` at offset 8)
+        Example: `get_ptr_value_addr(&p->f)` --> `(p, 8)` (with `f` at offset 8)
         """
         match ptr_inst:
             case (
@@ -516,11 +516,11 @@ class InstructionHelper:
                     left=bn.HighLevelILConst(constant=offset), right=base_ptr_inst
                 )
             ):
-                inner_addr = InstructionHelper._get_ptr_value_addr(base_ptr_inst)
+                inner_addr = InstructionHelper.get_ptr_value_addr(base_ptr_inst)
             case bn.HighLevelILSub(
                 left=base_ptr_inst, right=bn.HighLevelILConst(constant=offset)
             ):
-                inner_addr = InstructionHelper._get_ptr_value_addr(base_ptr_inst)
+                inner_addr = InstructionHelper.get_ptr_value_addr(base_ptr_inst)
                 offset = -offset
             case bn.HighLevelILAddressOf(src=mem_inst):
                 return InstructionHelper._get_mem_access_addr(mem_inst)
@@ -550,15 +550,15 @@ class InstructionHelper:
         """
         match mem_inst:
             case bn.HighLevelILDerefSsa(src=ptr_inst):
-                return InstructionHelper._get_ptr_value_addr(ptr_inst)
+                return InstructionHelper.get_ptr_value_addr(ptr_inst)
             case bn.HighLevelILDerefFieldSsa(src=ptr_inst, offset=offset):
-                inner_addr = InstructionHelper._get_ptr_value_addr(ptr_inst)
+                inner_addr = InstructionHelper.get_ptr_value_addr(ptr_inst)
             case bn.HighLevelILStructField(src=struct_mem_inst, offset=offset):
                 inner_addr = InstructionHelper._get_mem_access_addr(struct_mem_inst)
             case bn.HighLevelILArrayIndexSsa(
                 src=ptr_inst, index=bn.HighLevelILConst(constant=index)
             ):
-                inner_addr = InstructionHelper._get_ptr_value_addr(ptr_inst)
+                inner_addr = InstructionHelper.get_ptr_value_addr(ptr_inst)
                 offset = index * mem_inst.size
             case bn.HighLevelILArrayIndexSsa():
                 # Opaque base in case of a non-constant index

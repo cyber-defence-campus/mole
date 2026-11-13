@@ -303,19 +303,13 @@ class FunctionHelper:
                                 else None
                             )
                             return dest_ssa_var, ptr_inst
-                        # `var_p = var_p'`
-                        case bn.MediumLevelILVarAliased():
+                        # `var_p = var_p'` (with `var_p'` an aliased pointer variable)
+                        case bn.MediumLevelILVarAliased(
+                            src=bn.SSAVariable(var=src_var)
+                        ) if isinstance(src_var.type, bn.PointerType):
                             ptr_inst = (
                                 src_inst.hlil
                                 if isinstance(src_inst.hlil, bn.HighLevelILVar)
-                                else None
-                            )
-                            return dest_ssa_var, ptr_inst
-                        # `var_p = sx(var_p')`
-                        case bn.MediumLevelILSx(src=bn.MediumLevelILVarAliased()):
-                            ptr_inst = (
-                                src_inst.src.hlil
-                                if isinstance(src_inst.src.hlil, bn.HighLevelILVar)
                                 else None
                             )
                             return dest_ssa_var, ptr_inst
