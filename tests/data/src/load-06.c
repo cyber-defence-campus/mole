@@ -23,6 +23,7 @@ void set_cmd(void) {
 
 __attribute__ ((noinline, optimize("O0")))
 int main(int argc, char *argv[]) {
+    s.cmd = "ls";
     set_cmd();
     return system(s.cmd);
 }

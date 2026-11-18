@@ -49,7 +49,12 @@ class TestPointerDeref(TestSlicing):
         return
 
     def test_load_07(self, filenames: List[str] = ["load-07"]) -> None:
-        self.test_load_06(filenames=filenames)
+        self.assert_paths(
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
+            call_chains=[["main", "set_cmd", "my_getenv"]],
+            filenames=filenames,
+        )
         return
 
     def test_load_08(self, filenames: List[str] = ["load-08"]) -> None:

@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import Logger
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Callable, Set, Tuple
+from typing import Callable, Dict, Set, Tuple
 import binaryninja as bn
 import os
 
@@ -510,8 +510,9 @@ class MediumLevelILBackwardSlicer:
                         self._tag,
                         f"Do not follow pointer '0x{constant:x}' since it is in a non-writable segment",
                     )
-            case bn.MediumLevelILLoadSsa(src=load_src_inst, size=load_src_size):
-                followed = False
+            case bn.MediumLevelILLoadSsa(src=load_inst, size=load_size):
+                must_def_followed = False
+                may_def_followed_funcs: Set[bn.Function] = set()
                 # Get instructions defining the memory version of `inst`
                 mem_def_insts = list(
                     FunctionHelper.get_ssa_memory_definitions(
@@ -520,39 +521,44 @@ class MediumLevelILBackwardSlicer:
                         self._max_memory_slice_depth,
                     )
                 )
-                # Loads from a constant global address may be defined outside the current function's
-                # SSA memory chain; add every instruction referencing that address as a candidate
-                # memory definition
-                if (
-                    self._max_memory_slice_depth < 0
-                    or len(mem_def_insts) < self._max_memory_slice_depth
-                ):
-                    match load_src_inst:
-                        case bn.MediumLevelILConstPtr(constant=load_addr):
-                            # Ensure rw- segment
-                            segment = self.bv.get_segment_at(load_addr)
-                            if (
-                                segment
-                                and segment.readable
-                                and segment.writable
-                                and not segment.executable
-                            ):
-                                # Determine code x-refs updating the memory version
-                                # (sorted by descending memory version order)
-                                code_ref_insts = sorted(
-                                    (
-                                        mlil.ssa_form
-                                        for code_ref in self.bv.get_code_refs(load_addr)
-                                        for mlil in code_ref.mlils
-                                        if mlil.ssa_form.ssa_memory_version
-                                        < mlil.ssa_form.ssa_memory_version_after
-                                    ),
-                                    key=lambda i: i.ssa_memory_version_after,
-                                    reverse=True,
+                # Get stores to a constant global load address outside the current function
+                ext_store_insts: deque[bn.MediumLevelILStoreSsa] = deque()
+                match load_inst:
+                    case bn.MediumLevelILConstPtr(constant=load_addr):
+                        # Ensure rw- segment (only writable data can be stored)
+                        segment = self.bv.get_segment_at(load_addr)
+                        if (
+                            segment
+                            and segment.readable
+                            and segment.writable
+                            and not segment.executable
+                        ):
+                            # Group unique store instructions by function
+                            func_store_insts: Dict[
+                                bn.MediumLevelILFunction, Set[bn.MediumLevelILStoreSsa]
+                            ] = {}
+                            for code_ref in self.bv.get_code_refs(load_addr):
+                                # Ensure code refrence is in another function
+                                if code_ref.function == inst.function.source_function:
+                                    continue
+                                # # Collect the reference's SSA store instructions, grouped by function
+                                for mlil in code_ref.mlils:
+                                    store_inst = mlil.ssa_form
+                                    if isinstance(store_inst, bn.MediumLevelILStoreSsa):
+                                        func_store_insts.setdefault(
+                                            store_inst.function, set()
+                                        ).add(store_inst)
+                            # Sort by decreasing memory version within each function
+                            for store_insts in func_store_insts.values():
+                                ext_store_insts.extend(
+                                    sorted(
+                                        store_insts,
+                                        key=lambda i: i.ssa_memory_version_after,
+                                        reverse=True,
+                                    )
                                 )
-                                # Add code x-refs to candidate memory definitions
-                                mem_def_insts.extend(code_ref_insts)
-                # Iterate memory defining instructions
+                # Follow the SSA memory chain
+                mem_def_insts.extend(ext_store_insts)
                 for mem_def_inst in mem_def_insts:
                     mem_def_inst_info = InstructionHelper.get_inst_info(
                         mem_def_inst, False
@@ -561,11 +567,12 @@ class MediumLevelILBackwardSlicer:
                     if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
                         self.log.debug(
                             self._tag,
-                            f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                            f"Do not follow instruction '{mem_def_inst_info:s}' since followed "
+                            f"before in the current call frame",
                         )
                         continue
                     match mem_def_inst:
-                        case bn.MediumLevelILStoreSsa(size=store_dest_size):
+                        case bn.MediumLevelILStoreSsa(size=store_size):
                             # Ensure HLIL exists
                             if inst.hlil is None or mem_def_inst.hlil is None:
                                 continue
@@ -576,32 +583,108 @@ class MediumLevelILBackwardSlicer:
                                     if not InstructionHelper.is_mem_access_overlapping(
                                         hlil_load_inst,
                                         hlil_store_inst,
-                                        load_src_size,
-                                        store_dest_size,
+                                        load_size,
+                                        store_size,
                                     ):
                                         continue
-                                    # Follow store
+                                    # Follow store instruction
                                     self.log.debug(
                                         self._tag,
-                                        f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the memory loaded by '{inst_info:s}'",
+                                        f"Follow store instruction '{mem_def_inst_info:s}' since "
+                                        f"it overlaps the memory loaded by '{inst_info:s}'",
                                     )
                                     self._call_tracker.push_mem_def_inst(mem_def_inst)
+                                    # Follow a must-def instruction
                                     self._slice_backwards(mem_def_inst)
-                                    followed = True
+                                    must_def_followed = True
                                     break
-                # Follow load source instruction if no specific store instruction was followed
-                if not followed:
+                        case (
+                            bn.MediumLevelILCallSsa(dest=dest_inst)
+                            | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
+                            | bn.MediumLevelILTailcallSsa(dest=dest_inst)
+                            | bn.MediumLevelILTailcallUntypedSsa(dest=dest_inst)
+                        ):
+                            match dest_inst:
+                                # Direct function calls
+                                case (
+                                    bn.MediumLevelILConstPtr(constant=func_addr)
+                                    | bn.MediumLevelILImport(constant=func_addr)
+                                ):
+                                    dest_inst_info = InstructionHelper.get_inst_info(
+                                        dest_inst, False
+                                    )
+                                    # Follow external stores being in a callee
+                                    for _ in range(len(ext_store_insts)):
+                                        ext_store_inst = ext_store_insts.popleft()
+                                        ext_store_inst_info = (
+                                            InstructionHelper.get_inst_info(
+                                                ext_store_inst, False
+                                            )
+                                        )
+                                        curr_func = (
+                                            mem_def_inst.function.source_function
+                                        )
+                                        cref_func = (
+                                            ext_store_inst.function.source_function
+                                        )
+                                        # Ensure callee was not followed before
+                                        if cref_func in may_def_followed_funcs:
+                                            continue
+                                        # Function containing the external store is a callee of the
+                                        # current function
+                                        if FunctionHelper.calls(curr_func, cref_func):
+                                            # Push function containing the memory defining
+                                            # instruction
+                                            recursion = self._call_tracker.push_func(
+                                                to_inst=ext_store_inst, downwards=True
+                                            )
+                                            # Follow the external store instruction
+                                            if not recursion:
+                                                self.log.debug(
+                                                    self._tag,
+                                                    f"Follow instruction '{ext_store_inst_info:s}' "
+                                                    f"of function '{dest_inst_info:s}' since it "
+                                                    f"may store the memory loaded by "
+                                                    f"'{inst_info:s}'",
+                                                )
+                                                self._call_tracker.push_mem_def_inst(
+                                                    ext_store_inst
+                                                )
+                                                # Follow a may-def instruction
+                                                self._slice_backwards(ext_store_inst)
+                                                may_def_followed_funcs.add(cref_func)
+                                            # Recursion detected
+                                            else:
+                                                self.log.debug(
+                                                    self._tag,
+                                                    f"Do not follow instruction "
+                                                    f"'{ext_store_inst_info:s}' of function "
+                                                    f"'{dest_inst_info:s}' since recursion "
+                                                    f"detected",
+                                                )
+                                            # Pop function containing the memory defining
+                                            # instruction and follow the reached parameters
+                                            self.__pop_func_and_slice_reached_params(
+                                                mem_def_inst
+                                            )
+                                        # Function containing the external store is not a callee of
+                                        # the current function
+                                        else:
+                                            # Postpone to follow the external store instruction
+                                            ext_store_insts.append(ext_store_inst)
+                # TODO: Follow what's in `ext_mem_store_insts`
+
+                # Follow load source instruction if no must-def store instruction was followed
+                if not must_def_followed:
                     load_src_inst_info = InstructionHelper.get_inst_info(
-                        load_src_inst, False
+                        load_inst, False
                     )
                     self.log.debug(
                         self._tag,
-                        f"Follow load source instruction '{load_src_inst_info:s}' since no specific store instruction was found",
+                        f"Follow load source instruction '{load_src_inst_info:s}' since no must-def store instruction was found",
                     )
-                    self._slice_backwards(load_src_inst)
-            case bn.MediumLevelILLoadStructSsa(
-                src=load_src_inst, offset=load_src_offset
-            ):
+                    self._slice_backwards(load_inst)
+            case bn.MediumLevelILLoadStructSsa(src=load_inst, offset=load_src_offset):
                 followed = False
                 # Get instructions defining the memory version of `inst`
                 mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
@@ -622,7 +705,7 @@ class MediumLevelILBackwardSlicer:
                         )
                         continue
                     match mem_def_inst:
-                        case bn.MediumLevelILStoreSsa(size=store_dest_size):
+                        case bn.MediumLevelILStoreSsa():
                             # Match HLIL instructions
                             if inst.hlil is None or mem_def_inst.hlil is None:
                                 continue
@@ -696,13 +779,13 @@ class MediumLevelILBackwardSlicer:
                 # Follow load source instruction if no specific store instruction was followed
                 if not followed:
                     load_src_inst_info = InstructionHelper.get_inst_info(
-                        load_src_inst, False
+                        load_inst, False
                     )
                     self.log.debug(
                         self._tag,
                         f"Follow load struct source instruction '{load_src_inst_info:s}' since no specific struct store instruction was found",
                     )
-                    self._slice_backwards(load_src_inst)
+                    self._slice_backwards(load_inst)
             case bn.MediumLevelILVarAliased(src=ssa_var):
                 self._slice_ssa_var_definition(ssa_var, inst)
             case bn.MediumLevelILVarAliasedField(offset=src_offset):

@@ -590,3 +590,22 @@ class FunctionHelper:
         for code_line in func.pseudo_c_if_available.get_linear_lines(func.hlil.root):
             code_lines.append(f"0x{code_line.address:x}: {str(code_line):s}")
         return "\n".join(code_lines)
+
+    @staticmethod
+    def calls(f1: bn.Function, f2: bn.Function, max_depth: int | None = None) -> bool:
+        """
+        Return True if `f1` calls `f2` directly or transitively.
+        """
+        visited = {f1.start}
+        queue = deque([(f1, 0)])
+        while queue:
+            func, depth = queue.popleft()
+            if max_depth is not None and depth >= max_depth:
+                continue
+            for callee in func.callees:
+                if callee.start == f2.start:
+                    return True
+                if callee.start not in visited:
+                    visited.add(callee.start)
+                    queue.append((callee, depth + 1))
+        return False

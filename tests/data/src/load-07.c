@@ -22,12 +22,13 @@ char* my_getenv(char* name) {
 
 __attribute__ ((noinline, optimize("O0")))
 void set_cmd(void) {
-    u.cmd1 = my_getenv("CMD1");
     u.cmd2 = getenv("CMD2");
+    u.cmd1 = my_getenv("CMD1");
 }
 
 __attribute__ ((noinline, optimize("O0")))
 int main(int argc, char *argv[]) {
+    u.cmd2 = "ls";
     set_cmd();
     return system(u.cmd2);
 }
