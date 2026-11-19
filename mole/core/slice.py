@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import Logger
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Callable, Dict, Set, Tuple
+from typing import Callable, Dict, Iterable, List, Set, Tuple
 import binaryninja as bn
 import os
 
@@ -259,22 +259,84 @@ class MediumLevelILBackwardSlicer:
                     followed = True
         return followed
 
+    def _walk_ssa_mem_definitions(
+        self,
+        func: bn.MediumLevelILFunction,
+        mem_versions: Iterable[int],
+        read_bytes: Set[int],
+        visit: Callable[[bn.MediumLevelILInstruction], Set[int]],
+    ) -> bool:
+        """
+        This method walks the SSA memory chain of function `func` backwards, starting at the memory
+        versions `mem_versions`. Each (non-phi) memory defining instruction is passed once to
+        `visit`, which slices it if relevant and returns the bytes in `read_bytes` it defines. At a
+        mem phi-node, each source memory version is walked as a separate path, which ends once its
+        bytes in `read_bytes` are fully defined. The method returns whether any path reached the
+        entry of `func` (or the maximum memory slice depth) with bytes in `read_bytes` undefined.
+        """
+        undef_at_entry = False
+        # Undefined bytes each memory version was visited with
+        visited: Dict[int, Set[int]] = {}
+        # Bytes defined by each visited memory defining instruction
+        def_bytes: Dict[bn.MediumLevelILInstruction, Set[int]] = {}
+        queue: deque[Tuple[int, Set[int]]] = deque(
+            (mem_version, read_bytes) for mem_version in mem_versions
+        )
+        while queue:
+            mem_version, undef_bytes = queue.popleft()
+            # Ignore memory version if visited before with the same undefined bytes
+            if undef_bytes <= visited.get(mem_version, set()):
+                continue
+            # Break if maximum number of memory versions visited
+            if (
+                self._max_memory_slice_depth >= 0
+                and len(visited) >= self._max_memory_slice_depth
+            ):
+                undef_at_entry = True
+                break
+            visited[mem_version] = visited.get(mem_version, set()) | undef_bytes
+            mem_def_inst = func.get_ssa_memory_definition(mem_version)
+            match mem_def_inst:
+                # Memory version is not defined within `func`
+                case None:
+                    undef_at_entry = True
+                # Memory version can be defined by multiple paths (mem phi-node)
+                case bn.MediumLevelILMemPhi(src_memory=src_memory_versions):
+                    queue.extend(
+                        (src_memory_version, undef_bytes)
+                        for src_memory_version in src_memory_versions
+                    )
+                # Visit memory defining instruction and continue with the still undefined bytes
+                case _:
+                    if mem_def_inst not in def_bytes:
+                        def_bytes[mem_def_inst] = visit(mem_def_inst)
+                    undef_bytes = undef_bytes - def_bytes[mem_def_inst]
+                    if undef_bytes:
+                        queue.append((mem_def_inst.ssa_memory_version, undef_bytes))
+        return undef_at_entry
+
     def _slice_ssa_var_mem_definitions(
         self, ssa_var: bn.SSAVariable, inst: bn.MediumLevelILInstruction
     ) -> bool:
         """
-        This method determines all instructions in the function `inst.function` that define the
-        memory version `inst.ssa_memory_version`. It then iterates these instructions by decreasing
-        memory version order and slices them until the bytes read by `inst` are fully defined.
+        This method walks the SSA memory chain of the function `inst.function` backwards from
+        `inst.ssa_memory_version` and slices the instructions possibly defining `ssa_var`. Each
+        path through mem phi-nodes ends once the bytes read by `inst` are fully defined on it.
         Calls only possibly write `ssa_var` (through pointer parameters) and field assignments may
         only partially write the bytes read by `inst`, so slicing continues past them.
         """
         # Bytes of `ssa_var` read by `inst` that must be defined before slicing stops
         read_offset, read_size = self._get_read_range(ssa_var, inst)
         read_bytes = set(range(read_offset, read_offset + read_size))
+        # Whether any memory defining instruction was sliced
+        followed = False
 
-        # Bytes in `read_bytes` that `mem_def_inst` must define (calls define none)
-        def get_def_bytes(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
+        # Slice `mem_def_inst` and return the bytes in `read_bytes` it defines (calls define none)
+        def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
+            nonlocal followed
+            if not self._slice_ssa_var_mem_definition(ssa_var, inst, mem_def_inst):
+                return set()
+            followed = True
             match mem_def_inst:
                 case bn.MediumLevelILSetVarAliased():
                     return read_bytes
@@ -282,56 +344,223 @@ class MediumLevelILBackwardSlicer:
                     return read_bytes & set(range(offset, offset + size))
             return set()
 
-        # Whether any memory defining instruction was sliced
-        followed = False
-        # Whether a mem phi-node branch fully defined the read bytes
-        phi_fully_defined = False
-        # Read bytes defined so far by sliced (non-phi) instructions
-        def_bytes: Set[int] = set()
-        # Get instructions defining the memory version of `inst`
-        mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
-            inst.function, inst.ssa_memory_version, self._max_memory_slice_depth
+        self._walk_ssa_mem_definitions(
+            inst.function, [inst.ssa_memory_version], read_bytes, visit
         )
-        # Iterate memory defining instructions
-        i = 0
-        while i < len(mem_def_insts):
-            mem_def_inst = mem_def_insts[i]
-            match mem_def_inst:
-                # If the memory can be defined by multiple instructions (mem phi-node), try to
-                # following all of them
-                case bn.MediumLevelILMemPhi(src_memory=src_memory_versions):
-                    processed_cnt = 0
-                    for j, src_memory_version in enumerate(
-                        src_memory_versions, start=1
-                    ):
-                        if i + j >= len(mem_def_insts):
-                            break
-                        if (
-                            mem_def_insts[i + j].ssa_memory_version_after
-                            != src_memory_version
-                        ):
-                            break
-                        if self._slice_ssa_var_mem_definition(
-                            ssa_var, inst, mem_def_insts[i + j]
-                        ):
-                            followed = True
-                            # Only a branch fully defining the read bytes on its own ends slicing
-                            if get_def_bytes(mem_def_insts[i + j]) >= read_bytes:
-                                phi_fully_defined = True
-                        processed_cnt += 1
-                    if phi_fully_defined:
-                        break
-                    else:
-                        i += processed_cnt
-                # Try to follow the memory defining instruction
-                case _:
-                    if self._slice_ssa_var_mem_definition(ssa_var, inst, mem_def_inst):
-                        followed = True
-                        def_bytes |= get_def_bytes(mem_def_inst)
-                        if def_bytes >= read_bytes:
-                            break
-            i += 1
         return followed
+
+    def _slice_store_chain(
+        self,
+        inst_info: str,
+        store_chain: Tuple[bn.MediumLevelILInstruction, ...],
+        call_inst: bn.MediumLevelILInstruction | None = None,
+        downwards: bool = True,
+    ) -> None:
+        """
+        This method slices the store instruction at the end of `store_chain`, which may define the
+        memory loaded by the instruction described by `inst_info`. All other instructions in
+        `store_chain` are calls, each into the function of the next instruction. A call frame is
+        pushed for the function of each instruction in `store_chain`. `call_inst` is the call into
+        the function of the first instruction, or `None` if there is no such call in the current
+        function (`downwards` then tells whether that function is a callee or a caller).
+        """
+        mem_def_inst, *rest = store_chain
+        mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
+        # Push function containing the instruction
+        recursion = self._call_tracker.push_func(
+            to_inst=mem_def_inst, downwards=downwards
+        )
+        if recursion:
+            self.log.debug(
+                self._tag,
+                f"Do not follow instruction '{mem_def_inst_info:s}' since recursion detected",
+            )
+        # Follow the call into the function of the next instruction
+        elif rest:
+            self._call_tracker.push_inst(mem_def_inst)
+            self._slice_store_chain(inst_info, tuple(rest), mem_def_inst)
+            self._call_tracker.pop_inst()
+        # Follow the store instruction
+        else:
+            self.log.debug(
+                self._tag,
+                f"Follow instruction '{mem_def_inst_info:s}' since it may store the memory "
+                f"loaded by '{inst_info:s}'",
+            )
+            self._call_tracker.push_mem_def_inst(mem_def_inst)
+            self._slice_backwards(mem_def_inst)
+        # Pop function containing the instruction and follow the reached parameters
+        self.__pop_func_and_slice_reached_params(call_inst)
+        return
+
+    def _slice_load_mem_definitions(self, inst: bn.MediumLevelILLoadSsa) -> bool:
+        """
+        This method slices the store instructions possibly defining the memory loaded by `inst`:
+        - Stores in `inst.function` overlapping the loaded memory are must-defs, i.e. they end the
+          path through the SSA memory chain they are on
+        - If `inst` loads from a constant address in a writable segment, stores to it in other
+          functions are may-defs. Stores in (transitive) callees are sliced at the call when walking
+          the SSA memory chain of `inst.function`. Stores in all other functions are only sliced if
+          some path reaches the entry of `inst.function` without a must-def. Within a function,
+          stores are found by walking its SSA memory chain backwards from its return instructions,
+          so that stores on all paths through the function are sliced.
+        The method returns whether some path reaches the entry of `inst.function` (or the maximum
+        memory slice depth) without a must-def.
+        """
+        inst_info = InstructionHelper.get_inst_info(inst)
+        curr_func = inst.function.source_function
+        read_bytes = set(range(inst.size))
+        # Get other functions storing to a constant global load address
+        writer_funcs: Set[bn.Function] = set()
+        match inst.src:
+            case bn.MediumLevelILConstPtr(constant=load_addr):
+                # Ensure rw- segment (only writable data can be stored)
+                segment = self.bv.get_segment_at(load_addr)
+                if (
+                    segment
+                    and segment.readable
+                    and segment.writable
+                    and not segment.executable
+                ):
+                    for code_ref in self.bv.get_code_refs(load_addr):
+                        if code_ref.function == curr_func:
+                            continue
+                        if any(
+                            isinstance(mlil.ssa_form, bn.MediumLevelILStoreSsa)
+                            for mlil in code_ref.mlils
+                        ):
+                            writer_funcs.add(code_ref.function)
+        # Whether a function (transitively) calls a function in `writer_funcs`
+        may_write: Dict[bn.Function, bool] = {}
+        # Functions whose SSA memory chain was walked for stores
+        walked_funcs: Set[bn.Function] = set()
+
+        # Whether `store_inst` stores memory overlapping the one loaded by `inst`
+        def is_overlapping(store_inst: bn.MediumLevelILStoreSsa) -> bool:
+            if inst.hlil is None or store_inst.hlil is None:
+                return False
+            match store_inst.hlil.ssa_form:
+                case bn.HighLevelILAssignMemSsa(dest=hlil_store_inst):
+                    return InstructionHelper.is_mem_access_overlapping(
+                        inst.hlil.ssa_form, hlil_store_inst, inst.size, store_inst.size
+                    )
+            return False
+
+        # Get the callee of `call_inst` if it may write the loaded memory
+        def get_writer_callee(
+            call_inst: bn.MediumLevelILInstruction,
+        ) -> bn.MediumLevelILFunction | None:
+            match call_inst.dest:
+                case (
+                    bn.MediumLevelILConstPtr(constant=func_addr)
+                    | bn.MediumLevelILImport(constant=func_addr)
+                ):
+                    func = self.bv.get_function_at(func_addr)
+                    if func is None or func.mlil is None:
+                        return None
+                    if func not in may_write:
+                        may_write[func] = any(
+                            func == writer_func
+                            or FunctionHelper.calls(func, writer_func)
+                            for writer_func in writer_funcs
+                        )
+                    if may_write[func]:
+                        return func.mlil.ssa_form
+            return None
+
+        # Get the store chains (see `_slice_store_chain`) of all stores to the loaded memory in
+        # `func` and its callees, excluding the functions in `visiting`
+        def get_store_chains(
+            func: bn.MediumLevelILFunction, visiting: Set[bn.Function]
+        ) -> List[Tuple[bn.MediumLevelILInstruction, ...]]:
+            walked_funcs.add(func.source_function)
+            store_chains: List[Tuple[bn.MediumLevelILInstruction, ...]] = []
+
+            def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
+                match mem_def_inst:
+                    case bn.MediumLevelILStoreSsa():
+                        if is_overlapping(mem_def_inst):
+                            store_chains.append((mem_def_inst,))
+                            return read_bytes
+                    case (
+                        bn.MediumLevelILCallSsa()
+                        | bn.MediumLevelILCallUntypedSsa()
+                        | bn.MediumLevelILTailcallSsa()
+                        | bn.MediumLevelILTailcallUntypedSsa()
+                    ):
+                        callee = get_writer_callee(mem_def_inst)
+                        if (
+                            callee is not None
+                            and callee.source_function not in visiting
+                        ):
+                            store_chains.extend(
+                                (mem_def_inst, *store_chain)
+                                for store_chain in get_store_chains(
+                                    callee, visiting | {callee.source_function}
+                                )
+                            )
+                return set()
+
+            ret_mem_versions = [
+                ret_inst.ssa_memory_version
+                for ret_inst in FunctionHelper.get_mlil_return_insts(func)
+            ]
+            self._walk_ssa_mem_definitions(func, ret_mem_versions, read_bytes, visit)
+            return store_chains
+
+        # Slice stores (must-defs) and callees' stores (may-defs) in the current function
+        def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
+            mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
+            # Check if memory defining instruction was followed before
+            if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
+                self.log.debug(
+                    self._tag,
+                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed "
+                    f"before in the current call frame",
+                )
+                return set()
+            match mem_def_inst:
+                case bn.MediumLevelILStoreSsa():
+                    if is_overlapping(mem_def_inst):
+                        self.log.debug(
+                            self._tag,
+                            f"Follow store instruction '{mem_def_inst_info:s}' since it "
+                            f"overlaps the memory loaded by '{inst_info:s}'",
+                        )
+                        self._call_tracker.push_mem_def_inst(mem_def_inst)
+                        self._slice_backwards(mem_def_inst)
+                        return read_bytes
+                case (
+                    bn.MediumLevelILCallSsa()
+                    | bn.MediumLevelILCallUntypedSsa()
+                    | bn.MediumLevelILTailcallSsa()
+                    | bn.MediumLevelILTailcallUntypedSsa()
+                ):
+                    callee = get_writer_callee(mem_def_inst)
+                    if callee is not None:
+                        for store_chain in get_store_chains(
+                            callee, {curr_func, callee.source_function}
+                        ):
+                            self._slice_store_chain(
+                                inst_info, store_chain, mem_def_inst
+                            )
+            return set()
+
+        undef_at_entry = self._walk_ssa_mem_definitions(
+            inst.function, [inst.ssa_memory_version], read_bytes, visit
+        )
+        # Slice stores (may-defs) in functions not called on the SSA memory chain, if some path
+        # reaches the entry of the current function without a must-def
+        if undef_at_entry:
+            for writer_func in sorted(writer_funcs, key=lambda func: func.start):
+                if writer_func in walked_funcs or writer_func.mlil is None:
+                    continue
+                downwards = FunctionHelper.calls(curr_func, writer_func)
+                for store_chain in get_store_chains(
+                    writer_func.mlil.ssa_form, {curr_func, writer_func}
+                ):
+                    self._slice_store_chain(inst_info, store_chain, None, downwards)
+        return undef_at_entry
 
     def _slice_ssa_var_definition(
         self, ssa_var: bn.SSAVariable, inst: bn.MediumLevelILInstruction
@@ -513,219 +742,16 @@ class MediumLevelILBackwardSlicer:
                         self._tag,
                         f"Do not follow pointer '0x{constant:x}' since it is in a non-writable segment",
                     )
-            # TODO: We need to use `FunctionHelper.get_ssa_memory_definitions` for the callees too
-            case bn.MediumLevelILLoadSsa(src=load_inst, size=load_size):
-                must_def_followed = False
-                may_def_followed_funcs: Set[bn.Function] = set()
-                # Get instructions defining the memory version of `inst`
-                mem_def_insts = list(
-                    FunctionHelper.get_ssa_memory_definitions(
-                        inst.function,
-                        inst.ssa_memory_version,
-                        self._max_memory_slice_depth,
-                    )
-                )
-                cnt_mem_def_insts = len(mem_def_insts)
-                # Get stores to a constant global load address outside the current function
-                ext_store_insts: deque[bn.MediumLevelILStoreSsa] = deque()
-                match load_inst:
-                    case bn.MediumLevelILConstPtr(constant=load_addr):
-                        # Ensure rw- segment (only writable data can be stored)
-                        segment = self.bv.get_segment_at(load_addr)
-                        if (
-                            segment
-                            and segment.readable
-                            and segment.writable
-                            and not segment.executable
-                        ):
-                            # Group unique store instructions by function
-                            func_store_insts: Dict[
-                                bn.MediumLevelILFunction, Set[bn.MediumLevelILStoreSsa]
-                            ] = {}
-                            for code_ref in self.bv.get_code_refs(load_addr):
-                                # Ensure code refrence is in another function
-                                if code_ref.function == inst.function.source_function:
-                                    continue
-                                # # Collect the reference's SSA store instructions, grouped by function
-                                for mlil in code_ref.mlils:
-                                    store_inst = mlil.ssa_form
-                                    if isinstance(store_inst, bn.MediumLevelILStoreSsa):
-                                        func_store_insts.setdefault(
-                                            store_inst.function, set()
-                                        ).add(store_inst)
-                            # Sort by decreasing memory version within each function
-                            for store_insts in func_store_insts.values():
-                                ext_store_insts.extend(
-                                    sorted(
-                                        store_insts,
-                                        key=lambda i: i.ssa_memory_version_after,
-                                        reverse=True,
-                                    )
-                                )
-                # Follow the SSA memory chain
-                mem_def_insts.extend(ext_store_insts)
-                for idx, mem_def_inst in enumerate(mem_def_insts):
-                    mem_def_inst_info = InstructionHelper.get_inst_info(
-                        mem_def_inst, False
-                    )
-                    # Check if memory defining instruction was followed before
-                    if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
-                        self.log.debug(
-                            self._tag,
-                            f"Do not follow instruction '{mem_def_inst_info:s}' since followed "
-                            f"before in the current call frame",
-                        )
-                        continue
-                    match mem_def_inst:
-                        case bn.MediumLevelILStoreSsa(size=store_size):
-                            # Ensure HLIL exists
-                            if inst.hlil is None or mem_def_inst.hlil is None:
-                                continue
-                            hlil_load_inst = inst.hlil.ssa_form
-                            match mem_def_inst.hlil.ssa_form:
-                                case bn.HighLevelILAssignMemSsa(dest=hlil_store_inst):
-                                    # Ensure store overlaps load
-                                    if not InstructionHelper.is_mem_access_overlapping(
-                                        hlil_load_inst,
-                                        hlil_store_inst,
-                                        load_size,
-                                        store_size,
-                                    ):
-                                        continue
-                                    # Follow store instruction in the current function
-                                    if idx < cnt_mem_def_insts:
-                                        self.log.debug(
-                                            self._tag,
-                                            f"Follow store instruction '{mem_def_inst_info:s}' "
-                                            f"since it overlaps the memory loaded by "
-                                            f"'{inst_info:s}'",
-                                        )
-                                        self._call_tracker.push_mem_def_inst(
-                                            mem_def_inst
-                                        )
-                                        self._slice_backwards(mem_def_inst)
-                                        # Follow a must-def instruction
-                                        must_def_followed = True
-                                        break
-                                    # Follow store instruction in another function
-                                    else:
-                                        curr_func = inst.function.source_function
-                                        cref_func = (
-                                            mem_def_inst.function.source_function
-                                        )
-                                        # Ensure callee was not followed before
-                                        if cref_func in may_def_followed_funcs:
-                                            continue
-                                        # Push function containing the external store instruction
-                                        recursion = self._call_tracker.push_func(
-                                            to_inst=mem_def_inst,
-                                            downwards=FunctionHelper.calls(
-                                                curr_func, cref_func
-                                            ),
-                                        )
-                                        # Follow the external store instruction
-                                        if not recursion:
-                                            self.log.debug(
-                                                self._tag,
-                                                f"Follow instruction '{mem_def_inst_info:s}' since "
-                                                f"it may store the memory loaded by "
-                                                f"'{inst_info:s}'",
-                                            )
-                                            self._call_tracker.push_mem_def_inst(
-                                                mem_def_inst
-                                            )
-                                            self._slice_backwards(mem_def_inst)
-                                            # Follow a may-def instruction
-                                            may_def_followed_funcs.add(cref_func)
-                                        # Recursion detected
-                                        else:
-                                            self.log.debug(
-                                                self._tag,
-                                                f"Do not follow instruction "
-                                                f"'{mem_def_inst_info:s}' since recursion "
-                                                f"detected",
-                                            )
-                                        # Pop function containing the memory defining
-                                        # instruction
-                                        self.__pop_func_and_slice_reached_params()
-                        case (
-                            bn.MediumLevelILCallSsa(dest=dest_inst)
-                            | bn.MediumLevelILCallUntypedSsa(dest=dest_inst)
-                            | bn.MediumLevelILTailcallSsa(dest=dest_inst)
-                            | bn.MediumLevelILTailcallUntypedSsa(dest=dest_inst)
-                        ):
-                            match dest_inst:
-                                # Direct function calls
-                                case (
-                                    bn.MediumLevelILConstPtr(constant=func_addr)
-                                    | bn.MediumLevelILImport(constant=func_addr)
-                                ):
-                                    dest_inst_info = InstructionHelper.get_inst_info(
-                                        dest_inst, False
-                                    )
-                                    # Follow external stores being in a callee
-                                    for _ in range(len(ext_store_insts)):
-                                        ext_store_inst = ext_store_insts.popleft()
-                                        ext_store_inst_info = (
-                                            InstructionHelper.get_inst_info(
-                                                ext_store_inst, False
-                                            )
-                                        )
-                                        curr_func = inst.function.source_function
-                                        cref_func = (
-                                            ext_store_inst.function.source_function
-                                        )
-                                        # Ensure callee was not followed before
-                                        if cref_func in may_def_followed_funcs:
-                                            continue
-                                        # Function containing the external store is a callee of the
-                                        # current function
-                                        if FunctionHelper.calls(curr_func, cref_func):
-                                            # Push function containing the external store
-                                            # instruction
-                                            recursion = self._call_tracker.push_func(
-                                                to_inst=ext_store_inst, downwards=True
-                                            )
-                                            # Follow the external store instruction
-                                            if not recursion:
-                                                self.log.debug(
-                                                    self._tag,
-                                                    f"Follow instruction '{ext_store_inst_info:s}' "
-                                                    f"since it may store the memory loaded by "
-                                                    f"'{inst_info:s}'",
-                                                )
-                                                self._call_tracker.push_mem_def_inst(
-                                                    ext_store_inst
-                                                )
-                                                self._slice_backwards(ext_store_inst)
-                                                # Follow a may-def instruction
-                                                may_def_followed_funcs.add(cref_func)
-                                            # Recursion detected
-                                            else:
-                                                self.log.debug(
-                                                    self._tag,
-                                                    f"Do not follow instruction "
-                                                    f"'{ext_store_inst_info:s}' since recursion "
-                                                    f"detected",
-                                                )
-                                            # Pop function containing the memory defining
-                                            # instruction and follow the reached parameters
-                                            self.__pop_func_and_slice_reached_params(
-                                                mem_def_inst
-                                            )
-                                        # Function containing the external store is not a callee of
-                                        # the current function
-                                        else:
-                                            # Postpone to follow the external store instruction
-                                            ext_store_insts.append(ext_store_inst)
-                # Follow load source instruction if no must-def store instruction was followed
-                if not must_def_followed:
+            case bn.MediumLevelILLoadSsa(src=load_inst):
+                # Follow load source instruction if some path reaches the function entry without a
+                # must-def store instruction
+                if self._slice_load_mem_definitions(inst):
                     load_src_inst_info = InstructionHelper.get_inst_info(
                         load_inst, False
                     )
                     self.log.debug(
                         self._tag,
-                        f"Follow load source instruction '{load_src_inst_info:s}' since no must-def store instruction was found",
+                        f"Follow load source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a must-def store instruction",
                     )
                     self._slice_backwards(load_inst)
             case bn.MediumLevelILLoadStructSsa(src=load_inst, offset=load_src_offset):
