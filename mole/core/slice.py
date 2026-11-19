@@ -390,7 +390,7 @@ class MediumLevelILBackwardSlicer:
         self.__pop_func_and_slice_reached_params(call_inst)
         return
 
-    def _slice_load_mem_definitions(self, inst: bn.MediumLevelILLoadSsa) -> bool:
+    def _slice_load_mem_definitions(self, inst: bn.MediumLevelILLoadSsa) -> None:
         """
         This method slices the store instructions possibly defining the memory loaded by `inst`:
         - Stores in `inst.function` overlapping the loaded memory are must-defs, i.e. they end the
@@ -401,8 +401,8 @@ class MediumLevelILBackwardSlicer:
           some path reaches the entry of `inst.function` without a must-def. Within a function,
           stores are found by walking its SSA memory chain backwards from its return instructions,
           so that stores on all paths through the function are sliced.
-        The method returns whether some path reaches the entry of `inst.function` (or the maximum
-        memory slice depth) without a must-def.
+        If some path reaches the entry of `inst.function` (or the maximum memory slice depth)
+        without a must-def, the load source instruction is sliced too.
         """
         inst_info = InstructionHelper.get_inst_info(inst)
         curr_func = inst.function.source_function
@@ -557,7 +557,14 @@ class MediumLevelILBackwardSlicer:
                     writer_func.mlil.ssa_form, {curr_func, writer_func}
                 ):
                     self._slice_store_chain(inst_info, store_chain, None, downwards)
-        return undef_at_entry
+            # Follow load source instruction
+            load_src_inst_info = InstructionHelper.get_inst_info(inst.src, False)
+            self.log.debug(
+                self._tag,
+                f"Follow load source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a must-def store instruction",
+            )
+            self._slice_backwards(inst.src)
+        return
 
     def _slice_ssa_var_definition(
         self, ssa_var: bn.SSAVariable, inst: bn.MediumLevelILInstruction
@@ -1069,18 +1076,8 @@ class MediumLevelILBackwardSlicer:
             # NOTE: Case order matters
             case bn.MediumLevelILConstPtr():
                 self._slice_const_ptr_mem_definitions(inst)
-            case bn.MediumLevelILLoadSsa(src=load_inst):
-                # Follow load source instruction if some path reaches the function entry without a
-                # must-def store instruction
-                if self._slice_load_mem_definitions(inst):
-                    load_src_inst_info = InstructionHelper.get_inst_info(
-                        load_inst, False
-                    )
-                    self.log.debug(
-                        self._tag,
-                        f"Follow load source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a must-def store instruction",
-                    )
-                    self._slice_backwards(load_inst)
+            case bn.MediumLevelILLoadSsa():
+                self._slice_load_mem_definitions(inst)
             case bn.MediumLevelILLoadStructSsa():
                 self._slice_load_struct_mem_definitions(inst)
             case (
