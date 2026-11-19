@@ -95,10 +95,9 @@ class MediumLevelILBackwardSlicer:
         This method matches the memory defining instruction `mem_def_inst` against the following
         cases, where `inst` is the instruction being sliced that reads `ssa_var` (e.g. a
         `MediumLevelILVarAliasedField` reading `ssa_var` at some offset):
-        - If `mem_def_inst` is an assignment to the aliased variable underlying `ssa_var`, slice its
-          source
+        - If `mem_def_inst` is an assignment to the aliased variable underlying `ssa_var`, slice it
         - If `mem_def_inst` is an assignment to a field of the aliased variable underlying
-          `ssa_var` that overlaps the bytes read by `inst`, slice its source
+          `ssa_var` that overlaps the bytes read by `inst`, slice it
         - If `mem_def_inst` is a call having a parameter that possibly writes `ssa_var`, slice the
           call. This is the case if `ssa_var` is aliased and the parameter points to it (e.g.
           `&ssa_var`), or if `ssa_var` is a pointer and the parameter holds the same pointer value
@@ -117,11 +116,10 @@ class MediumLevelILBackwardSlicer:
             return followed
         # Match memory defining instruction
         match mem_def_inst:
-            # Assignment to aliased variable underlying `ssa_var` -> slice source instruction
+            # Assignment to aliased variable underlying `ssa_var` -> slice assignment instruction
             case bn.MediumLevelILSetVarAliased(
                 prev=prev_ssa_var,
                 dest=dest_ssa_var,
-                src=src_inst,
             ):
                 if (
                     prev_ssa_var.var == dest_ssa_var.var == ssa_var.var
@@ -131,19 +129,18 @@ class MediumLevelILBackwardSlicer:
                 ):
                     self.log.debug(
                         self._tag,
-                        f"Follow source of instruction '{mem_def_inst_info:s}' since it writes aliased variable '{ssa_var_info:s}'",
+                        f"Follow instruction '{mem_def_inst_info:s}' since it writes aliased variable '{ssa_var_info:s}'",
                     )
                     self._call_tracker.push_mem_def_inst(mem_def_inst)
-                    self._slice_backwards(src_inst)
+                    self._slice_backwards(mem_def_inst)
                     followed = True
-            # Assignment to field of aliased variable underlying `ssa_var` -> slice source
+            # Assignment to field of aliased variable underlying `ssa_var` -> slice assignment
             # instruction
             case bn.MediumLevelILSetVarAliasedField(
                 prev=prev_ssa_var,
                 dest=dest_ssa_var,
                 offset=dest_offset,
                 size=dest_size,
-                src=src_inst,
             ):
                 # Byte range of `ssa_var` read by `inst`
                 read_offset, read_size = self._get_read_range(ssa_var, inst)
@@ -158,13 +155,13 @@ class MediumLevelILBackwardSlicer:
                 ):
                     self.log.debug(
                         self._tag,
-                        f"Follow source of instruction '{mem_def_inst_info:s}' since it writes "
+                        f"Follow instruction '{mem_def_inst_info:s}' since it writes "
                         f"bytes [{dest_offset:d}, {dest_offset + dest_size:d}) of aliased variable "
                         f"'{ssa_var_info:s}' overlapping [{read_offset:d}, "
                         f"{read_offset + read_size:d})",
                     )
                     self._call_tracker.push_mem_def_inst(mem_def_inst)
-                    self._slice_backwards(src_inst)
+                    self._slice_backwards(mem_def_inst)
                     followed = True
             # Call with a parameter possibly writing `ssa_var` -> slice call instruction
             case (
@@ -807,63 +804,6 @@ class MediumLevelILBackwardSlicer:
             self._slice_backwards(load_inst)
         return
 
-    def _slice_var_aliased_field_mem_definitions(
-        self, inst: bn.MediumLevelILVarAliasedField
-    ) -> None:
-        """
-        This method slices the first instruction defining the memory version of `inst` that
-        assigns the same struct field as read by `inst`.
-        """
-        inst_info = InstructionHelper.get_inst_info(inst)
-        # Get instructions defining the memory version of `inst`
-        mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
-            inst.function,
-            inst.ssa_memory_version,
-            self._max_memory_slice_depth,
-        )
-        # Iterate memory defining instructions
-        for mem_def_inst in mem_def_insts:
-            mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-            # Check if memory defining instruction was followed before
-            if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
-                self.log.debug(
-                    self._tag,
-                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
-                )
-                continue
-            match mem_def_inst:
-                case bn.MediumLevelILSetVarAliasedField(offset=dest_offset):
-                    # Match HLIL instructions
-                    if inst.hlil is None or mem_def_inst.hlil is None:
-                        continue
-                    hlil_src_inst = inst.hlil.ssa_form
-                    hlil_dest_inst = mem_def_inst.hlil.ssa_form
-                    match (hlil_src_inst, hlil_dest_inst):
-                        # Struct field assignment
-                        case (
-                            bn.HighLevelILStructField(
-                                src=bn.HighLevelILVar(var=src_var),
-                                offset=src_offset,
-                            ),
-                            bn.HighLevelILAssignMemSsa(
-                                dest=bn.HighLevelILStructField(
-                                    src=bn.HighLevelILVar(var=dest_var),
-                                    offset=dest_offset,
-                                )
-                            ),
-                        ):
-                            # Ensure same struct field
-                            if src_var != dest_var or src_offset != dest_offset:
-                                continue
-                            self.log.debug(
-                                self._tag,
-                                f"Follow instruction '{mem_def_inst_info:s}' since it writes the same field as in '{inst_info:s}'",
-                            )
-                            self._call_tracker.push_mem_def_inst(mem_def_inst)
-                            self._slice_backwards(mem_def_inst)
-                            break
-        return
-
     def _slice_callee_out_param_definitions(
         self,
         inst: bn.MediumLevelILCallSsa
@@ -1143,10 +1083,11 @@ class MediumLevelILBackwardSlicer:
                     self._slice_backwards(load_inst)
             case bn.MediumLevelILLoadStructSsa():
                 self._slice_load_struct_mem_definitions(inst)
-            case bn.MediumLevelILVarAliased(src=ssa_var):
+            case (
+                bn.MediumLevelILVarAliased(src=ssa_var)
+                | bn.MediumLevelILVarAliasedField(src=ssa_var)
+            ):
                 self._slice_ssa_var_definition(ssa_var, inst)
-            case bn.MediumLevelILVarAliasedField():
-                self._slice_var_aliased_field_mem_definitions(inst)
             case (
                 bn.MediumLevelILAddressOf(src=var)
                 | bn.MediumLevelILAddressOfField(src=var)
