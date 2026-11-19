@@ -647,51 +647,52 @@ class MediumLevelILBackwardSlicer:
         `inst.constant` as parameter, given the pointer is in a writable segment.
         """
         constant = inst.constant
+
+        # Slice `mem_def_inst` if it is a call having the same pointer as parameter (calls define no
+        # bytes, so every path is walked to the function entry)
+        def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
+            mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
+            # Check if memory defining instruction was followed before
+            if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
+                self.log.debug(
+                    self._tag,
+                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                )
+                return set()
+            match mem_def_inst:
+                # Slice calls having the same pointer as parameter
+                case (
+                    bn.MediumLevelILCallSsa(params=params)
+                    | bn.MediumLevelILCallUntypedSsa(params=params)
+                    | bn.MediumLevelILTailcallSsa(params=params)
+                    | bn.MediumLevelILTailcallUntypedSsa(params=params)
+                ):
+                    param_idxs: Set[int] = set()
+                    for param_idx, param_inst in enumerate(params, start=1):
+                        match param_inst:
+                            case bn.MediumLevelILConstPtr(constant=constant) if (
+                                constant == inst.constant
+                            ):
+                                param_idxs.add(param_idx)
+                    if param_idxs:
+                        params_str = (
+                            "parameter " if len(param_idxs) == 1 else "parameters "
+                        )
+                        params_str += ", ".join(map(str, sorted(param_idxs)))
+                        self.log.debug(
+                            self._tag,
+                            f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}' in {params_str:s}",
+                        )
+                        self._call_tracker.push_mem_def_inst(mem_def_inst)
+                        self._slice_backwards(mem_def_inst, param_idxs)
+            return set()
+
         # Ignore pointers that are in non-writable segments
         segment = self.bv.get_segment_at(constant)
         if segment and segment.writable:
-            # Get instructions defining the memory version of `inst`
-            mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
-                inst.function,
-                inst.ssa_memory_version,
-                self._max_memory_slice_depth,
+            self._walk_ssa_mem_definitions(
+                inst.function, [inst.ssa_memory_version], {0}, visit
             )
-            # Iterate memory defining instructions
-            for mem_def_inst in mem_def_insts:
-                mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-                # Check if memory defining instruction was followed before
-                if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
-                    self.log.debug(
-                        self._tag,
-                        f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
-                    )
-                    continue
-                match mem_def_inst:
-                    # Slice calls having the same pointer as parameter
-                    case (
-                        bn.MediumLevelILCallSsa(params=params)
-                        | bn.MediumLevelILCallUntypedSsa(params=params)
-                        | bn.MediumLevelILTailcallSsa(params=params)
-                        | bn.MediumLevelILTailcallUntypedSsa(params=params)
-                    ):
-                        param_idxs: Set[int] = set()
-                        for param_idx, param_inst in enumerate(params, start=1):
-                            match param_inst:
-                                case bn.MediumLevelILConstPtr(constant=constant) if (
-                                    constant == inst.constant
-                                ):
-                                    param_idxs.add(param_idx)
-                        if param_idxs:
-                            params_str = (
-                                "parameter " if len(param_idxs) == 1 else "parameters "
-                            )
-                            params_str += ", ".join(map(str, sorted(param_idxs)))
-                            self.log.debug(
-                                self._tag,
-                                f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}' in {params_str:s}",
-                            )
-                            self._call_tracker.push_mem_def_inst(mem_def_inst)
-                            self._slice_backwards(mem_def_inst, param_idxs)
         else:
             self.log.debug(
                 self._tag,
@@ -703,22 +704,19 @@ class MediumLevelILBackwardSlicer:
         self, inst: bn.MediumLevelILLoadStructSsa
     ) -> None:
         """
-        This method slices the first store instruction defining the memory version of `inst` that
-        writes the same struct member as loaded by `inst`. If there is no such store instruction,
-        the load source instruction is sliced.
+        This method walks the SSA memory chain of the function `inst.function` backwards from
+        `inst.ssa_memory_version` and slices the store instructions writing the same struct member
+        as loaded by `inst`. Each such store ends the path through the SSA memory chain it is on. If
+        some path reaches the function entry without such a store, the load source instruction is
+        sliced.
         """
         inst_info = InstructionHelper.get_inst_info(inst)
         load_inst = inst.src
         load_src_offset = inst.offset
-        followed = False
-        # Get instructions defining the memory version of `inst`
-        mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
-            inst.function,
-            inst.ssa_memory_version,
-            self._max_memory_slice_depth,
-        )
-        # Iterate memory defining instructions
-        for mem_def_inst in mem_def_insts:
+        read_bytes = set(range(inst.size))
+
+        # Slice `mem_def_inst` and return `read_bytes` if it stores the same struct member
+        def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
             # Check if memory defining instruction was followed before
             if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
@@ -726,12 +724,12 @@ class MediumLevelILBackwardSlicer:
                     self._tag,
                     f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                 )
-                continue
+                return set()
             match mem_def_inst:
                 case bn.MediumLevelILStoreSsa():
                     # Match HLIL instructions
                     if inst.hlil is None or mem_def_inst.hlil is None:
-                        continue
+                        return set()
                     hlil_load_inst = inst.hlil.ssa_form
                     hlil_store_inst = mem_def_inst.hlil.ssa_form
                     match (hlil_load_inst, hlil_store_inst):
@@ -749,22 +747,21 @@ class MediumLevelILBackwardSlicer:
                         ):
                             # Ensure load from and store to the same struct field
                             if load_var != store_var or load_offset != 0:
-                                continue
+                                return set()
                             self.log.debug(
                                 self._tag,
                                 f"Follow store struct instruction '{mem_def_inst_info:s}' since it writes the same struct member '{str(hlil_load_inst):s}' as load struct instruction '{inst_info:s}'",
                             )
                             self._call_tracker.push_mem_def_inst(mem_def_inst)
                             self._slice_backwards(mem_def_inst)
-                            followed = True
-                            break
+                            return read_bytes
                 case bn.MediumLevelILStoreStructSsa(offset=store_dest_offset):
                     # Ensure load from and store to the same struct field
                     if load_src_offset != store_dest_offset:
-                        continue
+                        return set()
                     # Match HLIL instructions
                     if inst.hlil is None or mem_def_inst.hlil is None:
-                        continue
+                        return set()
                     hlil_load_inst = inst.hlil.ssa_form
                     hlil_store_inst = mem_def_inst.hlil.ssa_form
                     match (hlil_load_inst, hlil_store_inst):
@@ -787,21 +784,25 @@ class MediumLevelILBackwardSlicer:
                         ):
                             # Ensure load from and store to the same struct field
                             if load_var != store_var or load_offset != store_offset:
-                                continue
+                                return set()
                             self.log.debug(
                                 self._tag,
                                 f"Follow store struct instruction '{mem_def_inst_info:s}' since it writes the same struct member '{str(hlil_load_inst):s}' as load struct instruction '{inst_info:s}'",
                             )
                             self._call_tracker.push_mem_def_inst(mem_def_inst)
                             self._slice_backwards(mem_def_inst)
-                            followed = True
-                            break
-        # Follow load source instruction if no specific store instruction was followed
-        if not followed:
+                            return read_bytes
+            return set()
+
+        # Follow load source instruction if some path reaches the function entry without a store
+        # writing the same struct member
+        if self._walk_ssa_mem_definitions(
+            inst.function, [inst.ssa_memory_version], read_bytes, visit
+        ):
             load_src_inst_info = InstructionHelper.get_inst_info(load_inst, False)
             self.log.debug(
                 self._tag,
-                f"Follow load struct source instruction '{load_src_inst_info:s}' since no specific struct store instruction was found",
+                f"Follow load struct source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a specific struct store instruction",
             )
             self._slice_backwards(load_inst)
         return
@@ -863,6 +864,136 @@ class MediumLevelILBackwardSlicer:
                             break
         return
 
+    def _slice_callee_out_param_definitions(
+        self,
+        inst: bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
+        | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa,
+        dest_func: bn.MediumLevelILFunction,
+        ret_inst: bn.MediumLevelILInstruction,
+        call_params: Set[int],
+    ) -> None:
+        """
+        This method walks the SSA memory chain of the callee `dest_func` of call `inst` backwards
+        from the memory version of its return instruction `ret_inst` and slices the instructions
+        writing the output parameters in `call_params` (calls define no bytes, so every path is
+        walked to the function entry).
+        """
+        dest_inst_info = InstructionHelper.get_inst_info(inst.dest, False)
+
+        def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
+            mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
+            # Check if memory defining instruction was followed before
+            if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
+                self.log.debug(
+                    self._tag,
+                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
+                )
+                return set()
+            # Match memory defining instruction
+            match mem_def_inst:
+                # Memory defining store instruction
+                case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
+                    # Match HLIL instruction
+                    if mem_def_inst.hlil is None:
+                        return set()
+                    hlil_mem_def_inst = mem_def_inst.hlil.ssa_form
+                    match hlil_mem_def_inst:
+                        # Memory assignment to dereferenced variable
+                        case bn.HighLevelILAssignMemSsa(
+                            dest=(
+                                bn.HighLevelILDerefSsa(
+                                    src=bn.HighLevelILVarSsa(var=dest_var)
+                                )
+                                | bn.HighLevelILDerefFieldSsa(
+                                    src=bn.HighLevelILVarSsa(var=dest_var)
+                                )
+                            )
+                        ):
+                            # Ensure we store a parameter variable of interest
+                            param_vars = list(dest_func.source_function.parameter_vars)
+                            if dest_var.var not in param_vars:
+                                return set()
+                            param_idx = param_vars.index(dest_var.var) + 1
+                            if param_idx not in call_params:
+                                return set()
+                            # Push function containing the memory
+                            # defining instruction
+                            recursion = self._call_tracker.push_func(
+                                to_inst=mem_def_inst,
+                                downwards=True,
+                                param_idx=param_idx,
+                            )
+                            # Follow the output parameter defining
+                            # instruction
+                            if not recursion:
+                                dest_var_info = VariableHelper.get_ssavar_info(dest_var)
+                                self.log.debug(
+                                    self._tag,
+                                    f"Follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
+                                )
+                                self._call_tracker.push_mem_def_inst(mem_def_inst)
+                                self._slice_backwards(mem_def_inst)
+                            # Recursion detected
+                            else:
+                                self.log.debug(
+                                    self._tag,
+                                    f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                                )
+                            # Pop function containing the memory
+                            # defining instruction and follow the
+                            # reached parameters
+                            self.__pop_func_and_slice_reached_params(inst)
+                # Memory defining call instruction
+                case (
+                    bn.MediumLevelILCallSsa()
+                    | bn.MediumLevelILCallUntypedSsa()
+                    | bn.MediumLevelILTailcallSsa()
+                    | bn.MediumLevelILTailcallUntypedSsa()
+                ):
+                    # Get the callee's parameter instructions
+                    mlil_param_insts = FunctionHelper.get_mlil_param_insts(dest_func)
+                    # Iterate the relevant output parameters
+                    for param_idx in call_params:
+                        # Get callee's parameter of interest
+                        if param_idx <= 0 or param_idx > len(mlil_param_insts):
+                            continue
+                        mlil_param_inst = mlil_param_insts[param_idx - 1]
+                        if mlil_param_inst is None:
+                            continue
+                        param_ssa_var = mlil_param_inst.var
+                        # Push function containing the memory defining
+                        # instruction
+                        recursion = self._call_tracker.push_func(
+                            to_inst=mem_def_inst,
+                            downwards=True,
+                            param_idx=param_idx,
+                        )
+                        # Follow the output parameter defining
+                        # instruction
+                        if not recursion:
+                            self._slice_ssa_var_mem_definition(
+                                param_ssa_var,
+                                mlil_param_inst,
+                                mem_def_inst,
+                            )
+                        # Recursion detected
+                        else:
+                            self.log.debug(
+                                self._tag,
+                                f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                            )
+                        # Pop function containing the memory defining
+                        # instruction and follow the reached parameters
+                        self.__pop_func_and_slice_reached_params(inst)
+            return set()
+
+        self._walk_ssa_mem_definitions(
+            dest_func, [ret_inst.ssa_memory_version], {0}, visit
+        )
+        return
+
     def _slice_call(
         self,
         inst: bn.MediumLevelILCallSsa
@@ -914,153 +1045,9 @@ class MediumLevelILBackwardSlicer:
                         # Proceed slicing the relevant output parameters, if we followed the
                         # call due to reaching them
                         if call_params:
-                            # Get instructions defining the memory version of `ret_inst`
-                            mem_def_insts = FunctionHelper.get_ssa_memory_definitions(
-                                dest_func,
-                                ret_inst.ssa_memory_version,
-                                self._max_memory_slice_depth,
+                            self._slice_callee_out_param_definitions(
+                                inst, dest_func, ret_inst, call_params
                             )
-                            # Iterate memory defining instructions
-                            for mem_def_inst in mem_def_insts:
-                                mem_def_inst_info = InstructionHelper.get_inst_info(
-                                    mem_def_inst, False
-                                )
-                                # Check if memory defining instruction was followed before
-                                if self._call_tracker.is_in_current_mem_def_insts(
-                                    mem_def_inst
-                                ):
-                                    self.log.debug(
-                                        self._tag,
-                                        f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
-                                    )
-                                    continue
-                                # Match memory defining instruction
-                                match mem_def_inst:
-                                    # Memory defining store instruction
-                                    case (
-                                        bn.MediumLevelILStoreSsa()
-                                        | bn.MediumLevelILStoreStructSsa()
-                                    ):
-                                        # Match HLIL instruction
-                                        if mem_def_inst.hlil is None:
-                                            continue
-                                        hlil_mem_def_inst = mem_def_inst.hlil.ssa_form
-                                        match hlil_mem_def_inst:
-                                            # Memory assignment to dereferenced variable
-                                            case bn.HighLevelILAssignMemSsa(
-                                                dest=(
-                                                    bn.HighLevelILDerefSsa(
-                                                        src=bn.HighLevelILVarSsa(
-                                                            var=dest_var
-                                                        )
-                                                    )
-                                                    | bn.HighLevelILDerefFieldSsa(
-                                                        src=bn.HighLevelILVarSsa(
-                                                            var=dest_var
-                                                        )
-                                                    )
-                                                )
-                                            ):
-                                                # Ensure we store a parameter variable of interest
-                                                param_vars = list(
-                                                    dest_func.source_function.parameter_vars
-                                                )
-                                                if dest_var.var not in param_vars:
-                                                    continue
-                                                param_idx = (
-                                                    param_vars.index(dest_var.var) + 1
-                                                )
-                                                if param_idx not in call_params:
-                                                    continue
-                                                # Push function containing the memory
-                                                # defining instruction
-                                                recursion = (
-                                                    self._call_tracker.push_func(
-                                                        to_inst=mem_def_inst,
-                                                        downwards=True,
-                                                        param_idx=param_idx,
-                                                    )
-                                                )
-                                                # Follow the output parameter defining
-                                                # instruction
-                                                if not recursion:
-                                                    dest_var_info = (
-                                                        VariableHelper.get_ssavar_info(
-                                                            dest_var
-                                                        )
-                                                    )
-                                                    self.log.debug(
-                                                        self._tag,
-                                                        f"Follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
-                                                    )
-                                                    self._call_tracker.push_mem_def_inst(
-                                                        mem_def_inst
-                                                    )
-                                                    self._slice_backwards(mem_def_inst)
-                                                # Recursion detected
-                                                else:
-                                                    self.log.debug(
-                                                        self._tag,
-                                                        f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
-                                                    )
-                                                # Pop function containing the memory
-                                                # defining instruction and follow the
-                                                # reached parameters
-                                                self.__pop_func_and_slice_reached_params(
-                                                    inst
-                                                )
-                                    # Memory defining call instruction
-                                    case (
-                                        bn.MediumLevelILCallSsa()
-                                        | bn.MediumLevelILCallUntypedSsa()
-                                        | bn.MediumLevelILTailcallSsa()
-                                        | bn.MediumLevelILTailcallUntypedSsa()
-                                    ):
-                                        # Get the callee's parameter instructions
-                                        mlil_param_insts = (
-                                            FunctionHelper.get_mlil_param_insts(
-                                                dest_func
-                                            )
-                                        )
-                                        # Iterate the relevant output parameters
-                                        for param_idx in call_params:
-                                            # Get callee's parameter of interest
-                                            if param_idx <= 0 or param_idx > len(
-                                                mlil_param_insts
-                                            ):
-                                                continue
-                                            mlil_param_inst = mlil_param_insts[
-                                                param_idx - 1
-                                            ]
-                                            if mlil_param_inst is None:
-                                                continue
-                                            param_ssa_var = mlil_param_inst.var
-                                            # Push function containing the memory defining
-                                            # instruction
-                                            recursion = self._call_tracker.push_func(
-                                                to_inst=mem_def_inst,
-                                                downwards=True,
-                                                param_idx=param_idx,
-                                            )
-                                            # Follow the output parameter defining
-                                            # instruction
-                                            if not recursion:
-                                                self._slice_ssa_var_mem_definition(
-                                                    param_ssa_var,
-                                                    mlil_param_inst,
-                                                    mem_def_inst,
-                                                )
-                                            # Recursion detected
-                                            else:
-                                                self.log.debug(
-                                                    self._tag,
-                                                    f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
-                                                )
-                                            # Pop function containing the memory defining
-                                            # instruction and follow the reached parameters
-                                            self.__pop_func_and_slice_reached_params(
-                                                inst
-                                            )
                         # Proceed slicing all possible return instructions, if we followed
                         # the call due to reaching its return value
                         else:
