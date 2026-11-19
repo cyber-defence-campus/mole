@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import Logger
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import Callable, Dict, Iterable, List, Set, Tuple
+from typing import cast, Callable, Dict, Iterable, List, Set, Tuple
 import binaryninja as bn
 import os
 
@@ -350,7 +350,11 @@ class MediumLevelILBackwardSlicer:
         self,
         inst_info: str,
         store_chain: Tuple[bn.MediumLevelILInstruction, ...],
-        call_inst: bn.MediumLevelILInstruction | None = None,
+        call_inst: bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
+        | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa
+        | None = None,
         downwards: bool = True,
     ) -> None:
         """
@@ -375,7 +379,17 @@ class MediumLevelILBackwardSlicer:
         # Follow the call into the function of the next instruction
         elif rest:
             self._call_tracker.push_inst(mem_def_inst)
-            self._slice_store_chain(inst_info, tuple(rest), mem_def_inst)
+            self._slice_store_chain(
+                inst_info,
+                tuple(rest),
+                cast(
+                    bn.MediumLevelILCallSsa
+                    | bn.MediumLevelILCallUntypedSsa
+                    | bn.MediumLevelILTailcallSsa
+                    | bn.MediumLevelILTailcallUntypedSsa,
+                    mem_def_inst,
+                ),
+            )
             self._call_tracker.pop_inst()
         # Follow the store instruction
         else:
@@ -420,7 +434,7 @@ class MediumLevelILBackwardSlicer:
                     and not segment.executable
                 ):
                     for code_ref in self.bv.get_code_refs(load_addr):
-                        if code_ref.function == curr_func:
+                        if code_ref.function is None or code_ref.function == curr_func:
                             continue
                         if any(
                             isinstance(mlil.ssa_form, bn.MediumLevelILStoreSsa)
@@ -436,24 +450,28 @@ class MediumLevelILBackwardSlicer:
         def is_overlapping(store_inst: bn.MediumLevelILStoreSsa) -> bool:
             if inst.hlil is None or store_inst.hlil is None:
                 return False
+            hlil_load_inst = inst.hlil.ssa_form
             match store_inst.hlil.ssa_form:
                 case bn.HighLevelILAssignMemSsa(dest=hlil_store_inst):
                     return InstructionHelper.is_mem_access_overlapping(
-                        inst.hlil.ssa_form, hlil_store_inst, inst.size, store_inst.size
+                        hlil_load_inst, hlil_store_inst, inst.size, store_inst.size
                     )
             return False
 
         # Get the callee of `call_inst` if it may write the loaded memory
         def get_writer_callee(
-            call_inst: bn.MediumLevelILInstruction,
-        ) -> bn.MediumLevelILFunction | None:
+            call_inst: bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntypedSsa,
+        ) -> bn.Function | None:
             match call_inst.dest:
                 case (
                     bn.MediumLevelILConstPtr(constant=func_addr)
                     | bn.MediumLevelILImport(constant=func_addr)
                 ):
                     func = self.bv.get_function_at(func_addr)
-                    if func is None or func.mlil is None:
+                    if func is None:
                         return None
                     if func not in may_write:
                         may_write[func] = any(
@@ -462,16 +480,19 @@ class MediumLevelILBackwardSlicer:
                             for writer_func in writer_funcs
                         )
                     if may_write[func]:
-                        return func.mlil.ssa_form
+                        return func
             return None
 
         # Get the store chains (see `_slice_store_chain`) of all stores to the loaded memory in
         # `func` and its callees, excluding the functions in `visiting`
         def get_store_chains(
-            func: bn.MediumLevelILFunction, visiting: Set[bn.Function]
+            func: bn.Function, visiting: Set[bn.Function]
         ) -> List[Tuple[bn.MediumLevelILInstruction, ...]]:
-            walked_funcs.add(func.source_function)
+            walked_funcs.add(func)
             store_chains: List[Tuple[bn.MediumLevelILInstruction, ...]] = []
+            mlil_func = func.mlil.ssa_form if func.mlil is not None else None
+            if mlil_func is None:
+                return store_chains
 
             def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
                 match mem_def_inst:
@@ -486,23 +507,22 @@ class MediumLevelILBackwardSlicer:
                         | bn.MediumLevelILTailcallUntypedSsa()
                     ):
                         callee = get_writer_callee(mem_def_inst)
-                        if (
-                            callee is not None
-                            and callee.source_function not in visiting
-                        ):
+                        if callee is not None and callee not in visiting:
                             store_chains.extend(
                                 (mem_def_inst, *store_chain)
                                 for store_chain in get_store_chains(
-                                    callee, visiting | {callee.source_function}
+                                    callee, visiting | {callee}
                                 )
                             )
                 return set()
 
             ret_mem_versions = [
                 ret_inst.ssa_memory_version
-                for ret_inst in FunctionHelper.get_mlil_return_insts(func)
+                for ret_inst in FunctionHelper.get_mlil_return_insts(mlil_func)
             ]
-            self._walk_ssa_mem_definitions(func, ret_mem_versions, read_bytes, visit)
+            self._walk_ssa_mem_definitions(
+                mlil_func, ret_mem_versions, read_bytes, visit
+            )
             return store_chains
 
         # Slice stores (must-defs) and callees' stores (may-defs) in the current function
@@ -536,7 +556,7 @@ class MediumLevelILBackwardSlicer:
                     callee = get_writer_callee(mem_def_inst)
                     if callee is not None:
                         for store_chain in get_store_chains(
-                            callee, {curr_func, callee.source_function}
+                            callee, {curr_func, callee}
                         ):
                             self._slice_store_chain(
                                 inst_info, store_chain, mem_def_inst
@@ -550,11 +570,11 @@ class MediumLevelILBackwardSlicer:
         # reaches the entry of the current function without a must-def
         if undef_at_entry:
             for writer_func in sorted(writer_funcs, key=lambda func: func.start):
-                if writer_func in walked_funcs or writer_func.mlil is None:
+                if writer_func in walked_funcs:
                     continue
                 downwards = FunctionHelper.calls(curr_func, writer_func)
                 for store_chain in get_store_chains(
-                    writer_func.mlil.ssa_form, {curr_func, writer_func}
+                    writer_func, {curr_func, writer_func}
                 ):
                     self._slice_store_chain(inst_info, store_chain, None, downwards)
             # Follow load source instruction
