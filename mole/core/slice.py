@@ -446,18 +446,6 @@ class MediumLevelILBackwardSlicer:
         # Functions whose SSA memory chain was walked for stores
         walked_funcs: Set[bn.Function] = set()
 
-        # Whether `store_inst` stores memory overlapping the one loaded by `inst`
-        def is_overlapping(store_inst: bn.MediumLevelILStoreSsa) -> bool:
-            if inst.hlil is None or store_inst.hlil is None:
-                return False
-            hlil_load_inst = inst.hlil.ssa_form
-            match store_inst.hlil.ssa_form:
-                case bn.HighLevelILAssignMemSsa(dest=hlil_store_inst):
-                    return InstructionHelper.is_mem_access_overlapping(
-                        hlil_load_inst, hlil_store_inst, inst.size, store_inst.size
-                    )
-            return False
-
         # Get the callee of `call_inst` if it may write the loaded memory
         def get_writer_callee(
             call_inst: bn.MediumLevelILCallSsa
@@ -497,7 +485,9 @@ class MediumLevelILBackwardSlicer:
             def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
                 match mem_def_inst:
                     case bn.MediumLevelILStoreSsa():
-                        if is_overlapping(mem_def_inst):
+                        if InstructionHelper.is_load_store_overlapping(
+                            inst, mem_def_inst
+                        ):
                             store_chains.append((mem_def_inst,))
                             return read_bytes
                     case (
@@ -538,7 +528,7 @@ class MediumLevelILBackwardSlicer:
                 return set()
             match mem_def_inst:
                 case bn.MediumLevelILStoreSsa():
-                    if is_overlapping(mem_def_inst):
+                    if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
                         self.log.debug(
                             self._tag,
                             f"Follow store instruction '{mem_def_inst_info:s}' since it "

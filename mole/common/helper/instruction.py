@@ -603,3 +603,27 @@ class InstructionHelper:
             return False
         # Ensure byte ranges `[offset, offset + size)` intersect
         return offset_a < offset_b + size_b and offset_b < offset_a + size_a
+
+    @staticmethod
+    def is_load_store_overlapping(
+        load_inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
+        store_inst: bn.MediumLevelILStoreSsa | bn.MediumLevelILStoreStructSsa,
+    ) -> bool:
+        """
+        This method checks whether the memory stored by the MLIL instruction `store_inst` is
+        guaranteed to overlap (in at least one byte) the memory loaded by the MLIL instruction
+        `load_inst`. The check is done on the corresponding HLIL instructions (see
+        `is_mem_access_overlapping`). Returns `False` if this cannot be determined.
+
+        Example: `is_load_store_overlapping(<load p->f>, <store *(p + 8)>)` --> `True` (with `f` at
+        offset 8)
+        """
+        if load_inst.hlil is None or store_inst.hlil is None:
+            return False
+        hlil_load_inst = load_inst.hlil.ssa_form
+        match store_inst.hlil.ssa_form:
+            case bn.HighLevelILAssignMemSsa(dest=hlil_store_inst):
+                return InstructionHelper.is_mem_access_overlapping(
+                    hlil_load_inst, hlil_store_inst, load_inst.size, store_inst.size
+                )
+        return False
