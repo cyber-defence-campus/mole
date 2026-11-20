@@ -362,11 +362,13 @@ class MediumLevelILBackwardSlicer:
     ) -> None:
         """
         This method slices the store instruction at the end of `store_chain`, which may define the
-        memory loaded by `inst`. All other instructions in
-        `store_chain` are calls, each into the function of the next instruction. A call frame is
-        pushed for the function of each instruction in `store_chain`. `call_inst` is the call into
-        the function of the first instruction, or `None` if there is no such call in the current
-        function (`downwards` then tells whether that function is a callee or a caller).
+        memory loaded by `inst`. All other instructions in `store_chain` are calls, each into the
+        function of the next instruction. A call frame is pushed for the function of each
+        instruction in `store_chain`. The function of the first instruction is entered via
+        `call_inst`. When returning from it, the arguments of `call_inst` are sliced for each
+        parameter that was reached. `call_inst` is `None` if the current function has no such call
+        (reached parameters are then not sliced). `downwards` tells whether the entered function
+        is a callee or a caller of the current function.
         """
         mem_def_inst, *rest = store_chain
         mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
@@ -479,9 +481,9 @@ class MediumLevelILBackwardSlicer:
                         return func
             return None
 
-        # Get the store chains of all stores to the loaded memory in `func` and its callees,
-        # excluding the functions in `visiting`. A store chain is a tuple of calls leading to a
-        # store (see `_slice_store_chain`).
+        # Get the store chains of all stores to the loaded memory in `func` and its callees, without
+        # descending into the functions in `visiting` (the current call path). A store chain is a
+        # tuple of calls leading to a store (see `_slice_store_chain`).
         def get_store_chains(
             func: bn.Function, visiting: Set[bn.Function]
         ) -> List[Tuple[bn.MediumLevelILInstruction, ...]]:
@@ -524,7 +526,7 @@ class MediumLevelILBackwardSlicer:
             )
             return store_chains
 
-        # Slice stores (must-defs) and callees' stores (may-defs) in the current function
+        # Slice stores in the current function (must-defs) and in its (transitive) callees (may-defs)
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
             # Check if memory defining instruction was followed before
@@ -540,8 +542,8 @@ class MediumLevelILBackwardSlicer:
                     if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
                         self.log.debug(
                             self._tag,
-                            f"Follow store instruction '{mem_def_inst_info:s}' since it "
-                            f"overlaps the memory loaded by '{inst_info:s}'",
+                            f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps "
+                            f"the memory loaded by '{inst_info:s}'",
                         )
                         self._call_tracker.push_mem_def_inst(mem_def_inst)
                         self._slice_backwards(mem_def_inst)
