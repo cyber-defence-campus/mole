@@ -726,7 +726,6 @@ class MediumLevelILBackwardSlicer:
         """
         inst_info = InstructionHelper.get_inst_info(inst)
         load_inst = inst.src
-        load_src_offset = inst.offset
         read_bytes = set(range(inst.size))
 
         # Slice `mem_def_inst` and return `read_bytes` if it stores the same struct member
@@ -740,72 +739,15 @@ class MediumLevelILBackwardSlicer:
                 )
                 return set()
             match mem_def_inst:
-                case bn.MediumLevelILStoreSsa():
-                    # Match HLIL instructions
-                    if inst.hlil is None or mem_def_inst.hlil is None:
-                        return set()
-                    hlil_load_inst = inst.hlil.ssa_form
-                    hlil_store_inst = mem_def_inst.hlil.ssa_form
-                    match (hlil_load_inst, hlil_store_inst):
-                        # Struct field dereferencing
-                        case (
-                            bn.HighLevelILDerefFieldSsa(
-                                src=bn.HighLevelILVarSsa(var=load_var),
-                                offset=load_offset,
-                            ),
-                            bn.HighLevelILAssignMemSsa(
-                                dest=bn.HighLevelILDerefSsa(
-                                    src=bn.HighLevelILVarSsa(var=store_var)
-                                )
-                            ),
-                        ):
-                            # Ensure load from and store to the same struct field
-                            if load_var != store_var or load_offset != 0:
-                                return set()
-                            self.log.debug(
-                                self._tag,
-                                f"Follow store struct instruction '{mem_def_inst_info:s}' since it writes the same struct member '{str(hlil_load_inst):s}' as load struct instruction '{inst_info:s}'",
-                            )
-                            self._call_tracker.push_mem_def_inst(mem_def_inst)
-                            self._slice_backwards(mem_def_inst)
-                            return read_bytes
-                case bn.MediumLevelILStoreStructSsa(offset=store_dest_offset):
-                    # Ensure load from and store to the same struct field
-                    if load_src_offset != store_dest_offset:
-                        return set()
-                    # Match HLIL instructions
-                    if inst.hlil is None or mem_def_inst.hlil is None:
-                        return set()
-                    hlil_load_inst = inst.hlil.ssa_form
-                    hlil_store_inst = mem_def_inst.hlil.ssa_form
-                    match (hlil_load_inst, hlil_store_inst):
-                        # Struct field dereferencing
-                        case (
-                            bn.HighLevelILDerefFieldSsa(
-                                src=bn.HighLevelILVarSsa(
-                                    var=load_var,
-                                ),
-                                offset=load_offset,
-                            ),
-                            bn.HighLevelILAssignMemSsa(
-                                dest=bn.HighLevelILDerefFieldSsa(
-                                    src=bn.HighLevelILVarSsa(
-                                        var=store_var,
-                                    ),
-                                    offset=store_offset,
-                                )
-                            ),
-                        ):
-                            # Ensure load from and store to the same struct field
-                            if load_var != store_var or load_offset != store_offset:
-                                return set()
-                            self.log.debug(
-                                self._tag,
-                                f"Follow store struct instruction '{mem_def_inst_info:s}' since it writes the same struct member '{str(hlil_load_inst):s}' as load struct instruction '{inst_info:s}'",
-                            )
-                            self._call_tracker.push_mem_def_inst(mem_def_inst)
-                            self._slice_backwards(mem_def_inst)
-                            return read_bytes
+                case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
+                    if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
+                        self.log.debug(
+                            self._tag,
+                            f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the struct member loaded by '{inst_info:s}'",
+                        )
+                        self._call_tracker.push_mem_def_inst(mem_def_inst)
+                        self._slice_backwards(mem_def_inst)
+                        return read_bytes
             return set()
 
         # Follow load source instruction if some path reaches the function entry without a store
