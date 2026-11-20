@@ -348,7 +348,7 @@ class MediumLevelILBackwardSlicer:
 
     def _slice_store_chain(
         self,
-        inst_info: str,
+        inst: bn.MediumLevelILLoadSsa,
         store_chain: Tuple[bn.MediumLevelILInstruction, ...],
         call_inst: bn.MediumLevelILCallSsa
         | bn.MediumLevelILCallUntypedSsa
@@ -359,7 +359,7 @@ class MediumLevelILBackwardSlicer:
     ) -> None:
         """
         This method slices the store instruction at the end of `store_chain`, which may define the
-        memory loaded by the instruction described by `inst_info`. All other instructions in
+        memory loaded by `inst`. All other instructions in
         `store_chain` are calls, each into the function of the next instruction. A call frame is
         pushed for the function of each instruction in `store_chain`. `call_inst` is the call into
         the function of the first instruction, or `None` if there is no such call in the current
@@ -380,7 +380,7 @@ class MediumLevelILBackwardSlicer:
         elif rest:
             self._call_tracker.push_inst(mem_def_inst)
             self._slice_store_chain(
-                inst_info,
+                inst,
                 tuple(rest),
                 cast(
                     bn.MediumLevelILCallSsa
@@ -393,10 +393,11 @@ class MediumLevelILBackwardSlicer:
             self._call_tracker.pop_inst()
         # Follow the store instruction
         else:
+            inst_info = InstructionHelper.get_inst_info(inst, False)
             self.log.debug(
                 self._tag,
-                f"Follow instruction '{mem_def_inst_info:s}' since it may store the memory "
-                f"loaded by '{inst_info:s}'",
+                f"Follow instruction '{mem_def_inst_info:s}' since it may store the memory loaded "
+                f"by '{inst_info:s}'",
             )
             self._call_tracker.push_mem_def_inst(mem_def_inst)
             self._slice_backwards(mem_def_inst)
@@ -474,8 +475,9 @@ class MediumLevelILBackwardSlicer:
                         return func
             return None
 
-        # Get the store chains (see `_slice_store_chain`) of all stores to the loaded memory in
-        # `func` and its callees, excluding the functions in `visiting`
+        # Get the store chains of all stores to the loaded memory in `func` and its callees,
+        # excluding the functions in `visiting`. A store chain is a tuple of calls leading to a
+        # store (see `_slice_store_chain`).
         def get_store_chains(
             func: bn.Function, visiting: Set[bn.Function]
         ) -> List[Tuple[bn.MediumLevelILInstruction, ...]]:
@@ -525,8 +527,8 @@ class MediumLevelILBackwardSlicer:
             if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
                 self.log.debug(
                     self._tag,
-                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed "
-                    f"before in the current call frame",
+                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in "
+                    f"the current call frame",
                 )
                 return set()
             match mem_def_inst:
@@ -551,14 +553,15 @@ class MediumLevelILBackwardSlicer:
                         for store_chain in get_store_chains(
                             callee, {curr_func, callee}
                         ):
-                            self._slice_store_chain(
-                                inst_info, store_chain, mem_def_inst
-                            )
+                            self._slice_store_chain(inst, store_chain, mem_def_inst)
             return set()
 
+        # Walk the SSA memory chain of the current function backwards from the load and record
+        # whether some path reaches its entry without a must-def
         undef_at_entry = self._walk_ssa_mem_definitions(
             inst.function, [inst.ssa_memory_version], read_bytes, visit
         )
+
         # Slice stores (may-defs) in functions not called on the SSA memory chain, if some path
         # reaches the entry of the current function without a must-def
         if undef_at_entry:
@@ -569,7 +572,7 @@ class MediumLevelILBackwardSlicer:
                 for store_chain in get_store_chains(
                     writer_func, {curr_func, writer_func}
                 ):
-                    self._slice_store_chain(inst_info, store_chain, None, downwards)
+                    self._slice_store_chain(inst, store_chain, None, downwards)
             # Follow load source instruction
             load_src_inst_info = InstructionHelper.get_inst_info(inst.src, False)
             self.log.debug(
