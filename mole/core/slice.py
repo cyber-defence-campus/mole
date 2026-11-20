@@ -406,15 +406,16 @@ class MediumLevelILBackwardSlicer:
 
     def _slice_load_mem_definitions(self, inst: bn.MediumLevelILLoadSsa) -> None:
         """
-        This method slices the store instructions possibly defining the memory loaded by `inst`:
+        This method follows to the store instructions possibly defining the memory loaded by `inst`:
         - Stores in `inst.function` overlapping the loaded memory are must-defs, i.e. they end the
           path through the SSA memory chain they are on
-        - If `inst` loads from a constant address in a writable segment, stores to it in other
-          functions are may-defs. Stores in (transitive) callees are sliced at the call when walking
-          the SSA memory chain of `inst.function`. Stores in all other functions are only sliced if
-          some path reaches the entry of `inst.function` without a must-def. Within a function,
-          stores are found by walking its SSA memory chain backwards from its return instructions,
-          so that stores on all paths through the function are sliced.
+        - If `inst` loads from a constant global address (i.e. a global or static variable) in a
+          writable segment, stores to it in other functions are may-defs. Stores in (transitive)
+          callees are sliced at the call when walking the SSA memory chain of `inst.function`.
+          Stores in all other functions are only sliced if some path reaches the entry of
+          `inst.function` without a must-def. Within a function, stores are found by walking its SSA
+          memory chain backwards from its return instructions, so that stores on all paths through
+          the function are sliced.
         If some path reaches the entry of `inst.function` (or the maximum memory slice depth)
         without a must-def, the load source instruction is sliced too.
         """
@@ -446,7 +447,9 @@ class MediumLevelILBackwardSlicer:
         # Functions whose SSA memory chain was walked for stores
         walked_funcs: Set[bn.Function] = set()
 
-        # Get the callee of `call_inst` if it may write the loaded memory
+        # Get the callee of `call_inst` if it is or (transitively) calls a function in
+        # `writer_funcs`, i.e. if it may write the loaded memory (only possible for loads from a
+        # constant global address)
         def get_writer_callee(
             call_inst: bn.MediumLevelILCallSsa
             | bn.MediumLevelILCallUntypedSsa
