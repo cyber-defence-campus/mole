@@ -353,51 +353,18 @@ class MediumLevelILBackwardSlicer:
         self,
         inst: bn.MediumLevelILLoadSsa,
         store_chain: Tuple[bn.MediumLevelILInstruction, ...],
-        call_inst: bn.MediumLevelILCallSsa
-        | bn.MediumLevelILCallUntypedSsa
-        | bn.MediumLevelILTailcallSsa
-        | bn.MediumLevelILTailcallUntypedSsa
-        | None = None,
-        downwards: bool = True,
     ) -> None:
         """
         This method slices the store instruction at the end of `store_chain`, which may define the
         memory loaded by `inst`. All other instructions in `store_chain` are calls, each into the
-        function of the next instruction. A call frame is pushed for the function of each
-        instruction in `store_chain`. The function of the first instruction is entered via
-        `call_inst`. When returning from it, the arguments of `call_inst` are sliced for each
-        parameter that was reached. `call_inst` is `None` if the current function has no such call
-        (reached parameters are then not sliced). `downwards` tells whether the entered function
-        is a callee or a caller of the current function.
+        function of the next instruction. The first instruction is in the function of the current
+        call frame. For each call, a call frame is pushed for the called function. When returning
+        from it, the arguments of the call are sliced for each parameter that was reached.
         """
         mem_def_inst, *rest = store_chain
         mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-        # Push function containing the instruction
-        recursion = self._call_tracker.push_func(
-            to_inst=mem_def_inst, downwards=downwards
-        )
-        if recursion:
-            self.log.debug(
-                self._tag,
-                f"Do not follow instruction '{mem_def_inst_info:s}' since recursion detected",
-            )
-        # Follow the call into the function of the next instruction
-        elif rest:
-            self._call_tracker.push_inst(mem_def_inst)
-            self._slice_store_chain(
-                inst,
-                tuple(rest),
-                cast(
-                    bn.MediumLevelILCallSsa
-                    | bn.MediumLevelILCallUntypedSsa
-                    | bn.MediumLevelILTailcallSsa
-                    | bn.MediumLevelILTailcallUntypedSsa,
-                    mem_def_inst,
-                ),
-            )
-            self._call_tracker.pop_inst()
         # Follow the store instruction
-        else:
+        if not rest:
             inst_info = InstructionHelper.get_inst_info(inst, False)
             self.log.debug(
                 self._tag,
@@ -406,8 +373,27 @@ class MediumLevelILBackwardSlicer:
             )
             self._call_tracker.push_mem_def_inst(mem_def_inst)
             self._slice_backwards(mem_def_inst)
-        # Pop function containing the instruction and follow the reached parameters
+            return
+        # Follow the call into the function of the next instruction
+        call_inst = cast(
+            bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntypedSsa,
+            mem_def_inst,
+        )
+        self._call_tracker.push_inst(call_inst)
+        recursion = self._call_tracker.push_func(to_inst=rest[0])
+        if recursion:
+            self.log.debug(
+                self._tag,
+                f"Do not follow call instruction '{mem_def_inst_info:s}' since recursion detected",
+            )
+        else:
+            self._slice_store_chain(inst, tuple(rest))
+        # Pop called function and follow the reached parameters
         self.__pop_func_and_slice_reached_params(call_inst)
+        self._call_tracker.pop_inst()
         return
 
     def _slice_load_mem_definitions(self, inst: bn.MediumLevelILLoadSsa) -> None:
@@ -559,7 +545,7 @@ class MediumLevelILBackwardSlicer:
                         for store_chain in get_store_chains(
                             callee, {curr_func, callee}
                         ):
-                            self._slice_store_chain(inst, store_chain, mem_def_inst)
+                            self._slice_store_chain(inst, (mem_def_inst, *store_chain))
             return set()
 
         # Walk the SSA memory chain of the current function backwards from the load and record
@@ -578,7 +564,19 @@ class MediumLevelILBackwardSlicer:
                 for store_chain in get_store_chains(
                     writer_func, {curr_func, writer_func}
                 ):
-                    self._slice_store_chain(inst, store_chain, None, downwards)
+                    # Push writer function (no call in the current function, so reached
+                    # parameters are not followed)
+                    recursion = self._call_tracker.push_func(
+                        to_inst=store_chain[0], downwards=downwards
+                    )
+                    if recursion:
+                        self.log.debug(
+                            self._tag,
+                            f"Do not follow writer function '{writer_func.name:s}' since recursion detected",
+                        )
+                    else:
+                        self._slice_store_chain(inst, store_chain)
+                    self.__pop_func_and_slice_reached_params()
             # Follow load source instruction
             load_src_inst_info = InstructionHelper.get_inst_info(inst.src, False)
             self.log.debug(

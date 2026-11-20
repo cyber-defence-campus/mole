@@ -78,7 +78,11 @@ class TestPointerDeref(TestSlicing):
         self.assert_paths(
             srcs=[("getenv", None)],
             snks=[("system", 1)],
-            call_chains=[["main", "set_cmd1"], ["main", "set_cmd2"]],
+            call_chains=[
+                ["main", "set_cmd1"],
+                ["main", "set_cmd2"],
+                ["main", "set_cmd2"],
+            ],
             filenames=filenames,
         )
         return
