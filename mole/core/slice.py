@@ -276,6 +276,7 @@ class MediumLevelILBackwardSlicer:
         visited: Dict[int, Set[int]] = {}
         # Bytes defined by each visited memory defining instruction
         def_bytes: Dict[bn.MediumLevelILInstruction, Set[int]] = {}
+        # Memory versions to visit with the bytes still undefined on their path (initially all)
         queue: deque[Tuple[int, Set[int]]] = deque(
             (mem_version, read_bytes) for mem_version in mem_versions
         )
@@ -305,8 +306,10 @@ class MediumLevelILBackwardSlicer:
                     )
                 # Visit memory defining instruction and continue with the still undefined bytes
                 case _:
+                    # Visit (and thus slice) each instruction only once, even if on multiple paths
                     if mem_def_inst not in def_bytes:
                         def_bytes[mem_def_inst] = visit(mem_def_inst)
+                    # Continue with the previous memory version unless all bytes are defined
                     undef_bytes = undef_bytes - def_bytes[mem_def_inst]
                     if undef_bytes:
                         queue.append((mem_def_inst.ssa_memory_version, undef_bytes))
@@ -423,7 +426,8 @@ class MediumLevelILBackwardSlicer:
         inst_info = InstructionHelper.get_inst_info(inst)
         curr_func = inst.function.source_function
         read_bytes = set(range(inst.size))
-        # Get other functions storing to a constant global load address
+        # Get other functions storing to the loaded address (only if it is a constant global
+        # address)
         writer_funcs: Set[bn.Function] = set()
         match inst.src:
             case bn.MediumLevelILConstPtr(constant=load_addr):
