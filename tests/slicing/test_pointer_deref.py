@@ -95,3 +95,16 @@ class TestPointerDeref(TestSlicing):
             filenames=filenames,
         )
         return
+
+    def test_load_13(self, filenames: List[str] = ["load-13"]) -> None:
+        self.assert_paths(
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
+            call_chains=[["run", "set_cmd"]],
+            filenames=filenames,
+        )
+        return
+
+    def test_load_14(self, filenames: List[str] = ["load-14"]) -> None:
+        self.test_load_13(filenames=filenames)
+        return

@@ -15,8 +15,8 @@ typedef struct {
 } MyStruct;
 
 __attribute__ ((noinline, optimize("O0")))
-int run(MyStruct* p, int use_cmd1) {
-    if(use_cmd1) {
+int run(MyStruct* p, int use_cmd) {
+    if(use_cmd) {
         p->cmd = getenv("CMD1");
     } else {
         p->cmd = getenv("CMD2");

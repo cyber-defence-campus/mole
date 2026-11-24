@@ -392,6 +392,35 @@ class MediumLevelILBackwardSlicer:
         self._call_tracker.pop_inst()
         return
 
+    def _slice_load_ptr_call(
+        self,
+        load_inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
+        call_inst: bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
+        | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa,
+    ) -> None:
+        """
+        This method slices the call instruction `call_inst` (may-def) if it gets a pointer into
+        the memory object loaded by `load_inst` as a parameter, since the callee may write the
+        loaded memory through it. Slicing then proceeds in the callee at the instructions writing
+        these output parameters.
+        """
+        call_params = InstructionHelper.get_load_ptr_params(load_inst, call_inst)
+        if not call_params:
+            return
+        call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
+        load_inst_info = InstructionHelper.get_inst_info(load_inst, False)
+        params_str = "parameter " if len(call_params) == 1 else "parameters "
+        params_str += ", ".join(map(str, sorted(call_params)))
+        self.log.debug(
+            self._tag,
+            f"Follow call instruction '{call_inst_info:s}' since it may write the memory loaded by '{load_inst_info:s}' through {params_str:s}",
+        )
+        self._call_tracker.push_mem_def_inst(call_inst)
+        self._slice_backwards(call_inst, call_params)
+        return
+
     def _slice_load_mem_definitions(self, inst: bn.MediumLevelILLoadSsa) -> None:
         """
         This method follows to the store instructions possibly defining the memory loaded by `inst`:
@@ -541,6 +570,9 @@ class MediumLevelILBackwardSlicer:
                             callee, {curr_func, callee}
                         ):
                             self._slice_store_chain(inst, (mem_def_inst, *store_chain))
+                    # Slice call if the callee may write the loaded memory through a pointer
+                    # parameter
+                    self._slice_load_ptr_call(inst, mem_def_inst)
             return set()
 
         # Walk the SSA memory chain of the current function backwards from the load and record
@@ -753,6 +785,15 @@ class MediumLevelILBackwardSlicer:
                         self._call_tracker.push_mem_def_inst(mem_def_inst)
                         self._slice_backwards(mem_def_inst)
                         return read_bytes
+                # Slice call if the callee may write the loaded struct member through a pointer
+                # parameter
+                case (
+                    bn.MediumLevelILCallSsa()
+                    | bn.MediumLevelILCallUntypedSsa()
+                    | bn.MediumLevelILTailcallSsa()
+                    | bn.MediumLevelILTailcallUntypedSsa()
+                ):
+                    self._slice_load_ptr_call(inst, mem_def_inst)
             return set()
 
         # Follow load source instruction if some path reaches the function entry without a store

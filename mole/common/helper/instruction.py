@@ -627,3 +627,50 @@ class InstructionHelper:
                     hlil_load_inst, hlil_store_inst, load_inst.size, store_inst.size
                 )
         return False
+
+    @staticmethod
+    def get_load_ptr_params(
+        load_inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
+        call_inst: bn.MediumLevelILCallSsa
+        | bn.MediumLevelILCallUntypedSsa
+        | bn.MediumLevelILTailcallSsa
+        | bn.MediumLevelILTailcallUntypedSsa,
+    ) -> Set[int]:
+        """
+        This method returns the indices (starting at 1) of the parameters of the MLIL call
+        instruction `call_inst` that hold a pointer into the same memory object as the one loaded
+        by the MLIL instruction `load_inst`, i.e. through which the callee may write the loaded
+        memory. The check is done on the corresponding HLIL instructions, by comparing the base of
+        the loaded address with the base of each pointer parameter (offsets are ignored, since the
+        callee may access any member of the object). Absolute addresses are not considered.
+
+        Example: `get_load_ptr_params(<load p->f>, <call set(p)>)` --> `{1}`
+        """
+        if load_inst.hlil is None or call_inst.hlil is None:
+            return set()
+        # Get the base of the loaded address
+        load_addr = InstructionHelper._get_mem_access_addr(load_inst.hlil.ssa_form)
+        if load_addr is None or load_addr[0] is None:
+            return set()
+        load_base = load_addr[0]
+        # Get the HLIL call instruction (possibly assigned to variables)
+        hlil_call_inst = call_inst.hlil.ssa_form
+        match hlil_call_inst:
+            case (
+                bn.HighLevelILVarInitSsa(src=src)
+                | bn.HighLevelILAssignUnpackMemSsa(src=src)
+            ):
+                hlil_call_inst = src
+        if not isinstance(
+            hlil_call_inst, bn.HighLevelILCallSsa | bn.HighLevelILTailcall
+        ):
+            return set()
+        # Find parameters holding a pointer with the same base
+        param_idxs: Set[int] = set()
+        for param_idx, param_inst in enumerate(hlil_call_inst.params, start=1):
+            param_addr = InstructionHelper.get_ptr_value_addr(param_inst)
+            if param_addr is None or param_addr[0] is None:
+                continue
+            if InstructionHelper.is_value_equivalent(load_base, param_addr[0]):
+                param_idxs.add(param_idx)
+        return param_idxs
