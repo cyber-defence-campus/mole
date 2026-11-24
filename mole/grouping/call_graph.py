@@ -38,4 +38,4 @@ class CallgraphPathGrouper(SourceSinkPathGrouper):
         """
         This method returns the name of this grouping strategy.
         """
-        return "Call Graph"
+        return "Call"

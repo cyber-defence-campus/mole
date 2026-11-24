@@ -381,7 +381,8 @@ class PathTreeView(qtw.QTreeView):
         log_call_reversed_action.triggered.connect(
             lambda: on_log_call(expanded_path_ids, True)
         )
-        show_call_graph_action = menu.addAction("Show call graph")
+        menu.addSeparator()
+        show_call_graph_action = menu.addAction("Show dataflow graph")
         if len(expanded_path_ids) == 1:
             show_call_graph_action.setEnabled(True)
             path_id = expanded_path_ids[0]
