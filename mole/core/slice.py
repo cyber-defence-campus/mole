@@ -407,7 +407,7 @@ class MediumLevelILBackwardSlicer:
         If some path reaches the entry of `inst.function` (or the maximum memory slice depth)
         without a must-def, the load source instruction is sliced too.
         """
-        inst_info = InstructionHelper.get_inst_info(inst)
+        inst_info = InstructionHelper.get_inst_info(inst, False)
         curr_func = inst.function.source_function
         # Bytes loaded by `inst`, which a store must cover to end a path (must-def)
         read_bytes = set(range(inst.size))
@@ -729,7 +729,7 @@ class MediumLevelILBackwardSlicer:
         some path reaches the function entry without such a store, the load source instruction is
         sliced.
         """
-        inst_info = InstructionHelper.get_inst_info(inst)
+        inst_info = InstructionHelper.get_inst_info(inst, False)
         load_src_inst = inst.src
         read_bytes = set(range(inst.size))
 

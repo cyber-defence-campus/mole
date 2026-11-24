@@ -4,10 +4,10 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD_STRUCT with global struct member dereferencing source
-- Struct member written by multiple callees, each a may-def of the loaded member
+- MLIL_LOAD from a constant global address (global struct member)
+- Member written by multiple callees, each call a may-def of the loaded member
 - One callee writes the member conditionally (source on one path, constant on the other)
-- Local store in the caller is followed by the callees' stores before the load
+- The caller's own store before the calls is a must-def and ends the walk
 */
 
 typedef struct {
