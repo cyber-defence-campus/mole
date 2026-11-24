@@ -816,22 +816,18 @@ class MediumLevelILBackwardSlicer:
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntypedSsa,
         dest_func: bn.MediumLevelILFunction,
-        ret_inst: bn.MediumLevelILInstruction,
         call_params: Set[int],
     ) -> None:
         """
         This method walks the SSA memory chain of the callee `dest_func` of call `inst` backwards
-        from the memory version of its return instruction `ret_inst` and slices the instructions
-        writing the output parameters in `call_params` (calls define no bytes, so every path is
-        walked to the function entry).
+        from the memory versions of all its return instructions and slices the instructions writing
+        the output parameters in `call_params` (calls define no bytes, so every path is walked to
+        the function entry).
         """
         dest_func_name = dest_func.source_function.symbol.short_name
 
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-            # Check if memory defining instruction was followed before
-            if self._is_mem_def_inst_followed(mem_def_inst):
-                return set()
             # Match memory defining instruction
             match mem_def_inst:
                 # Memory defining store instruction
@@ -930,9 +926,11 @@ class MediumLevelILBackwardSlicer:
                         self.__pop_func_and_slice_reached_params(inst)
             return set()
 
-        self._walk_ssa_mem_definitions(
-            dest_func, [ret_inst.ssa_memory_version], {0}, visit
-        )
+        ret_mem_versions = [
+            ret_inst.ssa_memory_version
+            for ret_inst in FunctionHelper.get_mlil_return_insts(dest_func)
+        ]
+        self._walk_ssa_mem_definitions(dest_func, ret_mem_versions, {0}, visit)
         return
 
     def _slice_call(
@@ -980,38 +978,37 @@ class MediumLevelILBackwardSlicer:
                 else:
                     # Get callee's SSA form
                     dest_func = dest_func.mlil.ssa_form
-                    # Iterate the callee's return instructions
+                    # Proceed slicing the relevant output parameters, if we followed the call due
+                    # to reaching them
+                    if call_params:
+                        self._slice_callee_out_param_definitions(
+                            inst, dest_func, call_params
+                        )
+                        return
+                    # Proceed slicing all possible return instructions, if we followed the call
+                    # due to reaching its return value
                     for ret_inst in FunctionHelper.get_mlil_return_insts(dest_func):
                         ret_inst_info = InstructionHelper.get_inst_info(ret_inst, False)
-                        # Proceed slicing the relevant output parameters, if we followed the
-                        # call due to reaching them
-                        if call_params:
-                            self._slice_callee_out_param_definitions(
-                                inst, dest_func, ret_inst, call_params
+                        # Push callee and proceed slicing its return instruction (if no recursion)
+                        recursion = self._call_tracker.push_func(
+                            to_inst=ret_inst,
+                            downwards=True,
+                            param_idx=0,
+                        )
+                        if recursion:
+                            self.log.debug(
+                                self._tag,
+                                f"Do not follow return instruction '{ret_inst_info:s}' of function '{dest_symb.short_name:s}' since recursion detected",
                             )
-                        # Proceed slicing all possible return instructions, if we followed
-                        # the call due to reaching its return value
                         else:
-                            # Push callee and proceed slicing its return instruction (if no recursion)
-                            recursion = self._call_tracker.push_func(
-                                to_inst=ret_inst,
-                                downwards=True,
-                                param_idx=0,
+                            self.log.debug(
+                                self._tag,
+                                f"Follow return instruction '{ret_inst_info:s}' of function '{dest_symb.short_name:s}'",
                             )
-                            if recursion:
-                                self.log.debug(
-                                    self._tag,
-                                    f"Do not follow return instruction '{ret_inst_info:s}' of function '{dest_symb.short_name:s}' since recursion detected",
-                                )
-                            else:
-                                self.log.debug(
-                                    self._tag,
-                                    f"Follow return instruction '{ret_inst_info:s}' of function '{dest_symb.short_name:s}'",
-                                )
-                                self._slice_backwards(ret_inst)
-                            # Pop function containing the return instruction and follow the
-                            # reached parameters
-                            self.__pop_func_and_slice_reached_params(inst)
+                            self._slice_backwards(ret_inst)
+                        # Pop function containing the return instruction and follow the reached
+                        # parameters
+                        self.__pop_func_and_slice_reached_params(inst)
             # Indirect function calls
             case bn.MediumLevelILVarSsa() | bn.MediumLevelILLoadSsa():
                 for param in inst.params:
