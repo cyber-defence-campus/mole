@@ -348,24 +348,24 @@ class MediumLevelILBackwardSlicer:
 
     def _slice_store_chain(
         self,
-        inst: bn.MediumLevelILLoadSsa,
+        load_inst: bn.MediumLevelILLoadSsa,
         store_chain: Tuple[bn.MediumLevelILInstruction, ...],
     ) -> None:
         """
         This method slices the store instruction at the end of `store_chain`, which may define the
-        memory loaded by `inst`. All other instructions in `store_chain` are calls, each into the
-        function of the next instruction. The first instruction is in the function of the current
-        call frame. For each call, a call frame is pushed for the called function. When returning
-        from it, the arguments of the call are sliced for each parameter that was reached.
+        memory loaded by `load_inst`. All other instructions in `store_chain` are calls, each into
+        the function of the next instruction. The first instruction is in the function of the
+        current call frame. For each call, a call frame is pushed for the called function. When
+        returning from it, the arguments of the call are sliced for each parameter that was reached.
         """
         mem_def_inst, *rest = store_chain
         mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
         # Follow the store instruction
         if not rest:
-            inst_info = InstructionHelper.get_inst_info(inst, False)
+            load_inst_info = InstructionHelper.get_inst_info(load_inst, False)
             self.log.debug(
                 self._tag,
-                f"Follow store instruction '{mem_def_inst_info:s}' since it may overlap the memory loaded by '{inst_info:s}'",
+                f"Follow store instruction '{mem_def_inst_info:s}' since it may overlap the memory loaded by '{load_inst_info:s}'",
             )
             self._call_tracker.push_mem_def_inst(mem_def_inst)
             self._slice_backwards(mem_def_inst)
@@ -386,7 +386,7 @@ class MediumLevelILBackwardSlicer:
                 f"Do not follow call instruction '{mem_def_inst_info:s}' since recursion detected",
             )
         else:
-            self._slice_store_chain(inst, tuple(rest))
+            self._slice_store_chain(load_inst, tuple(rest))
         # Pop called function and follow the reached parameters
         self.__pop_func_and_slice_reached_params(call_inst)
         self._call_tracker.pop_inst()
@@ -730,7 +730,7 @@ class MediumLevelILBackwardSlicer:
         sliced.
         """
         inst_info = InstructionHelper.get_inst_info(inst)
-        load_inst = inst.src
+        load_src_inst = inst.src
         read_bytes = set(range(inst.size))
 
         # Slice `mem_def_inst` and return `read_bytes` if it stores the same struct member
@@ -760,12 +760,12 @@ class MediumLevelILBackwardSlicer:
         if self._walk_ssa_mem_definitions(
             inst.function, [inst.ssa_memory_version], read_bytes, visit
         ):
-            load_src_inst_info = InstructionHelper.get_inst_info(load_inst, False)
+            load_src_inst_info = InstructionHelper.get_inst_info(load_src_inst, False)
             self.log.debug(
                 self._tag,
                 f"Follow load struct source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a must-def",
             )
-            self._slice_backwards(load_inst)
+            self._slice_backwards(load_src_inst)
         return
 
     def _slice_callee_out_param_definitions(
