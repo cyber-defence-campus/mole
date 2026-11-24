@@ -412,16 +412,15 @@ class MediumLevelILBackwardSlicer:
         | bn.MediumLevelILCallUntypedSsa
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntypedSsa,
+        call_params: Set[int],
     ) -> None:
         """
-        This method slices the call instruction `call_inst` (may-def) if it gets a pointer into
-        the memory object loaded by `load_inst` as a parameter, since the callee may write the
-        loaded memory through it. Slicing then proceeds in the callee at the instructions writing
-        these output parameters.
+        This method slices the call instruction `call_inst` (may-def), which gets a pointer into the
+        memory object loaded by `load_inst` in the parameters `call_params` (see
+        `InstructionHelper.get_load_ptr_params`), since the callee may write the loaded memory
+        through them. Slicing then proceeds in the callee at the instructions writing these output
+        parameters.
         """
-        call_params = InstructionHelper.get_load_ptr_params(load_inst, call_inst)
-        if not call_params:
-            return
         call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
         load_inst_info = InstructionHelper.get_inst_info(load_inst, False)
         params_str = "parameter " if len(call_params) == 1 else "parameters "
@@ -572,18 +571,25 @@ class MediumLevelILBackwardSlicer:
                     | bn.MediumLevelILTailcallSsa()
                     | bn.MediumLevelILTailcallUntypedSsa()
                 ):
-                    # Check if call instruction was followed before
-                    if self._is_mem_def_inst_followed(mem_def_inst):
-                        return set()
+                    # Store chains through the callee if it (transitively) writes the loaded memory
                     callee = get_writer_callee(mem_def_inst)
-                    if callee is not None:
-                        for store_chain in get_store_chains(
-                            callee, {curr_func, callee}
-                        ):
+                    store_chains = (
+                        get_store_chains(callee, {curr_func, callee})
+                        if callee is not None
+                        else []
+                    )
+                    # Parameters through which the callee may write the loaded memory
+                    call_params = InstructionHelper.get_load_ptr_params(
+                        inst, mem_def_inst
+                    )
+                    # Slice relevant call unless followed before
+                    if (
+                        store_chains or call_params
+                    ) and not self._is_mem_def_inst_followed(mem_def_inst):
+                        for store_chain in store_chains:
                             self._slice_store_chain(inst, (mem_def_inst, *store_chain))
-                    # Slice call if the callee may write the loaded memory through a pointer
-                    # parameter
-                    self._slice_load_ptr_call(inst, mem_def_inst)
+                        if call_params:
+                            self._slice_load_ptr_call(inst, mem_def_inst, call_params)
             return set()
 
         # Walk the SSA memory chain of the current function backwards from the load and record
@@ -714,11 +720,8 @@ class MediumLevelILBackwardSlicer:
         # bytes, so every path is walked to the function entry)
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-            # Check if memory defining instruction was followed before
-            if self._is_mem_def_inst_followed(mem_def_inst):
-                return set()
             match mem_def_inst:
-                # Slice calls having the same pointer as parameter
+                # Slice calls having the same pointer as parameter (unless followed before)
                 case (
                     bn.MediumLevelILCallSsa(params=params)
                     | bn.MediumLevelILCallUntypedSsa(params=params)
@@ -732,7 +735,7 @@ class MediumLevelILBackwardSlicer:
                                 constant == inst.constant
                             ):
                                 param_idxs.add(param_idx)
-                    if param_idxs:
+                    if param_idxs and not self._is_mem_def_inst_followed(mem_def_inst):
                         params_str = (
                             "parameter " if len(param_idxs) == 1 else "parameters "
                         )
@@ -795,8 +798,11 @@ class MediumLevelILBackwardSlicer:
                     | bn.MediumLevelILTailcallSsa()
                     | bn.MediumLevelILTailcallUntypedSsa()
                 ):
-                    if not self._is_mem_def_inst_followed(mem_def_inst):
-                        self._slice_load_ptr_call(inst, mem_def_inst)
+                    call_params = InstructionHelper.get_load_ptr_params(
+                        inst, mem_def_inst
+                    )
+                    if call_params and not self._is_mem_def_inst_followed(mem_def_inst):
+                        self._slice_load_ptr_call(inst, mem_def_inst, call_params)
             return set()
 
         # Follow load source instruction if some path reaches the function entry without a store
