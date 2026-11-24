@@ -155,10 +155,7 @@ class MediumLevelILBackwardSlicer:
                 ):
                     self.log.debug(
                         self._tag,
-                        f"Follow instruction '{mem_def_inst_info:s}' since it writes "
-                        f"bytes [{dest_offset:d}, {dest_offset + dest_size:d}) of aliased variable "
-                        f"'{ssa_var_info:s}' overlapping [{read_offset:d}, "
-                        f"{read_offset + read_size:d})",
+                        f"Follow instruction '{mem_def_inst_info:s}' since it writes bytes [{dest_offset:d}, {dest_offset + dest_size:d}) of aliased variable '{ssa_var_info:s}' overlapping [{read_offset:d}, {read_offset + read_size:d})",
                     )
                     self._call_tracker.push_mem_def_inst(mem_def_inst)
                     self._slice_backwards(mem_def_inst)
@@ -239,7 +236,7 @@ class MediumLevelILBackwardSlicer:
                 # Slice the call instruction if we need to follow any parameter
                 if call_params:
                     hlil_inst_str = (
-                        f" (HLIL: {str(call_inst):s}{call_offset:+d}) "
+                        f" (HLIL: {str(call_inst):s}{call_offset:+d})"
                         if call_inst is not None
                         else ""
                     )
@@ -249,7 +246,7 @@ class MediumLevelILBackwardSlicer:
                     params_str += ", ".join(map(str, sorted(call_params)))
                     self.log.debug(
                         self._tag,
-                        f"Follow call instruction '{mem_def_inst_info:s}' since it uses {ssa_var_info:s}{hlil_inst_str:s} in {params_str:s}",
+                        f"Follow call instruction '{mem_def_inst_info:s}' since it uses '{ssa_var_info:s}'{hlil_inst_str:s} in {params_str:s}",
                     )
                     self._call_tracker.push_mem_def_inst(mem_def_inst)
                     self._slice_backwards(mem_def_inst, call_params)
@@ -368,8 +365,7 @@ class MediumLevelILBackwardSlicer:
             inst_info = InstructionHelper.get_inst_info(inst, False)
             self.log.debug(
                 self._tag,
-                f"Follow instruction '{mem_def_inst_info:s}' since it may store the memory loaded "
-                f"by '{inst_info:s}'",
+                f"Follow store instruction '{mem_def_inst_info:s}' since it may overlap the memory loaded by '{inst_info:s}'",
             )
             self._call_tracker.push_mem_def_inst(mem_def_inst)
             self._slice_backwards(mem_def_inst)
@@ -413,6 +409,7 @@ class MediumLevelILBackwardSlicer:
         """
         inst_info = InstructionHelper.get_inst_info(inst)
         curr_func = inst.function.source_function
+        # Bytes loaded by `inst`, which a store must cover to end a path (must-def)
         read_bytes = set(range(inst.size))
         # Get other functions storing to the loaded address (only if it is a constant global
         # address)
@@ -519,8 +516,7 @@ class MediumLevelILBackwardSlicer:
             if self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
                 self.log.debug(
                     self._tag,
-                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in "
-                    f"the current call frame",
+                    f"Do not follow instruction '{mem_def_inst_info:s}' since followed before in the current call frame",
                 )
                 return set()
             match mem_def_inst:
@@ -528,8 +524,7 @@ class MediumLevelILBackwardSlicer:
                     if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
                         self.log.debug(
                             self._tag,
-                            f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps "
-                            f"the memory loaded by '{inst_info:s}'",
+                            f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the memory loaded by '{inst_info:s}'",
                         )
                         self._call_tracker.push_mem_def_inst(mem_def_inst)
                         self._slice_backwards(mem_def_inst)
@@ -572,7 +567,7 @@ class MediumLevelILBackwardSlicer:
                     if recursion:
                         self.log.debug(
                             self._tag,
-                            f"Do not follow writer function '{writer_func.name:s}' since recursion detected",
+                            f"Do not follow writer function '{writer_func.symbol.short_name:s}' since recursion detected",
                         )
                     else:
                         self._slice_store_chain(inst, store_chain)
@@ -581,7 +576,7 @@ class MediumLevelILBackwardSlicer:
             load_src_inst_info = InstructionHelper.get_inst_info(inst.src, False)
             self.log.debug(
                 self._tag,
-                f"Follow load source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a must-def store instruction",
+                f"Follow load source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a must-def",
             )
             self._slice_backwards(inst.src)
         return
@@ -768,7 +763,7 @@ class MediumLevelILBackwardSlicer:
             load_src_inst_info = InstructionHelper.get_inst_info(load_inst, False)
             self.log.debug(
                 self._tag,
-                f"Follow load struct source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a specific struct store instruction",
+                f"Follow load struct source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a must-def",
             )
             self._slice_backwards(load_inst)
         return
@@ -789,7 +784,7 @@ class MediumLevelILBackwardSlicer:
         writing the output parameters in `call_params` (calls define no bytes, so every path is
         walked to the function entry).
         """
-        dest_inst_info = InstructionHelper.get_inst_info(inst.dest, False)
+        dest_func_name = dest_func.source_function.symbol.short_name
 
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
@@ -840,7 +835,7 @@ class MediumLevelILBackwardSlicer:
                                 dest_var_info = VariableHelper.get_ssavar_info(dest_var)
                                 self.log.debug(
                                     self._tag,
-                                    f"Follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since it writes the output parameter variable '{dest_var_info:s}'",
+                                    f"Follow instruction '{mem_def_inst_info:s}' of function '{dest_func_name:s}' since it writes the output parameter variable '{dest_var_info:s}'",
                                 )
                                 self._call_tracker.push_mem_def_inst(mem_def_inst)
                                 self._slice_backwards(mem_def_inst)
@@ -848,7 +843,7 @@ class MediumLevelILBackwardSlicer:
                             else:
                                 self.log.debug(
                                     self._tag,
-                                    f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                                    f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_func_name:s}' since recursion detected",
                                 )
                             # Pop function containing the memory
                             # defining instruction and follow the
@@ -891,7 +886,7 @@ class MediumLevelILBackwardSlicer:
                         else:
                             self.log.debug(
                                 self._tag,
-                                f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                                f"Do not follow instruction '{mem_def_inst_info:s}' of function '{dest_func_name:s}' since recursion detected",
                             )
                         # Pop function containing the memory defining
                         # instruction and follow the reached parameters
@@ -969,12 +964,12 @@ class MediumLevelILBackwardSlicer:
                             if recursion:
                                 self.log.debug(
                                     self._tag,
-                                    f"Do not follow return instruction '{ret_inst_info:s}' of function '{dest_inst_info:s}' since recursion detected",
+                                    f"Do not follow return instruction '{ret_inst_info:s}' of function '{dest_symb.short_name:s}' since recursion detected",
                                 )
                             else:
                                 self.log.debug(
                                     self._tag,
-                                    f"Follow return instruction '{ret_inst_info:s}' of function '{dest_inst_info:s}'",
+                                    f"Follow return instruction '{ret_inst_info:s}' of function '{dest_symb.short_name:s}'",
                                 )
                                 self._slice_backwards(ret_inst)
                             # Pop function containing the return instruction and follow the
