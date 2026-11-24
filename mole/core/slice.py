@@ -121,6 +121,17 @@ class MediumLevelILBackwardSlicer:
         The method returns whether slicing proceeded at `mem_def_inst` or not.
         """
         followed = False
+        # Ignore memory defining instructions not handled below (e.g. stores)
+        if not isinstance(
+            mem_def_inst,
+            bn.MediumLevelILSetVarAliased
+            | bn.MediumLevelILSetVarAliasedField
+            | bn.MediumLevelILCallSsa
+            | bn.MediumLevelILCallUntypedSsa
+            | bn.MediumLevelILTailcallSsa
+            | bn.MediumLevelILTailcallUntypedSsa,
+        ):
+            return followed
         ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
         mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
         # Ensure memory defining instruction has not yet been followed in the current call frame
