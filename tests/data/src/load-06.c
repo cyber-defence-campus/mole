@@ -4,8 +4,8 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD_STRUCT with global struct member dereferencing source
-- Struct member written in a different function than it is read
+- MLIL_LOAD from a constant global address with HLIL global struct member source
+- Struct member written locally and then in a different function (callee) than it is read
 */
 
 typedef struct {

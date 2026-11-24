@@ -5,7 +5,7 @@
 /*
 Testcase Description:
 - disallow function inlining
-- with tail calls
+- without tail calls
 - indirect recursion
 */
 

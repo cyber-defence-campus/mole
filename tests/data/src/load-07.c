@@ -4,8 +4,8 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD_STRUCT with global union member dereferencing source
-- Union member written in a different function than it is read
+- MLIL_LOAD from a constant global address with HLIL global union member source
+- Union member written locally and then in a different function (callee) than it is read
 */
 
 typedef union {

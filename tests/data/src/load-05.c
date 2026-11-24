@@ -4,7 +4,8 @@
 
 /*
 Testcase Description:
-- MLIL_LOAD_STRUCT with HLIL field dereferencing source
+- MLIL_LOAD (x86-64: MLIL_VAR_ALIASED_FIELD) with HLIL field dereferencing of a local struct pointer
+  source
 */
 
 #define BUF_SIZE 32

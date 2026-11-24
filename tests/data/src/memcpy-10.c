@@ -5,7 +5,7 @@
 /*
 Testcase Description:
 - controllable source and size
-- unexploitable do to validation
+- unexploitable due to validation
 */
 
 int main(int argc, char *argv[]) {

@@ -3,6 +3,13 @@
 
 #define CMD_LEN 64
 
+/*
+Testcase Description:
+- pointer analysis
+- system with user-controllabel command passed to a callee
+- command passed through a function returning its parameter
+*/
+
 __attribute__ ((noinline, optimize("O0")))
 char* validate(char* cmd) {
     if(cmd == NULL) cmd = "";

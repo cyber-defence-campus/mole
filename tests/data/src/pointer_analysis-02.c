@@ -7,7 +7,8 @@
 /*
 Testcase Description:
 - pointer analysis
-- system with user-controllabel command
+- system command written from user input, then overwritten by constants
+- calls are may-defs, so the user input is still followed
 */
 
 int main(int argc, char *argv[]) {

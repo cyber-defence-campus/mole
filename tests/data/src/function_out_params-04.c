@@ -3,7 +3,7 @@
 
 /*
 Testcase Description:
-- Function with output parameter (char**)
+- Output parameter 1 (MyStruct*): member written and influence on the sink
 */
 
 typedef struct {

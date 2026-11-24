@@ -3,7 +3,7 @@
 
 /*
 Testcase Description:
-- Output parameter 1 (char*) : written but no influence on the sink
+- Parameter 1 (char*) : passed by value, reassigned but no influence on the sink
 - Output parameter 2 (char**): not written and influence on the sink
 */
 

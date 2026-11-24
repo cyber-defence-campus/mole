@@ -3,7 +3,8 @@
 
 /*
 Testcase Description:
-- Output parameter 1 (char**): written and influence on the sink
+- Output parameter 1 (char**): written through a pointer copy on both return paths and influence on
+  the sink
 */
 
 __attribute__ ((noinline, optimize("O0")))
