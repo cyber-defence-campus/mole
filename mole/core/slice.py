@@ -118,25 +118,13 @@ class MediumLevelILBackwardSlicer:
           call. This is the case if `ssa_var` is aliased and the parameter points to it (e.g.
           `&ssa_var`), or if `ssa_var` is a pointer and the parameter holds the same pointer value
           (i.e. the callee can write the memory `ssa_var` points to)
-        The method returns whether slicing proceeded at `mem_def_inst` or not.
+        A matching `mem_def_inst` that was followed before in the current call frame is not sliced
+        again. The method returns whether `mem_def_inst` matches (i.e. slicing proceeded or
+        proceeded before at `mem_def_inst`) or not.
         """
         followed = False
-        # Ignore memory defining instructions not handled below (e.g. stores)
-        if not isinstance(
-            mem_def_inst,
-            bn.MediumLevelILSetVarAliased
-            | bn.MediumLevelILSetVarAliasedField
-            | bn.MediumLevelILCallSsa
-            | bn.MediumLevelILCallUntypedSsa
-            | bn.MediumLevelILTailcallSsa
-            | bn.MediumLevelILTailcallUntypedSsa,
-        ):
-            return followed
         ssa_var_info = VariableHelper.get_ssavar_info(ssa_var)
         mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-        # Ensure memory defining instruction has not yet been followed in the current call frame
-        if self._is_mem_def_inst_followed(mem_def_inst):
-            return followed
         # Match memory defining instruction
         match mem_def_inst:
             # Assignment to aliased variable underlying `ssa_var` -> slice assignment instruction
@@ -150,12 +138,13 @@ class MediumLevelILBackwardSlicer:
                     == dest_ssa_var.version
                     <= ssa_var.version
                 ):
-                    self.log.debug(
-                        self._tag,
-                        f"Follow instruction '{mem_def_inst_info:s}' since it writes aliased variable '{ssa_var_info:s}'",
-                    )
-                    self._call_tracker.push_mem_def_inst(mem_def_inst)
-                    self._slice_backwards(mem_def_inst)
+                    if not self._is_mem_def_inst_followed(mem_def_inst):
+                        self.log.debug(
+                            self._tag,
+                            f"Follow instruction '{mem_def_inst_info:s}' since it writes aliased variable '{ssa_var_info:s}'",
+                        )
+                        self._call_tracker.push_mem_def_inst(mem_def_inst)
+                        self._slice_backwards(mem_def_inst)
                     followed = True
             # Assignment to field of aliased variable underlying `ssa_var` -> slice assignment
             # instruction
@@ -176,12 +165,13 @@ class MediumLevelILBackwardSlicer:
                     and dest_offset < read_offset + read_size
                     and read_offset < dest_offset + dest_size
                 ):
-                    self.log.debug(
-                        self._tag,
-                        f"Follow instruction '{mem_def_inst_info:s}' since it writes bytes [{dest_offset:d}, {dest_offset + dest_size:d}) of aliased variable '{ssa_var_info:s}' overlapping [{read_offset:d}, {read_offset + read_size:d})",
-                    )
-                    self._call_tracker.push_mem_def_inst(mem_def_inst)
-                    self._slice_backwards(mem_def_inst)
+                    if not self._is_mem_def_inst_followed(mem_def_inst):
+                        self.log.debug(
+                            self._tag,
+                            f"Follow instruction '{mem_def_inst_info:s}' since it writes bytes [{dest_offset:d}, {dest_offset + dest_size:d}) of aliased variable '{ssa_var_info:s}' overlapping [{read_offset:d}, {read_offset + read_size:d})",
+                        )
+                        self._call_tracker.push_mem_def_inst(mem_def_inst)
+                        self._slice_backwards(mem_def_inst)
                     followed = True
             # Call with a parameter possibly writing `ssa_var` -> slice call instruction
             case (
@@ -257,7 +247,7 @@ class MediumLevelILBackwardSlicer:
                             ):
                                 call_params.add(param_idx)
                 # Slice the call instruction if we need to follow any parameter
-                if call_params:
+                if call_params and not self._is_mem_def_inst_followed(mem_def_inst):
                     hlil_inst_str = (
                         f" (HLIL: {str(call_inst):s}{call_offset:+d})"
                         if call_inst is not None
@@ -273,7 +263,7 @@ class MediumLevelILBackwardSlicer:
                     )
                     self._call_tracker.push_mem_def_inst(mem_def_inst)
                     self._slice_backwards(mem_def_inst, call_params)
-                    followed = True
+                followed = bool(call_params)
         return followed
 
     def _walk_ssa_mem_definitions(
@@ -564,18 +554,17 @@ class MediumLevelILBackwardSlicer:
         # Slice stores in the current function (must-defs) and in its (transitive) callees (may-defs)
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-            # Check if memory defining instruction was followed before
-            if self._is_mem_def_inst_followed(mem_def_inst):
-                return set()
             match mem_def_inst:
+                # Overlapping store is a must-def (even if followed before)
                 case bn.MediumLevelILStoreSsa():
                     if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
-                        self.log.debug(
-                            self._tag,
-                            f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the memory loaded by '{inst_info:s}'",
-                        )
-                        self._call_tracker.push_mem_def_inst(mem_def_inst)
-                        self._slice_backwards(mem_def_inst)
+                        if not self._is_mem_def_inst_followed(mem_def_inst):
+                            self.log.debug(
+                                self._tag,
+                                f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the memory loaded by '{inst_info:s}'",
+                            )
+                            self._call_tracker.push_mem_def_inst(mem_def_inst)
+                            self._slice_backwards(mem_def_inst)
                         return read_bytes
                 case (
                     bn.MediumLevelILCallSsa()
@@ -583,6 +572,9 @@ class MediumLevelILBackwardSlicer:
                     | bn.MediumLevelILTailcallSsa()
                     | bn.MediumLevelILTailcallUntypedSsa()
                 ):
+                    # Check if call instruction was followed before
+                    if self._is_mem_def_inst_followed(mem_def_inst):
+                        return set()
                     callee = get_writer_callee(mem_def_inst)
                     if callee is not None:
                         for store_chain in get_store_chains(
@@ -783,28 +775,28 @@ class MediumLevelILBackwardSlicer:
         # Slice `mem_def_inst` and return `read_bytes` if it stores the same struct member
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-            # Check if memory defining instruction was followed before
-            if self._is_mem_def_inst_followed(mem_def_inst):
-                return set()
             match mem_def_inst:
+                # Overlapping store is a must-def (even if followed before)
                 case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
                     if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
-                        self.log.debug(
-                            self._tag,
-                            f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the struct member loaded by '{inst_info:s}'",
-                        )
-                        self._call_tracker.push_mem_def_inst(mem_def_inst)
-                        self._slice_backwards(mem_def_inst)
+                        if not self._is_mem_def_inst_followed(mem_def_inst):
+                            self.log.debug(
+                                self._tag,
+                                f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the struct member loaded by '{inst_info:s}'",
+                            )
+                            self._call_tracker.push_mem_def_inst(mem_def_inst)
+                            self._slice_backwards(mem_def_inst)
                         return read_bytes
                 # Slice call if the callee may write the loaded struct member through a pointer
-                # parameter
+                # parameter (unless followed before)
                 case (
                     bn.MediumLevelILCallSsa()
                     | bn.MediumLevelILCallUntypedSsa()
                     | bn.MediumLevelILTailcallSsa()
                     | bn.MediumLevelILTailcallUntypedSsa()
                 ):
-                    self._slice_load_ptr_call(inst, mem_def_inst)
+                    if not self._is_mem_def_inst_followed(mem_def_inst):
+                        self._slice_load_ptr_call(inst, mem_def_inst)
             return set()
 
         # Follow load source instruction if some path reaches the function entry without a store
