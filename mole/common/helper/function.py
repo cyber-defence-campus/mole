@@ -26,6 +26,7 @@ class FunctionHelper:
         FunctionHelper.get_ssa_memory_definitions.cache_clear()
         FunctionHelper.get_il_code.cache_clear()
         FunctionHelper.get_pseudo_c_code.cache_clear()
+        FunctionHelper.calls.cache_clear()
         return
 
     @staticmethod
@@ -592,6 +593,7 @@ class FunctionHelper:
         return "\n".join(code_lines)
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def calls(f1: bn.Function, f2: bn.Function, max_depth: int | None = None) -> bool:
         """
         Return True if `f1` calls `f2` directly or transitively.
