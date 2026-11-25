@@ -56,8 +56,8 @@ class TestNameMangling(TestSlicing):
             srcs=[("getenv", None)],
             snks=[("system", 1)],
             call_chains=[
-                ["MyStruct::my_func", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
-                ["MyClass::my_func", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
+                ["MyStruct::my_func", "main", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
+                ["MyClass::my_func", "main", "_GLOBAL__sub_I__ZN8MyStruct3cmdE"],
             ],
             filenames=filenames,
         )

@@ -2,7 +2,7 @@ from __future__ import annotations
 from mole.common.helper.function import FunctionHelper
 from mole.common.helper.instruction import InstructionHelper
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import cast, List, Set
+from typing import cast, List, Set, Tuple
 import binaryninja as bn
 import networkx as nx
 
@@ -16,6 +16,9 @@ class MediumLevelILCallFrame:
         self.func = func
         # Set of parameter indices that should be sliced when going back to the caller
         self.hit_param_idxs: Set[int] = set()
+        # List of load instructions whose loaded memory is not defined on all paths within the
+        # current function and should be followed further when going back to the caller
+        self.hit_load_insts: List[bn.MediumLevelILLoadSsa] = []
         # Set of parameter indices known to be output parameters
         self.out_param_idxs: Set[int] = set()
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
@@ -155,10 +158,11 @@ class MediumLevelILCallTracker:
                 self._call_graph.add_node(func)
         return recursion
 
-    def pop_func(self) -> Set[int]:
+    def pop_func(self) -> Tuple[Set[int], List[bn.MediumLevelILLoadSsa]]:
         """
         This method pops the top call frame from the call stack and returns a set of parameter
-        indices (`hit_param_idxs`) that should be sliced further.
+        indices (`hit_param_idxs`) and a list of load instructions (`hit_load_insts`) that should be
+        sliced further.
         """
         if self._call_stack:
             # Pop old call frame and get its last instruction
@@ -189,9 +193,9 @@ class MediumLevelILCallTracker:
                 MediumLevelILInstructionGraph,
                 nx.compose(self._inst_graph, old_inst_graph),
             )
-            # Return indices of parameters to be sliced further
-            return old_call_frame.hit_param_idxs
-        return set()
+            # Return indices of parameters and load instructions to be sliced further
+            return old_call_frame.hit_param_idxs, old_call_frame.hit_load_insts
+        return set(), []
 
     def push_inst(
         self, inst: bn.MediumLevelILInstruction, call_params: Set[int] = set()
@@ -246,6 +250,16 @@ class MediumLevelILCallTracker:
         """
         if self._call_stack:
             self._call_stack[-1].hit_param_idxs.add(param_idx)
+        return
+
+    def add_hit_load_inst(self, inst: bn.MediumLevelILLoadSsa) -> None:
+        """
+        This method adds the given load instruction `inst` to the `hit_load_insts` list of the
+        current call frame. `hit_load_insts` is the list of load instructions whose memory should be
+        sliced further when returning back to the caller of the current function.
+        """
+        if self._call_stack and inst not in self._call_stack[-1].hit_load_insts:
+            self._call_stack[-1].hit_load_insts.append(inst)
         return
 
     def print_call_stack(self) -> None:

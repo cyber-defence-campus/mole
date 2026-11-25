@@ -114,7 +114,7 @@ class TestPointerDeref(TestSlicing):
         self.assert_paths(
             srcs=[("getenv", None)],
             snks=[("system", 1)],
-            call_chains=[["main", "get_cmd", "set_cmd"]],
+            call_chains=[["main", "set_cmd"]],
             filenames=filenames,
         )
         return
@@ -124,12 +124,11 @@ class TestPointerDeref(TestSlicing):
         self.test_load_15(filenames=filenames)
         return
 
-    @pytest.mark.xfail
     def test_load_17(self, filenames: List[str] = ["load-17"]) -> None:
         self.assert_paths(
             srcs=[("getenv", None)],
             snks=[("system", 1)],
-            call_chains=[["main", "get_cmd", "set_cmd", "main"]],
+            call_chains=[["main"]],
             filenames=filenames,
         )
         return
@@ -139,7 +138,7 @@ class TestPointerDeref(TestSlicing):
         self.assert_paths(
             srcs=[("getenv", None)],
             snks=[("system", 1)],
-            call_chains=[["main", "get_cmd", "set_cmds", "new_cmds", "set_cmds"]],
+            call_chains=[["main", "set_cmds", "new_cmds"]],
             filenames=filenames,
         )
         return
