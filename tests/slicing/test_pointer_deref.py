@@ -1,6 +1,7 @@
 from __future__ import annotations
 from tests.slicing.conftest import TestSlicing
 from typing import List
+import pytest
 
 
 class TestPointerDeref(TestSlicing):
@@ -107,4 +108,38 @@ class TestPointerDeref(TestSlicing):
 
     def test_load_14(self, filenames: List[str] = ["load-14"]) -> None:
         self.test_load_13(filenames=filenames)
+        return
+
+    def test_load_15(self, filenames: List[str] = ["load-15"]) -> None:
+        self.assert_paths(
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
+            call_chains=[["main", "get_cmd", "set_cmd"]],
+            filenames=filenames,
+        )
+        return
+
+    @pytest.mark.xfail
+    def test_load_16(self, filenames: List[str] = ["load-16"]) -> None:
+        self.test_load_15(filenames=filenames)
+        return
+
+    @pytest.mark.xfail
+    def test_load_17(self, filenames: List[str] = ["load-17"]) -> None:
+        self.assert_paths(
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
+            call_chains=[["main", "get_cmd", "set_cmd", "main"]],
+            filenames=filenames,
+        )
+        return
+
+    @pytest.mark.xfail
+    def test_load_18(self, filenames: List[str] = ["load-18"]) -> None:
+        self.assert_paths(
+            srcs=[("getenv", None)],
+            snks=[("system", 1)],
+            call_chains=[["main", "get_cmd", "set_cmds", "new_cmds", "set_cmds"]],
+            filenames=filenames,
+        )
         return
