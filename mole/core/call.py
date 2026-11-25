@@ -300,6 +300,8 @@ class MediumLevelILCallTracker:
                     follow = f"Followed param {attrs['param_idx']:d} upwards"
                 else:
                     follow = "Followed all possible params upwards"
+            if not attrs.get("call", True):
+                follow += " (no call)"
             print(
                 f"[{caller_level:+d}] {caller_info} -- '{follow:s}' -> [{callee_level:+d}] {callee_info}"
             )
@@ -314,6 +316,10 @@ class MediumLevelILCallTracker:
             out_params = ", ".join(str(i) for i in sorted(call_frame.out_param_idxs))
             print(f"[{call_level:d}] {str(call_frame):s}")
             print(f"Hit params: {hit_params:s}")
+            print("Hit loads:")
+            for inst in call_frame.hit_load_insts:
+                inst_info = InstructionHelper.get_inst_info(inst, False)
+                print(f"  - {inst_info:s}")
             print(f"Out params: {out_params:s}")
             print("Inst stack:")
             for inst in call_frame.inst_stack:
