@@ -142,10 +142,20 @@ class GraphController:
                 or (self.graph_view.in_path_only and not in_path)
             ):
                 continue
-            # Add edge
-            fg_from_node.add_outgoing_edge(
-                bn.enums.BranchType.UnconditionalBranch, fg_to_node
-            )
+            # Add edge (dashed if it is no actual call)
+            if attrs.get("call", True):
+                fg_from_node.add_outgoing_edge(
+                    bn.enums.BranchType.UnconditionalBranch, fg_to_node
+                )
+            else:
+                fg_from_node.add_outgoing_edge(
+                    bn.enums.BranchType.UserDefinedBranch,
+                    fg_to_node,
+                    bn.EdgeStyle(
+                        bn.enums.EdgePenStyle.DotLine,
+                        theme_color=bn.enums.ThemeColor.UnconditionalBranchColor,
+                    ),
+                )
             # Path went down to a possible return instruction
             if path_follows_downwards and path_follows_param_idx <= 0:
                 to_func_tokens = InstructionHelper.mark_func_tokens(

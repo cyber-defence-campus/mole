@@ -109,6 +109,7 @@ class MediumLevelILCallTracker:
         to_inst: bn.MediumLevelILInstruction,
         downwards: bool = True,
         param_idx: int = 0,
+        call: bool = True,
     ) -> bool:
         """
         This method creates a new call frame with the function `to_inst.function` and pushes it to
@@ -117,7 +118,9 @@ class MediumLevelILCallTracker:
         caller. When traversing down the call graph (`downwards==True`), `param_idx` indicates the
         callee's output parameter that was followed, or `0` if the traversal followed a return
         instruction. When traversing up the call graph (`downwards==False`), `param_idx` indicates
-        which parameter of the caller is relevant (marked in the graph). The function returns `True`
+        which parameter of the caller is relevant (marked in the graph). `call` indicates whether
+        the edge in the graph is an actual call (`False` e.g. for a function writing loaded memory
+        that is not called by the function of the current call frame). The function returns `True`
         in case of recursion, `False` otherwise.
         """
         # Get the `to_inst`'s function
@@ -143,6 +146,7 @@ class MediumLevelILCallTracker:
                         func,
                         downwards=downwards,
                         param_idx=param_idx,
+                        call=call,
                     )
                     if param_idx > 0:
                         new_call_frame.out_param_idxs.add(param_idx)
@@ -153,6 +157,7 @@ class MediumLevelILCallTracker:
                         callee_frame.func,
                         downwards=downwards,
                         param_idx=param_idx,
+                        call=call,
                     )
             else:
                 self._call_graph.add_node(func)

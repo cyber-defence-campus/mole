@@ -713,10 +713,10 @@ class MediumLevelILBackwardSlicer:
             for store_chain in self._get_load_store_chains(
                 inst, writer_func, {source_func, writer_func}, writer_funcs, may_write
             ):
-                # Push writer function (not called by `func`, so reached parameters are followed
-                # to its callers)
+                # Push writer function (not called by `func`, so the graph edge is no actual call
+                # and reached parameters are followed to its callers)
                 recursion = self._call_tracker.push_func(
-                    to_inst=store_chain[0], downwards=False
+                    to_inst=store_chain[0], downwards=False, call=False
                 )
                 if recursion:
                     self.log.debug(
