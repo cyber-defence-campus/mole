@@ -96,6 +96,15 @@ class MediumLevelILBackwardSlicer:
             size = 1
         return offset, size
 
+    @staticmethod
+    def _get_params_info(param_idxs: Set[int]) -> str:
+        """
+        This method returns the parameter indices `param_idxs` as a string for logging (e.g.
+        `parameter 1` or `parameters 1, 3`).
+        """
+        params_info = "parameter " if len(param_idxs) == 1 else "parameters "
+        return params_info + ", ".join(map(str, sorted(param_idxs)))
+
     def _is_mem_def_inst_followed(
         self, mem_def_inst: bn.MediumLevelILInstruction
     ) -> bool:
@@ -264,13 +273,10 @@ class MediumLevelILBackwardSlicer:
                         if call_inst is not None
                         else ""
                     )
-                    params_str = (
-                        "parameter " if len(call_params) == 1 else "parameters "
-                    )
-                    params_str += ", ".join(map(str, sorted(call_params)))
+                    params_info = self._get_params_info(call_params)
                     self.log.debug(
                         self._tag,
-                        f"Follow call instruction '{mem_def_inst_info:s}' since it uses '{ssa_var_info:s}'{hlil_inst_str:s} in {params_str:s}",
+                        f"Follow call instruction '{mem_def_inst_info:s}' since it uses '{ssa_var_info:s}'{hlil_inst_str:s} in {params_info:s}",
                     )
                     self._call_tracker.push_mem_def_inst(mem_def_inst)
                     self._slice_backwards(mem_def_inst, call_params)
@@ -434,11 +440,10 @@ class MediumLevelILBackwardSlicer:
         """
         call_inst_info = InstructionHelper.get_inst_info(call_inst, False)
         load_inst_info = InstructionHelper.get_inst_info(load_inst, False)
-        params_str = "parameter " if len(call_params) == 1 else "parameters "
-        params_str += ", ".join(map(str, sorted(call_params)))
+        params_info = self._get_params_info(call_params)
         self.log.debug(
             self._tag,
-            f"Follow call instruction '{call_inst_info:s}' since it may write the memory loaded by '{load_inst_info:s}' through {params_str:s}",
+            f"Follow call instruction '{call_inst_info:s}' since it may write the memory loaded by '{load_inst_info:s}' through {params_info:s}",
         )
         self._call_tracker.push_mem_def_inst(call_inst)
         self._slice_backwards(call_inst, call_params)
@@ -859,13 +864,10 @@ class MediumLevelILBackwardSlicer:
                             ):
                                 param_idxs.add(param_idx)
                     if param_idxs and not self._is_mem_def_inst_followed(mem_def_inst):
-                        params_str = (
-                            "parameter " if len(param_idxs) == 1 else "parameters "
-                        )
-                        params_str += ", ".join(map(str, sorted(param_idxs)))
+                        params_info = self._get_params_info(param_idxs)
                         self.log.debug(
                             self._tag,
-                            f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}' in {params_str:s}",
+                            f"Follow call instruction '{mem_def_inst_info:s}' since it uses '0x{inst.constant:x}' in {params_info:s}",
                         )
                         self._call_tracker.push_mem_def_inst(mem_def_inst)
                         self._slice_backwards(mem_def_inst, param_idxs)
