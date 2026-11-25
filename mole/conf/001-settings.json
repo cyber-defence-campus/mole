@@ -52,7 +52,7 @@
     },
     "path_grouping": {
       "help": "strategy used to group paths",
-      "value": "Call"
+      "value": "Call Graph"
     },
     "base_url": {
       "help": "OpenAI-compatible API endpoint",

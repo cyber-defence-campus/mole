@@ -131,8 +131,8 @@ def test_config() -> Configuration:
             ),
             "path_grouping": ComboboxSetting(
                 name="path_grouping",
-                value="Call",
-                items=["Call", "Source / Sink", "None"],
+                value="Call Graph",
+                items=["Call Graph", "Source / Sink", "None"],
                 help="strategy used to group paths",
             ),
             "base_url": TextSetting(

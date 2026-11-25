@@ -181,10 +181,10 @@ These features help users better inspect and validate identified paths during an
   <img src="https://i.postimg.cc/7P3hL3z9/interesting-paths.png" alt="Mole UI Paths"/>
 </p>
 
-### Visualizing Paths As Dataflow Graphs
-Right-clicking a path opens *Mole*'s context menu, and selecting *Show dataflow graph* visualizes the functions involved in that path as a graph.
+### Visualizing Paths As Call Graphs
+Right-clicking a path opens *Mole*'s context menu, and selecting *Show call graph* visualizes the functions involved in that path as a graph.
 <p align="center">
-  <img src="https://i.postimg.cc/SKpFZNB3/call-graph.png" alt="Mole Dataflow Graph"/>
+  <img src="https://i.postimg.cc/SKpFZNB3/call-graph.png" alt="Mole Call Graph"/>
 </p>
 
 The graph above for instance illustrates the following:
