@@ -18,7 +18,9 @@ class MediumLevelILCallFrame:
         self.hit_param_idxs: Set[int] = set()
         # List of load instructions whose loaded memory is not defined on all paths within the
         # current function and should be followed further when going back to the caller
-        self.hit_load_insts: List[bn.MediumLevelILLoadSsa] = []
+        self.hit_load_insts: List[
+            bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa
+        ] = []
         # Set of parameter indices known to be output parameters
         self.out_param_idxs: Set[int] = set()
         self.inst_stack: List[bn.MediumLevelILInstruction] = []
@@ -163,7 +165,9 @@ class MediumLevelILCallTracker:
                 self._call_graph.add_node(func)
         return recursion
 
-    def pop_func(self) -> Tuple[Set[int], List[bn.MediumLevelILLoadSsa]]:
+    def pop_func(
+        self,
+    ) -> Tuple[Set[int], List[bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa]]:
         """
         This method pops the top call frame from the call stack and returns a set of parameter
         indices (`hit_param_idxs`) and a list of load instructions (`hit_load_insts`) that should be
@@ -257,7 +261,9 @@ class MediumLevelILCallTracker:
             self._call_stack[-1].hit_param_idxs.add(param_idx)
         return
 
-    def add_hit_load_inst(self, inst: bn.MediumLevelILLoadSsa) -> None:
+    def add_hit_load_inst(
+        self, inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa
+    ) -> None:
         """
         This method adds the given load instruction `inst` to the `hit_load_insts` list of the
         current call frame. `hit_load_insts` is the list of load instructions whose memory should be

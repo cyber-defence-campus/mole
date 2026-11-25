@@ -378,7 +378,7 @@ class MediumLevelILBackwardSlicer:
 
     def _slice_store_chain(
         self,
-        load_inst: bn.MediumLevelILLoadSsa,
+        load_inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
         store_chain: Tuple[bn.MediumLevelILInstruction, ...],
     ) -> None:
         """
@@ -449,11 +449,14 @@ class MediumLevelILBackwardSlicer:
         self._slice_backwards(call_inst, call_params)
         return
 
-    def _get_load_writer_funcs(self, inst: bn.MediumLevelILLoadSsa) -> Set[bn.Function]:
+    def _get_load_writer_funcs(
+        self, inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa
+    ) -> Set[bn.Function]:
         """
         This method returns the functions (other than `inst.function`) storing to the address
-        loaded by `inst`, if it is a constant global address in a writable segment (i.e. a global or
-        static variable). Otherwise, it returns an empty set.
+        `inst` loads from (or the struct's address for struct loads), if it is a constant global
+        address in a writable segment (i.e. a global or static variable). Otherwise, it returns an
+        empty set.
         """
         writer_funcs: Set[bn.Function] = set()
         match inst.src:
@@ -473,7 +476,11 @@ class MediumLevelILBackwardSlicer:
                         ):
                             continue
                         if any(
-                            isinstance(mlil.ssa_form, bn.MediumLevelILStoreSsa)
+                            isinstance(
+                                mlil.ssa_form,
+                                bn.MediumLevelILStoreSsa
+                                | bn.MediumLevelILStoreStructSsa,
+                            )
                             for mlil in code_ref.mlils
                         ):
                             writer_funcs.add(code_ref.function)
@@ -512,7 +519,7 @@ class MediumLevelILBackwardSlicer:
 
     def _get_load_store_chains(
         self,
-        inst: bn.MediumLevelILLoadSsa,
+        inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
         func: bn.Function,
         visiting: Set[bn.Function],
         writer_funcs: Set[bn.Function],
@@ -533,7 +540,7 @@ class MediumLevelILBackwardSlicer:
 
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             match mem_def_inst:
-                case bn.MediumLevelILStoreSsa():
+                case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
                     if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
                         store_chains.append((mem_def_inst,))
                         return read_bytes
@@ -568,15 +575,16 @@ class MediumLevelILBackwardSlicer:
 
     def _walk_load_mem_definitions(
         self,
-        inst: bn.MediumLevelILLoadSsa,
+        inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
         func: bn.MediumLevelILFunction,
         mem_versions: Iterable[int],
     ) -> bool:
         """
         This method walks the SSA memory chain of function `func` backwards from the memory versions
-        `mem_versions` and follows the instructions possibly defining the memory loaded by `inst`:
-        - Stores overlapping the loaded memory are must-defs, i.e. they end the path through the SSA
-          memory chain they are on
+        `mem_versions` and follows the instructions possibly defining the memory loaded by `inst`
+        (a load or struct load):
+        - Stores (or struct stores) overlapping the loaded memory are must-defs, i.e. they end the
+          path through the SSA memory chain they are on
         - Calls into (transitive) callees storing to the loaded memory are may-defs (only possible
           for loads from a constant global address), as are calls getting a pointer into the loaded
           memory object
@@ -595,7 +603,7 @@ class MediumLevelILBackwardSlicer:
             mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
             match mem_def_inst:
                 # Overlapping store is a must-def (even if followed before)
-                case bn.MediumLevelILStoreSsa():
+                case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
                     if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
                         if not self._is_mem_def_inst_followed(mem_def_inst):
                             self.log.debug(
@@ -644,7 +652,7 @@ class MediumLevelILBackwardSlicer:
 
     def _slice_load_caller_mem_definitions(
         self,
-        inst: bn.MediumLevelILLoadSsa,
+        inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
         call_inst: bn.MediumLevelILCallSsa
         | bn.MediumLevelILCallUntypedSsa
         | bn.MediumLevelILTailcallSsa
@@ -663,7 +671,9 @@ class MediumLevelILBackwardSlicer:
         return
 
     def _slice_load_entry_mem_definitions(
-        self, inst: bn.MediumLevelILLoadSsa, func: bn.MediumLevelILFunction
+        self,
+        inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
+        func: bn.MediumLevelILFunction,
     ) -> None:
         """
         This method follows the memory loaded by `inst` (from a constant global address) to the
@@ -733,7 +743,9 @@ class MediumLevelILBackwardSlicer:
                 self.__pop_func_and_slice_in_caller()
         return
 
-    def _slice_load_mem_definitions(self, inst: bn.MediumLevelILLoadSsa) -> None:
+    def _slice_load_mem_definitions(
+        self, inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa
+    ) -> None:
         """
         This method follows to the instructions possibly defining the memory loaded by `inst` in
         `inst.function` (see `_walk_load_mem_definitions`). If some path reaches the entry of
@@ -884,63 +896,6 @@ class MediumLevelILBackwardSlicer:
                 self._tag,
                 f"Do not follow pointer '0x{constant:x}' since it is in a non-writable segment",
             )
-        return
-
-    def _slice_load_struct_mem_definitions(
-        self, inst: bn.MediumLevelILLoadStructSsa
-    ) -> None:
-        """
-        This method walks the SSA memory chain of the function `inst.function` backwards from
-        `inst.ssa_memory_version` and slices the store instructions writing the same struct member
-        as loaded by `inst`. Each such store ends the path through the SSA memory chain it is on. If
-        some path reaches the function entry without such a store, the load source instruction is
-        sliced.
-        """
-        inst_info = InstructionHelper.get_inst_info(inst, False)
-        load_src_inst = inst.src
-        read_bytes = set(range(inst.size))
-
-        # Slice `mem_def_inst` and return `read_bytes` if it stores the same struct member
-        def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
-            mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
-            match mem_def_inst:
-                # Overlapping store is a must-def (even if followed before)
-                case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
-                    if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
-                        if not self._is_mem_def_inst_followed(mem_def_inst):
-                            self.log.debug(
-                                self._tag,
-                                f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the struct member loaded by '{inst_info:s}'",
-                            )
-                            self._call_tracker.push_mem_def_inst(mem_def_inst)
-                            self._slice_backwards(mem_def_inst)
-                        return read_bytes
-                # Slice call if the callee may write the loaded struct member through a pointer
-                # parameter (unless followed before)
-                case (
-                    bn.MediumLevelILCallSsa()
-                    | bn.MediumLevelILCallUntypedSsa()
-                    | bn.MediumLevelILTailcallSsa()
-                    | bn.MediumLevelILTailcallUntypedSsa()
-                ):
-                    call_params = InstructionHelper.get_load_ptr_params(
-                        inst, mem_def_inst
-                    )
-                    if call_params and not self._is_mem_def_inst_followed(mem_def_inst):
-                        self._slice_load_ptr_call(inst, mem_def_inst, call_params)
-            return set()
-
-        # Follow load source instruction if some path reaches the function entry without a store
-        # writing the same struct member
-        if self._walk_ssa_mem_definitions(
-            inst.function, [inst.ssa_memory_version], read_bytes, visit
-        ):
-            load_src_inst_info = InstructionHelper.get_inst_info(load_src_inst, False)
-            self.log.debug(
-                self._tag,
-                f"Follow load struct source instruction '{load_src_inst_info:s}' since some path reaches the function entry without a must-def",
-            )
-            self._slice_backwards(load_src_inst)
         return
 
     def _slice_callee_out_param_definitions(
@@ -1201,10 +1156,8 @@ class MediumLevelILBackwardSlicer:
             # NOTE: Case order matters
             case bn.MediumLevelILConstPtr():
                 self._slice_const_ptr_mem_definitions(inst)
-            case bn.MediumLevelILLoadSsa():
+            case bn.MediumLevelILLoadSsa() | bn.MediumLevelILLoadStructSsa():
                 self._slice_load_mem_definitions(inst)
-            case bn.MediumLevelILLoadStructSsa():
-                self._slice_load_struct_mem_definitions(inst)
             case (
                 bn.MediumLevelILVarAliased(src=ssa_var)
                 | bn.MediumLevelILVarAliasedField(src=ssa_var)
