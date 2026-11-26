@@ -20,6 +20,7 @@ class FunctionHelper:
         """
         FunctionHelper.get_mlil_return_insts.cache_clear()
         FunctionHelper.get_mlil_direct_call_insts.cache_clear()
+        FunctionHelper.get_mlil_indirect_call_insts.cache_clear()
         FunctionHelper.get_mlil_param_insts.cache_clear()
         FunctionHelper.get_var_map.cache_clear()
         FunctionHelper._get_ptr_map.cache_clear()
@@ -97,6 +98,7 @@ class FunctionHelper:
         return call_insts
 
     @staticmethod
+    @lru_cache(maxsize=maxsize)
     def get_mlil_indirect_call_insts(
         func: bn.MediumLevelILFunction,
     ) -> Set[
@@ -108,6 +110,8 @@ class FunctionHelper:
         """
         This method returns a set of MLIL call instructions that indirectly call the function
         `func`.
+
+        Note: The result is cached and must not be mutated.
         """
         call_insts: Set[
             bn.MediumLevelILCallSsa
