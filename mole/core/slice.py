@@ -6,7 +6,7 @@ from mole.common.helper.variable import VariableHelper
 from mole.common.log import Logger
 from mole.core.call import MediumLevelILCallTracker
 from mole.core.graph import MediumLevelILFunctionGraph, MediumLevelILInstructionGraph
-from typing import cast, Callable, Dict, Iterable, List, Set, Tuple
+from typing import cast, Callable, Dict, FrozenSet, Iterable, List, Set, Tuple
 import binaryninja as bn
 import os
 
@@ -449,50 +449,13 @@ class MediumLevelILBackwardSlicer:
         self._slice_backwards(call_inst, call_params)
         return
 
-    def _get_load_writer_funcs(
-        self, inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa
-    ) -> Set[bn.Function]:
-        """
-        This method returns the functions (other than `inst.function`) storing to the address
-        `inst` loads from (or the struct's address for struct loads), if it is a constant global
-        address in a writable segment (i.e. a global or static variable). Otherwise, it returns an
-        empty set.
-        """
-        writer_funcs: Set[bn.Function] = set()
-        match inst.src:
-            case bn.MediumLevelILConstPtr(constant=load_addr):
-                # Ensure rw- segment (only writable data can be stored)
-                segment = self.bv.get_segment_at(load_addr)
-                if (
-                    segment
-                    and segment.readable
-                    and segment.writable
-                    and not segment.executable
-                ):
-                    for code_ref in self.bv.get_code_refs(load_addr):
-                        if (
-                            code_ref.function is None
-                            or code_ref.function == inst.function.source_function
-                        ):
-                            continue
-                        if any(
-                            isinstance(
-                                mlil.ssa_form,
-                                bn.MediumLevelILStoreSsa
-                                | bn.MediumLevelILStoreStructSsa,
-                            )
-                            for mlil in code_ref.mlils
-                        ):
-                            writer_funcs.add(code_ref.function)
-        return writer_funcs
-
     def _get_load_writer_callee(
         self,
         call_inst: bn.MediumLevelILCallSsa
         | bn.MediumLevelILCallUntypedSsa
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntypedSsa,
-        writer_funcs: Set[bn.Function],
+        writer_funcs: FrozenSet[bn.Function],
         may_write: Dict[bn.Function, bool],
     ) -> bn.Function | None:
         """
@@ -522,7 +485,7 @@ class MediumLevelILBackwardSlicer:
         inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
         func: bn.Function,
         visiting: Set[bn.Function],
-        writer_funcs: Set[bn.Function],
+        writer_funcs: FrozenSet[bn.Function],
         may_write: Dict[bn.Function, bool],
     ) -> List[Tuple[bn.MediumLevelILInstruction, ...]]:
         """
@@ -595,7 +558,7 @@ class MediumLevelILBackwardSlicer:
         # Bytes loaded by `inst`, which a store must cover to end a path (must-def)
         read_bytes = set(range(inst.size))
         # Functions storing to the loaded address (only if it is a constant global address)
-        writer_funcs = self._get_load_writer_funcs(inst)
+        writer_funcs = InstructionHelper.get_load_writer_funcs(inst)
         may_write: Dict[bn.Function, bool] = {}
 
         # Slice stores (must-defs) and calls (may-defs) possibly defining the loaded memory
@@ -718,7 +681,7 @@ class MediumLevelILBackwardSlicer:
             return
         # Slice stores (may-defs) in functions not (transitively) called by `func`
         source_func = func.source_function
-        writer_funcs = self._get_load_writer_funcs(inst)
+        writer_funcs = InstructionHelper.get_load_writer_funcs(inst)
         may_write: Dict[bn.Function, bool] = {}
         for writer_func in sorted(writer_funcs, key=lambda func: func.start):
             if writer_func == source_func or FunctionHelper.calls(
@@ -750,16 +713,19 @@ class MediumLevelILBackwardSlicer:
         This method follows to the instructions possibly defining the memory loaded by `inst` in
         `inst.function` (see `_walk_load_mem_definitions`). If some path reaches the entry of
         `inst.function` (or the maximum memory slice depth) without a must-def, the load source
-        instruction is sliced too. If `inst` further loads from a constant global address (i.e. a
-        global or static variable), the loaded memory is followed to the callers like a parameter
-        (see `_slice_load_entry_mem_definitions`).
+        instruction is sliced too. In that case, if `inst` loads from a constant global address
+        (i.e. a global or static variable), the loaded memory is also followed to the callers like a
+        parameter (see `_slice_load_entry_mem_definitions`).
         """
+        # Walk the current function's memory chain from the load's memory version and slice the
+        # instructions possibly defining the loaded memory
         if not self._walk_load_mem_definitions(
             inst, inst.function, [inst.ssa_memory_version]
         ):
+            # Return early if all paths have a must-def
             return
         # Follow loaded memory to the callers (only for constant global addresses)
-        if self._get_load_writer_funcs(inst):
+        if InstructionHelper.get_load_writer_funcs(inst):
             self._slice_load_entry_mem_definitions(inst, inst.function)
         # Follow load source instruction
         load_src_inst_info = InstructionHelper.get_inst_info(inst.src, False)

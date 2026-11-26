@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import List, Optional, Set, Tuple
+from functools import lru_cache
+from typing import FrozenSet, List, Optional, Set, Tuple
 import binaryninja as bn
 
 
@@ -7,6 +8,16 @@ class InstructionHelper:
     """
     This class provides helper functions with respect to instructions.
     """
+
+    maxsize = 32
+
+    @staticmethod
+    def cache_clear() -> None:
+        """
+        This method clears all caches of this class.
+        """
+        InstructionHelper.get_load_writer_funcs.cache_clear()
+        return
 
     @staticmethod
     def replace_addr_tokens(
@@ -627,6 +638,49 @@ class InstructionHelper:
                     hlil_load_inst, hlil_store_inst, load_inst.size, store_inst.size
                 )
         return False
+
+    @staticmethod
+    @lru_cache(maxsize=maxsize)
+    def get_load_writer_funcs(
+        load_inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
+    ) -> FrozenSet[bn.Function]:
+        """
+        This method returns the functions (other than `load_inst.function`) storing to the address
+        the MLIL instruction `load_inst` loads from (or the struct's address for struct loads), if
+        it is a constant global address in a writable segment (i.e. a global or static variable).
+        Otherwise, it returns an empty set.
+
+        Example: `get_load_writer_funcs(<load [g].q in get_cmd>)` --> `{set_cmd}` (with `set_cmd`
+        storing to `g`)
+        """
+        writer_funcs: Set[bn.Function] = set()
+        match load_inst.src:
+            case bn.MediumLevelILConstPtr(constant=load_addr):
+                # Ensure rw- segment (only writable data can be stored)
+                bv = load_inst.function.view
+                segment = bv.get_segment_at(load_addr)
+                if (
+                    segment
+                    and segment.readable
+                    and segment.writable
+                    and not segment.executable
+                ):
+                    for code_ref in bv.get_code_refs(load_addr):
+                        if (
+                            code_ref.function is None
+                            or code_ref.function == load_inst.function.source_function
+                        ):
+                            continue
+                        if any(
+                            isinstance(
+                                mlil.ssa_form,
+                                bn.MediumLevelILStoreSsa
+                                | bn.MediumLevelILStoreStructSsa,
+                            )
+                            for mlil in code_ref.mlils
+                        ):
+                            writer_funcs.add(code_ref.function)
+        return frozenset(writer_funcs)
 
     @staticmethod
     def get_load_ptr_params(

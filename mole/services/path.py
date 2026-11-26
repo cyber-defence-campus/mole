@@ -806,6 +806,7 @@ class PathService(WorkerService):
         # Clear previous paths and caches
         self._paths.clear()
         FunctionHelper.cache_clear()
+        InstructionHelper.cache_clear()
         # Start background task
         self.start(
             thread_name="find",
