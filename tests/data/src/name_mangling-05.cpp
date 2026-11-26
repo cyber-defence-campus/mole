@@ -2,7 +2,9 @@
 
 /*
 Testcase Description:
-- Static data member of a class (C++ name mangling)
+- Static data members of a struct and a class (C++ name mangling)
+- Members written by a static initializer before `main`, which is not called on the path
+- Members read in static member functions called from `main`
 */
 
 struct MyStruct {
