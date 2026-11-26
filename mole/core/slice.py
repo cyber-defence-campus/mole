@@ -482,16 +482,16 @@ class MediumLevelILBackwardSlicer:
 
     def _get_load_store_chains(
         self,
-        inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
+        load_inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
         func: bn.Function,
         visiting: Set[bn.Function],
         writer_funcs: FrozenSet[bn.Function],
         may_write: Dict[bn.Function, bool],
     ) -> List[Tuple[bn.MediumLevelILInstruction, ...]]:
         """
-        This method returns the store chains of all stores to the memory loaded by `inst` in `func`
-        and its callees, without descending into the functions in `visiting` (the current call
-        path). A store chain is a tuple of calls leading to a store (see `_slice_store_chain`).
+        This method returns the store chains of all stores to the memory loaded by `load_inst` in
+        `func` and its callees, without descending into the functions in `visiting` (the current
+        call path). A store chain is a tuple of calls leading to a store (see `_slice_store_chain`).
         Stores are found by walking the SSA memory chain of `func` backwards from its return
         instructions, so that stores on all paths through the function are found.
         """
@@ -499,12 +499,14 @@ class MediumLevelILBackwardSlicer:
         mlil_func = func.mlil.ssa_form if func.mlil is not None else None
         if mlil_func is None:
             return store_chains
-        read_bytes = set(range(inst.size))
+        read_bytes = set(range(load_inst.size))
 
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             match mem_def_inst:
                 case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
-                    if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
+                    if InstructionHelper.is_load_store_overlapping(
+                        load_inst, mem_def_inst
+                    ):
                         store_chains.append((mem_def_inst,))
                         return read_bytes
                 case (
@@ -520,7 +522,7 @@ class MediumLevelILBackwardSlicer:
                         store_chains.extend(
                             (mem_def_inst, *store_chain)
                             for store_chain in self._get_load_store_chains(
-                                inst,
+                                load_inst,
                                 callee,
                                 visiting | {callee},
                                 writer_funcs,
@@ -538,14 +540,14 @@ class MediumLevelILBackwardSlicer:
 
     def _walk_load_mem_definitions(
         self,
-        inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
+        load_inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
         func: bn.MediumLevelILFunction,
         mem_versions: Iterable[int],
     ) -> bool:
         """
         This method walks the SSA memory chain of function `func` backwards from the memory versions
-        `mem_versions` and follows the instructions possibly defining the memory loaded by `inst`
-        (a load or struct load):
+        `mem_versions` and follows the instructions possibly defining the memory loaded by
+        `load_inst` (a load or struct load):
         - Stores (or struct stores) overlapping the loaded memory are must-defs, i.e. they end the
           path through the SSA memory chain they are on
         - Calls into (transitive) callees storing to the loaded memory are may-defs (only possible
@@ -554,11 +556,11 @@ class MediumLevelILBackwardSlicer:
         The method returns whether some path reached the entry of `func` (or the maximum memory
         slice depth) without a must-def.
         """
-        inst_info = InstructionHelper.get_inst_info(inst, False)
-        # Bytes loaded by `inst`, which a store must cover to end a path (must-def)
-        read_bytes = set(range(inst.size))
+        load_inst_info = InstructionHelper.get_inst_info(load_inst, False)
+        # Bytes loaded by `load_inst`, which a store must cover to end a path (must-def)
+        read_bytes = set(range(load_inst.size))
         # Functions storing to the loaded address (only if it is a constant global address)
-        writer_funcs = InstructionHelper.get_load_writer_funcs(inst)
+        writer_funcs = InstructionHelper.get_load_writer_funcs(load_inst)
         may_write: Dict[bn.Function, bool] = {}
 
         # Slice stores (must-defs) and calls (may-defs) possibly defining the loaded memory
@@ -567,11 +569,13 @@ class MediumLevelILBackwardSlicer:
             match mem_def_inst:
                 # Overlapping store is a must-def (even if followed before)
                 case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
-                    if InstructionHelper.is_load_store_overlapping(inst, mem_def_inst):
+                    if InstructionHelper.is_load_store_overlapping(
+                        load_inst, mem_def_inst
+                    ):
                         if not self._is_mem_def_inst_followed(mem_def_inst):
                             self.log.debug(
                                 self._tag,
-                                f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the memory loaded by '{inst_info:s}'",
+                                f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the memory loaded by '{load_inst_info:s}'",
                             )
                             self._call_tracker.push_mem_def_inst(mem_def_inst)
                             self._slice_backwards(mem_def_inst)
@@ -588,7 +592,7 @@ class MediumLevelILBackwardSlicer:
                     )
                     store_chains = (
                         self._get_load_store_chains(
-                            inst,
+                            load_inst,
                             callee,
                             {func.source_function, callee},
                             writer_funcs,
@@ -599,60 +603,65 @@ class MediumLevelILBackwardSlicer:
                     )
                     # Parameters through which the callee may write the loaded memory
                     call_params = InstructionHelper.get_load_ptr_params(
-                        inst, mem_def_inst
+                        load_inst, mem_def_inst
                     )
                     # Slice relevant call unless followed before
                     if (
                         store_chains or call_params
                     ) and not self._is_mem_def_inst_followed(mem_def_inst):
                         for store_chain in store_chains:
-                            self._slice_store_chain(inst, (mem_def_inst, *store_chain))
+                            self._slice_store_chain(
+                                load_inst, (mem_def_inst, *store_chain)
+                            )
                         if call_params:
-                            self._slice_load_ptr_call(inst, mem_def_inst, call_params)
+                            self._slice_load_ptr_call(
+                                load_inst, mem_def_inst, call_params
+                            )
             return set()
 
         return self._walk_ssa_mem_definitions(func, mem_versions, read_bytes, visit)
 
     def _slice_load_caller_mem_definitions(
         self,
-        inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
+        load_inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
         call_inst: bn.MediumLevelILCallSsa
         | bn.MediumLevelILCallUntypedSsa
         | bn.MediumLevelILTailcallSsa
         | bn.MediumLevelILTailcallUntypedSsa,
     ) -> None:
         """
-        This method follows the memory loaded by `inst` (from a constant global address) in the
+        This method follows the memory loaded by `load_inst` (from a constant global address) in the
         caller containing `call_inst`, by walking the caller's SSA memory chain backwards from
         `call_inst`. If some path reaches the caller's entry without a must-def, the loaded memory
         is followed further up the call graph (see `_slice_load_entry_mem_definitions`).
         """
         if self._walk_load_mem_definitions(
-            inst, call_inst.function, [call_inst.ssa_memory_version]
+            load_inst, call_inst.function, [call_inst.ssa_memory_version]
         ):
-            self._slice_load_entry_mem_definitions(inst, call_inst.function)
+            self._slice_load_entry_mem_definitions(load_inst, call_inst.function)
         return
 
     def _slice_load_entry_mem_definitions(
         self,
-        inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
+        load_inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa,
         func: bn.MediumLevelILFunction,
     ) -> None:
         """
-        This method follows the memory loaded by `inst` (from a constant global address) to the
+        This method follows the memory loaded by `load_inst` (from a constant global address) to the
         callers of function `func`, since some path reached its entry without a must-def. Like a
-        parameter, the loaded memory is followed in the specific caller when going down the call
-        graph, and in all possible callers otherwise. If `func` has no callers, stores in functions
-        not (transitively) called by `func` (e.g. static initializers) are sliced as may-defs.
+        parameter, the loaded memory is followed in the specific caller if `func` was entered from
+        a call (going down the call graph), and in all possible callers otherwise. If `func` has no
+        callers, stores in functions not (transitively) called by `func` (e.g. static initializers)
+        are sliced as may-defs.
         """
-        inst_info = InstructionHelper.get_inst_info(inst, False)
+        load_inst_info = InstructionHelper.get_inst_info(load_inst, False)
         # Follow the loaded memory in the specific caller later
         if self._call_tracker.is_going_downwards():
             self.log.debug(
                 self._tag,
-                f"Follow memory loaded by '{inst_info:s}' when going back to specific caller",
+                f"Follow memory loaded by '{load_inst_info:s}' when going back to specific caller",
             )
-            self._call_tracker.add_hit_load_inst(inst)
+            self._call_tracker.add_hit_load_inst(load_inst)
             return
         # Follow the loaded memory to all possible callers
         call_insts = FunctionHelper.get_mlil_direct_call_insts(
@@ -666,22 +675,22 @@ class MediumLevelILBackwardSlicer:
             if recursion:
                 self.log.debug(
                     self._tag,
-                    f"Do not follow memory loaded by '{inst_info:s}' to possible caller '{call_inst_info:s}' since recursion detected",
+                    f"Do not follow memory loaded by '{load_inst_info:s}' to possible caller '{call_inst_info:s}' since recursion detected",
                 )
             else:
                 self.log.debug(
                     self._tag,
-                    f"Follow memory loaded by '{inst_info:s}' to possible caller '{call_inst_info:s}'",
+                    f"Follow memory loaded by '{load_inst_info:s}' to possible caller '{call_inst_info:s}'",
                 )
                 self._call_tracker.push_inst(call_inst)
-                self._slice_load_caller_mem_definitions(inst, call_inst)
+                self._slice_load_caller_mem_definitions(load_inst, call_inst)
                 self._call_tracker.pop_inst()
             self._call_tracker.pop_func()
         if call_insts:
             return
         # Slice stores (may-defs) in functions not (transitively) called by `func`
         source_func = func.source_function
-        writer_funcs = InstructionHelper.get_load_writer_funcs(inst)
+        writer_funcs = InstructionHelper.get_load_writer_funcs(load_inst)
         may_write: Dict[bn.Function, bool] = {}
         for writer_func in sorted(writer_funcs, key=lambda func: func.start):
             if writer_func == source_func or FunctionHelper.calls(
@@ -689,7 +698,11 @@ class MediumLevelILBackwardSlicer:
             ):
                 continue
             for store_chain in self._get_load_store_chains(
-                inst, writer_func, {source_func, writer_func}, writer_funcs, may_write
+                load_inst,
+                writer_func,
+                {source_func, writer_func},
+                writer_funcs,
+                may_write,
             ):
                 # Push writer function (not called by `func`, so the graph edge is no actual call
                 # and reached parameters are followed to its callers)
@@ -702,7 +715,7 @@ class MediumLevelILBackwardSlicer:
                         f"Do not follow writer function '{writer_func.symbol.short_name:s}' since recursion detected",
                     )
                 else:
-                    self._slice_store_chain(inst, store_chain)
+                    self._slice_store_chain(load_inst, store_chain)
                 self.__pop_func_and_slice_in_caller()
         return
 
@@ -717,15 +730,18 @@ class MediumLevelILBackwardSlicer:
         (i.e. a global or static variable), the loaded memory is also followed to the callers like a
         parameter (see `_slice_load_entry_mem_definitions`).
         """
-        # Walk the current function's memory chain from the load's memory version and slice the
-        # instructions possibly defining the loaded memory
+        # Walk the current function's memory chain from the load instruction's memory version and
+        # slice the instructions possibly defining the loaded memory
         if not self._walk_load_mem_definitions(
             inst, inst.function, [inst.ssa_memory_version]
         ):
             # Return early if all paths have a must-def
             return
-        # Follow loaded memory to the callers (only for constant global addresses)
+        # Get the functions writing the loaded memory (only for loads from a constant global
+        # address)
         if InstructionHelper.get_load_writer_funcs(inst):
+            # Follow the loaded memory to callers of the current function (or, if it has none, to
+            # other functions writing it)
             self._slice_load_entry_mem_definitions(inst, inst.function)
         # Follow load source instruction
         load_src_inst_info = InstructionHelper.get_inst_info(inst.src, False)
