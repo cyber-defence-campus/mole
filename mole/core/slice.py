@@ -291,13 +291,14 @@ class MediumLevelILBackwardSlicer:
         visit: Callable[[bn.MediumLevelILInstruction], Set[int]],
     ) -> bool:
         """
-        This method walks the SSA memory chain of function `func` backwards, starting at the memory
-        versions `mem_versions`. Each (non-phi) memory defining instruction is passed once to
-        `visit`, which slices it if relevant and returns the bytes in `read_bytes` it defines. At a
-        mem phi-node, each source memory version is walked as a separate path, which ends once its
-        bytes in `read_bytes` are fully defined. The method returns whether any path reached the
-        entry of `func` (or the maximum memory slice depth) with bytes in `read_bytes` undefined.
+        This method walks the SSA memory chain of function `func` backwards from the memory versions
+        `mem_versions`. Each (non-phi) memory defining instruction is passed once to `visit`, which
+        slices it if relevant and returns the bytes in `read_bytes` it defines. A path ends once its
+        bytes in `read_bytes` are fully defined; at a mem phi-node, each source memory version is
+        walked as a separate path. The method returns whether some path reached the entry of `func`
+        (or the maximum memory slice depth) with bytes in `read_bytes` undefined.
         """
+        # Whether some path reached the entry with bytes undefined (return value)
         undef_at_entry = False
         # Undefined bytes each memory version was visited with
         visited: Dict[int, Set[int]] = {}
@@ -309,10 +310,10 @@ class MediumLevelILBackwardSlicer:
         )
         while queue:
             mem_version, undef_bytes = queue.popleft()
-            # Ignore memory version if visited before with the same undefined bytes
+            # Ignore memory version if visited before with (at least) these undefined bytes
             if undef_bytes <= visited.get(mem_version, set()):
                 continue
-            # Break if maximum number of memory versions visited
+            # Stop at the maximum memory slice depth (counts as reaching the entry)
             if (
                 self._max_memory_slice_depth >= 0
                 and len(visited) >= self._max_memory_slice_depth
@@ -322,10 +323,10 @@ class MediumLevelILBackwardSlicer:
             visited[mem_version] = visited.get(mem_version, set()) | undef_bytes
             mem_def_inst = func.get_ssa_memory_definition(mem_version)
             match mem_def_inst:
-                # Memory version is not defined within `func`
+                # Path reached the entry of `func` (memory version not defined within it)
                 case None:
                     undef_at_entry = True
-                # Memory version can be defined by multiple paths (mem phi-node)
+                # Mem phi-node: walk each source memory version as a separate path
                 case bn.MediumLevelILMemPhi(src_memory=src_memory_versions):
                     queue.extend(
                         (src_memory_version, undef_bytes)
@@ -333,7 +334,7 @@ class MediumLevelILBackwardSlicer:
                     )
                 # Visit memory defining instruction and continue with the still undefined bytes
                 case _:
-                    # Visit (and thus slice) each instruction only once, even if on multiple paths
+                    # Visit (and possibly slice) each instruction only once, even on multiple paths
                     if mem_def_inst not in def_bytes:
                         def_bytes[mem_def_inst] = visit(mem_def_inst)
                     # Continue with the previous memory version unless all bytes are defined
@@ -546,21 +547,21 @@ class MediumLevelILBackwardSlicer:
     ) -> bool:
         """
         This method walks the SSA memory chain of function `func` backwards from the memory versions
-        `mem_versions` and follows the instructions possibly defining the memory loaded by
+        `mem_versions` and slices the instructions possibly defining the memory loaded by
         `load_inst` (a load or struct load):
         - Stores (or struct stores) overlapping the loaded memory are must-defs, i.e. they end the
           path through the SSA memory chain they are on
-        - Calls into (transitive) callees storing to the loaded memory are may-defs (only possible
+        - Calls into callees that (transitively) write the loaded memory are may-defs (only possible
           for loads from a constant global address), as are calls getting a pointer into the loaded
           memory object
         The method returns whether some path reached the entry of `func` (or the maximum memory
         slice depth) without a must-def.
         """
-        load_inst_info = InstructionHelper.get_inst_info(load_inst, False)
-        # Bytes loaded by `load_inst`, which a store must cover to end a path (must-def)
+        # Bytes loaded by `load_inst`
         read_bytes = set(range(load_inst.size))
-        # Functions storing to the loaded address (only if it is a constant global address)
+        # Functions writing the loaded memory (only for loads from a constant global address)
         writer_funcs = InstructionHelper.get_load_writer_funcs(load_inst)
+        # Cache of whether a callee is or (transitively) calls a function in `writer_funcs`
         may_write: Dict[bn.Function, bool] = {}
 
         # Slice stores (must-defs) and calls (may-defs) possibly defining the loaded memory
@@ -573,6 +574,9 @@ class MediumLevelILBackwardSlicer:
                         load_inst, mem_def_inst
                     ):
                         if not self._is_mem_def_inst_followed(mem_def_inst):
+                            load_inst_info = InstructionHelper.get_inst_info(
+                                load_inst, False
+                            )
                             self.log.debug(
                                 self._tag,
                                 f"Follow store instruction '{mem_def_inst_info:s}' since it overlaps the memory loaded by '{load_inst_info:s}'",
@@ -619,6 +623,7 @@ class MediumLevelILBackwardSlicer:
                             )
             return set()
 
+        # Walk the memory chain and return whether some path reached the entry without a must-def
         return self._walk_ssa_mem_definitions(func, mem_versions, read_bytes, visit)
 
     def _slice_load_caller_mem_definitions(
@@ -690,7 +695,9 @@ class MediumLevelILBackwardSlicer:
             return
         # Slice stores (may-defs) in functions not (transitively) called by `func`
         source_func = func.source_function
+        # Functions writing the loaded memory (only for loads from a constant global address)
         writer_funcs = InstructionHelper.get_load_writer_funcs(load_inst)
+        # Cache of whether a callee is or (transitively) calls a function in `writer_funcs`
         may_write: Dict[bn.Function, bool] = {}
         for writer_func in sorted(writer_funcs, key=lambda func: func.start):
             if writer_func == source_func or FunctionHelper.calls(
@@ -723,12 +730,13 @@ class MediumLevelILBackwardSlicer:
         self, inst: bn.MediumLevelILLoadSsa | bn.MediumLevelILLoadStructSsa
     ) -> None:
         """
-        This method follows to the instructions possibly defining the memory loaded by `inst` in
+        This method slices the instructions possibly defining the memory loaded by `inst` in
         `inst.function` (see `_walk_load_mem_definitions`). If some path reaches the entry of
-        `inst.function` (or the maximum memory slice depth) without a must-def, the load source
-        instruction is sliced too. In that case, if `inst` loads from a constant global address
-        (i.e. a global or static variable), the loaded memory is also followed to the callers like a
-        parameter (see `_slice_load_entry_mem_definitions`).
+        `inst.function` (or the maximum memory slice depth) without a must-def:
+        - If other functions write the loaded memory (only for loads from a constant global
+          address), it is followed to the callers of `inst.function` like a parameter (see
+          `_slice_load_entry_mem_definitions`)
+        - The load source instruction is sliced
         """
         # Walk the current function's memory chain from the load instruction's memory version and
         # slice the instructions possibly defining the loaded memory
@@ -880,7 +888,7 @@ class MediumLevelILBackwardSlicer:
             )
         return
 
-    def _slice_callee_out_param_definitions(
+    def _slice_callee_out_param_mem_definitions(
         self,
         inst: bn.MediumLevelILCallSsa
         | bn.MediumLevelILCallUntypedSsa
@@ -1052,7 +1060,7 @@ class MediumLevelILBackwardSlicer:
                     # Proceed slicing the relevant output parameters, if we followed the call due
                     # to reaching them
                     if call_params:
-                        self._slice_callee_out_param_definitions(
+                        self._slice_callee_out_param_mem_definitions(
                             inst, dest_func, call_params
                         )
                         return
