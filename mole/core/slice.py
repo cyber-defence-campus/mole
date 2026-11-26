@@ -462,9 +462,9 @@ class MediumLevelILBackwardSlicer:
         may_write: Dict[bn.Function, bool],
     ) -> bn.Function | None:
         """
-        This method returns the callee of `call_inst` if it is or (transitively) calls a function in
-        `writer_funcs`, i.e. if it may write the loaded memory. Otherwise, it returns `None`.
-        `may_write` caches the result per callee.
+        This method returns the callee of the direct call `call_inst` if it is or (transitively)
+        calls a function in `writer_funcs`, i.e. if it may write the loaded memory. Otherwise
+        (including for indirect calls), it returns `None`. `may_write` caches the result per callee.
         """
         match call_inst.dest:
             case (
@@ -492,26 +492,34 @@ class MediumLevelILBackwardSlicer:
         may_write: Dict[bn.Function, bool],
     ) -> List[Tuple[bn.MediumLevelILInstruction, ...]]:
         """
-        This method returns the store chains of all stores to the memory loaded by `load_inst` in
-        `func` and its callees, without descending into the functions in `visiting` (the current
-        call path). A store chain is a tuple of calls leading to a store (see `_slice_store_chain`).
-        Stores are found by walking the SSA memory chain of `func` backwards from its return
-        instructions, so that stores on all paths through the function are found.
+        This method returns the store chains of the stores reached from `func` that may define the
+        memory loaded by `load_inst` when `func` returns, without descending into the functions in
+        `visiting` (the current call path). A store chain is a tuple of calls leading to a store
+        (see `_slice_store_chain`). The SSA memory chain of `func` is walked backwards from its
+        return instructions: an overlapping store is a must-def and ends its path, and calls into
+        callees that (transitively) write the loaded memory are followed into the callee.
         """
+        # Store chains to the stores that may define the loaded memory (return value)
         store_chains: List[Tuple[bn.MediumLevelILInstruction, ...]] = []
+        # MLIL SSA form of `func`
         mlil_func = func.mlil.ssa_form if func.mlil is not None else None
         if mlil_func is None:
             return store_chains
+        # Bytes loaded by `load_inst`
         read_bytes = set(range(load_inst.size))
 
+        # Collect overlapping stores (must-defs) and store chains through writing callees (may-defs)
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
             match mem_def_inst:
+                # Overlapping store is a must-def (collected as store chain of its own)
                 case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
                     if InstructionHelper.is_load_store_overlapping(
                         load_inst, mem_def_inst
                     ):
                         store_chains.append((mem_def_inst,))
                         return read_bytes
+                # Call into a callee writing the loaded memory is a may-def (its store chains are
+                # collected with the call prepended, unless the callee is on the current call path)
                 case (
                     bn.MediumLevelILCallSsa()
                     | bn.MediumLevelILCallUntypedSsa()
@@ -534,10 +542,12 @@ class MediumLevelILBackwardSlicer:
                         )
             return set()
 
+        # Memory versions at the return instructions of `func`
         ret_mem_versions = [
             ret_inst.ssa_memory_version
             for ret_inst in FunctionHelper.get_mlil_return_insts(mlil_func)
         ]
+        # Walk the memory chain backwards from all return instructions to collect the store chains
         self._walk_ssa_mem_definitions(mlil_func, ret_mem_versions, read_bytes, visit)
         return store_chains
 
@@ -588,17 +598,20 @@ class MediumLevelILBackwardSlicer:
                             self._call_tracker.push_mem_def_inst(mem_def_inst)
                             self._slice_backwards(mem_def_inst)
                         return read_bytes
-                # Call possibly writing the loaded memory is a may-def (unless followed before)
+                # Call possibly writing the loaded memory is a may-def (not sliced again if followed
+                # before)
                 case (
                     bn.MediumLevelILCallSsa()
                     | bn.MediumLevelILCallUntypedSsa()
                     | bn.MediumLevelILTailcallSsa()
                     | bn.MediumLevelILTailcallUntypedSsa()
                 ):
-                    # Store chains through the callee if it (transitively) writes the loaded memory
+                    # Callee if it (transitively) writes the loaded memory
                     callee = self._get_load_writer_callee(
                         mem_def_inst, writer_funcs, may_write
                     )
+                    # Store chains to the stores through the callee that may define the loaded
+                    # memory
                     store_chains = (
                         self._get_load_store_chains(
                             load_inst,
