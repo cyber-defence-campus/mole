@@ -717,7 +717,8 @@ class MediumLevelILBackwardSlicer:
         writer_funcs = InstructionHelper.get_load_writer_funcs(load_inst)
         # Cache of whether a callee is or (transitively) calls a function in `writer_funcs`
         may_write: Dict[bn.Function, bool] = {}
-        for writer_func in sorted(writer_funcs, key=lambda func: func.start):
+        for writer_func in sorted(writer_funcs, key=lambda f: f.start):
+            # Skip `func` and writers it calls (covered by its memory chain walk)
             if writer_func == source_func or FunctionHelper.calls(
                 source_func, writer_func
             ):
