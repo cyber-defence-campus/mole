@@ -707,17 +707,25 @@ class InstructionHelper:
         if load_addr is None or load_addr[0] is None:
             return set()
         load_base = load_addr[0]
-        # Get the HLIL call instruction (possibly assigned to variables)
-        hlil_call_inst = call_inst.hlil.ssa_form
-        match hlil_call_inst:
-            case (
-                bn.HighLevelILVarInitSsa(src=src)
-                | bn.HighLevelILAssignUnpackMemSsa(src=src)
+
+        # Find the HLIL call instruction at the address of `call_inst` (possibly nested, e.g. in an
+        # assignment)
+        def find_hlil_call_inst(
+            inst: bn.HighLevelILInstruction, *args, **kwargs
+        ) -> bn.HighLevelILCallSsa | bn.HighLevelILTailcall | None:
+            if (
+                isinstance(inst, bn.HighLevelILCallSsa | bn.HighLevelILTailcall)
+                and inst.address == call_inst.address
             ):
-                hlil_call_inst = src
-        if not isinstance(
-            hlil_call_inst, bn.HighLevelILCallSsa | bn.HighLevelILTailcall
-        ):
+                return inst
+            return None
+
+        # Get the first matching HLIL call instruction (no parameters if there is none)
+        hlil_call_inst = next(
+            (i for i in call_inst.hlil.ssa_form.traverse(find_hlil_call_inst) if i),
+            None,
+        )
+        if hlil_call_inst is None:
             return set()
         # Find parameters holding a pointer with the same base
         param_idxs: Set[int] = set()
@@ -725,6 +733,7 @@ class InstructionHelper:
             param_addr = InstructionHelper.get_ptr_value_addr(param_inst)
             if param_addr is None or param_addr[0] is None:
                 continue
-            if InstructionHelper.is_value_equivalent(load_base, param_addr[0]):
+            param_base = param_addr[0]
+            if InstructionHelper.is_value_equivalent(load_base, param_base):
                 param_idxs.add(param_idx)
         return param_idxs

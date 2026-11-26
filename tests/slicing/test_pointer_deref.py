@@ -142,3 +142,7 @@ class TestPointerDeref(TestSlicing):
             filenames=filenames,
         )
         return
+
+    def test_load_19(self, filenames: List[str] = ["load-19"]) -> None:
+        self.test_load_13(filenames=filenames)
+        return
