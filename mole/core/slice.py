@@ -398,7 +398,7 @@ class MediumLevelILBackwardSlicer:
             load_inst_info = InstructionHelper.get_inst_info(load_inst, False)
             self.log.debug(
                 self._tag,
-                f"Follow store instruction '{mem_def_inst_info:s}' since it may overlap the memory loaded by '{load_inst_info:s}'",
+                f"Follow store instruction '{mem_def_inst_info:s}' since it may define the memory loaded by '{load_inst_info:s}'",
             )
             self._call_tracker.push_mem_def_inst(mem_def_inst)
             self._slice_backwards(mem_def_inst)
