@@ -105,12 +105,12 @@ class MediumLevelILBackwardSlicer:
         params_info = "parameter " if len(param_idxs) == 1 else "parameters "
         return params_info + ", ".join(map(str, sorted(param_idxs)))
 
-    def _is_mem_def_inst_followed(
+    def _is_mem_def_inst_followed_before(
         self, mem_def_inst: bn.MediumLevelILInstruction
     ) -> bool:
         """
         This method returns whether the memory defining instruction `mem_def_inst` was followed
-        before in the current call frame.
+        before in the current call frame (and if so, logs that it is not followed again).
         """
         if not self._call_tracker.is_in_current_mem_def_insts(mem_def_inst):
             return False
@@ -158,7 +158,7 @@ class MediumLevelILBackwardSlicer:
                     == dest_ssa_var.version
                     <= ssa_var.version
                 ):
-                    if not self._is_mem_def_inst_followed(mem_def_inst):
+                    if not self._is_mem_def_inst_followed_before(mem_def_inst):
                         self.log.debug(
                             self._tag,
                             f"Follow instruction '{mem_def_inst_info:s}' since it writes aliased variable '{ssa_var_info:s}'",
@@ -185,7 +185,7 @@ class MediumLevelILBackwardSlicer:
                     and dest_offset < read_offset + read_size
                     and read_offset < dest_offset + dest_size
                 ):
-                    if not self._is_mem_def_inst_followed(mem_def_inst):
+                    if not self._is_mem_def_inst_followed_before(mem_def_inst):
                         self.log.debug(
                             self._tag,
                             f"Follow instruction '{mem_def_inst_info:s}' since it writes bytes [{dest_offset:d}, {dest_offset + dest_size:d}) of aliased variable '{ssa_var_info:s}' overlapping [{read_offset:d}, {read_offset + read_size:d})",
@@ -267,7 +267,9 @@ class MediumLevelILBackwardSlicer:
                             ):
                                 call_params.add(param_idx)
                 # Slice the call instruction if we need to follow any parameter
-                if call_params and not self._is_mem_def_inst_followed(mem_def_inst):
+                if call_params and not self._is_mem_def_inst_followed_before(
+                    mem_def_inst
+                ):
                     hlil_inst_str = (
                         f" (HLIL: {str(call_inst):s}{call_offset:+d})"
                         if call_inst is not None
@@ -566,14 +568,16 @@ class MediumLevelILBackwardSlicer:
 
         # Slice stores (must-defs) and calls (may-defs) possibly defining the loaded memory
         def visit(mem_def_inst: bn.MediumLevelILInstruction) -> Set[int]:
-            mem_def_inst_info = InstructionHelper.get_inst_info(mem_def_inst, False)
             match mem_def_inst:
                 # Overlapping store is a must-def (even if followed before)
                 case bn.MediumLevelILStoreSsa() | bn.MediumLevelILStoreStructSsa():
                     if InstructionHelper.is_load_store_overlapping(
                         load_inst, mem_def_inst
                     ):
-                        if not self._is_mem_def_inst_followed(mem_def_inst):
+                        if not self._is_mem_def_inst_followed_before(mem_def_inst):
+                            mem_def_inst_info = InstructionHelper.get_inst_info(
+                                mem_def_inst, False
+                            )
                             load_inst_info = InstructionHelper.get_inst_info(
                                 load_inst, False
                             )
@@ -584,6 +588,7 @@ class MediumLevelILBackwardSlicer:
                             self._call_tracker.push_mem_def_inst(mem_def_inst)
                             self._slice_backwards(mem_def_inst)
                         return read_bytes
+                # Call possibly writing the loaded memory is a may-def (unless followed before)
                 case (
                     bn.MediumLevelILCallSsa()
                     | bn.MediumLevelILCallUntypedSsa()
@@ -612,7 +617,7 @@ class MediumLevelILBackwardSlicer:
                     # Slice relevant call unless followed before
                     if (
                         store_chains or call_params
-                    ) and not self._is_mem_def_inst_followed(mem_def_inst):
+                    ) and not self._is_mem_def_inst_followed_before(mem_def_inst):
                         for store_chain in store_chains:
                             self._slice_store_chain(
                                 load_inst, (mem_def_inst, *store_chain)
@@ -865,7 +870,9 @@ class MediumLevelILBackwardSlicer:
                                 constant == inst.constant
                             ):
                                 param_idxs.add(param_idx)
-                    if param_idxs and not self._is_mem_def_inst_followed(mem_def_inst):
+                    if param_idxs and not self._is_mem_def_inst_followed_before(
+                        mem_def_inst
+                    ):
                         params_info = self._get_params_info(param_idxs)
                         self.log.debug(
                             self._tag,
